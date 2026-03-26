@@ -4,6 +4,16 @@ import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -33,67 +43,60 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center">
-      <div className="w-full max-w-sm space-y-6 p-6">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold">Sign in</h1>
-          <p className="text-muted-foreground text-sm">
-            Sign in to whoamipaying.co.uk
-          </p>
-        </div>
-
-        <form onSubmit={handleLogin} className="space-y-4">
-          {error && (
-            <div className="bg-destructive/10 text-destructive rounded-md p-3 text-sm">
-              {error}
+    <div className="flex min-h-screen flex-col items-center justify-center px-4">
+      <Link href="/" className="mb-8 text-2xl font-bold">
+        WhoAmIPaying
+      </Link>
+      <Card className="w-full max-w-sm">
+        <CardHeader className="text-center">
+          <CardTitle className="text-xl">Welcome back</CardTitle>
+          <CardDescription>
+            Sign in to your account to continue
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleLogin} className="space-y-4">
+            {error && (
+              <div className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                {error}
+              </div>
+            )}
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                placeholder="you@example.com"
+              />
             </div>
-          )}
-
-          <div className="space-y-2">
-            <label htmlFor="email" className="text-sm font-medium">
-              Email
-            </label>
-            <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className="border-input bg-background w-full rounded-md border px-3 py-2 text-sm"
-              placeholder="you@example.com"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label htmlFor="password" className="text-sm font-medium">
-              Password
-            </label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              className="border-input bg-background w-full rounded-md border px-3 py-2 text-sm"
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="bg-primary text-primary-foreground hover:bg-primary/90 w-full rounded-md px-4 py-2 text-sm font-medium disabled:opacity-50"
-          >
-            {loading ? "Signing in..." : "Sign in"}
-          </button>
-        </form>
-
-        <p className="text-muted-foreground text-center text-sm">
-          Don&apos;t have an account?{" "}
-          <Link href="/auth/signup" className="text-primary underline">
-            Sign up
-          </Link>
-        </p>
-      </div>
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+            </div>
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? "Signing in..." : "Sign in"}
+            </Button>
+          </form>
+          <p className="mt-4 text-center text-sm text-muted-foreground">
+            Don&apos;t have an account?{" "}
+            <Link
+              href="/auth/signup"
+              className="font-medium text-primary underline underline-offset-4"
+            >
+              Sign up
+            </Link>
+          </p>
+        </CardContent>
+      </Card>
     </div>
   );
 }
