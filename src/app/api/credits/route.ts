@@ -43,12 +43,27 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { quantity } = body;
+    const { credits } = body;
 
-    if (!quantity || quantity < 1) {
+    const TIERS: Record<number, { envKey: string; credits: number }> = {
+      10: { envKey: "STRIPE_PRICE_ID_10", credits: 10 },
+      50: { envKey: "STRIPE_PRICE_ID_50", credits: 50 },
+      200: { envKey: "STRIPE_PRICE_ID_200", credits: 200 },
+    };
+
+    const tier = TIERS[credits as number];
+    if (!tier) {
       return NextResponse.json(
-        { error: "quantity must be at least 1" },
+        { error: "Invalid credit tier. Choose 10, 50, or 200." },
         { status: 400 }
+      );
+    }
+
+    const priceId = process.env[tier.envKey];
+    if (!priceId) {
+      return NextResponse.json(
+        { error: `Stripe is not configured. Set ${tier.envKey} in your environment variables.` },
+        { status: 503 }
       );
     }
 
@@ -57,13 +72,13 @@ export async function POST(request: NextRequest) {
       customer_email: user.email!,
       line_items: [
         {
-          price: process.env.STRIPE_CREDIT_PRICE_ID!,
-          quantity,
+          price: priceId,
+          quantity: 1,
         },
       ],
       metadata: {
         user_id: user.id,
-        credits: quantity.toString(),
+        credits: tier.credits.toString(),
       },
       success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?payment=success`,
       cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?payment=cancelled`,

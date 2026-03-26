@@ -22,20 +22,31 @@ const PLANS = [
 export function BuyCreditsDialog() {
   const [selected, setSelected] = useState(50);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function handlePurchase() {
     setLoading(true);
+    setError(null);
     try {
       const res = await fetch("/api/credits", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ quantity: selected }),
+        body: JSON.stringify({ credits: selected }),
       });
       const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Something went wrong");
+        setLoading(false);
+        return;
+      }
       if (data.url) {
         window.location.href = data.url;
+      } else {
+        setError("No checkout URL returned");
+        setLoading(false);
       }
     } catch {
+      setError("Failed to connect. Please try again.");
       setLoading(false);
     }
   }
@@ -71,6 +82,12 @@ export function BuyCreditsDialog() {
             </button>
           ))}
         </div>
+
+        {error && (
+          <div className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            {error}
+          </div>
+        )}
 
         <div className="flex justify-end gap-2">
           <DialogClose render={<Button variant="outline" disabled={loading} />}>
