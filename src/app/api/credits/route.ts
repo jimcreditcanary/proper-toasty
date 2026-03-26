@@ -46,9 +46,9 @@ export async function POST(request: NextRequest) {
     const { credits } = body;
 
     const TIERS: Record<number, { envKey: string; credits: number }> = {
-      10: { envKey: "STRIPE_PRICE_ID_10", credits: 10 },
-      50: { envKey: "STRIPE_PRICE_ID_50", credits: 50 },
-      200: { envKey: "STRIPE_PRICE_ID_200", credits: 200 },
+      10: { envKey: "STRIPE_PRICE_5_CREDITS", credits: 10 },
+      50: { envKey: "STRIPE_PRICE_20_CREDITS", credits: 50 },
+      200: { envKey: "STRIPE_PRICE_60_CREDITS", credits: 200 },
     };
 
     const tier = TIERS[credits as number];
