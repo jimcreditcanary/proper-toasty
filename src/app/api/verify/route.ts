@@ -40,24 +40,39 @@ async function lookupHmrcVat(vatNumber: string) {
   return { found: true, data: await res.json() };
 }
 
-async function verifyBankAccount(accountNumber: string, accountName: string) {
+async function verifyBankAccount(
+  accountNumber: string,
+  accountName: string,
+  sortCode: string,
+  scanId: string
+) {
   const apiUrl = process.env.BANK_VERIFY_API_URL!;
   const apiKey = process.env.BANK_VERIFY_API_KEY!;
+  const orgName = process.env.BANK_VERIFY_ORG_NAME!;
+
+  // Strip any dashes/spaces from sort code
+  const cleanSortCode = sortCode.replace(/[-\s]/g, "");
 
   const res = await fetch(apiUrl, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      "Organization-Name": orgName,
       Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      account_number: accountNumber,
-      account_name: accountName,
+      applicationId: scanId,
+      customerId: scanId,
+      customerName: accountName,
+      bankAccount: accountNumber,
+      sortCode: cleanSortCode,
+      accountType: "Business",
     }),
   });
 
   if (!res.ok) {
-    return { verified: false, error: `HTTP ${res.status}` };
+    const errorBody = await res.text().catch(() => "");
+    return { verified: false, error: `HTTP ${res.status}`, details: errorBody };
   }
 
   return { verified: true, data: await res.json() };
@@ -138,9 +153,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (scan.account_number && scan.company_name) {
+    if (scan.account_number && scan.company_name && scan.sort_code) {
       promises.push(
-        verifyBankAccount(scan.account_number, scan.company_name).then((r) => {
+        verifyBankAccount(
+          scan.account_number,
+          scan.company_name,
+          scan.sort_code,
+          scan_id
+        ).then((r) => {
           results.bank_verify = r;
         })
       );
