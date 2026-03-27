@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
     const admin = createAdminClient();
 
     // Record payment
-    await admin.from("payments").insert({
+    const { error: paymentError } = await admin.from("payments").insert({
       user_id: userId,
       stripe_session_id: session.id,
       stripe_payment_intent_id:
@@ -49,17 +49,34 @@ export async function POST(request: NextRequest) {
       status: "completed",
     });
 
+    if (paymentError) {
+      console.error("Failed to record payment:", paymentError);
+      return NextResponse.json({ error: "Failed to record payment" }, { status: 500 });
+    }
+
     // Add credits to user
-    const { data: user } = await admin
+    const { data: user, error: fetchError } = await admin
       .from("users")
       .select("credits")
       .eq("id", userId)
       .single();
 
-    await admin
+    if (fetchError) {
+      console.error("Failed to fetch user:", fetchError);
+      return NextResponse.json({ error: "Failed to fetch user" }, { status: 500 });
+    }
+
+    const { error: updateError } = await admin
       .from("users")
       .update({ credits: (user?.credits ?? 0) + credits })
       .eq("id", userId);
+
+    if (updateError) {
+      console.error("Failed to update credits:", updateError);
+      return NextResponse.json({ error: "Failed to update credits" }, { status: 500 });
+    }
+
+    console.log(`Added ${credits} credits to user ${userId}`);
   }
 
   return NextResponse.json({ received: true });
