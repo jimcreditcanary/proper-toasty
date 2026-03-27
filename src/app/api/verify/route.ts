@@ -191,36 +191,71 @@ export async function POST(request: NextRequest) {
       bank_verify?: Awaited<ReturnType<typeof verifyBankAccount>>;
     } = {};
 
-    // Run checks in parallel where possible
+    // Log which checks will run and which env vars are set
+    console.log("Verify checks for scan:", scan_id, {
+      has_company_number: !!scan.company_number,
+      has_vat_number: !!scan.vat_number,
+      has_account_number: !!scan.account_number,
+      has_sort_code: !!scan.sort_code,
+      has_company_name: !!scan.company_name,
+      env_hmrc_base: !!process.env.HMRC_API_BASE_URL,
+      env_hmrc_client_id: !!process.env.HMRC_CLIENT_ID,
+      env_hmrc_client_secret: !!process.env.HMRC_CLIENT_SECRET,
+      env_bank_url: !!process.env.BANK_VERIFY_API_URL,
+      env_bank_key: !!process.env.BANK_VERIFY_API_KEY,
+      env_bank_org: !!process.env.BANK_VERIFY_ORG_NAME,
+      env_ch_key: !!process.env.COMPANIES_HOUSE_API_KEY,
+    });
+
+    // Run checks in parallel, catch individual failures
     const promises: Promise<void>[] = [];
 
     if (scan.company_number) {
       promises.push(
-        lookupCompaniesHouse(scan.company_number).then((r) => {
-          results.companies_house = r;
-        })
+        lookupCompaniesHouse(scan.company_number)
+          .then((r) => { results.companies_house = r; })
+          .catch((err) => {
+            console.error("Companies House check crashed:", err);
+            results.companies_house = { found: false, error: String(err) };
+          })
       );
     }
 
     if (scan.vat_number) {
-      promises.push(
-        lookupHmrcVat(scan.vat_number).then((r) => {
-          results.hmrc_vat = r;
-        })
-      );
+      if (!process.env.HMRC_CLIENT_ID || !process.env.HMRC_CLIENT_SECRET) {
+        console.error("HMRC credentials not configured");
+        results.hmrc_vat = { found: false, error: "HMRC credentials not configured on server" };
+      } else {
+        promises.push(
+          lookupHmrcVat(scan.vat_number)
+            .then((r) => { results.hmrc_vat = r; })
+            .catch((err) => {
+              console.error("HMRC VAT check crashed:", err);
+              results.hmrc_vat = { found: false, error: String(err) };
+            })
+        );
+      }
     }
 
     if (scan.account_number && scan.company_name && scan.sort_code) {
-      promises.push(
-        verifyBankAccount(
-          scan.account_number,
-          scan.company_name,
-          scan.sort_code,
-          scan_id
-        ).then((r) => {
-          results.bank_verify = r;
-        })
-      );
+      if (!process.env.BANK_VERIFY_API_URL || !process.env.BANK_VERIFY_API_KEY) {
+        console.error("Bank verify credentials not configured");
+        results.bank_verify = { verified: false, error: "Bank verification not configured on server" };
+      } else {
+        promises.push(
+          verifyBankAccount(
+            scan.account_number,
+            scan.company_name,
+            scan.sort_code,
+            scan_id
+          )
+            .then((r) => { results.bank_verify = r; })
+            .catch((err) => {
+              console.error("Bank verify check crashed:", err);
+              results.bank_verify = { verified: false, error: String(err) };
+            })
+        );
+      }
     }
 
     await Promise.all(promises);
