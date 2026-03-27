@@ -67,6 +67,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const appUrl = (
+      process.env.NEXT_PUBLIC_APP_URL ||
+      request.headers.get("origin") ||
+      request.headers.get("referer")?.replace(/\/[^/]*$/, "") ||
+      ""
+    ).replace(/\/+$/, "");
+
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       customer_email: user.email!,
@@ -80,8 +87,8 @@ export async function POST(request: NextRequest) {
         user_id: user.id,
         credits: tier.credits.toString(),
       },
-      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?payment=success`,
-      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?payment=cancelled`,
+      success_url: `${appUrl}/dashboard?payment=success`,
+      cancel_url: `${appUrl}/dashboard?payment=cancelled`,
     });
 
     return NextResponse.json({ url: session.url });
