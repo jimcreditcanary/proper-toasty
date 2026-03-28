@@ -1,0 +1,397 @@
+import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { anthropic } from "@/lib/anthropic";
+import {
+  lookupCompaniesHouse,
+  lookupHmrcVat,
+  verifyBankAccount,
+} from "@/lib/verification";
+import type { Json } from "@/types/database";
+
+export async function POST(request: NextRequest) {
+  try {
+    // Session auth
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const userId = user.id;
+    const admin = createAdminClient();
+
+    // Deduct credit
+    const { data: hasCredit } = await admin.rpc("deduct_credit", {
+      p_user_id: userId,
+    });
+    if (!hasCredit) {
+      return NextResponse.json(
+        { error: "Insufficient credits" },
+        { status: 402 }
+      );
+    }
+
+    // Parse multipart form data
+    const formData = await request.formData();
+
+    const flowType = formData.get("flowType") as string | null;
+    const marketplaceUrl = formData.get("marketplaceUrl") as string | null;
+    const marketplaceItemTitle = formData.get("marketplaceItemTitle") as string | null;
+    const marketplaceListedPrice = formData.get("marketplaceListedPrice") as string | null;
+    const valuationMin = formData.get("valuationMin") as string | null;
+    const valuationMax = formData.get("valuationMax") as string | null;
+    const valuationSummary = formData.get("valuationSummary") as string | null;
+    const payeeType = formData.get("payeeType") as string | null;
+    const payeeName = formData.get("payeeName") as string | null;
+    const companyNameInput = formData.get("companyNameInput") as string | null;
+    const sortCode = formData.get("sortCode") as string | null;
+    const accountNumber = formData.get("accountNumber") as string | null;
+    const vatNumberInput = formData.get("vatNumberInput") as string | null;
+    const companyNumberInput = formData.get("companyNumberInput") as string | null;
+    const invoiceAmount = formData.get("invoiceAmount") as string | null;
+    const file = formData.get("file") as File | null;
+
+    // ── Invoice extraction (if file uploaded) ──────────────────────────
+    let extractedData: {
+      company_name?: string | null;
+      vat_number?: string | null;
+      company_number?: string | null;
+      sort_code?: string | null;
+      account_number?: string | null;
+      invoice_amount?: number | null;
+    } | null = null;
+    let invoiceFilePath: string | null = null;
+
+    if (file) {
+      const fileBuffer = Buffer.from(await file.arrayBuffer());
+      const filePath = `${userId}/${Date.now()}-${file.name}`;
+      const { error: uploadError } = await admin.storage
+        .from("invoices")
+        .upload(filePath, fileBuffer, { contentType: file.type });
+
+      if (uploadError) {
+        console.error("Upload error:", uploadError);
+        return NextResponse.json(
+          { error: "Failed to upload file" },
+          { status: 500 }
+        );
+      }
+      invoiceFilePath = filePath;
+
+      // Extract data via Claude
+      const fileBase64 = fileBuffer.toString("base64");
+      const isPdf = file.type === "application/pdf";
+
+      const extractPrompt = `Extract the following fields from this invoice. Return ONLY a JSON object with these exact keys:
+{
+  "company_name": "the company or business name on the invoice",
+  "vat_number": "the VAT registration number (GB format)",
+  "company_number": "the Companies House registration number",
+  "sort_code": "the bank sort code (XX-XX-XX format)",
+  "account_number": "the bank account number",
+  "invoice_amount": the total amount as a number or null
+}
+
+If a field is not found, set its value to null.`;
+
+      const fileBlock = isPdf
+        ? ({
+            type: "document" as const,
+            source: {
+              type: "base64" as const,
+              media_type: "application/pdf" as const,
+              data: fileBase64,
+            },
+          })
+        : ({
+            type: "image" as const,
+            source: {
+              type: "base64" as const,
+              media_type: file.type as
+                | "image/jpeg"
+                | "image/png"
+                | "image/gif"
+                | "image/webp",
+              data: fileBase64,
+            },
+          });
+
+      const message = await anthropic.messages.create({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 1024,
+        messages: [
+          {
+            role: "user",
+            content: [fileBlock, { type: "text", text: extractPrompt }],
+          },
+        ],
+      });
+
+      const responseText =
+        message.content[0].type === "text" ? message.content[0].text : "";
+      try {
+        const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+        extractedData = jsonMatch ? JSON.parse(jsonMatch[0]) : null;
+      } catch {
+        extractedData = null;
+      }
+    }
+
+    // ── Determine final field values (extracted > manual input) ─────────
+    const finalCompanyName =
+      extractedData?.company_name || companyNameInput || payeeName || null;
+    const finalVatNumber =
+      extractedData?.vat_number || vatNumberInput || null;
+    const finalCompanyNumber =
+      extractedData?.company_number || companyNumberInput || null;
+    const finalSortCode =
+      extractedData?.sort_code || sortCode || null;
+    const finalAccountNumber =
+      extractedData?.account_number || accountNumber || null;
+    const finalInvoiceAmount =
+      extractedData?.invoice_amount ??
+      (invoiceAmount ? parseFloat(invoiceAmount) : null);
+
+    // ── Create verification record ─────────────────────────────────────
+    const { data: verification, error: insertError } = await admin
+      .from("verifications")
+      .insert({
+        user_id: userId,
+        flow_type: flowType,
+        marketplace_url: marketplaceUrl,
+        marketplace_item_title: marketplaceItemTitle,
+        marketplace_listed_price: marketplaceListedPrice
+          ? parseFloat(marketplaceListedPrice)
+          : null,
+        valuation_min: valuationMin ? parseFloat(valuationMin) : null,
+        valuation_max: valuationMax ? parseFloat(valuationMax) : null,
+        valuation_summary: valuationSummary,
+        invoice_file_path: invoiceFilePath,
+        payee_type: payeeType,
+        payee_name: payeeName,
+        company_name_input: companyNameInput,
+        sort_code: finalSortCode,
+        account_number: finalAccountNumber,
+        vat_number_input: vatNumberInput,
+        invoice_amount: finalInvoiceAmount,
+        extracted_company_name: extractedData?.company_name ?? null,
+        extracted_vat_number: extractedData?.vat_number ?? null,
+        extracted_invoice_amount: extractedData?.invoice_amount ?? null,
+        extracted_sort_code: extractedData?.sort_code ?? null,
+        extracted_account_number: extractedData?.account_number ?? null,
+        status: "processing",
+      })
+      .select()
+      .single();
+
+    if (insertError || !verification) {
+      console.error("Insert verification error:", insertError);
+      return NextResponse.json(
+        { error: "Failed to create verification record" },
+        { status: 500 }
+      );
+    }
+
+    // ── Run checks in parallel ─────────────────────────────────────────
+    interface CHResult { found: boolean; data?: Record<string, unknown>; error?: string; details?: string }
+    interface VATResult { found: boolean; data?: Record<string, unknown>; error?: string; details?: string }
+    interface BankResult { verified: boolean; data?: Record<string, unknown>; error?: string; details?: string }
+
+    const results: {
+      ch: CHResult | null;
+      vat: VATResult | null;
+      bank: BankResult | null;
+    } = { ch: null, vat: null, bank: null };
+
+    const promises: Promise<void>[] = [];
+
+    if (finalCompanyNumber) {
+      promises.push(
+        lookupCompaniesHouse(finalCompanyNumber)
+          .then((r) => { results.ch = r as CHResult; })
+          .catch((err) => {
+            console.error("CH check error:", err);
+            results.ch = { found: false, error: String(err) };
+          })
+      );
+    }
+
+    if (finalVatNumber) {
+      promises.push(
+        lookupHmrcVat(finalVatNumber)
+          .then((r) => { results.vat = r as VATResult; })
+          .catch((err) => {
+            console.error("VAT check error:", err);
+            results.vat = { found: false, error: String(err) };
+          })
+      );
+    }
+
+    if (finalAccountNumber && finalCompanyName && finalSortCode) {
+      promises.push(
+        verifyBankAccount(
+          finalAccountNumber,
+          finalCompanyName,
+          finalSortCode,
+          verification.id
+        )
+          .then((r) => { results.bank = r as BankResult; })
+          .catch((err) => {
+            console.error("Bank check error:", err);
+            results.bank = { verified: false, error: String(err) };
+          })
+      );
+    }
+
+    await Promise.all(promises);
+
+    const chResult = results.ch;
+    const vatResult = results.vat;
+    const bankResult = results.bank;
+
+    // ── Extract structured data from results ───────────────────────────
+    const chData = chResult?.found ? (chResult.data ?? null) : null;
+    const companiesHouseName = chData
+      ? (chData as Record<string, unknown>).company_name as string | null
+      : null;
+    const companiesHouseNumber = chData
+      ? (chData as Record<string, unknown>).company_number as string | null
+      : null;
+    const companiesHouseStatus = chData
+      ? (chData as Record<string, unknown>).company_status as string | null
+      : null;
+    const incorporatedDate = chData
+      ? (chData as Record<string, unknown>).date_of_creation as string | null
+      : null;
+
+    // Accounts info
+    let accountsDate: string | null = null;
+    let accountsOverdue = false;
+    if (chData) {
+      const accounts = (chData as Record<string, unknown>).accounts as
+        | Record<string, unknown>
+        | undefined;
+      if (accounts) {
+        accountsDate =
+          (accounts.last_accounts?.toString() ??
+            (
+              accounts.last_accounts as Record<string, unknown> | undefined
+            )?.made_up_to?.toString()) ??
+          null;
+        accountsOverdue = accounts.overdue === true;
+      }
+    }
+
+    // VAT data
+    const vatApiData = vatResult?.found ? (vatResult.data ?? null) : null;
+    let vatApiName: string | null = null;
+    if (vatApiData) {
+      const target = (vatApiData as Record<string, unknown>).target as
+        | Record<string, unknown>
+        | undefined;
+      vatApiName = target
+        ? (target.name as string | null)
+        : (vatApiData as Record<string, unknown>).name as string | null;
+    }
+
+    // Bank/CoP data
+    let copResult: string | null = null;
+    let copReason: string | null = null;
+    if (bankResult) {
+      if (bankResult.verified && bankResult.data) {
+        const bd = bankResult.data as Record<string, unknown>;
+        copResult =
+          (bd.resultCode as string) ??
+          (bd.result as string) ??
+          "FULL_MATCH";
+        copReason = (bd.reasonCode as string) ?? (bd.reason as string) ?? null;
+      } else {
+        copResult = "NO_MATCH";
+        copReason = bankResult.error ?? null;
+      }
+    }
+
+    // ── Calculate overall risk ─────────────────────────────────────────
+    let riskScore = 0;
+    let checksRun = 0;
+
+    if (chResult) {
+      checksRun++;
+      if (!chResult.found) riskScore += 2;
+      else if (companiesHouseStatus && companiesHouseStatus !== "active")
+        riskScore += 1;
+      if (accountsOverdue) riskScore += 1;
+    }
+
+    if (vatResult) {
+      checksRun++;
+      if (!vatResult.found) riskScore += 2;
+      // Name mismatch check
+      if (vatApiName && finalCompanyName) {
+        const normA = vatApiName.toLowerCase().trim();
+        const normB = finalCompanyName.toLowerCase().trim();
+        if (normA !== normB && !normA.includes(normB) && !normB.includes(normA)) {
+          riskScore += 1;
+        }
+      }
+    }
+
+    if (bankResult) {
+      checksRun++;
+      if (copResult === "NO_MATCH") riskScore += 3;
+      else if (copResult === "PARTIAL_MATCH") riskScore += 1;
+    }
+
+    // Marketplace price check
+    if (flowType === "marketplace" && valuationMin && marketplaceListedPrice) {
+      const listed = parseFloat(marketplaceListedPrice);
+      const minVal = parseFloat(valuationMin);
+      const maxVal = valuationMax ? parseFloat(valuationMax) : minVal * 1.5;
+      if (listed < minVal * 0.5) riskScore += 2; // Suspiciously cheap
+      else if (listed < minVal * 0.8) riskScore += 1;
+      else if (listed > maxVal * 1.5) riskScore += 1; // Overpriced
+    }
+
+    let overallRisk: string;
+    if (checksRun === 0) {
+      overallRisk = "UNKNOWN";
+    } else if (riskScore === 0) {
+      overallRisk = "LOW";
+    } else if (riskScore <= 2) {
+      overallRisk = "MEDIUM";
+    } else {
+      overallRisk = "HIGH";
+    }
+
+    // ── Update verification record ─────────────────────────────────────
+    await admin
+      .from("verifications")
+      .update({
+        companies_house_result: (chResult as unknown as Json) ?? null,
+        companies_house_name: companiesHouseName,
+        companies_house_number: companiesHouseNumber,
+        companies_house_status: companiesHouseStatus,
+        companies_house_incorporated_date: incorporatedDate,
+        companies_house_accounts_date: accountsDate,
+        companies_house_accounts_overdue: accountsOverdue,
+        hmrc_vat_result: (vatResult as unknown as Json) ?? null,
+        vat_api_name: vatApiName,
+        bank_verify_result: (bankResult as unknown as Json) ?? null,
+        cop_result: copResult,
+        cop_reason: copReason,
+        overall_risk: overallRisk,
+        status: "completed",
+      })
+      .eq("id", verification.id);
+
+    return NextResponse.json({ id: verification.id });
+  } catch (error) {
+    console.error("Verify-full error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}
