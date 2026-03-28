@@ -374,7 +374,18 @@ If a field is not found, set its value to null.`;
     }
 
     // ── Update verification record ─────────────────────────────────────
-    await admin
+    console.log("Updating verification:", verification.id, {
+      companies_house_name: companiesHouseName,
+      companies_house_number: companiesHouseNumber,
+      companies_house_status: companiesHouseStatus,
+      companies_house_incorporated_date: incorporatedDate,
+      vat_api_name: vatApiName,
+      cop_result: copResult,
+      cop_reason: copReason,
+      overall_risk: overallRisk,
+    });
+
+    const { error: updateError } = await admin
       .from("verifications")
       .update({
         companies_house_result: (chResult as unknown as Json) ?? null,
@@ -393,6 +404,12 @@ If a field is not found, set its value to null.`;
         status: "completed",
       })
       .eq("id", verification.id);
+
+    if (updateError) {
+      console.error("Failed to update verification:", updateError);
+    } else {
+      console.log("Verification updated successfully:", verification.id);
+    }
 
     return NextResponse.json({ id: verification.id });
   } catch (error) {
