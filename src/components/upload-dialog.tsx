@@ -45,11 +45,13 @@ export function UploadDialog({ credits }: { credits: number }) {
       }
 
       // Auto-run verification
-      await fetch("/api/verify", {
+      const verifyRes = await fetch("/api/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ scan_id: data.scan_id }),
       });
+      const verifyData = await verifyRes.json();
+      console.log("Verify response:", verifyRes.status, verifyData);
 
       setOpen(false);
       setFile(null);
