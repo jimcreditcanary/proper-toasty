@@ -338,7 +338,7 @@ export default async function VerificationResultPage({
 
           <CheckCard
             icon={<Building2 className="size-5 text-muted-foreground" />}
-            title="Company Name \u2014 Companies House"
+            title="Company Name — Companies House"
             status={chNameStatus}
             detail={chNameDetail}
             accentColor={accentForStatus(chNameStatus)}
@@ -346,7 +346,7 @@ export default async function VerificationResultPage({
 
           <CheckCard
             icon={<ShieldCheck className="size-5 text-muted-foreground" />}
-            title="Company Name \u2014 VAT Register"
+            title="Company Name — VAT Register"
             status={vatNameStatus}
             detail={vatNameDetail}
             accentColor={accentForStatus(vatNameStatus)}
