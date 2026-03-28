@@ -302,11 +302,19 @@ If a field is not found, set its value to null.`;
     if (bankResult) {
       if (bankResult.verified && bankResult.data) {
         const bd = bankResult.data as Record<string, unknown>;
-        copResult =
-          (bd.resultCode as string) ??
-          (bd.result as string) ??
-          "FULL_MATCH";
-        copReason = (bd.reasonCode as string) ?? (bd.reason as string) ?? null;
+        // Map nameMatchResult from CoP API to our standard values
+        const nameMatch = bd.nameMatchResult as string | undefined;
+        if (nameMatch === "Full") {
+          copResult = "FULL_MATCH";
+        } else if (nameMatch === "Partial") {
+          copResult = "PARTIAL_MATCH";
+        } else if (nameMatch === "None" || nameMatch === "No") {
+          copResult = "NO_MATCH";
+        } else {
+          // Fallback: check the boolean result field
+          copResult = bd.result === true ? "FULL_MATCH" : "NO_MATCH";
+        }
+        copReason = (bd.resultText as string) ?? (bd.reasonCode as string) ?? null;
       } else {
         copResult = "NO_MATCH";
         copReason = bankResult.error ?? null;
