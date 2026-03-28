@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { SiteHeader } from "@/components/site-header";
+import { DashboardNav } from "@/components/dashboard-nav";
 
 export default async function DashboardLayout({
   children,
@@ -19,6 +20,7 @@ export default async function DashboardLayout({
   return (
     <div className="flex min-h-screen flex-col">
       <SiteHeader email={user.email} />
+      <DashboardNav />
       <main className="flex-1">{children}</main>
     </div>
   );

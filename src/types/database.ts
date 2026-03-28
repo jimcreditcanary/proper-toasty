@@ -101,6 +101,53 @@ export interface Database {
           },
         ];
       };
+      api_logs: {
+        Row: {
+          id: string;
+          user_id: string;
+          endpoint: string;
+          method: string;
+          status_code: number;
+          credits_used: number;
+          duration_ms: number | null;
+          request_summary: Json | null;
+          response_summary: Json | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          endpoint: string;
+          method?: string;
+          status_code?: number;
+          credits_used?: number;
+          duration_ms?: number | null;
+          request_summary?: Json | null;
+          response_summary?: Json | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          endpoint?: string;
+          method?: string;
+          status_code?: number;
+          credits_used?: number;
+          duration_ms?: number | null;
+          request_summary?: Json | null;
+          response_summary?: Json | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "api_logs_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       payments: {
         Row: {
           id: string;
