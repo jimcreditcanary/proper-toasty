@@ -70,6 +70,13 @@ async function lookupHmrcVat(vatNumber: string) {
   const cleanVat = vatNumber.replace(/^GB/i, "").replace(/\s/g, "");
   const baseUrl = process.env.HMRC_API_BASE_URL!;
 
+  // In sandbox mode, use HMRC test VAT number since real numbers don't exist in sandbox
+  const isSandbox = baseUrl.includes("test-api");
+  const lookupVat = isSandbox ? "553557881" : cleanVat;
+  if (isSandbox) {
+    console.log(`HMRC sandbox: overriding VAT ${cleanVat} with test number ${lookupVat}`);
+  }
+
   let accessToken: string;
   try {
     accessToken = await getHmrcAccessToken();
@@ -78,8 +85,7 @@ async function lookupHmrcVat(vatNumber: string) {
     return { found: false, error: "Failed to authenticate with HMRC" };
   }
 
-  // Try without GB prefix first, then with GB prefix if not found
-  const url = `${baseUrl}/organisations/vat/check-vat-number/lookup/${encodeURIComponent(cleanVat)}`;
+  const url = `${baseUrl}/organisations/vat/check-vat-number/lookup/${encodeURIComponent(lookupVat)}`;
   console.log("HMRC VAT lookup URL:", url);
 
   const res = await fetch(url, {
@@ -91,28 +97,6 @@ async function lookupHmrcVat(vatNumber: string) {
 
   if (res.ok) {
     return { found: true, data: await res.json() };
-  }
-
-  // If not found, retry with GB prefix
-  if (res.status === 404) {
-    const gbVat = `GB${cleanVat}`;
-    const retryUrl = `${baseUrl}/organisations/vat/check-vat-number/lookup/${encodeURIComponent(gbVat)}`;
-    console.log("HMRC VAT retry with GB prefix:", retryUrl);
-
-    const retryRes = await fetch(retryUrl, {
-      headers: {
-        Accept: "application/vnd.hmrc.2.0+json",
-        Authorization: `Bearer ${accessToken}`,
-      },
-    });
-
-    if (retryRes.ok) {
-      return { found: true, data: await retryRes.json() };
-    }
-
-    const retryBody = await retryRes.text().catch(() => "");
-    console.error("HMRC VAT retry error:", retryRes.status, retryBody);
-    return { found: false, error: `HTTP ${retryRes.status}`, details: retryBody };
   }
 
   const errorBody = await res.text().catch(() => "");
@@ -133,6 +117,14 @@ async function verifyBankAccount(
   // Strip any dashes/spaces from sort code
   const cleanSortCode = sortCode.replace(/[-\s]/g, "");
 
+  console.log("Bank verify request:", {
+    url: apiUrl,
+    customerName: accountName,
+    bankAccount: accountNumber,
+    sortCode: cleanSortCode,
+    orgName,
+  });
+
   const res = await fetch(apiUrl, {
     method: "POST",
     headers: {
@@ -152,10 +144,13 @@ async function verifyBankAccount(
 
   if (!res.ok) {
     const errorBody = await res.text().catch(() => "");
+    console.error("Bank verify error:", res.status, errorBody);
     return { verified: false, error: `HTTP ${res.status}`, details: errorBody };
   }
 
-  return { verified: true, data: await res.json() };
+  const data = await res.json();
+  console.log("Bank verify success:", JSON.stringify(data));
+  return { verified: true, data };
 }
 
 export async function POST(request: NextRequest) {
