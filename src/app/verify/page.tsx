@@ -552,39 +552,7 @@ export default function VerifyPage() {
                 )}
               </div>
 
-              {/* Optional manual overrides below the upload */}
-              <div className="mt-6 space-y-4">
-                <p className="text-sm text-muted-foreground">
-                  Optionally provide details to improve verification:
-                </p>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="company-name-override">Company name</Label>
-                    <Input
-                      id="company-name-override"
-                      placeholder="Optional"
-                      value={data.companyNameInput}
-                      onChange={(e) =>
-                        update({ companyNameInput: e.target.value })
-                      }
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="company-number-override">
-                      Company number
-                    </Label>
-                    <Input
-                      id="company-number-override"
-                      placeholder="Optional"
-                      className="font-mono"
-                      value={data.companyNumberInput}
-                      onChange={(e) =>
-                        update({ companyNumberInput: e.target.value })
-                      }
-                    />
-                  </div>
-                </div>
-              </div>
+              {/* Details will be extracted automatically from the invoice */}
             </>
           ) : (
             <>
