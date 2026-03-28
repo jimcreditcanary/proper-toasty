@@ -138,7 +138,7 @@ async function verifyBankAccount(
       customerName: accountName,
       bankAccount: accountNumber,
       sortCode: cleanSortCode,
-      accountType: "Business",
+      accountType: "Personal",
     }),
   });
 
