@@ -274,12 +274,12 @@ If a field is not found, set its value to null.`;
         | Record<string, unknown>
         | undefined;
       if (accounts) {
-        accountsDate =
-          (accounts.last_accounts?.toString() ??
-            (
-              accounts.last_accounts as Record<string, unknown> | undefined
-            )?.made_up_to?.toString()) ??
-          null;
+        const lastAccounts = accounts.last_accounts as Record<string, unknown> | undefined;
+        if (lastAccounts && typeof lastAccounts === "object") {
+          accountsDate = (lastAccounts.made_up_to as string) ?? null;
+        } else if (typeof accounts.last_accounts === "string") {
+          accountsDate = accounts.last_accounts;
+        }
         accountsOverdue = accounts.overdue === true;
       }
     }
