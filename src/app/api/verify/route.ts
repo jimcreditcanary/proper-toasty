@@ -216,7 +216,7 @@ export async function POST(request: NextRequest) {
           .then((r) => { results.companies_house = r; })
           .catch((err) => {
             console.error("Companies House check crashed:", err);
-            results.companies_house = { found: false, error: String(err) };
+            results.companies_house = { found: false, error: String(err), details: "" };
           })
       );
     }
@@ -224,14 +224,14 @@ export async function POST(request: NextRequest) {
     if (scan.vat_number) {
       if (!process.env.HMRC_CLIENT_ID || !process.env.HMRC_CLIENT_SECRET) {
         console.error("HMRC credentials not configured");
-        results.hmrc_vat = { found: false, error: "HMRC credentials not configured on server" };
+        results.hmrc_vat = { found: false, error: "HMRC credentials not configured on server", details: "" };
       } else {
         promises.push(
           lookupHmrcVat(scan.vat_number)
             .then((r) => { results.hmrc_vat = r; })
             .catch((err) => {
               console.error("HMRC VAT check crashed:", err);
-              results.hmrc_vat = { found: false, error: String(err) };
+              results.hmrc_vat = { found: false, error: String(err), details: "" };
             })
         );
       }
@@ -240,7 +240,7 @@ export async function POST(request: NextRequest) {
     if (scan.account_number && scan.company_name && scan.sort_code) {
       if (!process.env.BANK_VERIFY_API_URL || !process.env.BANK_VERIFY_API_KEY) {
         console.error("Bank verify credentials not configured");
-        results.bank_verify = { verified: false, error: "Bank verification not configured on server" };
+        results.bank_verify = { verified: false, error: "Bank verification not configured on server", details: "" };
       } else {
         promises.push(
           verifyBankAccount(
@@ -252,7 +252,7 @@ export async function POST(request: NextRequest) {
             .then((r) => { results.bank_verify = r; })
             .catch((err) => {
               console.error("Bank verify check crashed:", err);
-              results.bank_verify = { verified: false, error: String(err) };
+              results.bank_verify = { verified: false, error: String(err), details: "" };
             })
         );
       }
