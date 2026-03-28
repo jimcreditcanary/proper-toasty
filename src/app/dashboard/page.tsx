@@ -17,9 +17,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { UploadDialog } from "@/components/upload-dialog";
+import { Button } from "@/components/ui/button";
 import { BuyCreditsDialog } from "@/components/buy-credits-dialog";
-import { Coins, FileCheck, Clock } from "lucide-react";
+import { Coins, FileCheck, Clock, Upload } from "lucide-react";
 
 const STATUS_VARIANTS: Record<
   string,
@@ -81,7 +81,10 @@ export default async function DashboardPage() {
         </div>
         <div className="flex gap-2">
           <BuyCreditsDialog />
-          <UploadDialog credits={credits} />
+          <Button render={<Link href="/verify" />}>
+            <Upload className="size-4 mr-1.5" />
+            Verify an invoice
+          </Button>
         </div>
       </div>
 
