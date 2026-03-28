@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { isOBConnectEnabled } from "@/lib/obconnect";
+import { PaymentSection } from "@/components/payment-section";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -384,6 +386,32 @@ export default async function VerificationResultPage({
             status={accountsStatus}
             detail={accountsDetail}
             accentColor={accentForStatus(accountsStatus)}
+          />
+
+          {/* Payment section */}
+          <PaymentSection
+            data={{
+              verificationId: v.id,
+              amount:
+                v.extracted_invoice_amount ??
+                v.invoice_amount ??
+                (v.marketplace_listed_price != null
+                  ? Number(v.marketplace_listed_price)
+                  : null),
+              payeeName:
+                v.companies_house_name ??
+                v.extracted_company_name ??
+                v.company_name_input ??
+                v.payee_name ??
+                "",
+              sortCode:
+                v.extracted_sort_code ?? v.sort_code ?? "",
+              accountNumber:
+                v.extracted_account_number ?? v.account_number ?? "",
+              reference: `WAP-${v.id.slice(0, 8).toUpperCase()}`,
+              overallRisk: v.overall_risk,
+              sandboxMode: !isOBConnectEnabled(),
+            }}
           />
         </div>
 

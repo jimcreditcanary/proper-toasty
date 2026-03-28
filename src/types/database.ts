@@ -101,6 +101,75 @@ export interface Database {
           },
         ];
       };
+      ob_payments: {
+        Row: {
+          id: string;
+          created_at: string;
+          user_id: string;
+          verification_id: string | null;
+          obconnect_payment_id: string | null;
+          amount: number;
+          currency: string;
+          payee_name: string;
+          sort_code: string;
+          account_number: string;
+          reference: string;
+          status: string;
+          auth_url: string | null;
+          reason: string | null;
+          completed_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          created_at?: string;
+          user_id: string;
+          verification_id?: string | null;
+          obconnect_payment_id?: string | null;
+          amount: number;
+          currency?: string;
+          payee_name: string;
+          sort_code: string;
+          account_number: string;
+          reference: string;
+          status?: string;
+          auth_url?: string | null;
+          reason?: string | null;
+          completed_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          created_at?: string;
+          user_id?: string;
+          verification_id?: string | null;
+          obconnect_payment_id?: string | null;
+          amount?: number;
+          currency?: string;
+          payee_name?: string;
+          sort_code?: string;
+          account_number?: string;
+          reference?: string;
+          status?: string;
+          auth_url?: string | null;
+          reason?: string | null;
+          completed_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "ob_payments_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "ob_payments_verification_id_fkey";
+            columns: ["verification_id"];
+            isOneToOne: false;
+            referencedRelation: "verifications";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       api_logs: {
         Row: {
           id: string;
