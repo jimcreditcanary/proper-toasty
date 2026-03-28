@@ -78,6 +78,7 @@ async function lookupHmrcVat(vatNumber: string) {
     return { found: false, error: "Failed to authenticate with HMRC" };
   }
 
+  // Try without GB prefix first, then with GB prefix if not found
   const url = `${baseUrl}/organisations/vat/check-vat-number/lookup/${encodeURIComponent(cleanVat)}`;
   console.log("HMRC VAT lookup URL:", url);
 
@@ -88,13 +89,35 @@ async function lookupHmrcVat(vatNumber: string) {
     },
   });
 
-  if (!res.ok) {
-    const errorBody = await res.text().catch(() => "");
-    console.error("HMRC VAT error:", res.status, errorBody);
-    return { found: false, error: `HTTP ${res.status}`, details: errorBody };
+  if (res.ok) {
+    return { found: true, data: await res.json() };
   }
 
-  return { found: true, data: await res.json() };
+  // If not found, retry with GB prefix
+  if (res.status === 404) {
+    const gbVat = `GB${cleanVat}`;
+    const retryUrl = `${baseUrl}/organisations/vat/check-vat-number/lookup/${encodeURIComponent(gbVat)}`;
+    console.log("HMRC VAT retry with GB prefix:", retryUrl);
+
+    const retryRes = await fetch(retryUrl, {
+      headers: {
+        Accept: "application/vnd.hmrc.2.0+json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    if (retryRes.ok) {
+      return { found: true, data: await retryRes.json() };
+    }
+
+    const retryBody = await retryRes.text().catch(() => "");
+    console.error("HMRC VAT retry error:", retryRes.status, retryBody);
+    return { found: false, error: `HTTP ${retryRes.status}`, details: retryBody };
+  }
+
+  const errorBody = await res.text().catch(() => "");
+  console.error("HMRC VAT error:", res.status, errorBody);
+  return { found: false, error: `HTTP ${res.status}`, details: errorBody };
 }
 
 async function verifyBankAccount(
