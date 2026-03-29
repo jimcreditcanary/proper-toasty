@@ -48,9 +48,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Check if this email has already used a free check
+    const { data: existingLeads } = await admin
+      .from("leads")
+      .select("id")
+      .eq("email", email.toLowerCase().trim())
+      .limit(1);
+
+    if (existingLeads && existingLeads.length > 0) {
+      return NextResponse.json(
+        { error: "ALREADY_USED", message: "This email has already been used for a free check." },
+        { status: 409 }
+      );
+    }
+
     // Insert lead record
     const { error: insertError } = await admin.from("leads").insert({
-      email,
+      email: email.toLowerCase().trim(),
       verification_id: verificationId,
     });
 

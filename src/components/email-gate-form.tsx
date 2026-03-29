@@ -2,17 +2,19 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
-import { ShieldCheck, Loader2, Mail } from "lucide-react";
+import { ShieldCheck, Loader2, Mail, AlertCircle } from "lucide-react";
 
 export function EmailGateForm({ verificationId }: { verificationId: string }) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [alreadyUsed, setAlreadyUsed] = useState(false);
 
   const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
@@ -21,6 +23,7 @@ export function EmailGateForm({ verificationId }: { verificationId: string }) {
     if (!isValidEmail) return;
     setLoading(true);
     setError(null);
+    setAlreadyUsed(false);
 
     try {
       const res = await fetch("/api/capture-lead", {
@@ -31,7 +34,11 @@ export function EmailGateForm({ verificationId }: { verificationId: string }) {
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || "Something went wrong");
+        if (data.error === "ALREADY_USED") {
+          setAlreadyUsed(true);
+          return;
+        }
+        throw new Error(data.message || data.error || "Something went wrong");
       }
 
       router.refresh();
@@ -40,6 +47,41 @@ export function EmailGateForm({ verificationId }: { verificationId: string }) {
     } finally {
       setLoading(false);
     }
+  }
+
+  if (alreadyUsed) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 px-4">
+        <Card className="w-full max-w-md">
+          <CardContent className="pt-8 pb-6 text-center space-y-5">
+            <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-amber-100">
+              <AlertCircle className="size-7 text-amber-600" />
+            </div>
+            <div>
+              <h2 className="text-xl font-semibold">
+                You&apos;ve already used your free check
+              </h2>
+              <p className="text-sm text-muted-foreground mt-1.5 max-w-xs mx-auto">
+                This email has already been used for a free verification. Create
+                an account and buy credits to run more checks.
+              </p>
+            </div>
+            <div className="flex flex-col gap-2">
+              <Button render={<Link href="/auth/signup" />} className="w-full">
+                Create account &amp; buy credits
+              </Button>
+              <Button
+                variant="outline"
+                render={<Link href="/auth/login" />}
+                className="w-full"
+              >
+                Sign in
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   return (
@@ -53,8 +95,7 @@ export function EmailGateForm({ verificationId }: { verificationId: string }) {
           <div>
             <h2 className="text-xl font-semibold">Your results are ready</h2>
             <p className="text-sm text-muted-foreground mt-1.5 max-w-xs mx-auto">
-              Enter your email to view your full verification report. We&apos;ll
-              also send you a copy.
+              Enter your email to view your full verification report.
             </p>
           </div>
 
@@ -96,7 +137,7 @@ export function EmailGateForm({ verificationId }: { verificationId: string }) {
           </form>
 
           <p className="text-xs text-muted-foreground">
-            No spam. We&apos;ll only use this to send your report.
+            No spam. One free check per email.
           </p>
         </CardContent>
       </Card>
