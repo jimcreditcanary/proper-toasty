@@ -22,6 +22,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    console.log("Marketplace lookup for URL:", listingUrl);
+
     const anthropicRes = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
@@ -88,11 +90,14 @@ export async function POST(request: NextRequest) {
     }
 
     if (!parsed) {
+      console.error("Failed to parse marketplace response. Raw text:", cleaned);
       return NextResponse.json(
         { error: "Failed to parse valuation response" },
         { status: 422 }
       );
     }
+
+    console.log("Marketplace lookup result:", JSON.stringify(parsed));
 
     return NextResponse.json({
       itemTitle: parsed.item_title ?? null,

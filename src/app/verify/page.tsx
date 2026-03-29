@@ -352,11 +352,28 @@ export default function VerifyPage() {
                   update({ marketplaceUrl: url });
                   // Auto-trigger lookup when a valid marketplace URL is pasted
                   if (
-                    url.startsWith("https://www.facebook.com/marketplace/item/") &&
+                    url.includes("facebook.com/marketplace") &&
                     !marketplaceLookupLoading &&
                     !marketplaceLookupDone
                   ) {
-                    // Small delay to allow paste to complete
+                    setTimeout(() => handleMarketplaceLookup(), 500);
+                  }
+                }}
+                onBlur={() => {
+                  // Fallback: trigger on blur if URL is valid but lookup hasn't run
+                  if (
+                    data.marketplaceUrl.includes("facebook.com/marketplace") &&
+                    !marketplaceLookupLoading &&
+                    !marketplaceLookupDone
+                  ) {
+                    handleMarketplaceLookup();
+                  }
+                }}
+                onPaste={(e) => {
+                  // Trigger on paste immediately
+                  const pasted = e.clipboardData.getData("text");
+                  if (pasted.includes("facebook.com/marketplace")) {
+                    update({ marketplaceUrl: pasted });
                     setTimeout(() => handleMarketplaceLookup(), 300);
                   }
                 }}
