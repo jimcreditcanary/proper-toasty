@@ -2,12 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
 /**
- * Two-step marketplace lookup:
- * 1. Use Claude with web_search to find the listing details from search engines
- * 2. Use Claude with web_search to estimate UK market valuation
- *
- * Facebook blocks direct HTML fetching, so we rely on search engine
- * indexing of listings to get item title and price.
+ * Marketplace listing analysis:
+ * 1. Accept a screenshot of the listing
+ * 2. Use Claude vision to extract item title + price from the screenshot
+ * 3. Use Claude with web_search to estimate UK market valuation
  */
 export async function POST(request: NextRequest) {
   try {
@@ -20,30 +18,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const body = await request.json();
-    const { listingUrl } = body;
+    const formData = await request.formData();
+    const screenshot = formData.get("screenshot") as File | null;
+    const listingUrl = formData.get("listingUrl") as string | null;
 
-    if (!listingUrl || typeof listingUrl !== "string") {
+    if (!screenshot) {
       return NextResponse.json(
-        { error: "listingUrl is required" },
+        { error: "Screenshot is required" },
         { status: 400 }
       );
     }
 
-    // Clean the URL in case it's been doubled
-    const cleanUrl = listingUrl.replace(
-      /(https:\/\/www\.facebook\.com\/marketplace\/item\/\d+\/?).*$/,
-      "$1"
-    );
+    console.log("Marketplace lookup — screenshot:", screenshot.name, screenshot.size, "bytes");
 
-    // Extract the listing ID for search
-    const listingIdMatch = cleanUrl.match(/\/item\/(\d+)/);
-    const listingId = listingIdMatch ? listingIdMatch[1] : "";
+    // ── Step 1: Extract item details from screenshot via Claude vision ──
+    const fileBuffer = Buffer.from(await screenshot.arrayBuffer());
+    const fileBase64 = fileBuffer.toString("base64");
 
-    console.log("Marketplace lookup for URL:", cleanUrl, "ID:", listingId);
-
-    // ── Step 1: Find listing details via web search ────────────────────
-    const findListingRes = await fetch("https://api.anthropic.com/v1/messages", {
+    const extractRes = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -53,27 +45,34 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify({
         model: "claude-sonnet-4-20250514",
         max_tokens: 1024,
-        tools: [{ type: "web_search_20250305", name: "web_search" }],
         messages: [
           {
             role: "user",
-            content: `I need you to find details about a Facebook Marketplace listing.
+            content: [
+              {
+                type: "image",
+                source: {
+                  type: "base64",
+                  media_type: screenshot.type || "image/png",
+                  data: fileBase64,
+                },
+              },
+              {
+                type: "text",
+                text: `This is a screenshot of a Facebook Marketplace listing. Extract the following details from the screenshot:
 
-The listing URL is: ${cleanUrl}
-The listing ID is: ${listingId}
-
-Please search for this specific listing using the listing ID number. Try searches like:
-- "facebook marketplace ${listingId}"
-- site:facebook.com/marketplace ${listingId}
-- "${listingId}" marketplace
-
-From the search results, extract the item title/name and the listed price in GBP.
+1. The item title/name (the main heading)
+2. The listed price (in GBP £)
+3. The seller name (if visible)
+4. The location (if visible)
+5. A brief description of the item
 
 Return ONLY a JSON object with no markdown fences:
-{"item_title": "the item name", "listed_price": 1234, "currency": "GBP"}
+{"item_title": "the item name", "listed_price": 1234.00, "currency": "GBP", "seller_name": "name or null", "location": "location or null", "description": "brief description of what the item is"}
 
-If you cannot find the listing, still try to determine what the item might be from any cached results, snippets, or related pages. If you truly cannot find anything, return:
-{"item_title": null, "listed_price": null, "currency": "GBP"}`,
+Make sure listed_price is a number (not a string). If the price shows as "Free" use 0. If price is not visible, use null.`,
+              },
+            ],
           },
         ],
       }),
@@ -81,23 +80,24 @@ If you cannot find the listing, still try to determine what the item might be fr
 
     let itemTitle: string | null = null;
     let listedPrice: number | null = null;
+    let itemDescription: string | null = null;
 
-    if (findListingRes.ok) {
-      const findData = await findListingRes.json();
-      const blocks = findData.content as Array<{ type: string; text?: string }>;
+    if (extractRes.ok) {
+      const extractData = await extractRes.json();
+      const blocks = extractData.content as Array<{ type: string; text?: string }>;
 
-      let findText = "";
-      for (let i = blocks.length - 1; i >= 0; i--) {
-        if (blocks[i].type === "text" && blocks[i].text) {
-          findText = blocks[i].text!;
+      let extractText = "";
+      for (const block of blocks) {
+        if (block.type === "text" && block.text) {
+          extractText = block.text;
           break;
         }
       }
 
-      console.log("Step 1 raw response:", findText);
+      console.log("Step 1 (vision) raw response:", extractText);
 
-      if (findText) {
-        const cleaned = findText
+      if (extractText) {
+        const cleaned = extractText
           .replace(/```json\s*/gi, "")
           .replace(/```\s*/g, "")
           .trim();
@@ -107,38 +107,34 @@ If you cannot find the listing, still try to determine what the item might be fr
           if (parsed) {
             itemTitle = parsed.item_title || null;
             listedPrice = parsed.listed_price != null ? Number(parsed.listed_price) : null;
+            itemDescription = parsed.description || null;
           }
-        } catch {
-          console.warn("Failed to parse step 1 response");
+        } catch (e) {
+          console.warn("Failed to parse step 1 response:", e);
         }
       }
     } else {
-      const errText = await findListingRes.text().catch(() => "");
-      console.error("Step 1 Anthropic error:", findListingRes.status, errText);
+      const errText = await extractRes.text().catch(() => "");
+      console.error("Step 1 (vision) Anthropic error:", extractRes.status, errText);
     }
 
-    console.log("Step 1 result:", { itemTitle, listedPrice });
+    console.log("Step 1 result:", { itemTitle, listedPrice, itemDescription });
 
-    // ── Step 2: Estimate UK market valuation ───────────────────────────
-    const valuationPrompt = itemTitle
-      ? `I need to know the current UK market value for this item: "${itemTitle}"
+    // If we couldn't extract anything, return early
+    if (!itemTitle) {
+      return NextResponse.json({
+        itemTitle: null,
+        listedPrice: null,
+        currency: "GBP",
+        valuationMin: null,
+        valuationMax: null,
+        confidence: "low",
+        valuationSummary: "Could not extract item details from the screenshot. Please ensure the screenshot clearly shows the item title and price.",
+        sources: [],
+      });
+    }
 
-Search for recent UK sale prices, listings, and market data for this exact item or very similar items.
-
-Return ONLY a JSON object with no markdown fences:
-{
-  "item_title": "${itemTitle}",
-  "listed_price": ${listedPrice ?? "null"},
-  "currency": "GBP",
-  "estimated_min": <lowest reasonable UK price as a number>,
-  "estimated_max": <highest reasonable UK price as a number>,
-  "confidence": "high" | "medium" | "low",
-  "sources": ["urls you found"],
-  "valuation_summary": "brief 1-2 sentence explanation"
-}`
-      : `I tried to look up a Facebook Marketplace listing at ${cleanUrl} but could not find the item details. Return this JSON:
-{"item_title": null, "listed_price": null, "currency": "GBP", "estimated_min": null, "estimated_max": null, "confidence": "low", "sources": [], "valuation_summary": "Could not identify the item from the listing URL."}`;
-
+    // ── Step 2: Estimate UK market valuation via web search ─────────────
     const valuationRes = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
@@ -153,84 +149,80 @@ Return ONLY a JSON object with no markdown fences:
         messages: [
           {
             role: "user",
-            content: valuationPrompt,
+            content: `I need to know the current UK market value for this item: "${itemTitle}"
+${itemDescription ? `\nDescription: ${itemDescription}` : ""}
+${listedPrice != null ? `\nIt is listed on Facebook Marketplace for £${listedPrice}` : ""}
+
+Search for recent UK sale prices, dealer prices, and market data for this exact item or very similar items. Check sites like eBay UK, Autotrader, Gumtree, specialist dealers, etc.
+
+Return ONLY a JSON object with no markdown fences:
+{
+  "estimated_min": <lowest reasonable UK market price as a number>,
+  "estimated_max": <highest reasonable UK market price as a number>,
+  "confidence": "high" | "medium" | "low",
+  "sources": ["urls of sources found"],
+  "valuation_summary": "brief 1-2 sentence explanation of how you determined the value range"
+}`,
           },
         ],
       }),
     });
 
-    if (!valuationRes.ok) {
+    let valuationMin: number | null = null;
+    let valuationMax: number | null = null;
+    let confidence = "low";
+    let valuationSummary: string | null = null;
+    let sources: string[] = [];
+
+    if (valuationRes.ok) {
+      const valData = await valuationRes.json();
+      const valBlocks = valData.content as Array<{ type: string; text?: string }>;
+
+      let valText = "";
+      for (let i = valBlocks.length - 1; i >= 0; i--) {
+        if (valBlocks[i].type === "text" && valBlocks[i].text) {
+          valText = valBlocks[i].text!;
+          break;
+        }
+      }
+
+      console.log("Step 2 (valuation) raw response:", valText);
+
+      if (valText) {
+        const cleaned = valText
+          .replace(/```json\s*/gi, "")
+          .replace(/```\s*/g, "")
+          .trim();
+        try {
+          const match = cleaned.match(/\{[\s\S]*\}/);
+          const parsed = match ? JSON.parse(match[0]) : null;
+          if (parsed) {
+            valuationMin = parsed.estimated_min != null ? Number(parsed.estimated_min) : null;
+            valuationMax = parsed.estimated_max != null ? Number(parsed.estimated_max) : null;
+            confidence = parsed.confidence ?? "low";
+            valuationSummary = parsed.valuation_summary ?? null;
+            sources = parsed.sources ?? [];
+          }
+        } catch (e) {
+          console.warn("Failed to parse step 2 response:", e);
+        }
+      }
+    } else {
       const errText = await valuationRes.text().catch(() => "");
-      console.error("Step 2 Anthropic error:", valuationRes.status, errText);
-
-      // Return whatever we have from step 1
-      return NextResponse.json({
-        itemTitle,
-        listedPrice,
-        currency: "GBP",
-        valuationMin: null,
-        valuationMax: null,
-        confidence: "low",
-        valuationSummary: itemTitle
-          ? "Found listing details but could not estimate market value."
-          : "Could not access listing or estimate value.",
-        sources: [],
-      });
+      console.error("Step 2 (valuation) Anthropic error:", valuationRes.status, errText);
     }
 
-    const valuationData = await valuationRes.json();
-    const valBlocks = valuationData.content as Array<{ type: string; text?: string }>;
-
-    let valText = "";
-    for (let i = valBlocks.length - 1; i >= 0; i--) {
-      if (valBlocks[i].type === "text" && valBlocks[i].text) {
-        valText = valBlocks[i].text!;
-        break;
-      }
-    }
-
-    console.log("Step 2 raw response:", valText);
-
-    let parsed;
-    if (valText) {
-      const cleaned = valText
-        .replace(/```json\s*/gi, "")
-        .replace(/```\s*/g, "")
-        .trim();
-      try {
-        const match = cleaned.match(/\{[\s\S]*\}/);
-        parsed = match ? JSON.parse(match[0]) : null;
-      } catch {
-        parsed = null;
-      }
-    }
-
-    if (!parsed) {
-      return NextResponse.json({
-        itemTitle,
-        listedPrice,
-        currency: "GBP",
-        valuationMin: null,
-        valuationMax: null,
-        confidence: "low",
-        valuationSummary: itemTitle
-          ? "Found listing but valuation parsing failed."
-          : "Could not determine item or valuation.",
-        sources: [],
-      });
-    }
-
-    console.log("Final marketplace result:", JSON.stringify(parsed));
+    console.log("Final result:", { itemTitle, listedPrice, valuationMin, valuationMax, confidence });
 
     return NextResponse.json({
-      itemTitle: parsed.item_title || itemTitle || null,
-      listedPrice: parsed.listed_price ?? listedPrice ?? null,
-      currency: parsed.currency ?? "GBP",
-      valuationMin: parsed.estimated_min ?? null,
-      valuationMax: parsed.estimated_max ?? null,
-      confidence: parsed.confidence ?? "low",
-      valuationSummary: parsed.valuation_summary ?? null,
-      sources: parsed.sources ?? [],
+      itemTitle,
+      listedPrice,
+      currency: "GBP",
+      valuationMin,
+      valuationMax,
+      confidence,
+      valuationSummary: valuationSummary ?? "Valuation could not be determined.",
+      sources,
     });
   } catch (error) {
     console.error("Marketplace lookup error:", error);

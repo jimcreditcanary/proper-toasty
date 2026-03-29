@@ -30,6 +30,7 @@ import {
 type WizardData = {
   isMarketplace: boolean | null;
   marketplaceUrl: string;
+  marketplaceScreenshot: File | null;
   marketplaceItemTitle: string | null;
   marketplaceListedPrice: number | null;
   valuationMin: number | null;
@@ -52,6 +53,7 @@ type WizardData = {
 const initialData: WizardData = {
   isMarketplace: null,
   marketplaceUrl: "",
+  marketplaceScreenshot: null,
   marketplaceItemTitle: null,
   marketplaceListedPrice: null,
   valuationMin: null,
@@ -140,19 +142,18 @@ export default function VerifyPage() {
   // ── Marketplace lookup ────────────────────────────────────────────
   const marketplaceLookupRef = React.useRef(false);
   async function handleMarketplaceLookup() {
-    if (marketplaceLookupRef.current) return; // prevent duplicate calls
+    if (marketplaceLookupRef.current) return;
+    if (!data.marketplaceScreenshot) return;
     marketplaceLookupRef.current = true;
     setMarketplaceLookupLoading(true);
     setMarketplaceLookupError(null);
     try {
-      // Read URL from the input element directly to get the latest value
-      const urlInput = document.getElementById("marketplace-url") as HTMLInputElement | null;
-      const url = urlInput?.value || data.marketplaceUrl;
-      if (!url.trim()) return;
+      const fd = new FormData();
+      fd.append("screenshot", data.marketplaceScreenshot);
+      if (data.marketplaceUrl) fd.append("listingUrl", data.marketplaceUrl);
       const res = await fetch("/api/marketplace-lookup", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ listingUrl: url }),
+        body: fd,
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Lookup failed");
@@ -332,72 +333,93 @@ export default function VerifyPage() {
         </div>
       )}
 
-      {/* ── Step 2: Marketplace URL ──────────────────────────── */}
+      {/* ── Step 2: Marketplace Screenshot ──────────────────────────── */}
       {step === 2 && (
         <div>
           <h2 className="text-lg font-semibold mb-1">Marketplace listing</h2>
           <p className="text-sm text-muted-foreground mb-6">
-            Paste the Facebook Marketplace URL so we can check the price.
+            Upload a screenshot of the Facebook Marketplace listing so we can
+            extract the item details and check the price.
           </p>
 
           <div className="space-y-4">
+            {/* Screenshot upload */}
             <div className="space-y-2">
-              <Label htmlFor="marketplace-url">Listing URL</Label>
+              <Label>Listing screenshot</Label>
+              {!data.marketplaceScreenshot ? (
+                <label
+                  htmlFor="marketplace-screenshot"
+                  className={cn(
+                    "flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed p-8 cursor-pointer transition-colors",
+                    "hover:border-primary/50 hover:bg-muted/50"
+                  )}
+                >
+                  <Upload className="size-8 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">
+                    Drop screenshot here, or click to browse
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    PNG, JPG or WebP — max 10MB
+                  </span>
+                  <input
+                    id="marketplace-screenshot"
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        update({ marketplaceScreenshot: file });
+                        // Auto-trigger analysis
+                        setTimeout(() => handleMarketplaceLookup(), 300);
+                      }
+                    }}
+                  />
+                </label>
+              ) : (
+                <div className="flex items-center gap-3 rounded-lg border p-3 bg-muted/30">
+                  <FileText className="size-5 text-muted-foreground shrink-0" />
+                  <span className="text-sm truncate flex-1">
+                    {data.marketplaceScreenshot.name}
+                  </span>
+                  {!marketplaceLookupLoading && !marketplaceLookupDone && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        update({ marketplaceScreenshot: null });
+                        setMarketplaceLookupDone(false);
+                        setMarketplaceLookupError(null);
+                        marketplaceLookupRef.current = false;
+                      }}
+                    >
+                      Remove
+                    </Button>
+                  )}
+                </div>
+              )}
+              {marketplaceLookupLoading && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="size-4 animate-spin" />
+                  Analysing screenshot and researching market value...
+                </div>
+              )}
+            </div>
+
+            {/* Optional URL */}
+            <div className="space-y-2">
+              <Label htmlFor="marketplace-url">
+                Listing URL{" "}
+                <span className="text-muted-foreground font-normal">
+                  (optional)
+                </span>
+              </Label>
               <Input
                 id="marketplace-url"
                 placeholder="https://www.facebook.com/marketplace/item/..."
                 value={data.marketplaceUrl}
-                onChange={(e) => {
-                  const url = e.target.value;
-                  update({ marketplaceUrl: url });
-                  // Auto-trigger lookup when a valid marketplace URL is pasted
-                  if (
-                    url.includes("facebook.com/marketplace") &&
-                    !marketplaceLookupLoading &&
-                    !marketplaceLookupDone
-                  ) {
-                    setTimeout(() => handleMarketplaceLookup(), 500);
-                  }
-                }}
-                onBlur={() => {
-                  // Fallback: trigger on blur if URL is valid but lookup hasn't run
-                  if (
-                    data.marketplaceUrl.includes("facebook.com/marketplace") &&
-                    !marketplaceLookupLoading &&
-                    !marketplaceLookupDone
-                  ) {
-                    handleMarketplaceLookup();
-                  }
-                }}
-                onPaste={(e) => {
-                  // Prevent default so onChange doesn't double-append
-                  e.preventDefault();
-                  const pasted = e.clipboardData.getData("text").trim();
-                  update({ marketplaceUrl: pasted });
-                  // Update the input element directly to prevent onChange from using stale value
-                  const input = e.target as HTMLInputElement;
-                  input.value = pasted;
-                  if (pasted.includes("facebook.com/marketplace")) {
-                    setTimeout(() => handleMarketplaceLookup(), 500);
-                  }
-                }}
+                onChange={(e) => update({ marketplaceUrl: e.target.value })}
               />
-              {marketplaceLookupLoading && (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="size-4 animate-spin" />
-                  Looking up listing and market value...
-                </div>
-              )}
-              {!marketplaceLookupLoading && !marketplaceLookupDone && data.marketplaceUrl.includes("facebook.com/marketplace") && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleMarketplaceLookup}
-                  className="mt-2"
-                >
-                  Look up listing
-                </Button>
-              )}
             </div>
 
             {marketplaceLookupError && (
