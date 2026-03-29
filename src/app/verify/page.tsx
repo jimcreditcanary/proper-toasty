@@ -145,6 +145,28 @@ export default function VerifyPage() {
     return () => clearInterval(interval);
   }, [marketplaceLookupLoading]);
 
+  // Global paste listener for screenshot (Step 2)
+  useEffect(() => {
+    if (step !== 2 || data.marketplaceScreenshot || marketplaceLookupLoading || marketplaceLookupDone) return;
+    function handlePaste(e: ClipboardEvent) {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.startsWith("image/")) {
+          const file = items[i].getAsFile();
+          if (file) {
+            e.preventDefault();
+            update({ marketplaceScreenshot: file });
+            handleMarketplaceLookup(file);
+          }
+          break;
+        }
+      }
+    }
+    document.addEventListener("paste", handlePaste);
+    return () => document.removeEventListener("paste", handlePaste);
+  }, [step, data.marketplaceScreenshot, marketplaceLookupLoading, marketplaceLookupDone]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Timer for submit/verify progress
   useEffect(() => {
     if (!submitting) { setSubmitElapsed(0); return; }
@@ -541,7 +563,7 @@ export default function VerifyPage() {
           <div className="grid grid-cols-2 gap-4">
             <button
               type="button"
-              onClick={() => update({ hasInvoice: true })}
+              onClick={() => { update({ hasInvoice: true }); setStep(4); }}
               className={cn(
                 "flex flex-col items-center gap-3 rounded-xl border-2 p-6 transition-colors hover:border-primary/50 hover:bg-muted/50",
                 data.hasInvoice === true ? "border-primary bg-primary/5" : "border-border"
@@ -552,7 +574,7 @@ export default function VerifyPage() {
             </button>
             <button
               type="button"
-              onClick={() => update({ hasInvoice: false })}
+              onClick={() => { update({ hasInvoice: false }); setStep(4); }}
               className={cn(
                 "flex flex-col items-center gap-3 rounded-xl border-2 p-6 transition-colors hover:border-primary/50 hover:bg-muted/50",
                 data.hasInvoice === false ? "border-primary bg-primary/5" : "border-border"
@@ -563,14 +585,10 @@ export default function VerifyPage() {
             </button>
           </div>
 
-          <div className="flex justify-between mt-6">
+          <div className="mt-6">
             <Button variant="outline" onClick={goBack}>
               <ArrowLeft className="size-4 mr-1" />
               Back
-            </Button>
-            <Button onClick={goNext} disabled={data.hasInvoice === null}>
-              Continue
-              <ArrowRight className="size-4 ml-1" />
             </Button>
           </div>
         </div>
