@@ -231,14 +231,14 @@ If a field is not found, set its value to null.`;
 ${marketplaceListedPrice ? `It is listed on Facebook Marketplace for £${marketplaceListedPrice}.` : ""}
 
 IMPORTANT RULES:
-- Search ONLY UK-based sources: eBay UK, Autotrader UK, Gumtree UK, specialist UK dealers
-- ALL prices MUST be in British Pounds Sterling (GBP £)
-- Do NOT use European/EUR prices and convert them — only use prices already listed in GBP
-- If you cannot find UK prices in GBP, set confidence to "low" and say so in the summary
-- Do NOT perform currency conversions from EUR, USD, or any other currency
+- Prefer UK-based sources first: eBay UK, Autotrader UK, Gumtree UK, specialist UK dealers
+- ALL final prices MUST be in British Pounds Sterling (GBP £)
+- If you find prices in other currencies (EUR, USD etc), you MAY convert them to GBP but ONLY using the current exchange rate from a reliable source (e.g. Google Finance, XE.com, Bank of England). State the exchange rate used in the summary
+- Prioritise prices already in GBP over converted prices
+- If relying mainly on converted prices, set confidence to "medium" at most and note this in the summary
 
 Return ONLY a JSON object with no markdown:
-{"estimated_min": <number in GBP>, "estimated_max": <number in GBP>, "confidence": "high"|"medium"|"low", "sources": ["urls"], "valuation_summary": "1-2 sentence explanation using UK GBP sources only"}`,
+{"estimated_min": <number in GBP>, "estimated_max": <number in GBP>, "confidence": "high"|"medium"|"low", "sources": ["urls"], "valuation_summary": "1-2 sentence explanation. State if prices were converted and the exchange rate used."}`,
                 }],
               }),
             });
