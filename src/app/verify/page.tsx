@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import React, { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,7 +25,6 @@ import {
   Building2,
   Loader2,
   CheckCircle2,
-  Search,
 } from "lucide-react";
 
 type WizardData = {
@@ -139,15 +138,21 @@ export default function VerifyPage() {
   }
 
   // ── Marketplace lookup ────────────────────────────────────────────
+  const marketplaceLookupRef = React.useRef(false);
   async function handleMarketplaceLookup() {
-    if (!data.marketplaceUrl.trim()) return;
+    if (marketplaceLookupRef.current) return; // prevent duplicate calls
+    marketplaceLookupRef.current = true;
     setMarketplaceLookupLoading(true);
     setMarketplaceLookupError(null);
     try {
+      // Read URL from the input element directly to get the latest value
+      const urlInput = document.getElementById("marketplace-url") as HTMLInputElement | null;
+      const url = urlInput?.value || data.marketplaceUrl;
+      if (!url.trim()) return;
       const res = await fetch("/api/marketplace-lookup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ listingUrl: data.marketplaceUrl }),
+        body: JSON.stringify({ listingUrl: url }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Lookup failed");
@@ -167,6 +172,7 @@ export default function VerifyPage() {
       );
     } finally {
       setMarketplaceLookupLoading(false);
+      marketplaceLookupRef.current = false;
     }
   }
 
@@ -337,28 +343,30 @@ export default function VerifyPage() {
           <div className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="marketplace-url">Listing URL</Label>
-              <div className="flex gap-2">
-                <Input
-                  id="marketplace-url"
-                  placeholder="https://www.facebook.com/marketplace/item/..."
-                  value={data.marketplaceUrl}
-                  onChange={(e) =>
-                    update({ marketplaceUrl: e.target.value })
+              <Input
+                id="marketplace-url"
+                placeholder="https://www.facebook.com/marketplace/item/..."
+                value={data.marketplaceUrl}
+                onChange={(e) => {
+                  const url = e.target.value;
+                  update({ marketplaceUrl: url });
+                  // Auto-trigger lookup when a valid marketplace URL is pasted
+                  if (
+                    url.startsWith("https://www.facebook.com/marketplace/item/") &&
+                    !marketplaceLookupLoading &&
+                    !marketplaceLookupDone
+                  ) {
+                    // Small delay to allow paste to complete
+                    setTimeout(() => handleMarketplaceLookup(), 300);
                   }
-                />
-                <Button
-                  onClick={handleMarketplaceLookup}
-                  disabled={
-                    !data.marketplaceUrl.trim() || marketplaceLookupLoading
-                  }
-                >
-                  {marketplaceLookupLoading ? (
-                    <Loader2 className="size-4 animate-spin" />
-                  ) : (
-                    <Search className="size-4" />
-                  )}
-                </Button>
-              </div>
+                }}
+              />
+              {marketplaceLookupLoading && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="size-4 animate-spin" />
+                  Looking up listing and market value...
+                </div>
+              )}
             </div>
 
             {marketplaceLookupError && (
