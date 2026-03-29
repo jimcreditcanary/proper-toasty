@@ -190,11 +190,6 @@ export default function VerifyPage() {
       update({
         marketplaceItemTitle: json.itemTitle,
         marketplaceListedPrice: json.listedPrice,
-        valuationMin: json.valuationMin,
-        valuationMax: json.valuationMax,
-        valuationSummary: json.valuationSummary,
-        marketplaceConfidence: json.confidence,
-        marketplaceSources: json.sources ?? [],
         // Pre-fill the invoice amount with the listed price
         invoiceAmount: json.listedPrice != null ? String(json.listedPrice) : "",
       });
@@ -459,18 +454,16 @@ export default function VerifyPage() {
               </Card>
             )}
 
-            {/* Success results */}
+            {/* Success results — item and price only, valuation on results page */}
             {marketplaceLookupDone && (
               <Card className="border-emerald-200 bg-emerald-50/50 dark:border-emerald-800 dark:bg-emerald-950/20">
-                <CardHeader className="pb-2">
-                  <div className="flex items-center gap-2">
+                <CardContent className="pt-4 space-y-3">
+                  <div className="flex items-center gap-2 mb-1">
                     <CheckCircle2 className="size-5 text-emerald-600" />
-                    <CardTitle className="text-sm font-semibold text-emerald-800 dark:text-emerald-400">
-                      Listing analysed successfully
-                    </CardTitle>
+                    <span className="text-sm font-semibold text-emerald-800 dark:text-emerald-400">
+                      Listing found
+                    </span>
                   </div>
-                </CardHeader>
-                <CardContent className="space-y-3">
                   {data.marketplaceItemTitle && (
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Item</span>
@@ -485,41 +478,9 @@ export default function VerifyPage() {
                       </span>
                     </div>
                   )}
-                  {data.valuationMin != null && data.valuationMax != null && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Est. market value</span>
-                      <span className="font-semibold font-mono">
-                        &pound;{data.valuationMin.toLocaleString("en-GB", { maximumFractionDigits: 0 })} &ndash; &pound;{data.valuationMax.toLocaleString("en-GB", { maximumFractionDigits: 0 })}
-                      </span>
-                    </div>
-                  )}
-                  {data.marketplaceListedPrice != null && data.valuationMin != null && data.valuationMax != null && (() => {
-                    const listed = data.marketplaceListedPrice!;
-                    const median = (data.valuationMin! + data.valuationMax!) / 2;
-                    const diff = ((listed - median) / median) * 100;
-                    let label: string;
-                    let color: string;
-                    if (diff < -50) { label = "Suspiciously cheap"; color = "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"; }
-                    else if (diff < -20) { label = "Below market value"; color = "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400"; }
-                    else if (diff > 50) { label = "Significantly overpriced"; color = "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"; }
-                    else if (diff > 20) { label = "Above market value"; color = "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400"; }
-                    else { label = "Fair price"; color = "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400"; }
-                    return (
-                      <div className="flex justify-between text-sm items-center">
-                        <span className="text-muted-foreground">Price assessment</span>
-                        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${color}`}>{label}</span>
-                      </div>
-                    );
-                  })()}
-                  {data.marketplaceConfidence && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Confidence</span>
-                      <Badge variant="secondary">{data.marketplaceConfidence}</Badge>
-                    </div>
-                  )}
-                  {data.valuationSummary && (
-                    <p className="text-sm text-muted-foreground pt-3 border-t">{data.valuationSummary}</p>
-                  )}
+                  <p className="text-xs text-muted-foreground pt-2 border-t">
+                    Market valuation will be shown on the results page.
+                  </p>
                 </CardContent>
               </Card>
             )}

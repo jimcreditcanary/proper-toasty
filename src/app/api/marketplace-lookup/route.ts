@@ -120,109 +120,12 @@ Make sure listed_price is a number (not a string). If the price shows as "Free" 
 
     console.log("Step 1 result:", { itemTitle, listedPrice, itemDescription });
 
-    // If we couldn't extract anything, return early
-    if (!itemTitle) {
-      return NextResponse.json({
-        itemTitle: null,
-        listedPrice: null,
-        currency: "GBP",
-        valuationMin: null,
-        valuationMax: null,
-        confidence: "low",
-        valuationSummary: "Could not extract item details from the screenshot. Please ensure the screenshot clearly shows the item title and price.",
-        sources: [],
-      });
-    }
-
-    // ── Step 2: Estimate UK market valuation via web search ─────────────
-    const valuationRes = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": process.env.ANTHROPIC_API_KEY!,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 1024,
-        tools: [{ type: "web_search_20250305", name: "web_search" }],
-        messages: [
-          {
-            role: "user",
-            content: `I need to know the current UK market value for this item: "${itemTitle}"
-${itemDescription ? `\nDescription: ${itemDescription}` : ""}
-${listedPrice != null ? `\nIt is listed on Facebook Marketplace for £${listedPrice}` : ""}
-
-Search for recent UK sale prices, dealer prices, and market data for this exact item or very similar items. Check sites like eBay UK, Autotrader, Gumtree, specialist dealers, etc.
-
-Return ONLY a JSON object with no markdown fences:
-{
-  "estimated_min": <lowest reasonable UK market price as a number>,
-  "estimated_max": <highest reasonable UK market price as a number>,
-  "confidence": "high" | "medium" | "low",
-  "sources": ["urls of sources found"],
-  "valuation_summary": "brief 1-2 sentence explanation of how you determined the value range"
-}`,
-          },
-        ],
-      }),
-    });
-
-    let valuationMin: number | null = null;
-    let valuationMax: number | null = null;
-    let confidence = "low";
-    let valuationSummary: string | null = null;
-    let sources: string[] = [];
-
-    if (valuationRes.ok) {
-      const valData = await valuationRes.json();
-      const valBlocks = valData.content as Array<{ type: string; text?: string }>;
-
-      let valText = "";
-      for (let i = valBlocks.length - 1; i >= 0; i--) {
-        if (valBlocks[i].type === "text" && valBlocks[i].text) {
-          valText = valBlocks[i].text!;
-          break;
-        }
-      }
-
-      console.log("Step 2 (valuation) raw response:", valText);
-
-      if (valText) {
-        const cleaned = valText
-          .replace(/```json\s*/gi, "")
-          .replace(/```\s*/g, "")
-          .trim();
-        try {
-          const match = cleaned.match(/\{[\s\S]*\}/);
-          const parsed = match ? JSON.parse(match[0]) : null;
-          if (parsed) {
-            valuationMin = parsed.estimated_min != null ? Number(parsed.estimated_min) : null;
-            valuationMax = parsed.estimated_max != null ? Number(parsed.estimated_max) : null;
-            confidence = parsed.confidence ?? "low";
-            valuationSummary = parsed.valuation_summary ?? null;
-            sources = parsed.sources ?? [];
-          }
-        } catch (e) {
-          console.warn("Failed to parse step 2 response:", e);
-        }
-      }
-    } else {
-      const errText = await valuationRes.text().catch(() => "");
-      console.error("Step 2 (valuation) Anthropic error:", valuationRes.status, errText);
-    }
-
-    console.log("Final result:", { itemTitle, listedPrice, valuationMin, valuationMax, confidence });
-
+    // Return extracted item + price only — valuation is deferred to verify-full
     return NextResponse.json({
       itemTitle,
       listedPrice,
       currency: "GBP",
-      valuationMin,
-      valuationMax,
-      confidence,
-      valuationSummary: valuationSummary ?? "Valuation could not be determined.",
-      sources,
+      itemDescription,
     });
   } catch (error) {
     console.error("Marketplace lookup error:", error);

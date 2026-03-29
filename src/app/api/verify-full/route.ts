@@ -203,9 +203,68 @@ If a field is not found, set its value to null.`;
       ch: CHResult | null;
       vat: VATResult | null;
       bank: BankResult | null;
-    } = { ch: null, vat: null, bank: null };
+      valuation: { min: number; max: number; confidence: string; summary: string; sources: string[] } | null;
+    } = { ch: null, vat: null, bank: null, valuation: null };
 
     const promises: Promise<void>[] = [];
+
+    // Marketplace valuation (runs in parallel with other checks)
+    if (flowType === "marketplace" && marketplaceItemTitle) {
+      promises.push(
+        (async () => {
+          try {
+            const valRes = await fetch("https://api.anthropic.com/v1/messages", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "x-api-key": process.env.ANTHROPIC_API_KEY!,
+                "anthropic-version": "2023-06-01",
+              },
+              body: JSON.stringify({
+                model: "claude-sonnet-4-20250514",
+                max_tokens: 1024,
+                tools: [{ type: "web_search_20250305", name: "web_search" }],
+                messages: [{
+                  role: "user",
+                  content: `What is the current UK market value (in GBP £) for: "${marketplaceItemTitle}"?
+${marketplaceListedPrice ? `It is listed on Facebook Marketplace for £${marketplaceListedPrice}.` : ""}
+
+Search for recent UK sale prices on eBay UK, Autotrader, Gumtree, specialist dealers, etc. All prices MUST be in GBP (£). Do NOT use EUR prices.
+
+Return ONLY a JSON object with no markdown:
+{"estimated_min": <number in GBP>, "estimated_max": <number in GBP>, "confidence": "high"|"medium"|"low", "sources": ["urls"], "valuation_summary": "1-2 sentence explanation in GBP only"}`,
+                }],
+              }),
+            });
+            if (valRes.ok) {
+              const valData = await valRes.json();
+              const blocks = valData.content as Array<{ type: string; text?: string }>;
+              let valText = "";
+              for (let i = blocks.length - 1; i >= 0; i--) {
+                if (blocks[i].type === "text" && blocks[i].text) { valText = blocks[i].text!; break; }
+              }
+              if (valText) {
+                const cleaned = valText.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
+                const match = cleaned.match(/\{[\s\S]*\}/);
+                const parsed = match ? JSON.parse(match[0]) : null;
+                if (parsed) {
+                  results.valuation = {
+                    min: Number(parsed.estimated_min),
+                    max: Number(parsed.estimated_max),
+                    confidence: parsed.confidence ?? "low",
+                    summary: parsed.valuation_summary ?? "",
+                    sources: parsed.sources ?? [],
+                  };
+                  console.log("Marketplace valuation:", results.valuation);
+                }
+              }
+            }
+          } catch (err) {
+            console.error("Marketplace valuation error:", err);
+          }
+        })()
+      );
+    }
 
     if (finalCompanyNumber) {
       promises.push(
@@ -401,6 +460,9 @@ If a field is not found, set its value to null.`;
         cop_result: copResult,
         cop_reason: copReason,
         overall_risk: overallRisk,
+        valuation_min: results.valuation?.min ?? null,
+        valuation_max: results.valuation?.max ?? null,
+        valuation_summary: results.valuation?.summary ?? null,
         status: "completed",
       })
       .eq("id", verification.id);
