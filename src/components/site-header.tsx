@@ -33,13 +33,6 @@ export function SiteHeader({ email }: { email?: string }) {
         <nav className="flex items-center gap-2">
           {email ? (
             <>
-              <Button
-                variant="default"
-                size="sm"
-                render={<Link href="/verify" />}
-              >
-                Make a check
-              </Button>
               <DropdownMenu>
                 <DropdownMenuTrigger
                   render={

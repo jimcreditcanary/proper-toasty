@@ -155,7 +155,7 @@ export default async function DashboardPage() {
           <BuyCreditsDialog />
           <Button render={<Link href="/verify" />}>
             <Upload className="size-4 mr-1.5" />
-            Verify an invoice
+            Make a check
           </Button>
         </div>
       </div>
