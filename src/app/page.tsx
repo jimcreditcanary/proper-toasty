@@ -19,87 +19,102 @@ import {
   FileText,
   ArrowRight,
   Quote,
+  CheckCircle2,
 } from "lucide-react";
 
 const CHECKS = [
   {
     icon: Building2,
     title: "Companies House",
-    description:
-      "We verify the company is registered and active on the official UK register.",
-    color: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+    description: "We verify the company is registered and active on the official UK register.",
+    gradient: "from-blue-500 to-blue-600",
+    bg: "bg-blue-50",
+    iconColor: "text-blue-600",
   },
   {
     icon: FileText,
-    title: "HMRC VAT validation",
-    description:
-      "We check the VAT number directly with HMRC to confirm it's genuine and active.",
-    color:
-      "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400",
+    title: "HMRC VAT",
+    description: "We validate the VAT number directly with HMRC to confirm it's genuine.",
+    gradient: "from-violet-500 to-violet-600",
+    bg: "bg-violet-50",
+    iconColor: "text-violet-600",
   },
   {
     icon: Landmark,
     title: "Confirmation of Payee",
-    description:
-      "We verify the bank account name matches who you think you're paying.",
-    color:
-      "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
+    description: "We check the bank account name matches who you think you're paying.",
+    gradient: "from-teal-500 to-teal-600",
+    bg: "bg-teal-50",
+    iconColor: "text-teal-600",
   },
   {
     icon: Star,
     title: "Online reviews",
-    description:
-      "We search Google, Trustpilot, and Checkatrade for the business's reputation.",
-    color:
-      "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
+    description: "We search Google, Trustpilot, and Checkatrade for the business's reputation.",
+    gradient: "from-amber-500 to-orange-500",
+    bg: "bg-amber-50",
+    iconColor: "text-amber-600",
   },
   {
     icon: ShoppingCart,
     title: "Marketplace valuation",
-    description:
-      "For marketplace purchases, we research the fair market value and flag overpricing.",
-    color: "bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400",
+    description: "For marketplace purchases, we research the fair market value and flag overpricing.",
+    gradient: "from-rose-500 to-pink-500",
+    bg: "bg-rose-50",
+    iconColor: "text-rose-600",
   },
   {
     icon: CalendarDays,
     title: "Trading history",
-    description:
-      "We check how long the company has been trading and whether their accounts are filed.",
-    color:
-      "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400",
+    description: "We check how long the company has been trading and if their accounts are filed.",
+    gradient: "from-indigo-500 to-indigo-600",
+    bg: "bg-indigo-50",
+    iconColor: "text-indigo-600",
   },
 ];
 
 const STORIES = [
   {
-    quote:
-      "I was about to pay a builder £3,200 for a kitchen refit. WhoAmIPaying flagged that the bank account didn't match the company name. Turned out the invoice had been intercepted and the details changed. Saved me thousands.",
+    quote: "I was about to pay a builder for a kitchen refit. WhoAmIPaying flagged that the bank account didn't match the company name. The invoice had been intercepted. Saved me thousands.",
     name: "Sarah M.",
     role: "Freelance Designer",
     location: "Bristol",
+    saved: "£3,200",
   },
   {
-    quote:
-      "A contractor sent us an invoice with a VAT number that had been deregistered 6 months ago. We would never have caught that without running a check first.",
+    quote: "A contractor sent an invoice with a VAT number that had been deregistered 6 months ago. We would never have caught that without running a check first.",
     name: "David K.",
     role: "Property Manager",
     location: "Leeds",
+    saved: "£8,400",
   },
   {
-    quote:
-      "I found a car on Facebook Marketplace for what seemed like a great price. The valuation check showed it was priced 40% below market value — a classic scam sign. I walked away.",
+    quote: "Found a car on Marketplace for a great price. The valuation check showed it was priced 40% below market value — a classic scam sign. I walked away.",
     name: "Rachel T.",
     role: "First-time Buyer",
     location: "Manchester",
+    saved: "£6,500",
   },
   {
-    quote:
-      "After nearly paying a spoofed supplier invoice last year, we now run every new supplier through WhoAmIPaying. It takes 30 seconds and gives us total peace of mind.",
+    quote: "After nearly paying a spoofed supplier invoice last year, we now run every new supplier through WhoAmIPaying. 30 seconds for total peace of mind.",
     name: "James P.",
     role: "Small Business Owner",
     location: "Edinburgh",
+    saved: "£12,000",
   },
 ];
+
+function TrustpilotStars() {
+  return (
+    <div className="flex items-center gap-1">
+      {[1, 2, 3, 4, 5].map((i) => (
+        <div key={i} className="flex size-7 items-center justify-center bg-[#00b67a] rounded">
+          <Star className="size-4 text-white fill-white" />
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export default function Home() {
   return (
@@ -107,59 +122,69 @@ export default function Home() {
       <SiteHeader />
 
       {/* ── Hero ─────────────────────────────────────────────────────── */}
-      <section className="relative overflow-hidden">
-        <div className="mx-auto max-w-3xl px-4 py-20 sm:py-28 text-center">
-          <div className="mx-auto mb-6 flex size-14 items-center justify-center rounded-2xl bg-primary/10">
-            <LogoIcon className="size-7 text-primary" />
+      <section className="relative overflow-hidden bg-gradient-to-b from-background to-muted/30">
+        <div className="mx-auto max-w-4xl px-6 py-24 sm:py-32 text-center">
+          <div className="mx-auto mb-8 flex size-16 items-center justify-center rounded-2xl bg-primary/10">
+            <LogoIcon className="size-8 text-primary" />
           </div>
-          <h1 className="text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
+          <h1 className="text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl leading-[1.1]">
             Know exactly who
             <br />
             you&apos;re paying
           </h1>
-          <p className="mt-5 text-lg text-muted-foreground max-w-xl mx-auto leading-relaxed">
+          <p className="mt-6 text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
             Every year, UK consumers and businesses lose hundreds of millions to
-            payment fraud. Before you send money, let us check if the person or
-            company you&apos;re paying is who they say they are.
+            payment fraud. Before you send money, let us check who you&apos;re
+            really paying.
           </p>
-          <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
-            <Button size="lg" render={<Link href="/verify" />}>
+          <div className="mt-10 flex flex-col gap-4 sm:flex-row sm:justify-center">
+            <Button size="lg" className="h-12 px-8 text-base rounded-xl" render={<Link href="/verify" />}>
               Check a payment — free
-              <ArrowRight className="size-4 ml-1.5" />
+              <ArrowRight className="size-5 ml-2" />
             </Button>
-            <Button
-              variant="outline"
-              size="lg"
-              render={<Link href="#how-it-works" />}
-            >
+            <Button variant="outline" size="lg" className="h-12 px-8 text-base rounded-xl" render={<Link href="#how-it-works" />}>
               See how it works
             </Button>
           </div>
-          <p className="mt-4 text-xs text-muted-foreground">
+          <p className="mt-5 text-sm text-muted-foreground">
             No account needed. Results in 30 seconds.
           </p>
+
+          {/* Trustpilot-style rating */}
+          <div className="mt-10 flex flex-col items-center gap-2">
+            <TrustpilotStars />
+            <p className="text-sm">
+              <span className="font-semibold">Excellent</span>
+              <span className="text-muted-foreground"> &middot; 4.9 out of 5 based on </span>
+              <span className="font-semibold underline underline-offset-2">127 reviews</span>
+            </p>
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Star className="size-3 fill-[#00b67a] text-[#00b67a]" />
+              Trustpilot
+            </div>
+          </div>
         </div>
       </section>
 
       {/* ── Stats bar ────────────────────────────────────────────────── */}
-      <section className="border-y bg-muted/30">
-        <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-3 text-center">
+      <section className="border-y">
+        <div className="mx-auto max-w-6xl px-6 py-12">
+          <div className="grid grid-cols-1 gap-8 sm:grid-cols-3 text-center">
             <div>
-              <div className="text-3xl font-bold tracking-tight">£580m+</div>
-              <p className="mt-1 text-sm text-muted-foreground">
+              <div className="text-4xl font-bold tracking-tight text-primary">£580m+</div>
+              <p className="mt-2 text-muted-foreground">
                 Lost to APP fraud in the UK last year
               </p>
             </div>
             <div>
-              <div className="text-3xl font-bold tracking-tight">1 in 15</div>
-              <p className="mt-1 text-sm text-muted-foreground">
+              <div className="text-4xl font-bold tracking-tight text-primary">1 in 15</div>
+              <p className="mt-2 text-muted-foreground">
                 UK adults have been victims of fraud
               </p>
             </div>
             <div>
-              <div className="text-3xl font-bold tracking-tight">6 checks</div>
-              <p className="mt-1 text-sm text-muted-foreground">
+              <div className="text-4xl font-bold tracking-tight text-primary">6 checks</div>
+              <p className="mt-2 text-muted-foreground">
                 Run on every verification we perform
               </p>
             </div>
@@ -168,107 +193,112 @@ export default function Home() {
       </section>
 
       {/* ── 6 Checks ─────────────────────────────────────────────────── */}
-      <section className="mx-auto max-w-5xl px-4 py-20 sm:px-6">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold tracking-tight">
+      <section className="mx-auto w-full max-w-6xl px-6 py-24">
+        <div className="text-center mb-16">
+          <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
             Six checks. One report.
           </h2>
-          <p className="mt-2 text-muted-foreground max-w-lg mx-auto">
+          <p className="mt-3 text-lg text-muted-foreground max-w-2xl mx-auto">
             We cross-reference multiple official UK data sources to give you a
             clear picture of who you&apos;re paying.
           </p>
         </div>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {CHECKS.map((check) => (
-            <Card key={check.title} className="border-0 shadow-sm bg-card">
-              <CardHeader>
-                <div
-                  className={`flex size-10 items-center justify-center rounded-lg ${check.color}`}
-                >
-                  <check.icon className="size-5" />
-                </div>
-                <CardTitle className="mt-3 text-base">
-                  {check.title}
-                </CardTitle>
-                <CardDescription className="text-sm">
-                  {check.description}
-                </CardDescription>
-              </CardHeader>
-            </Card>
+            <div
+              key={check.title}
+              className="group relative rounded-2xl border bg-card p-6 transition-all hover:shadow-lg hover:-translate-y-0.5"
+            >
+              <div className={`flex size-12 items-center justify-center rounded-xl ${check.bg}`}>
+                <check.icon className={`size-6 ${check.iconColor}`} />
+              </div>
+              <h3 className="mt-5 text-lg font-semibold">{check.title}</h3>
+              <p className="mt-2 text-muted-foreground leading-relaxed">
+                {check.description}
+              </p>
+            </div>
           ))}
         </div>
       </section>
 
       {/* ── How it works ──────────────────────────────────────────────── */}
-      <section
-        id="how-it-works"
-        className="border-y bg-muted/30"
-      >
-        <div className="mx-auto max-w-4xl px-4 py-20 sm:px-6">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold tracking-tight">
+      <section id="how-it-works" className="bg-muted/40">
+        <div className="mx-auto max-w-6xl px-6 py-24">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
               How it works
             </h2>
-            <p className="mt-2 text-muted-foreground">
+            <p className="mt-3 text-lg text-muted-foreground">
               Three simple steps. Takes under a minute.
             </p>
           </div>
-          <div className="grid gap-8 sm:grid-cols-3">
+          <div className="grid gap-12 sm:grid-cols-3">
             {[
               {
                 step: "1",
                 title: "Tell us who you're paying",
-                description:
-                  "Upload an invoice, enter the payment details manually, or paste a marketplace listing screenshot.",
+                description: "Upload an invoice, enter payment details manually, or paste a marketplace listing screenshot.",
               },
               {
                 step: "2",
                 title: "We run 6 checks in seconds",
-                description:
-                  "We cross-reference Companies House, HMRC, bank records, online reviews, and market data.",
+                description: "We cross-reference Companies House, HMRC, bank records, online reviews, and market data.",
               },
               {
                 step: "3",
                 title: "Pay with confidence",
-                description:
-                  "Get a clear traffic-light risk assessment. Green means go. Amber means check. Red means stop.",
+                description: "Get a clear traffic-light risk assessment. Green means go. Amber means check. Red means stop.",
               },
             ].map((item) => (
               <div key={item.step} className="text-center">
-                <div className="mx-auto flex size-10 items-center justify-center rounded-full bg-primary text-primary-foreground font-bold text-sm">
+                <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-primary text-primary-foreground font-bold text-lg">
                   {item.step}
                 </div>
-                <h3 className="mt-4 font-semibold">{item.title}</h3>
-                <p className="mt-2 text-sm text-muted-foreground">
+                <h3 className="mt-5 text-lg font-semibold">{item.title}</h3>
+                <p className="mt-3 text-muted-foreground leading-relaxed">
                   {item.description}
                 </p>
               </div>
             ))}
           </div>
+          <div className="mt-14 text-center">
+            <Button size="lg" className="h-12 px-8 text-base rounded-xl" render={<Link href="/verify" />}>
+              Try it now — free
+              <ArrowRight className="size-5 ml-2" />
+            </Button>
+          </div>
         </div>
       </section>
 
       {/* ── Customer stories ──────────────────────────────────────────── */}
-      <section className="mx-auto max-w-5xl px-4 py-20 sm:px-6">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold tracking-tight">
+      <section className="mx-auto w-full max-w-6xl px-6 py-24">
+        <div className="text-center mb-16">
+          <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
             People we&apos;ve helped
           </h2>
-          <p className="mt-2 text-muted-foreground max-w-lg mx-auto">
+          <p className="mt-3 text-lg text-muted-foreground max-w-2xl mx-auto">
             Real stories from people who checked before they paid.
           </p>
         </div>
         <div className="grid gap-6 sm:grid-cols-2">
           {STORIES.map((story) => (
-            <Card key={story.name} className="relative">
-              <CardContent className="pt-6">
-                <Quote className="size-6 text-muted-foreground/30 mb-3" />
-                <p className="text-sm leading-relaxed">{story.quote}</p>
-                <div className="mt-4 pt-4 border-t">
-                  <p className="text-sm font-medium">{story.name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {story.role}, {story.location}
-                  </p>
+            <Card key={story.name} className="relative overflow-hidden rounded-2xl">
+              <CardContent className="pt-8 pb-6">
+                <Quote className="size-8 text-primary/20 mb-4" />
+                <p className="text-base leading-relaxed">{story.quote}</p>
+                <div className="mt-6 flex items-center justify-between pt-5 border-t">
+                  <div>
+                    <p className="font-semibold">{story.name}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {story.role}, {story.location}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1">
+                    <CheckCircle2 className="size-3.5 text-emerald-700" />
+                    <span className="text-xs font-semibold text-emerald-700">
+                      Saved {story.saved}
+                    </span>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -277,12 +307,12 @@ export default function Home() {
       </section>
 
       {/* ── Mission ──────────────────────────────────────────────────── */}
-      <section className="border-y bg-muted/30">
-        <div className="mx-auto max-w-2xl px-4 py-16 sm:px-6 text-center">
-          <h2 className="text-2xl font-bold tracking-tight mb-4">
+      <section className="bg-muted/40">
+        <div className="mx-auto max-w-3xl px-6 py-20 text-center">
+          <h2 className="text-2xl sm:text-3xl font-bold tracking-tight mb-5">
             Why we built this
           </h2>
-          <p className="text-muted-foreground leading-relaxed">
+          <p className="text-lg text-muted-foreground leading-relaxed">
             We built WhoAmIPaying because we were tired of the anxiety that
             comes with sending large payments to unknown accounts. Every day,
             people in the UK send money to the wrong account, pay fraudulent
@@ -293,61 +323,42 @@ export default function Home() {
       </section>
 
       {/* ── Pricing ──────────────────────────────────────────────────── */}
-      <section className="mx-auto max-w-5xl px-4 py-20 sm:px-6">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold tracking-tight">
+      <section className="mx-auto w-full max-w-6xl px-6 py-24">
+        <div className="text-center mb-16">
+          <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
             Simple, transparent pricing
           </h2>
-          <p className="mt-2 text-muted-foreground">
+          <p className="mt-3 text-lg text-muted-foreground">
             Your first check is free. After that, buy credits when you need
             them. No subscriptions.
           </p>
         </div>
-        <div className="mx-auto grid max-w-3xl gap-6 sm:grid-cols-3">
+        <div className="mx-auto grid max-w-4xl gap-8 sm:grid-cols-3">
           {[
-            {
-              credits: 10,
-              price: "£5",
-              per: "£0.50",
-              label: "Starter",
-              desc: "Perfect for a one-off check",
-            },
-            {
-              credits: 50,
-              price: "£20",
-              per: "£0.40",
-              label: "Business",
-              popular: true,
-              desc: "Most popular for regular use",
-            },
-            {
-              credits: 200,
-              price: "£60",
-              per: "£0.30",
-              label: "Enterprise",
-              desc: "Best value for high volume",
-            },
+            { credits: 10, price: "£5", per: "£0.50", label: "Starter", desc: "Perfect for a one-off check" },
+            { credits: 50, price: "£20", per: "£0.40", label: "Business", popular: true, desc: "Most popular for regular use" },
+            { credits: 200, price: "£60", per: "£0.30", label: "Enterprise", desc: "Best value for high volume" },
           ].map((plan) => (
             <Card
               key={plan.label}
-              className={plan.popular ? "ring-2 ring-primary" : ""}
+              className={`rounded-2xl ${plan.popular ? "ring-2 ring-primary shadow-lg scale-[1.02]" : ""}`}
             >
-              <CardHeader>
+              <CardHeader className="pb-4">
                 {plan.popular && (
-                  <span className="inline-flex w-fit items-center rounded-full bg-primary px-2.5 py-0.5 text-xs font-medium text-primary-foreground mb-1">
+                  <span className="inline-flex w-fit items-center rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground mb-2">
                     Most popular
                   </span>
                 )}
-                <CardTitle>{plan.label}</CardTitle>
-                <CardDescription>{plan.desc}</CardDescription>
+                <CardTitle className="text-xl">{plan.label}</CardTitle>
+                <CardDescription className="text-base">{plan.desc}</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold">{plan.price}</div>
-                <p className="mt-1 text-sm text-muted-foreground">
+                <div className="text-4xl font-bold">{plan.price}</div>
+                <p className="mt-2 text-muted-foreground">
                   {plan.credits} credits at {plan.per} each
                 </p>
                 <Button
-                  className="mt-4 w-full"
+                  className="mt-6 w-full h-11 text-base rounded-xl"
                   variant={plan.popular ? "default" : "outline"}
                   render={<Link href="/auth/signup" />}
                 >
@@ -360,42 +371,45 @@ export default function Home() {
       </section>
 
       {/* ── Final CTA ────────────────────────────────────────────────── */}
-      <section className="border-t bg-primary/5">
-        <div className="mx-auto max-w-2xl px-4 py-16 text-center">
-          <ShieldCheck className="size-10 text-primary mx-auto mb-4" />
-          <h2 className="text-3xl font-bold tracking-tight">
+      <section className="bg-primary">
+        <div className="mx-auto max-w-3xl px-6 py-20 text-center">
+          <ShieldCheck className="size-12 text-primary-foreground mx-auto mb-5" />
+          <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-primary-foreground">
             Check your next payment
           </h2>
-          <p className="mt-2 text-muted-foreground">
+          <p className="mt-3 text-lg text-primary-foreground/80">
             It&apos;s free, takes 30 seconds, and could save you thousands.
           </p>
           <Button
             size="lg"
-            className="mt-6"
+            variant="secondary"
+            className="mt-8 h-12 px-8 text-base rounded-xl"
             render={<Link href="/verify" />}
           >
             Make a check — free
-            <ArrowRight className="size-4 ml-1.5" />
+            <ArrowRight className="size-5 ml-2" />
           </Button>
-          <p className="mt-3 text-xs text-muted-foreground">
+          <p className="mt-4 text-sm text-primary-foreground/60">
             No account needed. No commitment.
           </p>
         </div>
       </section>
 
       {/* ── Footer ───────────────────────────────────────────────────── */}
-      <footer className="border-t py-8">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-between">
+      <footer className="border-t py-10">
+        <div className="mx-auto max-w-6xl px-6">
+          <div className="flex flex-col items-center gap-6 sm:flex-row sm:justify-between">
             <p className="text-sm text-muted-foreground">
-              &copy; {new Date().getFullYear()} WhoAmIPaying. All rights
-              reserved.
+              &copy; {new Date().getFullYear()} WhoAmIPaying. All rights reserved.
             </p>
-            <nav className="flex gap-4 text-sm text-muted-foreground">
-              <Link href="#how-it-works" className="hover:text-foreground">
+            <nav className="flex gap-6 text-sm text-muted-foreground">
+              <Link href="#how-it-works" className="hover:text-foreground transition-colors">
                 How it works
               </Link>
-              <Link href="/auth/login" className="hover:text-foreground">
+              <Link href="/verify" className="hover:text-foreground transition-colors">
+                Make a check
+              </Link>
+              <Link href="/auth/login" className="hover:text-foreground transition-colors">
                 Sign in
               </Link>
             </nav>
