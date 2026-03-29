@@ -370,11 +370,15 @@ export default function VerifyPage() {
                   }
                 }}
                 onPaste={(e) => {
-                  // Trigger on paste immediately
-                  const pasted = e.clipboardData.getData("text");
+                  // Prevent default so onChange doesn't double-append
+                  e.preventDefault();
+                  const pasted = e.clipboardData.getData("text").trim();
+                  update({ marketplaceUrl: pasted });
+                  // Update the input element directly to prevent onChange from using stale value
+                  const input = e.target as HTMLInputElement;
+                  input.value = pasted;
                   if (pasted.includes("facebook.com/marketplace")) {
-                    update({ marketplaceUrl: pasted });
-                    setTimeout(() => handleMarketplaceLookup(), 300);
+                    setTimeout(() => handleMarketplaceLookup(), 500);
                   }
                 }}
               />
