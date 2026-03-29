@@ -129,7 +129,7 @@ export default async function PublicResultPage({
   };
   const rc = riskConfig[risk] ?? riskConfig.UNKNOWN;
 
-  // If no email captured yet, show the gate
+  // If no email captured yet, show just the email gate
   if (!hasEmail) {
     return (
       <div className="mx-auto max-w-[625px] px-4 py-8 sm:px-6">
@@ -137,36 +137,6 @@ export default async function PublicResultPage({
           <ArrowLeft className="size-4 mr-1" />
           Home
         </Button>
-
-        {/* Teaser: show the risk banner but blur the checks */}
-        <Card className={`${rc.bg} ${rc.border} border mb-6`}>
-          <CardContent className="pt-5 pb-4">
-            <div className="flex items-start gap-3">
-              <div className="shrink-0 mt-0.5">{rc.icon}</div>
-              <div>
-                <h1 className="text-lg font-semibold">
-                  You are paying {accountName}
-                  {amount != null && <span className="font-mono ml-1">{fmt(amount)}</span>}
-                </h1>
-                <p className="text-sm text-muted-foreground mt-0.5">for {description}</p>
-                <p className={`text-sm font-medium mt-2 ${rc.text}`}>{rc.message}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Blurred checks teaser */}
-        <div className="relative">
-          <div className="blur-sm pointer-events-none select-none space-y-2 opacity-60">
-            <CheckCard icon={<Building2 className="size-4 text-muted-foreground" />} title="Companies House" status="PASS" detail="Company verified on register" accentColor="bg-emerald-500" />
-            <CheckCard icon={<Landmark className="size-4 text-muted-foreground" />} title="Confirmation of Payee" status="PASS" detail="Bank account name matches" accentColor="bg-emerald-500" />
-            <CheckCard icon={<Star className="size-4 text-muted-foreground" />} title="Online Reviews" status="WARN" detail="Limited reviews found" accentColor="bg-amber-500" />
-          </div>
-          <div className="absolute inset-0 flex items-center justify-center">
-            {/* Overlay is handled by the email form below */}
-          </div>
-        </div>
-
         <EmailGateForm verificationId={id} />
       </div>
     );
