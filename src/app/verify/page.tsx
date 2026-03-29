@@ -292,7 +292,7 @@ export default function VerifyPage() {
   if (submitting) {
     const pct = Math.min(95, (submitElapsed / 30) * 100);
     return (
-      <div className="mx-auto max-w-lg px-4 py-20 text-center">
+      <div className="mx-auto w-full max-w-[625px] px-4 py-20 text-center">
         <div className="flex flex-col items-center gap-6">
           <div className="relative">
             <ShieldCheck className="size-16 text-primary animate-pulse" />
@@ -319,7 +319,7 @@ export default function VerifyPage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-8 sm:px-6">
+    <div className="mx-auto w-full max-w-[625px] px-4 py-8 sm:px-6">
       <h1 className="text-2xl font-bold mb-1">New verification</h1>
       <p className="text-sm text-muted-foreground mb-6">
         Verify who you are paying before sending money.
