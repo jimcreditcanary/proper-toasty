@@ -282,24 +282,30 @@ export default async function VerificationResultPage({
     }
   }
 
-  // Google Reviews — only for businesses
+  // Online Reviews — only for businesses
   let reviewsStatus: CheckStatus = "UNVERIFIED";
-  let reviewsDetail = "Google reviews were not checked.";
-  const showReviews = isBusiness && (v.google_reviews_rating != null || v.google_reviews_summary != null);
+  let reviewsDetail = "Online reviews were not checked.";
+  const showReviews = isBusiness && (v.google_reviews_rating != null || v.google_reviews_count != null || v.google_reviews_summary != null);
   if (showReviews) {
     const rating = v.google_reviews_rating != null ? Number(v.google_reviews_rating) : null;
     const count = v.google_reviews_count != null ? Number(v.google_reviews_count) : null;
     if (rating != null) {
-      if (rating >= 4.0) {
-        reviewsStatus = "PASS";
-      } else if (rating >= 3.0) {
-        reviewsStatus = "WARN";
-      } else {
-        reviewsStatus = "FAIL";
-      }
+      // We have a star rating
+      if (rating >= 4.0) reviewsStatus = "PASS";
+      else if (rating >= 3.0) reviewsStatus = "WARN";
+      else reviewsStatus = "FAIL";
       reviewsDetail = `${rating.toFixed(1)}\u2605${count != null ? ` (${count} reviews)` : ""}. ${v.google_reviews_summary ?? ""}`.trim();
+    } else if (count != null && count > 0) {
+      // Reviews found but no star rating (e.g. Checkatrade)
+      reviewsStatus = "PASS";
+      reviewsDetail = v.google_reviews_summary ?? `${count} reviews found online.`;
+    } else if (v.google_reviews_summary && !v.google_reviews_summary.toLowerCase().includes("no reviews found") && !v.google_reviews_summary.toLowerCase().includes("no online reviews")) {
+      // Summary exists and isn't "no reviews found"
+      reviewsStatus = "PASS";
+      reviewsDetail = v.google_reviews_summary;
     } else {
-      reviewsDetail = v.google_reviews_summary ?? "No Google reviews found for this business.";
+      reviewsStatus = "WARN";
+      reviewsDetail = v.google_reviews_summary ?? "No online reviews found for this business.";
     }
   }
 
@@ -391,11 +397,11 @@ export default async function VerificationResultPage({
           accentColor={accentForStatus(copStatus)}
         />
 
-        {/* Google Reviews — only for businesses */}
+        {/* Online Reviews — only for businesses */}
         {showReviews && (
           <CheckCard
             icon={<Star className="size-4 text-muted-foreground" />}
-            title="Google Reviews"
+            title="Online Reviews"
             status={reviewsStatus}
             detail={reviewsDetail}
             accentColor={accentForStatus(reviewsStatus)}
