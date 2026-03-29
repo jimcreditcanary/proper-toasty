@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,11 +25,11 @@ import {
   Building2,
   Loader2,
   CheckCircle2,
+  ShieldCheck,
 } from "lucide-react";
 
 type WizardData = {
   isMarketplace: boolean | null;
-  marketplaceUrl: string;
   marketplaceScreenshot: File | null;
   marketplaceItemTitle: string | null;
   marketplaceListedPrice: number | null;
@@ -52,7 +52,6 @@ type WizardData = {
 
 const initialData: WizardData = {
   isMarketplace: null,
-  marketplaceUrl: "",
   marketplaceScreenshot: null,
   marketplaceItemTitle: null,
   marketplaceListedPrice: null,
@@ -94,17 +93,43 @@ function ProgressBar({ step, total }: { step: number; total: number }) {
   );
 }
 
+/** Animated progress bar for long-running tasks */
+function AnalysisProgress({ label, elapsed }: { label: string; elapsed: number }) {
+  // Estimate: step 1 ~8s, step 2 ~12s = ~20s total
+  const pct = Math.min(95, (elapsed / 25) * 100);
+  return (
+    <Card className="border-blue-200 bg-blue-50/50 dark:border-blue-800 dark:bg-blue-950/20">
+      <CardContent className="pt-6 space-y-3">
+        <div className="flex items-center gap-3">
+          <Loader2 className="size-5 animate-spin text-blue-600" />
+          <span className="text-sm font-medium text-blue-800 dark:text-blue-300">
+            {label}
+          </span>
+        </div>
+        <div className="h-2 w-full rounded-full bg-blue-100 dark:bg-blue-900/50">
+          <div
+            className="h-2 rounded-full bg-blue-500 transition-all duration-1000 ease-out"
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+        <p className="text-xs text-muted-foreground">
+          This may take up to 30 seconds. Please do not navigate away.
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function VerifyPage() {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [data, setData] = useState<WizardData>(initialData);
-  const [marketplaceLookupLoading, setMarketplaceLookupLoading] =
-    useState(false);
+  const [marketplaceLookupLoading, setMarketplaceLookupLoading] = useState(false);
   const [marketplaceLookupDone, setMarketplaceLookupDone] = useState(false);
-  const [marketplaceLookupError, setMarketplaceLookupError] = useState<
-    string | null
-  >(null);
+  const [marketplaceLookupError, setMarketplaceLookupError] = useState<string | null>(null);
+  const [marketplaceElapsed, setMarketplaceElapsed] = useState(0);
   const [submitting, setSubmitting] = useState(false);
+  const [submitElapsed, setSubmitElapsed] = useState(0);
   const [dragOver, setDragOver] = useState(false);
 
   const update = useCallback(
@@ -113,15 +138,23 @@ export default function VerifyPage() {
     []
   );
 
-  // Determine the total steps based on flow
+  // Timer for marketplace analysis progress
+  useEffect(() => {
+    if (!marketplaceLookupLoading) { setMarketplaceElapsed(0); return; }
+    const interval = setInterval(() => setMarketplaceElapsed((e) => e + 1), 1000);
+    return () => clearInterval(interval);
+  }, [marketplaceLookupLoading]);
+
+  // Timer for submit/verify progress
+  useEffect(() => {
+    if (!submitting) { setSubmitElapsed(0); return; }
+    const interval = setInterval(() => setSubmitElapsed((e) => e + 1), 1000);
+    return () => clearInterval(interval);
+  }, [submitting]);
+
   function getTotalSteps() {
-    // Step 1: marketplace check
-    // Step 2a: marketplace URL (if yes) OR step 2: invoice check (if no)
-    // Step 3: invoice check (if marketplace) OR upload/manual
-    // Step 4: upload/manual
-    // Step 5: review
     let count = 1; // marketplace check
-    if (data.isMarketplace) count++; // marketplace URL
+    if (data.isMarketplace) count++; // screenshot
     count++; // invoice check
     count++; // upload or manual entry
     count++; // review
@@ -129,28 +162,25 @@ export default function VerifyPage() {
   }
 
   function getCurrentStepNumber() {
-    // Maps internal step to display step
-    let display = 1;
-    if (step === 1) return display;
+    if (step === 1) return 1;
     if (data.isMarketplace && step === 2) return 2;
     if (step === 3) return data.isMarketplace ? 3 : 2;
     if (step === 4) return data.isMarketplace ? 4 : 3;
     if (step === 5) return data.isMarketplace ? 5 : 4;
-    return display;
+    return 1;
   }
 
   // ── Marketplace lookup ────────────────────────────────────────────
   const marketplaceLookupRef = React.useRef(false);
-  async function handleMarketplaceLookup() {
-    if (marketplaceLookupRef.current) return;
-    if (!data.marketplaceScreenshot) return;
+  async function handleMarketplaceLookup(file?: File) {
+    const screenshot = file || data.marketplaceScreenshot;
+    if (marketplaceLookupRef.current || !screenshot) return;
     marketplaceLookupRef.current = true;
     setMarketplaceLookupLoading(true);
     setMarketplaceLookupError(null);
     try {
       const fd = new FormData();
-      fd.append("screenshot", data.marketplaceScreenshot);
-      if (data.marketplaceUrl) fd.append("listingUrl", data.marketplaceUrl);
+      fd.append("screenshot", screenshot);
       const res = await fetch("/api/marketplace-lookup", {
         method: "POST",
         body: fd,
@@ -165,6 +195,8 @@ export default function VerifyPage() {
         valuationSummary: json.valuationSummary,
         marketplaceConfidence: json.confidence,
         marketplaceSources: json.sources ?? [],
+        // Pre-fill the invoice amount with the listed price
+        invoiceAmount: json.listedPrice != null ? String(json.listedPrice) : "",
       });
       setMarketplaceLookupDone(true);
     } catch (err) {
@@ -196,7 +228,6 @@ export default function VerifyPage() {
     try {
       const fd = new FormData();
 
-      // Determine flow type
       let flowType = "manual";
       if (data.isMarketplace) flowType = "marketplace";
       else if (data.hasInvoice) flowType = "invoice";
@@ -204,14 +235,10 @@ export default function VerifyPage() {
 
       // Marketplace fields
       if (data.isMarketplace) {
-        fd.append("marketplaceUrl", data.marketplaceUrl);
         if (data.marketplaceItemTitle)
           fd.append("marketplaceItemTitle", data.marketplaceItemTitle);
         if (data.marketplaceListedPrice != null)
-          fd.append(
-            "marketplaceListedPrice",
-            String(data.marketplaceListedPrice)
-          );
+          fd.append("marketplaceListedPrice", String(data.marketplaceListedPrice));
         if (data.valuationMin != null)
           fd.append("valuationMin", String(data.valuationMin));
         if (data.valuationMax != null)
@@ -220,22 +247,15 @@ export default function VerifyPage() {
           fd.append("valuationSummary", data.valuationSummary);
       }
 
-      // Invoice file
-      if (data.invoiceFile) {
-        fd.append("file", data.invoiceFile);
-      }
+      if (data.invoiceFile) fd.append("file", data.invoiceFile);
 
-      // Manual fields
       fd.append("payeeType", data.payeeType);
       if (data.payeeName) fd.append("payeeName", data.payeeName);
-      if (data.companyNameInput)
-        fd.append("companyNameInput", data.companyNameInput);
+      if (data.companyNameInput) fd.append("companyNameInput", data.companyNameInput);
       if (data.sortCode) fd.append("sortCode", data.sortCode);
       if (data.accountNumber) fd.append("accountNumber", data.accountNumber);
-      if (data.vatNumberInput)
-        fd.append("vatNumberInput", data.vatNumberInput);
-      if (data.companyNumberInput)
-        fd.append("companyNumberInput", data.companyNumberInput);
+      if (data.vatNumberInput) fd.append("vatNumberInput", data.vatNumberInput);
+      if (data.companyNumberInput) fd.append("companyNumberInput", data.companyNumberInput);
       if (data.invoiceAmount) fd.append("invoiceAmount", data.invoiceAmount);
 
       const res = await fetch("/api/verify-full", {
@@ -259,14 +279,9 @@ export default function VerifyPage() {
     if (step === 1) {
       if (data.isMarketplace) setStep(2);
       else setStep(3);
-    } else if (step === 2) {
-      setStep(3);
-    } else if (step === 3) {
-      if (data.hasInvoice) setStep(4); // upload
-      else setStep(4); // manual entry (same step, different content)
-    } else if (step === 4) {
-      setStep(5);
-    }
+    } else if (step === 2) setStep(3);
+    else if (step === 3) setStep(4);
+    else if (step === 4) setStep(5);
   }
 
   function goBack() {
@@ -276,6 +291,36 @@ export default function VerifyPage() {
       if (data.isMarketplace) setStep(2);
       else setStep(1);
     } else if (step === 2) setStep(1);
+  }
+
+  // ── Step 5 submitting: show full-screen loading ───────────────────
+  if (submitting) {
+    const pct = Math.min(95, (submitElapsed / 30) * 100);
+    return (
+      <div className="mx-auto max-w-lg px-4 py-20 text-center">
+        <div className="flex flex-col items-center gap-6">
+          <div className="relative">
+            <ShieldCheck className="size-16 text-primary animate-pulse" />
+          </div>
+          <h2 className="text-xl font-semibold">Running verification checks</h2>
+          <p className="text-sm text-muted-foreground max-w-sm">
+            We&apos;re checking the payee details against Companies House, HMRC,
+            and the bank. This may take up to 30 seconds.
+          </p>
+          <div className="w-full max-w-sm">
+            <div className="h-2 w-full rounded-full bg-muted">
+              <div
+                className="h-2 rounded-full bg-primary transition-all duration-1000 ease-out"
+                style={{ width: `${pct}%` }}
+              />
+            </div>
+            <p className="text-xs text-muted-foreground mt-2">
+              Please do not navigate away from this page.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -299,15 +344,10 @@ export default function VerifyPage() {
           <div className="grid grid-cols-2 gap-4">
             <button
               type="button"
-              onClick={() => {
-                update({ isMarketplace: true });
-                setStep(2);
-              }}
+              onClick={() => { update({ isMarketplace: true }); setStep(2); }}
               className={cn(
                 "flex flex-col items-center gap-3 rounded-xl border-2 p-6 transition-colors hover:border-primary/50 hover:bg-muted/50",
-                data.isMarketplace === true
-                  ? "border-primary bg-primary/5"
-                  : "border-border"
+                data.isMarketplace === true ? "border-primary bg-primary/5" : "border-border"
               )}
             >
               <ShoppingCart className="size-8 text-primary" />
@@ -315,15 +355,10 @@ export default function VerifyPage() {
             </button>
             <button
               type="button"
-              onClick={() => {
-                update({ isMarketplace: false });
-                setStep(3);
-              }}
+              onClick={() => { update({ isMarketplace: false }); setStep(3); }}
               className={cn(
                 "flex flex-col items-center gap-3 rounded-xl border-2 p-6 transition-colors hover:border-primary/50 hover:bg-muted/50",
-                data.isMarketplace === false
-                  ? "border-primary bg-primary/5"
-                  : "border-border"
+                data.isMarketplace === false ? "border-primary bg-primary/5" : "border-border"
               )}
             >
               <X className="size-8 text-muted-foreground" />
@@ -333,101 +368,98 @@ export default function VerifyPage() {
         </div>
       )}
 
-      {/* ── Step 2: Marketplace Screenshot ──────────────────────────── */}
+      {/* ── Step 2: Marketplace Screenshot ──────────────────────── */}
       {step === 2 && (
         <div>
-          <h2 className="text-lg font-semibold mb-1">Marketplace listing</h2>
+          <h2 className="text-lg font-semibold mb-1">Upload listing screenshot</h2>
           <p className="text-sm text-muted-foreground mb-6">
-            Upload a screenshot of the Facebook Marketplace listing so we can
-            extract the item details and check the price.
+            Take a screenshot of the Facebook Marketplace listing showing the item
+            title and price. We&apos;ll extract the details and check the value.
           </p>
 
           <div className="space-y-4">
             {/* Screenshot upload */}
-            <div className="space-y-2">
-              <Label>Listing screenshot</Label>
-              {!data.marketplaceScreenshot ? (
-                <label
-                  htmlFor="marketplace-screenshot"
-                  className={cn(
-                    "flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed p-8 cursor-pointer transition-colors",
-                    "hover:border-primary/50 hover:bg-muted/50"
-                  )}
-                >
-                  <Upload className="size-8 text-muted-foreground" />
-                  <span className="text-sm text-muted-foreground">
-                    Drop screenshot here, or click to browse
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    PNG, JPG or WebP — max 10MB
-                  </span>
-                  <input
-                    id="marketplace-screenshot"
-                    type="file"
-                    accept="image/png,image/jpeg,image/webp"
-                    className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) {
-                        update({ marketplaceScreenshot: file });
-                        // Auto-trigger analysis
-                        setTimeout(() => handleMarketplaceLookup(), 300);
-                      }
-                    }}
-                  />
-                </label>
-              ) : (
-                <div className="flex items-center gap-3 rounded-lg border p-3 bg-muted/30">
-                  <FileText className="size-5 text-muted-foreground shrink-0" />
-                  <span className="text-sm truncate flex-1">
-                    {data.marketplaceScreenshot.name}
-                  </span>
-                  {!marketplaceLookupLoading && !marketplaceLookupDone && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        update({ marketplaceScreenshot: null });
-                        setMarketplaceLookupDone(false);
-                        setMarketplaceLookupError(null);
-                        marketplaceLookupRef.current = false;
-                      }}
-                    >
-                      Remove
-                    </Button>
-                  )}
-                </div>
-              )}
-              {marketplaceLookupLoading && (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="size-4 animate-spin" />
-                  Analysing screenshot and researching market value...
-                </div>
-              )}
-            </div>
-
-            {/* Optional URL */}
-            <div className="space-y-2">
-              <Label htmlFor="marketplace-url">
-                Listing URL{" "}
-                <span className="text-muted-foreground font-normal">
-                  (optional)
+            {!data.marketplaceScreenshot && !marketplaceLookupLoading && !marketplaceLookupDone && (
+              <label
+                htmlFor="marketplace-screenshot"
+                className={cn(
+                  "flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed p-10 cursor-pointer transition-colors",
+                  "hover:border-primary/50 hover:bg-muted/50"
+                )}
+              >
+                <Upload className="size-10 text-muted-foreground" />
+                <span className="text-sm font-medium">
+                  Drop screenshot here, or click to browse
                 </span>
-              </Label>
-              <Input
-                id="marketplace-url"
-                placeholder="https://www.facebook.com/marketplace/item/..."
-                value={data.marketplaceUrl}
-                onChange={(e) => update({ marketplaceUrl: e.target.value })}
-              />
-            </div>
-
-            {marketplaceLookupError && (
-              <p className="text-sm text-destructive">
-                {marketplaceLookupError}
-              </p>
+                <span className="text-xs text-muted-foreground">
+                  PNG, JPG or WebP
+                </span>
+                <input
+                  id="marketplace-screenshot"
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      update({ marketplaceScreenshot: file });
+                      handleMarketplaceLookup(file);
+                    }
+                  }}
+                />
+              </label>
             )}
 
+            {/* File name badge when uploaded */}
+            {data.marketplaceScreenshot && !marketplaceLookupLoading && !marketplaceLookupDone && (
+              <div className="flex items-center gap-3 rounded-lg border p-3 bg-muted/30">
+                <FileText className="size-5 text-muted-foreground shrink-0" />
+                <span className="text-sm truncate flex-1">{data.marketplaceScreenshot.name}</span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    update({ marketplaceScreenshot: null, marketplaceItemTitle: null, marketplaceListedPrice: null, valuationMin: null, valuationMax: null });
+                    setMarketplaceLookupDone(false);
+                    setMarketplaceLookupError(null);
+                    marketplaceLookupRef.current = false;
+                  }}
+                >
+                  Remove
+                </Button>
+              </div>
+            )}
+
+            {/* Loading progress */}
+            {marketplaceLookupLoading && (
+              <AnalysisProgress
+                label={marketplaceElapsed < 10 ? "Reading listing screenshot..." : "Researching market value..."}
+                elapsed={marketplaceElapsed}
+              />
+            )}
+
+            {/* Error */}
+            {marketplaceLookupError && (
+              <Card className="border-red-200 bg-red-50/50 dark:border-red-800 dark:bg-red-950/20">
+                <CardContent className="pt-4">
+                  <p className="text-sm text-red-700 dark:text-red-400">{marketplaceLookupError}</p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-3"
+                    onClick={() => {
+                      update({ marketplaceScreenshot: null });
+                      setMarketplaceLookupError(null);
+                      marketplaceLookupRef.current = false;
+                    }}
+                  >
+                    Try again
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Success results */}
             {marketplaceLookupDone && (
               <Card className="border-emerald-200 bg-emerald-50/50 dark:border-emerald-800 dark:bg-emerald-950/20">
                 <CardHeader className="pb-2">
@@ -442,9 +474,7 @@ export default function VerifyPage() {
                   {data.marketplaceItemTitle && (
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Item</span>
-                      <span className="font-medium text-right max-w-[60%]">
-                        {data.marketplaceItemTitle}
-                      </span>
+                      <span className="font-medium text-right max-w-[60%]">{data.marketplaceItemTitle}</span>
                     </div>
                   )}
                   {data.marketplaceListedPrice != null && (
@@ -469,28 +499,15 @@ export default function VerifyPage() {
                     const diff = ((listed - median) / median) * 100;
                     let label: string;
                     let color: string;
-                    if (diff < -50) {
-                      label = "Suspiciously cheap";
-                      color = "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400";
-                    } else if (diff < -20) {
-                      label = "Below market value";
-                      color = "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400";
-                    } else if (diff > 50) {
-                      label = "Significantly overpriced";
-                      color = "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400";
-                    } else if (diff > 20) {
-                      label = "Above market value";
-                      color = "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400";
-                    } else {
-                      label = "Fair price";
-                      color = "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400";
-                    }
+                    if (diff < -50) { label = "Suspiciously cheap"; color = "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"; }
+                    else if (diff < -20) { label = "Below market value"; color = "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400"; }
+                    else if (diff > 50) { label = "Significantly overpriced"; color = "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"; }
+                    else if (diff > 20) { label = "Above market value"; color = "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400"; }
+                    else { label = "Fair price"; color = "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400"; }
                     return (
                       <div className="flex justify-between text-sm items-center">
                         <span className="text-muted-foreground">Price assessment</span>
-                        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${color}`}>
-                          {label}
-                        </span>
+                        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${color}`}>{label}</span>
                       </div>
                     );
                   })()}
@@ -501,9 +518,7 @@ export default function VerifyPage() {
                     </div>
                   )}
                   {data.valuationSummary && (
-                    <p className="text-sm text-muted-foreground pt-3 border-t">
-                      {data.valuationSummary}
-                    </p>
+                    <p className="text-sm text-muted-foreground pt-3 border-t">{data.valuationSummary}</p>
                   )}
                 </CardContent>
               </Card>
@@ -515,7 +530,10 @@ export default function VerifyPage() {
               <ArrowLeft className="size-4 mr-1" />
               Back
             </Button>
-            <Button onClick={goNext} disabled={!data.marketplaceUrl.trim()}>
+            <Button
+              onClick={goNext}
+              disabled={!marketplaceLookupDone || marketplaceLookupLoading}
+            >
               Continue
               <ArrowRight className="size-4 ml-1" />
             </Button>
@@ -538,30 +556,22 @@ export default function VerifyPage() {
               onClick={() => update({ hasInvoice: true })}
               className={cn(
                 "flex flex-col items-center gap-3 rounded-xl border-2 p-6 transition-colors hover:border-primary/50 hover:bg-muted/50",
-                data.hasInvoice === true
-                  ? "border-primary bg-primary/5"
-                  : "border-border"
+                data.hasInvoice === true ? "border-primary bg-primary/5" : "border-border"
               )}
             >
               <FileText className="size-8 text-primary" />
-              <span className="text-sm font-medium">
-                Yes, I have an invoice
-              </span>
+              <span className="text-sm font-medium">Yes, I have an invoice</span>
             </button>
             <button
               type="button"
               onClick={() => update({ hasInvoice: false })}
               className={cn(
                 "flex flex-col items-center gap-3 rounded-xl border-2 p-6 transition-colors hover:border-primary/50 hover:bg-muted/50",
-                data.hasInvoice === false
-                  ? "border-primary bg-primary/5"
-                  : "border-border"
+                data.hasInvoice === false ? "border-primary bg-primary/5" : "border-border"
               )}
             >
               <User className="size-8 text-muted-foreground" />
-              <span className="text-sm font-medium">
-                No, I&apos;ll enter manually
-              </span>
+              <span className="text-sm font-medium">No, I&apos;ll enter manually</span>
             </button>
           </div>
 
@@ -585,38 +595,26 @@ export default function VerifyPage() {
             <>
               <h2 className="text-lg font-semibold mb-1">Upload invoice</h2>
               <p className="text-sm text-muted-foreground mb-6">
-                Upload a PDF or image of the invoice. We will extract the payee
-                details automatically.
+                Upload a PDF or image of the invoice. We will extract the payee details automatically.
               </p>
 
               <div
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  setDragOver(true);
-                }}
+                onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
                 onDragLeave={() => setDragOver(false)}
                 onDrop={handleDrop}
                 className={cn(
                   "flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed p-10 transition-colors",
-                  dragOver
-                    ? "border-primary bg-primary/5"
-                    : "border-border hover:border-primary/50"
+                  dragOver ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"
                 )}
               >
                 {data.invoiceFile ? (
                   <>
                     <FileText className="size-8 text-primary" />
-                    <span className="text-sm font-medium">
-                      {data.invoiceFile.name}
-                    </span>
+                    <span className="text-sm font-medium">{data.invoiceFile.name}</span>
                     <span className="text-xs text-muted-foreground">
                       {(data.invoiceFile.size / 1024).toFixed(0)} KB
                     </span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => update({ invoiceFile: null })}
-                    >
+                    <Button variant="ghost" size="sm" onClick={() => update({ invoiceFile: null })}>
                       Remove
                     </Button>
                   </>
@@ -640,8 +638,6 @@ export default function VerifyPage() {
                   </>
                 )}
               </div>
-
-              {/* Details will be extracted automatically from the invoice */}
             </>
           ) : (
             <>
@@ -653,9 +649,7 @@ export default function VerifyPage() {
               {/* Payee type toggle */}
               <div className="flex gap-2 mb-6">
                 <Button
-                  variant={
-                    data.payeeType === "personal" ? "default" : "outline"
-                  }
+                  variant={data.payeeType === "personal" ? "default" : "outline"}
                   size="sm"
                   onClick={() => update({ payeeType: "personal" })}
                 >
@@ -663,9 +657,7 @@ export default function VerifyPage() {
                   Personal
                 </Button>
                 <Button
-                  variant={
-                    data.payeeType === "business" ? "default" : "outline"
-                  }
+                  variant={data.payeeType === "business" ? "default" : "outline"}
                   size="sm"
                   onClick={() => update({ payeeType: "business" })}
                 >
@@ -677,9 +669,7 @@ export default function VerifyPage() {
               <div className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="payee-name">
-                    {data.payeeType === "business"
-                      ? "Account holder name"
-                      : "Full name"}
+                    {data.payeeType === "business" ? "Account holder name" : "Full name"}
                   </Label>
                   <Input
                     id="payee-name"
@@ -695,9 +685,7 @@ export default function VerifyPage() {
                       <Input
                         id="company-name"
                         value={data.companyNameInput}
-                        onChange={(e) =>
-                          update({ companyNameInput: e.target.value })
-                        }
+                        onChange={(e) => update({ companyNameInput: e.target.value })}
                       />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
@@ -708,9 +696,7 @@ export default function VerifyPage() {
                           className="font-mono"
                           placeholder="e.g. 12345678"
                           value={data.companyNumberInput}
-                          onChange={(e) =>
-                            update({ companyNumberInput: e.target.value })
-                          }
+                          onChange={(e) => update({ companyNumberInput: e.target.value })}
                         />
                       </div>
                       <div className="space-y-2">
@@ -720,9 +706,7 @@ export default function VerifyPage() {
                           className="font-mono"
                           placeholder="e.g. GB123456789"
                           value={data.vatNumberInput}
-                          onChange={(e) =>
-                            update({ vatNumberInput: e.target.value })
-                          }
+                          onChange={(e) => update({ vatNumberInput: e.target.value })}
                         />
                       </div>
                     </div>
@@ -747,20 +731,26 @@ export default function VerifyPage() {
                       className="font-mono"
                       placeholder="12345678"
                       value={data.accountNumber}
-                      onChange={(e) =>
-                        update({ accountNumber: e.target.value })
-                      }
+                      onChange={(e) => update({ accountNumber: e.target.value })}
                     />
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="invoice-amount">Amount (GBP)</Label>
+                  <Label htmlFor="invoice-amount">
+                    Amount (GBP)
+                    {data.isMarketplace && data.marketplaceListedPrice != null && (
+                      <span className="text-muted-foreground font-normal ml-1">
+                        — pre-filled from listing
+                      </span>
+                    )}
+                  </Label>
                   <Input
                     id="invoice-amount"
                     type="number"
                     step="0.01"
                     placeholder="0.00"
+                    className="font-mono"
                     value={data.invoiceAmount}
                     onChange={(e) => update({ invoiceAmount: e.target.value })}
                   />
@@ -776,11 +766,7 @@ export default function VerifyPage() {
             </Button>
             <Button
               onClick={goNext}
-              disabled={
-                data.hasInvoice
-                  ? !data.invoiceFile
-                  : !data.payeeName && !data.companyNameInput
-              }
+              disabled={data.hasInvoice ? !data.invoiceFile : !data.payeeName && !data.companyNameInput}
             >
               Continue
               <ArrowRight className="size-4 ml-1" />
@@ -792,10 +778,9 @@ export default function VerifyPage() {
       {/* ── Step 5: Review & Submit ──────────────────────────── */}
       {step === 5 && (
         <div>
-          <h2 className="text-lg font-semibold mb-1">Review & verify</h2>
+          <h2 className="text-lg font-semibold mb-1">Review &amp; verify</h2>
           <p className="text-sm text-muted-foreground mb-6">
-            Check the details below and run the verification. This will use 1
-            credit.
+            Check the details below and run the verification. This will use 1 credit.
           </p>
 
           <div className="space-y-4">
@@ -803,33 +788,31 @@ export default function VerifyPage() {
             {data.isMarketplace && (
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-sm">Marketplace listing</CardTitle>
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <ShoppingCart className="size-4" />
+                    Marketplace listing
+                  </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-1 text-sm">
+                <CardContent className="space-y-2 text-sm">
                   {data.marketplaceItemTitle && (
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Item</span>
-                      <span>{data.marketplaceItemTitle}</span>
+                      <span className="font-medium text-right max-w-[60%]">{data.marketplaceItemTitle}</span>
                     </div>
                   )}
                   {data.marketplaceListedPrice != null && (
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">
-                        Listed price
-                      </span>
-                      <span className="font-mono">
-                        &pound;{data.marketplaceListedPrice.toFixed(2)}
+                      <span className="text-muted-foreground">Listed price</span>
+                      <span className="font-mono font-semibold">
+                        &pound;{data.marketplaceListedPrice.toLocaleString("en-GB", { minimumFractionDigits: 2 })}
                       </span>
                     </div>
                   )}
                   {data.valuationMin != null && data.valuationMax != null && (
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">
-                        Market value
-                      </span>
-                      <span className="font-mono">
-                        &pound;{data.valuationMin.toFixed(0)} &ndash; &pound;
-                        {data.valuationMax.toFixed(0)}
+                      <span className="text-muted-foreground">Est. market value</span>
+                      <span className="font-mono font-semibold">
+                        &pound;{data.valuationMin.toLocaleString("en-GB", { maximumFractionDigits: 0 })} &ndash; &pound;{data.valuationMax.toLocaleString("en-GB", { maximumFractionDigits: 0 })}
                       </span>
                     </div>
                   )}
@@ -849,7 +832,7 @@ export default function VerifyPage() {
                     : "Manually entered payee information"}
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-1 text-sm">
+              <CardContent className="space-y-2 text-sm">
                 {data.hasInvoice && data.invoiceFile && (
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">File</span>
@@ -870,12 +853,8 @@ export default function VerifyPage() {
                 )}
                 {data.companyNumberInput && (
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">
-                      Company number
-                    </span>
-                    <span className="font-mono">
-                      {data.companyNumberInput}
-                    </span>
+                    <span className="text-muted-foreground">Company number</span>
+                    <span className="font-mono">{data.companyNumberInput}</span>
                   </div>
                 )}
                 {data.vatNumberInput && (
@@ -892,17 +871,15 @@ export default function VerifyPage() {
                 )}
                 {data.accountNumber && (
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">
-                      Account number
-                    </span>
+                    <span className="text-muted-foreground">Account number</span>
                     <span className="font-mono">{data.accountNumber}</span>
                   </div>
                 )}
                 {data.invoiceAmount && (
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Amount</span>
-                    <span className="font-mono">
-                      &pound;{parseFloat(data.invoiceAmount).toFixed(2)}
+                    <span className="font-mono font-semibold">
+                      &pound;{parseFloat(data.invoiceAmount).toLocaleString("en-GB", { minimumFractionDigits: 2 })}
                     </span>
                   </div>
                 )}
@@ -916,14 +893,8 @@ export default function VerifyPage() {
               Back
             </Button>
             <Button onClick={handleSubmit} disabled={submitting}>
-              {submitting ? (
-                <>
-                  <Loader2 className="size-4 mr-1 animate-spin" />
-                  Verifying...
-                </>
-              ) : (
-                "Run Verification"
-              )}
+              <ShieldCheck className="size-4 mr-1" />
+              Run Verification
             </Button>
           </div>
         </div>

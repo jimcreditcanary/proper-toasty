@@ -259,6 +259,31 @@ export default async function VerificationResultPage({
     }
   }
 
+  // 4b. Ad Price vs Invoice Amount (marketplace only)
+  let adVsInvoiceStatus: CheckStatus = "UNVERIFIED";
+  let adVsInvoiceDetail = "";
+  if (v.flow_type === "marketplace" && v.marketplace_listed_price != null) {
+    const adPrice = Number(v.marketplace_listed_price);
+    const invoiceAmt = v.extracted_invoice_amount ?? v.invoice_amount;
+    if (invoiceAmt != null) {
+      const inv = Number(invoiceAmt);
+      const diff = inv - adPrice;
+      const diffPct = adPrice > 0 ? ((diff / adPrice) * 100).toFixed(0) : "0";
+      if (Math.abs(diff) < 1) {
+        adVsInvoiceStatus = "PASS";
+        adVsInvoiceDetail = `Invoice amount (\u00A3${inv.toLocaleString("en-GB", { minimumFractionDigits: 2 })}) matches the ad price (\u00A3${adPrice.toLocaleString("en-GB", { minimumFractionDigits: 2 })}).`;
+      } else if (diff > 0) {
+        adVsInvoiceStatus = "WARN";
+        adVsInvoiceDetail = `Invoice amount (\u00A3${inv.toLocaleString("en-GB", { minimumFractionDigits: 2 })}) is \u00A3${diff.toLocaleString("en-GB", { minimumFractionDigits: 2 })} MORE than the ad price (\u00A3${adPrice.toLocaleString("en-GB", { minimumFractionDigits: 2 })}) \u2014 ${diffPct}% higher.`;
+      } else {
+        adVsInvoiceStatus = Math.abs(diff) > adPrice * 0.2 ? "WARN" : "PASS";
+        adVsInvoiceDetail = `Invoice amount (\u00A3${inv.toLocaleString("en-GB", { minimumFractionDigits: 2 })}) is \u00A3${Math.abs(diff).toLocaleString("en-GB", { minimumFractionDigits: 2 })} less than the ad price (\u00A3${adPrice.toLocaleString("en-GB", { minimumFractionDigits: 2 })}) \u2014 ${Math.abs(Number(diffPct))}% lower.`;
+      }
+    } else {
+      adVsInvoiceDetail = "No invoice amount available to compare.";
+    }
+  }
+
   // 5. Business Trading History
   let tradingStatus: CheckStatus = "UNVERIFIED";
   let tradingDetail = "Incorporation date not available.";
@@ -369,6 +394,16 @@ export default async function VerificationResultPage({
               status={marketplaceStatus}
               detail={marketplaceDetail}
               accentColor={accentForStatus(marketplaceStatus)}
+            />
+          )}
+
+          {v.flow_type === "marketplace" && v.marketplace_listed_price != null && (
+            <CheckCard
+              icon={<FileText className="size-5 text-muted-foreground" />}
+              title="Ad Price vs Invoice Amount"
+              status={adVsInvoiceStatus}
+              detail={adVsInvoiceDetail}
+              accentColor={accentForStatus(adVsInvoiceStatus)}
             />
           )}
 
