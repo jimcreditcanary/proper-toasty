@@ -258,10 +258,39 @@ export interface Database {
           },
         ];
       };
+      leads: {
+        Row: {
+          id: string;
+          email: string;
+          verification_id: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          email: string;
+          verification_id?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          email?: string;
+          verification_id?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "leads_verification_id_fkey";
+            columns: ["verification_id"];
+            isOneToOne: false;
+            referencedRelation: "verifications";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       verifications: {
         Row: {
           id: string;
-          user_id: string;
+          user_id: string | null;
           created_at: string;
           flow_type: string | null;
           marketplace_url: string | null;
@@ -303,7 +332,7 @@ export interface Database {
         };
         Insert: {
           id?: string;
-          user_id: string;
+          user_id?: string | null;
           created_at?: string;
           flow_type?: string | null;
           marketplace_url?: string | null;

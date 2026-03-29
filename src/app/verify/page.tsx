@@ -131,6 +131,17 @@ export default function VerifyPage() {
   const [submitting, setSubmitting] = useState(false);
   const [submitElapsed, setSubmitElapsed] = useState(0);
   const [dragOver, setDragOver] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+
+  // Check auth state on mount
+  useEffect(() => {
+    import("@/lib/supabase/client").then(({ createClient }) => {
+      const supabase = createClient();
+      supabase.auth.getUser().then(({ data: { user } }) => {
+        setIsAuthenticated(!!user);
+      });
+    });
+  }, []);
 
   const update = useCallback(
     (partial: Partial<WizardData>) =>
@@ -275,7 +286,10 @@ export default function VerifyPage() {
       if (data.companyNumberInput) fd.append("companyNumberInput", data.companyNumberInput);
       if (data.invoiceAmount) fd.append("invoiceAmount", data.invoiceAmount);
 
-      const res = await fetch("/api/verify-full", {
+      // Dual-path: authenticated users use verify-full (costs credits),
+      // unauthenticated users use verify-lead (free, email-gated results)
+      const endpoint = isAuthenticated ? "/api/verify-full" : "/api/verify-lead";
+      const res = await fetch(endpoint, {
         method: "POST",
         body: fd,
       });
@@ -283,7 +297,11 @@ export default function VerifyPage() {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Verification failed");
 
-      router.push(`/dashboard/results/${json.id}`);
+      // Authenticated → dashboard results, unauthenticated → public results
+      const resultsPath = isAuthenticated
+        ? `/dashboard/results/${json.id}`
+        : `/results/${json.id}`;
+      router.push(resultsPath);
     } catch (err) {
       alert(err instanceof Error ? err.message : "Verification failed");
     } finally {
