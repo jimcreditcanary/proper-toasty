@@ -269,19 +269,23 @@ Return ONLY a JSON object with no markdown:
 A user wants to buy: "${marketplaceItemTitle}"
 ${marketplaceListedPrice ? `Listed price: £${marketplaceListedPrice} (private sale, Facebook Marketplace)` : ""}
 
-Research the current UK market value for this item thoroughly. Search eBay UK, Autotrader UK, Gumtree, specialist dealers, and any relevant sources.
+Research the current UK market value for this item. Search eBay UK, Autotrader UK, Gumtree, specialist UK dealers, and any relevant sources.
 
-RULES:
-- All prices in GBP (£). If converting from EUR/USD, use current exchange rate and state the rate used.
-- Prioritise UK sources over international ones.
+CRITICAL RULES FOR estimated_min AND estimated_max:
+- These MUST represent the actual market value range you found from comparable listings and sales
+- Do NOT adjust these numbers down for "private sale discount", condition assumptions, or speculation
+- If you found comparable items listed/sold for £20,000-£30,000, then estimated_min=20000 and estimated_max=30000
+- The numbers in estimated_min and estimated_max MUST be consistent with the prices you describe in valuation_assessment — no contradictions
+- All prices in GBP (£). If converting from EUR/USD, use the current exchange rate and state the rate used
+- Prioritise UK sources. If only European sources are available, convert accurately and note the exchange rate
 
 Return ONLY a JSON object with no markdown fences:
 {
-  "estimated_min": <number - realistic low GBP price>,
-  "estimated_max": <number - realistic high GBP price>,
+  "estimated_min": <number - lowest comparable price found in GBP>,
+  "estimated_max": <number - highest comparable price found in GBP>,
   "confidence": "high" | "medium" | "low",
   "sources": ["source urls"],
-  "valuation_assessment": "<A detailed plain-text assessment in under 150 words. Cover: what the item is, what comparable listings/sales you found and at what prices, your assessment of whether the listed price is good/fair/poor value, and any red flags or things the buyer should check before proceeding. Write in clear, direct language. Do not use markdown formatting — plain text only.>"
+  "valuation_assessment": "<Plain text, under 150 words. State: what the item is, what comparable listings you found and their actual prices in GBP, whether the listed price represents good/fair/poor value compared to those comparables, and what the buyer should check before purchasing. Be direct and factual. No markdown.>"
 }`,
               }],
             }),
