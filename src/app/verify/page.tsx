@@ -675,48 +675,45 @@ export default function VerifyPage() {
               <div className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="payee-name">
-                    {data.payeeType === "business" ? "Account holder name" : "Full name"}
+                    {data.payeeType === "business" ? "Company / account name" : "Full name"}
                   </Label>
                   <Input
                     id="payee-name"
+                    placeholder={data.payeeType === "business" ? "e.g. Acme Ltd" : "e.g. John Smith"}
                     value={data.payeeName}
-                    onChange={(e) => update({ payeeName: e.target.value })}
+                    onChange={(e) => {
+                      update({ payeeName: e.target.value });
+                      // Keep companyNameInput in sync for business
+                      if (data.payeeType === "business") {
+                        update({ payeeName: e.target.value, companyNameInput: e.target.value });
+                      }
+                    }}
                   />
                 </div>
 
                 {data.payeeType === "business" && (
-                  <>
+                  <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="company-name">Company name</Label>
+                      <Label htmlFor="company-number">Company number</Label>
                       <Input
-                        id="company-name"
-                        value={data.companyNameInput}
-                        onChange={(e) => update({ companyNameInput: e.target.value })}
+                        id="company-number"
+                        className="font-mono"
+                        placeholder="e.g. 12345678"
+                        value={data.companyNumberInput}
+                        onChange={(e) => update({ companyNumberInput: e.target.value })}
                       />
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="company-number">Company number</Label>
-                        <Input
-                          id="company-number"
-                          className="font-mono"
-                          placeholder="e.g. 12345678"
-                          value={data.companyNumberInput}
-                          onChange={(e) => update({ companyNumberInput: e.target.value })}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="vat-number">VAT number</Label>
-                        <Input
-                          id="vat-number"
-                          className="font-mono"
-                          placeholder="e.g. GB123456789"
-                          value={data.vatNumberInput}
-                          onChange={(e) => update({ vatNumberInput: e.target.value })}
-                        />
-                      </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="vat-number">VAT number</Label>
+                      <Input
+                        id="vat-number"
+                        className="font-mono"
+                        placeholder="e.g. GB123456789"
+                        value={data.vatNumberInput}
+                        onChange={(e) => update({ vatNumberInput: e.target.value })}
+                      />
                     </div>
-                  </>
+                  </div>
                 )}
 
                 <div className="grid grid-cols-2 gap-4">
@@ -725,10 +722,21 @@ export default function VerifyPage() {
                     <Input
                       id="sort-code"
                       className="font-mono"
-                      placeholder="XX-XX-XX"
+                      placeholder="00-00-00"
+                      maxLength={8}
                       value={data.sortCode}
-                      onChange={(e) => update({ sortCode: e.target.value })}
+                      onChange={(e) => {
+                        // Auto-format: strip non-digits, insert dashes
+                        const digits = e.target.value.replace(/\D/g, "").slice(0, 6);
+                        let formatted = digits;
+                        if (digits.length > 4) formatted = `${digits.slice(0, 2)}-${digits.slice(2, 4)}-${digits.slice(4)}`;
+                        else if (digits.length > 2) formatted = `${digits.slice(0, 2)}-${digits.slice(2)}`;
+                        update({ sortCode: formatted });
+                      }}
                     />
+                    {data.sortCode && data.sortCode.replace(/\D/g, "").length !== 6 && data.sortCode.replace(/\D/g, "").length > 0 && (
+                      <p className="text-xs text-destructive">Sort code must be 6 digits</p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="account-number">Account number</Label>
@@ -736,9 +744,16 @@ export default function VerifyPage() {
                       id="account-number"
                       className="font-mono"
                       placeholder="12345678"
+                      maxLength={8}
                       value={data.accountNumber}
-                      onChange={(e) => update({ accountNumber: e.target.value })}
+                      onChange={(e) => {
+                        const digits = e.target.value.replace(/\D/g, "").slice(0, 8);
+                        update({ accountNumber: digits });
+                      }}
                     />
+                    {data.accountNumber && data.accountNumber.length !== 8 && data.accountNumber.length > 0 && (
+                      <p className="text-xs text-destructive">Account number must be 8 digits</p>
+                    )}
                   </div>
                 </div>
 
