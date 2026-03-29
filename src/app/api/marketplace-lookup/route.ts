@@ -1,23 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
 
 /**
- * Marketplace listing analysis:
+ * Marketplace listing analysis (no auth required — used by free check flow):
  * 1. Accept a screenshot of the listing
  * 2. Use Claude vision to extract item title + price from the screenshot
- * 3. Use Claude with web_search to estimate UK market valuation
  */
 export async function POST(request: NextRequest) {
   try {
-    // Session auth
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
     const formData = await request.formData();
     const screenshot = formData.get("screenshot") as File | null;
     const listingUrl = formData.get("listingUrl") as string | null;
