@@ -384,6 +384,16 @@ export default function VerifyPage() {
                   Looking up listing and market value...
                 </div>
               )}
+              {!marketplaceLookupLoading && !marketplaceLookupDone && data.marketplaceUrl.includes("facebook.com/marketplace") && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleMarketplaceLookup}
+                  className="mt-2"
+                >
+                  Look up listing
+                </Button>
+              )}
             </div>
 
             {marketplaceLookupError && (
