@@ -133,9 +133,9 @@ export default function Home() {
             you&apos;re paying
           </h1>
           <p className="mt-6 text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-            Every year, UK consumers and businesses lose hundreds of millions to
-            payment fraud. Before you send money, let us check who you&apos;re
-            really paying.
+            In the first half of 2025, over £629 million was stolen by
+            fraudsters in the UK. Before you send money, let us check who
+            you&apos;re really paying.
           </p>
           <div className="mt-10 flex flex-col gap-4 sm:flex-row sm:justify-center">
             <Button size="lg" className="h-12 px-8 text-base rounded-xl" render={<Link href="/verify" />}>
@@ -171,21 +171,21 @@ export default function Home() {
         <div className="mx-auto max-w-6xl px-6 py-12">
           <div className="grid grid-cols-1 gap-8 sm:grid-cols-3 text-center">
             <div>
-              <div className="text-4xl font-bold tracking-tight text-primary">£580m+</div>
+              <div className="text-4xl font-bold tracking-tight text-primary">£629m</div>
               <p className="mt-2 text-muted-foreground">
-                Lost to APP fraud in the UK last year
+                Stolen by fraudsters in H1 2025 alone
               </p>
             </div>
             <div>
-              <div className="text-4xl font-bold tracking-tight text-primary">1 in 15</div>
+              <div className="text-4xl font-bold tracking-tight text-primary">2.09m</div>
               <p className="mt-2 text-muted-foreground">
-                UK adults have been victims of fraud
+                Confirmed fraud cases in the first half of 2025
               </p>
             </div>
             <div>
-              <div className="text-4xl font-bold tracking-tight text-primary">6 checks</div>
+              <div className="text-4xl font-bold tracking-tight text-primary">72%</div>
               <p className="mt-2 text-muted-foreground">
-                Run on every verification we perform
+                Of APP fraud starts with a purchase scam
               </p>
             </div>
           </div>
