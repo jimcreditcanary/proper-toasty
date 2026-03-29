@@ -369,17 +369,6 @@ export default async function VerificationResultPage({
           accentColor={accentForStatus(copStatus)}
         />
 
-        {/* Marketplace Price Check — only if marketplace + valuation exists */}
-        {showMarketplaceValuation && (
-          <CheckCard
-            icon={<ShoppingCart className="size-4 text-muted-foreground" />}
-            title="Marketplace Price Check"
-            status={marketplaceStatus}
-            detail={marketplaceDetail}
-            accentColor={accentForStatus(marketplaceStatus)}
-          />
-        )}
-
         {/* Ad vs Invoice — only if marketplace */}
         {showAdVsInvoice && adVsInvoiceDetail && (
           <CheckCard
@@ -391,6 +380,53 @@ export default async function VerificationResultPage({
           />
         )}
       </div>
+
+      {/* ── Marketplace Valuation Assessment ──────────────────────── */}
+      {isMarketplace && v.marketplace_item_title && (
+        <div className="mt-6">
+          <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+            Marketplace valuation
+          </h2>
+          <Card>
+            <CardContent className="pt-5 space-y-4">
+              <div className="flex items-center gap-2 mb-2">
+                <ShoppingCart className="size-5 text-muted-foreground" />
+                <span className="text-sm font-semibold">{v.marketplace_item_title}</span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                {v.marketplace_listed_price != null && (
+                  <div className="rounded-lg bg-muted/50 p-3">
+                    <span className="text-xs text-muted-foreground block mb-0.5">Listed price</span>
+                    <span className="font-mono font-semibold text-base">{fmt(Number(v.marketplace_listed_price))}</span>
+                  </div>
+                )}
+                {v.valuation_min != null && v.valuation_max != null && (
+                  <div className="rounded-lg bg-muted/50 p-3">
+                    <span className="text-xs text-muted-foreground block mb-0.5">Est. market value</span>
+                    <span className="font-mono font-semibold text-base">
+                      {fmt(Number(v.valuation_min))} &ndash; {fmt(Number(v.valuation_max))}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {showMarketplaceValuation && (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">Price assessment:</span>
+                  <StatusBadge status={marketplaceStatus} />
+                </div>
+              )}
+
+              {v.valuation_summary && (
+                <div className="rounded-lg border bg-muted/20 p-4">
+                  <p className="text-sm leading-relaxed whitespace-pre-line">{v.valuation_summary}</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* ── Payment section ──────────────────────────────────────────── */}
       <div className="mt-6">

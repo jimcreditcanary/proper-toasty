@@ -223,22 +223,29 @@ If a field is not found, set its value to null.`;
               },
               body: JSON.stringify({
                 model: "claude-sonnet-4-20250514",
-                max_tokens: 1024,
+                max_tokens: 2048,
                 tools: [{ type: "web_search_20250305", name: "web_search" }],
                 messages: [{
                   role: "user",
-                  content: `What is the current UK market value for: "${marketplaceItemTitle}"?
-${marketplaceListedPrice ? `It is listed on Facebook Marketplace for £${marketplaceListedPrice}.` : ""}
+                  content: `You are a marketplace valuation analyst for WhoAmIPaying, a UK payment verification service.
 
-IMPORTANT RULES:
-- Prefer UK-based sources first: eBay UK, Autotrader UK, Gumtree UK, specialist UK dealers
-- ALL final prices MUST be in British Pounds Sterling (GBP £)
-- If you find prices in other currencies (EUR, USD etc), you MAY convert them to GBP but ONLY using the current exchange rate from a reliable source (e.g. Google Finance, XE.com, Bank of England). State the exchange rate used in the summary
-- Prioritise prices already in GBP over converted prices
-- If relying mainly on converted prices, set confidence to "medium" at most and note this in the summary
+A user wants to buy: "${marketplaceItemTitle}"
+${marketplaceListedPrice ? `Listed price: £${marketplaceListedPrice} (private sale, Facebook Marketplace)` : ""}
 
-Return ONLY a JSON object with no markdown:
-{"estimated_min": <number in GBP>, "estimated_max": <number in GBP>, "confidence": "high"|"medium"|"low", "sources": ["urls"], "valuation_summary": "1-2 sentence explanation. State if prices were converted and the exchange rate used."}`,
+Research the current UK market value for this item thoroughly. Search eBay UK, Autotrader UK, Gumtree, specialist dealers, and any relevant sources.
+
+RULES:
+- All prices in GBP (£). If converting from EUR/USD, use current exchange rate and state the rate used.
+- Prioritise UK sources over international ones.
+
+Return ONLY a JSON object with no markdown fences:
+{
+  "estimated_min": <number - realistic low GBP price>,
+  "estimated_max": <number - realistic high GBP price>,
+  "confidence": "high" | "medium" | "low",
+  "sources": ["source urls"],
+  "valuation_assessment": "<A detailed plain-text assessment in under 150 words. Cover: what the item is, what comparable listings/sales you found and at what prices, your assessment of whether the listed price is good/fair/poor value, and any red flags or things the buyer should check before proceeding. Write in clear, direct language. Do not use markdown formatting — plain text only.>"
+}`,
                 }],
               }),
             });
@@ -258,7 +265,7 @@ Return ONLY a JSON object with no markdown:
                     min: Number(parsed.estimated_min),
                     max: Number(parsed.estimated_max),
                     confidence: parsed.confidence ?? "low",
-                    summary: parsed.valuation_summary ?? "",
+                    summary: parsed.valuation_assessment ?? parsed.valuation_summary ?? "",
                     sources: parsed.sources ?? [],
                   };
                   console.log("Marketplace valuation:", results.valuation);
