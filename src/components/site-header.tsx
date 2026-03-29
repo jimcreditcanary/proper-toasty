@@ -57,6 +57,9 @@ export function SiteHeader({ email }: { email?: string }) {
                 <DropdownMenuItem render={<Link href="/verify" />}>
                   Verify Invoice
                 </DropdownMenuItem>
+                <DropdownMenuItem render={<Link href="/dashboard/api" />}>
+                  API
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleSignOut}>
                   Sign out
