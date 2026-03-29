@@ -270,6 +270,9 @@ export interface Database {
           valuation_min: number | null;
           valuation_max: number | null;
           valuation_summary: string | null;
+          google_reviews_rating: number | null;
+          google_reviews_count: number | null;
+          google_reviews_summary: string | null;
           invoice_file_path: string | null;
           payee_type: string | null;
           payee_name: string | null;
@@ -309,6 +312,9 @@ export interface Database {
           valuation_min?: number | null;
           valuation_max?: number | null;
           valuation_summary?: string | null;
+          google_reviews_rating?: number | null;
+          google_reviews_count?: number | null;
+          google_reviews_summary?: string | null;
           invoice_file_path?: string | null;
           payee_type?: string | null;
           payee_name?: string | null;
@@ -348,6 +354,9 @@ export interface Database {
           valuation_min?: number | null;
           valuation_max?: number | null;
           valuation_summary?: string | null;
+          google_reviews_rating?: number | null;
+          google_reviews_count?: number | null;
+          google_reviews_summary?: string | null;
           invoice_file_path?: string | null;
           payee_type?: string | null;
           payee_name?: string | null;

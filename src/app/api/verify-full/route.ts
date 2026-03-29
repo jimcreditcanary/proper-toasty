@@ -204,9 +204,66 @@ If a field is not found, set its value to null.`;
       vat: VATResult | null;
       bank: BankResult | null;
       valuation: { min: number; max: number; confidence: string; summary: string; sources: string[] } | null;
-    } = { ch: null, vat: null, bank: null, valuation: null };
+      reviews: { rating: number | null; count: number | null; summary: string } | null;
+    } = { ch: null, vat: null, bank: null, valuation: null, reviews: null };
 
     const promises: Promise<void>[] = [];
+
+    // Google Reviews check — only for businesses
+    const isBusiness = payeeType === "business" || !!finalCompanyNumber || !!finalVatNumber;
+    if (isBusiness && finalCompanyName) {
+      promises.push(
+        (async () => {
+          try {
+            const reviewsRes = await fetch("https://api.anthropic.com/v1/messages", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "x-api-key": process.env.ANTHROPIC_API_KEY!,
+                "anthropic-version": "2023-06-01",
+              },
+              body: JSON.stringify({
+                model: "claude-sonnet-4-20250514",
+                max_tokens: 512,
+                tools: [{ type: "web_search_20250305", name: "web_search" }],
+                messages: [{
+                  role: "user",
+                  content: `Search for Google reviews for this UK business: "${finalCompanyName}"
+
+Find their Google Business Profile / Google Maps listing. Extract the star rating and number of reviews.
+
+Return ONLY a JSON object with no markdown:
+{"rating": <number e.g. 4.5 or null if not found>, "review_count": <number or null>, "summary": "<One sentence: the rating, review count, and any notable themes from reviews. If no Google reviews found, say so. Plain text only.>"}`,
+                }],
+              }),
+            });
+            if (reviewsRes.ok) {
+              const revData = await reviewsRes.json();
+              const blocks = revData.content as Array<{ type: string; text?: string }>;
+              let revText = "";
+              for (let i = blocks.length - 1; i >= 0; i--) {
+                if (blocks[i].type === "text" && blocks[i].text) { revText = blocks[i].text!; break; }
+              }
+              if (revText) {
+                const cleaned = revText.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
+                const match = cleaned.match(/\{[\s\S]*\}/);
+                const parsed = match ? JSON.parse(match[0]) : null;
+                if (parsed) {
+                  results.reviews = {
+                    rating: parsed.rating != null ? Number(parsed.rating) : null,
+                    count: parsed.review_count != null ? Number(parsed.review_count) : null,
+                    summary: parsed.summary ?? "No review data found.",
+                  };
+                  console.log("Google reviews:", results.reviews);
+                }
+              }
+            }
+          } catch (err) {
+            console.error("Google reviews check error:", err);
+          }
+        })()
+      );
+    }
 
     // Marketplace valuation — only run if listed price > £1000
     const listedPriceNum = marketplaceListedPrice ? parseFloat(marketplaceListedPrice) : 0;
@@ -476,6 +533,9 @@ Return ONLY a JSON object with no markdown fences:
         valuation_min: results.valuation?.min ?? null,
         valuation_max: results.valuation?.max ?? null,
         valuation_summary: results.valuation?.summary ?? null,
+        google_reviews_rating: results.reviews?.rating ?? null,
+        google_reviews_count: results.reviews?.count ?? null,
+        google_reviews_summary: results.reviews?.summary ?? null,
         status: "completed",
       })
       .eq("id", verification.id);
