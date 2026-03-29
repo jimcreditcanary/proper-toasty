@@ -211,6 +211,7 @@ If a field is not found, set its value to null.`;
 
     // Google Reviews check — only for businesses
     const isBusiness = payeeType === "business" || !!finalCompanyNumber || !!finalVatNumber;
+    console.log("Reviews check:", { isBusiness, payeeType, finalCompanyName, finalCompanyNumber: !!finalCompanyNumber, finalVatNumber: !!finalVatNumber });
     if (isBusiness && finalCompanyName) {
       promises.push(
         (async () => {
@@ -228,12 +229,16 @@ If a field is not found, set its value to null.`;
                 tools: [{ type: "web_search_20250305", name: "web_search" }],
                 messages: [{
                   role: "user",
-                  content: `Search for Google reviews for this UK business: "${finalCompanyName}"
+                  content: `Search Google for: "${finalCompanyName}" reviews
 
-Find their Google Business Profile / Google Maps listing. Extract the star rating and number of reviews.
+I need the Google Business Profile star rating and review count for this company. Try these searches:
+1. "${finalCompanyName}" Google reviews
+2. "${finalCompanyName}" site:google.com/maps
+
+Also check if they have reviews on Trustpilot or Checkatrade.
 
 Return ONLY a JSON object with no markdown:
-{"rating": <number e.g. 4.5 or null if not found>, "review_count": <number or null>, "summary": "<One sentence: the rating, review count, and any notable themes from reviews. If no Google reviews found, say so. Plain text only.>"}`,
+{"rating": <number e.g. 4.5 or null if not found>, "review_count": <number or null>, "source": "<where you found the reviews e.g. Google, Trustpilot, Checkatrade>", "summary": "<One sentence summary: the rating, review count, source, and any notable positives or negatives. If no reviews found anywhere, say 'No online reviews found for this business.' Plain text only.>"}`,
                 }],
               }),
             });
