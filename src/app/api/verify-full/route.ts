@@ -208,8 +208,9 @@ If a field is not found, set its value to null.`;
 
     const promises: Promise<void>[] = [];
 
-    // Marketplace valuation (runs in parallel with other checks)
-    if (flowType === "marketplace" && marketplaceItemTitle) {
+    // Marketplace valuation — only run if listed price > £1000
+    const listedPriceNum = marketplaceListedPrice ? parseFloat(marketplaceListedPrice) : 0;
+    if (flowType === "marketplace" && marketplaceItemTitle && listedPriceNum > 1000) {
       promises.push(
         (async () => {
           try {
@@ -226,13 +227,18 @@ If a field is not found, set its value to null.`;
                 tools: [{ type: "web_search_20250305", name: "web_search" }],
                 messages: [{
                   role: "user",
-                  content: `What is the current UK market value (in GBP £) for: "${marketplaceItemTitle}"?
+                  content: `What is the current UK market value for: "${marketplaceItemTitle}"?
 ${marketplaceListedPrice ? `It is listed on Facebook Marketplace for £${marketplaceListedPrice}.` : ""}
 
-Search for recent UK sale prices on eBay UK, Autotrader, Gumtree, specialist dealers, etc. All prices MUST be in GBP (£). Do NOT use EUR prices.
+IMPORTANT RULES:
+- Search ONLY UK-based sources: eBay UK, Autotrader UK, Gumtree UK, specialist UK dealers
+- ALL prices MUST be in British Pounds Sterling (GBP £)
+- Do NOT use European/EUR prices and convert them — only use prices already listed in GBP
+- If you cannot find UK prices in GBP, set confidence to "low" and say so in the summary
+- Do NOT perform currency conversions from EUR, USD, or any other currency
 
 Return ONLY a JSON object with no markdown:
-{"estimated_min": <number in GBP>, "estimated_max": <number in GBP>, "confidence": "high"|"medium"|"low", "sources": ["urls"], "valuation_summary": "1-2 sentence explanation in GBP only"}`,
+{"estimated_min": <number in GBP>, "estimated_max": <number in GBP>, "confidence": "high"|"medium"|"low", "sources": ["urls"], "valuation_summary": "1-2 sentence explanation using UK GBP sources only"}`,
                 }],
               }),
             });

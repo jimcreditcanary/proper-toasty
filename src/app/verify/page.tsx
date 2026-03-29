@@ -113,7 +113,7 @@ function AnalysisProgress({ label, elapsed }: { label: string; elapsed: number }
           />
         </div>
         <p className="text-xs text-muted-foreground">
-          This may take up to 30 seconds. Please do not navigate away.
+          This may take up to 15 seconds. Please do not navigate away.
         </p>
       </CardContent>
     </Card>
@@ -299,8 +299,8 @@ export default function VerifyPage() {
           </div>
           <h2 className="text-xl font-semibold">Running verification checks</h2>
           <p className="text-sm text-muted-foreground max-w-sm">
-            We&apos;re checking the payee details against Companies House, HMRC,
-            and the bank. This may take up to 30 seconds.
+            We are checking the validity of information provided against multiple
+            sources. This may take up to 30 seconds.
           </p>
           <div className="w-full max-w-sm">
             <div className="h-2 w-full rounded-full bg-muted">
@@ -373,21 +373,48 @@ export default function VerifyPage() {
           </p>
 
           <div className="space-y-4">
-            {/* Screenshot upload */}
+            {/* Screenshot upload — supports click, drag-and-drop, and paste */}
             {!data.marketplaceScreenshot && !marketplaceLookupLoading && !marketplaceLookupDone && (
               <label
                 htmlFor="marketplace-screenshot"
                 className={cn(
                   "flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed p-10 cursor-pointer transition-colors",
-                  "hover:border-primary/50 hover:bg-muted/50"
+                  dragOver
+                    ? "border-primary bg-primary/5"
+                    : "hover:border-primary/50 hover:bg-muted/50"
                 )}
+                onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                onDragLeave={() => setDragOver(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setDragOver(false);
+                  const file = e.dataTransfer.files[0];
+                  if (file && file.type.startsWith("image/")) {
+                    update({ marketplaceScreenshot: file });
+                    handleMarketplaceLookup(file);
+                  }
+                }}
+                tabIndex={0}
+                onPaste={(e) => {
+                  const items = e.clipboardData.items;
+                  for (let i = 0; i < items.length; i++) {
+                    if (items[i].type.startsWith("image/")) {
+                      const file = items[i].getAsFile();
+                      if (file) {
+                        update({ marketplaceScreenshot: file });
+                        handleMarketplaceLookup(file);
+                      }
+                      break;
+                    }
+                  }
+                }}
               >
                 <Upload className="size-10 text-muted-foreground" />
                 <span className="text-sm font-medium">
-                  Drop screenshot here, or click to browse
+                  Drop, paste, or click to upload a screenshot
                 </span>
                 <span className="text-xs text-muted-foreground">
-                  PNG, JPG or WebP
+                  PNG, JPG or WebP — you can also paste from clipboard (Ctrl+V)
                 </span>
                 <input
                   id="marketplace-screenshot"
@@ -836,7 +863,7 @@ export default function VerifyPage() {
                     <span className="font-mono">{data.accountNumber}</span>
                   </div>
                 )}
-                {data.invoiceAmount && (
+                {data.invoiceAmount && !data.hasInvoice && (
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Amount</span>
                     <span className="font-mono font-semibold">

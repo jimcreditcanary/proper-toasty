@@ -385,7 +385,7 @@ export default async function VerificationResultPage({
             accentColor={accentForStatus(copStatus)}
           />
 
-          {v.flow_type === "marketplace" && (
+          {v.flow_type === "marketplace" && v.valuation_min != null && v.valuation_max != null && (
             <CheckCard
               icon={
                 <ShoppingCart className="size-5 text-muted-foreground" />
