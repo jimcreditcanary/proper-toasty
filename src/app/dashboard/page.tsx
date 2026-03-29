@@ -160,6 +160,38 @@ export default async function DashboardPage() {
         </div>
       </div>
 
+      {/* Low credits alert */}
+      {credits > 0 && credits < 5 && (
+        <div className="mt-6 flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950/20">
+          <Coins className="size-5 text-amber-600 shrink-0" />
+          <div className="flex-1">
+            <p className="text-sm font-medium text-amber-800 dark:text-amber-400">
+              You have {credits} credit{credits === 1 ? "" : "s"} remaining
+            </p>
+            <p className="text-xs text-amber-700/80 dark:text-amber-400/80">
+              Top up now so you&apos;re ready for your next check.
+            </p>
+          </div>
+          <BuyCreditsDialog />
+        </div>
+      )}
+
+      {/* No credits alert */}
+      {credits === 0 && (
+        <div className="mt-6 flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-950/20">
+          <Coins className="size-5 text-red-600 shrink-0" />
+          <div className="flex-1">
+            <p className="text-sm font-medium text-red-800 dark:text-red-400">
+              You have no credits
+            </p>
+            <p className="text-xs text-red-700/80 dark:text-red-400/80">
+              Buy credits to start verifying invoices and payments.
+            </p>
+          </div>
+          <BuyCreditsDialog />
+        </div>
+      )}
+
       {/* Stats */}
       <div className="mt-6 grid gap-4 sm:grid-cols-3">
         <Card size="sm">
@@ -202,9 +234,24 @@ export default async function DashboardPage() {
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <FileCheck className="mb-3 size-10 text-muted-foreground/50" />
               <p className="text-sm font-medium">No verifications yet</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Start a verification to get going
-              </p>
+              {credits > 0 ? (
+                <div className="mt-2">
+                  <p className="text-xs text-muted-foreground mb-3">
+                    You have {credits} credit{credits === 1 ? "" : "s"} ready to use.
+                  </p>
+                  <Button size="sm" render={<Link href="/verify" />}>
+                    <Upload className="size-4 mr-1.5" />
+                    Run your first check
+                  </Button>
+                </div>
+              ) : (
+                <div className="mt-2">
+                  <p className="text-xs text-muted-foreground mb-3">
+                    Buy credits to start verifying invoices and payments.
+                  </p>
+                  <BuyCreditsDialog />
+                </div>
+              )}
             </div>
           ) : (
             <Table>
