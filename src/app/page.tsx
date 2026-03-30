@@ -98,11 +98,11 @@ export default function Home() {
 
       {/* ── Hero ─────────────────────────────────────────────────────── */}
       <section className="relative overflow-hidden">
-        {/* Subtle radial glow behind hero */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[600px] rounded-full bg-coral/[0.06] blur-[120px] pointer-events-none" />
+        {/* Radial gradient glow behind hero */}
+        <div className="absolute top-[-200px] left-1/2 -translate-x-1/2 w-[1000px] h-[900px] pointer-events-none" style={{ background: "radial-gradient(ellipse at center, rgba(255,92,53,0.15) 0%, rgba(255,92,53,0.05) 40%, transparent 70%)" }} />
 
         <div className="relative mx-auto max-w-4xl px-6 py-24 sm:py-32 text-center">
-          <div className="mx-auto mb-8">
+          <div className="mx-auto mb-8 flex justify-center">
             <LogoIcon size="xl" />
           </div>
           <h1 className="text-5xl sm:text-6xl lg:text-7xl">
@@ -112,7 +112,7 @@ export default function Home() {
           </h1>
           <p className="mt-6 text-lg sm:text-xl text-brand-muted-light max-w-2xl mx-auto leading-relaxed">
             In the first half of 2025, over{" "}
-            <span className="text-coral font-bold">£629 million</span> was stolen
+            <span className="text-coral font-bold">£629 million</span>{" "}was stolen
             by fraudsters in the UK. Before you send money, let us check who
             you&apos;re really paying.
           </p>
