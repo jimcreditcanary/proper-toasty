@@ -53,14 +53,18 @@ export function BuyCreditsDialog() {
 
   return (
     <Dialog>
-      <DialogTrigger render={<Button variant="outline" size="sm" />}>
+      <DialogTrigger
+        render={
+          <Button className="bg-white/[0.07] border border-white/10 text-brand-muted-light hover:text-white hover:bg-white/[0.12] rounded-xl text-sm" />
+        }
+      >
         <CreditCard className="size-4 mr-1.5" />
         Buy credits
       </DialogTrigger>
-      <DialogContent className="sm:max-w-sm">
+      <DialogContent className="sm:max-w-sm bg-navy-card border-white/10 text-white">
         <DialogHeader>
-          <DialogTitle>Buy credits</DialogTitle>
-          <DialogDescription>
+          <DialogTitle className="text-white">Buy credits</DialogTitle>
+          <DialogDescription className="text-brand-muted-light">
             Each invoice verification uses 1 credit.
           </DialogDescription>
         </DialogHeader>
@@ -71,29 +75,40 @@ export function BuyCreditsDialog() {
               key={plan.credits}
               type="button"
               onClick={() => setSelected(plan.credits)}
-              className={`flex w-full items-center justify-between rounded-lg border px-4 py-3 text-left text-sm transition-colors ${
+              className={`flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left text-sm transition-colors ${
                 selected === plan.credits
-                  ? "border-primary bg-primary/5"
-                  : "hover:bg-muted"
+                  ? "border-coral bg-coral/10 text-white"
+                  : "border-white/10 hover:bg-white/[0.05] text-brand-muted-light"
               }`}
             >
               <span className="font-medium">{plan.label}</span>
-              <span className="text-muted-foreground">{plan.price}</span>
+              <span className={selected === plan.credits ? "text-coral" : "text-brand-muted"}>{plan.price}</span>
             </button>
           ))}
         </div>
 
         {error && (
-          <div className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          <div className="rounded-xl bg-fail/10 border border-fail/20 px-3 py-2 text-sm text-fail">
             {error}
           </div>
         )}
 
         <div className="flex justify-end gap-2">
-          <DialogClose render={<Button variant="outline" disabled={loading} />}>
+          <DialogClose
+            render={
+              <Button
+                className="bg-white/[0.07] border border-white/10 text-brand-muted-light hover:text-white hover:bg-white/[0.12] rounded-xl"
+                disabled={loading}
+              />
+            }
+          >
             Cancel
           </DialogClose>
-          <Button onClick={handlePurchase} disabled={loading}>
+          <Button
+            onClick={handlePurchase}
+            disabled={loading}
+            className="bg-coral hover:bg-coral-dark text-white font-bold rounded-xl hover:shadow-[0_4px_16px_rgba(255,92,53,0.4)] transition-all"
+          >
             {loading ? (
               <>
                 <Loader2 className="size-4 mr-1.5 animate-spin" />

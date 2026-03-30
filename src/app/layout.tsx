@@ -1,25 +1,27 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Syne, Plus_Jakarta_Sans } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const syne = Syne({
+  variable: "--font-heading",
   subsets: ["latin"],
+  weight: ["700", "800"],
   display: "swap",
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const jakarta = Plus_Jakarta_Sans({
+  variable: "--font-body",
   subsets: ["latin"],
+  weight: ["300", "400", "500", "700"],
   display: "swap",
 });
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://www.whoamipaying.co.uk"),
   title: {
-    default: "whoamipaying.co.uk — Know exactly who you're paying",
-    template: "%s | whoamipaying.co.uk",
+    default: "whoamipaying? — Know exactly who you're paying",
+    template: "%s | whoamipaying?",
   },
   description:
     "Verify invoices before you pay. Check company details against Companies House, HMRC VAT, bank records, and online reviews — in seconds.",
@@ -38,14 +40,14 @@ export const metadata: Metadata = {
     type: "website",
     locale: "en_GB",
     url: "https://www.whoamipaying.co.uk",
-    siteName: "whoamipaying.co.uk",
-    title: "whoamipaying.co.uk — Know exactly who you're paying",
+    siteName: "whoamipaying?",
+    title: "whoamipaying? — Know exactly who you're paying",
     description:
       "Over £629m was stolen by fraudsters in H1 2025. Verify who you're paying against 6 official UK data sources before you send money.",
   },
   twitter: {
     card: "summary_large_image",
-    title: "whoamipaying.co.uk — Know exactly who you're paying",
+    title: "whoamipaying? — Know exactly who you're paying",
     description:
       "Verify invoices and payments against Companies House, HMRC, bank records, and more.",
   },
@@ -62,7 +64,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${syne.variable} ${jakarta.variable} h-full`}
     >
       <body className="min-h-full flex flex-col">
         {children}

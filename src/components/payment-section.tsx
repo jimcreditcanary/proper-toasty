@@ -105,7 +105,7 @@ export function PaymentSection({ data }: { data: PaymentData }) {
   if (!hasPaymentData) {
     return (
       <Card className="mt-6 border-dashed">
-        <CardContent className="py-6 text-center text-sm text-muted-foreground">
+        <CardContent className="py-6 text-center text-sm text-brand-muted-light">
           Payment details are incomplete. Upload an invoice or enter payment
           details to enable payments.
         </CardContent>
@@ -124,12 +124,12 @@ export function PaymentSection({ data }: { data: PaymentData }) {
   return (
     <>
       <div className="mt-8 space-y-4">
-        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+        <h2 className="text-sm font-semibold text-brand-muted-light uppercase tracking-wide">
           Payment
         </h2>
 
         {data.sandboxMode && (
-          <div className="rounded-lg bg-amber-50 border border-amber-200 px-4 py-2 text-sm text-amber-800">
+          <div className="rounded-xl bg-warn/[0.08] border border-warn/20 px-4 py-2 text-sm text-warn">
             <span className="font-medium">&#9888; Payment sandbox</span> —
             OBConnect not connected
           </div>
@@ -139,7 +139,7 @@ export function PaymentSection({ data }: { data: PaymentData }) {
         <Card>
           <CardHeader>
             <div className="flex items-center gap-2">
-              <CreditCard className="size-4 text-muted-foreground" />
+              <CreditCard className="size-4 text-brand-muted-light" />
               <CardTitle className="text-sm">Payment summary</CardTitle>
             </div>
             <CardDescription>Review before proceeding</CardDescription>
@@ -147,11 +147,11 @@ export function PaymentSection({ data }: { data: PaymentData }) {
           <CardContent className="space-y-4">
             <div className="divide-y text-sm">
               <div className="flex justify-between py-2">
-                <span className="text-muted-foreground">Paying</span>
+                <span className="text-brand-muted-light">Paying</span>
                 <span className="font-medium">{data.payeeName}</span>
               </div>
               <div className="flex justify-between py-2">
-                <span className="text-muted-foreground">Amount</span>
+                <span className="text-brand-muted-light">Amount</span>
                 <span className="font-mono font-medium">
                   &pound;
                   {Number(amount).toLocaleString("en-GB", {
@@ -160,15 +160,15 @@ export function PaymentSection({ data }: { data: PaymentData }) {
                 </span>
               </div>
               <div className="flex justify-between py-2">
-                <span className="text-muted-foreground">Sort Code</span>
+                <span className="text-brand-muted-light">Sort Code</span>
                 <span className="font-mono">{formatSortCode(data.sortCode)}</span>
               </div>
               <div className="flex justify-between py-2">
-                <span className="text-muted-foreground">Account</span>
+                <span className="text-brand-muted-light">Account</span>
                 <span className="font-mono">{data.accountNumber}</span>
               </div>
               <div className="flex justify-between py-2">
-                <span className="text-muted-foreground">Reference</span>
+                <span className="text-brand-muted-light">Reference</span>
                 <span className="font-mono text-xs">{data.reference}</span>
               </div>
             </div>
@@ -176,14 +176,14 @@ export function PaymentSection({ data }: { data: PaymentData }) {
             <Separator />
 
             {/* Credit notice */}
-            <div className="flex items-start gap-2 text-xs text-muted-foreground">
+            <div className="flex items-start gap-2 text-xs text-brand-muted-light">
               <Info className="size-3.5 mt-0.5 shrink-0" />
               <span>This payment will use 1 credit</span>
             </div>
 
             {/* Error */}
             {error && (
-              <div className="rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700">
+              <div className="rounded-xl bg-fail/10 border border-fail/20 px-3 py-2 text-sm text-fail">
                 {error}
                 {error.includes("credits") && (
                   <a
@@ -201,12 +201,12 @@ export function PaymentSection({ data }: { data: PaymentData }) {
               <div className="space-y-2">
                 <Button
                   disabled
-                  className="w-full bg-red-600 hover:bg-red-600 opacity-60 cursor-not-allowed"
+                  className="w-full bg-fail hover:bg-fail opacity-60 cursor-not-allowed"
                 >
                   <ShieldX className="size-4 mr-1.5" />
                   Payment Not Recommended
                 </Button>
-                <p className="text-xs text-red-600 text-center">
+                <p className="text-xs text-fail text-center">
                   This payment has failed one or more verification checks. We
                   recommend you do not proceed.
                 </p>
@@ -215,7 +215,7 @@ export function PaymentSection({ data }: { data: PaymentData }) {
               <Button
                 onClick={handlePayClick}
                 disabled={loading}
-                className="w-full bg-amber-600 hover:bg-amber-700"
+                className="w-full bg-warn hover:bg-warn/90 text-navy"
                 title="1 credit will be used to initiate this payment"
               >
                 {loading ? (
@@ -249,8 +249,8 @@ export function PaymentSection({ data }: { data: PaymentData }) {
         <DialogOverlay />
         <DialogContent className="sm:max-w-[425px]">
           <div className="flex items-center gap-3 mb-2">
-            <div className="flex size-10 items-center justify-center rounded-full bg-amber-100">
-              <ShieldAlert className="size-5 text-amber-600" />
+            <div className="flex size-10 items-center justify-center rounded-full bg-warn/10">
+              <ShieldAlert className="size-5 text-warn" />
             </div>
             <div>
               <DialogTitle>Proceed with caution</DialogTitle>
@@ -259,11 +259,11 @@ export function PaymentSection({ data }: { data: PaymentData }) {
               </DialogDescription>
             </div>
           </div>
-          <p className="text-sm text-muted-foreground mt-3">
+          <p className="text-sm text-brand-muted-light mt-3">
             One or more verification checks returned a warning. Are you sure you
             want to proceed with this payment?
           </p>
-          <p className="text-xs text-muted-foreground mt-2">
+          <p className="text-xs text-brand-muted-light mt-2">
             Proceeding will use 1 credit.
           </p>
           <div className="flex justify-end gap-2 mt-6">
@@ -271,7 +271,7 @@ export function PaymentSection({ data }: { data: PaymentData }) {
               render={<Button variant="outline">Cancel</Button>}
             />
             <Button
-              className="bg-amber-600 hover:bg-amber-700"
+              className="bg-warn hover:bg-warn/90 text-navy"
               disabled={loading}
               onClick={() => {
                 setShowWarningDialog(false);

@@ -1,21 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { BuyCreditsDialog } from "@/components/buy-credits-dialog";
@@ -46,8 +31,8 @@ function formatDate(dateStr: string) {
 }
 
 function formatAmount(amount: number | null | undefined) {
-  if (amount == null) return "—";
-  return `£${Number(amount).toLocaleString("en-GB", { minimumFractionDigits: 2 })}`;
+  if (amount == null) return "\u2014";
+  return `\u00A3${Number(amount).toLocaleString("en-GB", { minimumFractionDigits: 2 })}`;
 }
 
 type HistoryRow = {
@@ -77,7 +62,6 @@ export default async function DashboardPage() {
     .eq("id", user.id)
     .single();
 
-  // Fetch both verifications and legacy scans
   const { data: verifications } = await supabase
     .from("verifications")
     .select("id, created_at, status, payee_name, company_name_input, extracted_company_name, invoice_amount, extracted_invoice_amount, marketplace_listed_price, overall_risk, flow_type, invoice_file_path, marketplace_item_title")
@@ -92,7 +76,6 @@ export default async function DashboardPage() {
     .order("created_at", { ascending: false })
     .limit(50);
 
-  // Merge into a unified history list
   const history: HistoryRow[] = [];
 
   if (verifications) {
@@ -119,7 +102,6 @@ export default async function DashboardPage() {
 
   if (scans) {
     for (const s of scans) {
-      // Skip if there's already a verification with the same ID
       if (history.some((h) => h.id === s.id)) continue;
       history.push({
         id: s.id,
@@ -134,7 +116,6 @@ export default async function DashboardPage() {
     }
   }
 
-  // Sort by date descending
   history.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
   const credits = profile?.credits ?? 0;
@@ -146,14 +127,17 @@ export default async function DashboardPage() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Dashboard</h1>
-          <p className="text-sm text-muted-foreground">
+          <h1 className="text-2xl text-white">Dashboard</h1>
+          <p className="text-sm text-brand-muted-light mt-1">
             Upload and verify invoices
           </p>
         </div>
         <div className="flex gap-2">
           <BuyCreditsDialog />
-          <Button render={<Link href="/verify" />}>
+          <Button
+            className="bg-coral hover:bg-coral-dark text-white font-bold text-[15px] rounded-xl hover:shadow-[0_4px_16px_rgba(255,92,53,0.4)] transition-all"
+            render={<Link href="/verify" />}
+          >
             <Upload className="size-4 mr-1.5" />
             Make a check
           </Button>
@@ -162,13 +146,13 @@ export default async function DashboardPage() {
 
       {/* Low credits alert */}
       {credits > 0 && credits < 5 && (
-        <div className="mt-6 flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950/20">
-          <Coins className="size-5 text-amber-600 shrink-0" />
+        <div className="mt-6 flex items-center gap-3 rounded-xl border border-warn/20 bg-warn/[0.08] p-4">
+          <Coins className="size-5 text-warn shrink-0" />
           <div className="flex-1">
-            <p className="text-sm font-medium text-amber-800 dark:text-amber-400">
+            <p className="text-sm font-medium text-warn">
               You have {credits} credit{credits === 1 ? "" : "s"} remaining
             </p>
-            <p className="text-xs text-amber-700/80 dark:text-amber-400/80">
+            <p className="text-xs text-warn/70">
               Top up now so you&apos;re ready for your next check.
             </p>
           </div>
@@ -178,13 +162,13 @@ export default async function DashboardPage() {
 
       {/* No credits alert */}
       {credits === 0 && (
-        <div className="mt-6 flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-950/20">
-          <Coins className="size-5 text-red-600 shrink-0" />
+        <div className="mt-6 flex items-center gap-3 rounded-xl border border-fail/20 bg-fail/[0.08] p-4">
+          <Coins className="size-5 text-fail shrink-0" />
           <div className="flex-1">
-            <p className="text-sm font-medium text-red-800 dark:text-red-400">
+            <p className="text-sm font-medium text-fail">
               You have no credits
             </p>
-            <p className="text-xs text-red-700/80 dark:text-red-400/80">
+            <p className="text-xs text-fail/70">
               Buy credits to start verifying invoices and payments.
             </p>
           </div>
@@ -194,59 +178,48 @@ export default async function DashboardPage() {
 
       {/* Stats */}
       <div className="mt-6 grid gap-4 sm:grid-cols-3">
-        <Card size="sm">
-          <CardHeader>
-            <CardDescription className="flex items-center gap-1.5">
-              <Coins className="size-3.5" />
-              Credits remaining
-            </CardDescription>
-            <CardTitle className="text-2xl">{credits}</CardTitle>
-          </CardHeader>
-        </Card>
-        <Card size="sm">
-          <CardHeader>
-            <CardDescription className="flex items-center gap-1.5">
-              <FileCheck className="size-3.5" />
-              Verifications completed
-            </CardDescription>
-            <CardTitle className="text-2xl">{completedCount}</CardTitle>
-          </CardHeader>
-        </Card>
-        <Card size="sm">
-          <CardHeader>
-            <CardDescription className="flex items-center gap-1.5">
-              <Clock className="size-3.5" />
-              Total checks
-            </CardDescription>
-            <CardTitle className="text-2xl">{totalCount}</CardTitle>
-          </CardHeader>
-        </Card>
+        {[
+          { icon: Coins, label: "Credits remaining", value: credits },
+          { icon: FileCheck, label: "Verifications completed", value: completedCount },
+          { icon: Clock, label: "Total checks", value: totalCount },
+        ].map((stat) => (
+          <div key={stat.label} className="rounded-2xl bg-navy-card border border-white/[0.06] p-5">
+            <div className="flex items-center gap-1.5 text-brand-muted text-sm mb-2">
+              <stat.icon className="size-3.5" />
+              {stat.label}
+            </div>
+            <div className="text-2xl font-bold text-white">{stat.value}</div>
+          </div>
+        ))}
       </div>
 
       {/* History table */}
-      <Card className="mt-6">
-        <CardHeader>
-          <CardTitle>Verification history</CardTitle>
-          <CardDescription>Your recent verification checks</CardDescription>
-        </CardHeader>
-        <CardContent>
+      <div className="mt-6 rounded-2xl bg-navy-card border border-white/[0.06] overflow-hidden">
+        <div className="px-6 py-4 border-b border-white/[0.06]">
+          <h2 className="font-semibold text-white">Verification history</h2>
+          <p className="text-sm text-brand-muted mt-0.5">Your recent verification checks</p>
+        </div>
+        <div className="p-6">
           {history.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">
-              <FileCheck className="mb-3 size-10 text-muted-foreground/50" />
-              <p className="text-sm font-medium">No verifications yet</p>
+              <FileCheck className="mb-3 size-10 text-brand-muted/50" />
+              <p className="text-sm font-medium text-white">No verifications yet</p>
               {credits > 0 ? (
-                <div className="mt-2">
-                  <p className="text-xs text-muted-foreground mb-3">
+                <div className="mt-3">
+                  <p className="text-xs text-brand-muted mb-3">
                     You have {credits} credit{credits === 1 ? "" : "s"} ready to use.
                   </p>
-                  <Button size="sm" render={<Link href="/verify" />}>
+                  <Button
+                    className="bg-coral hover:bg-coral-dark text-white font-bold rounded-xl hover:shadow-[0_4px_16px_rgba(255,92,53,0.4)] transition-all"
+                    render={<Link href="/verify" />}
+                  >
                     <Upload className="size-4 mr-1.5" />
                     Run your first check
                   </Button>
                 </div>
               ) : (
-                <div className="mt-2">
-                  <p className="text-xs text-muted-foreground mb-3">
+                <div className="mt-3">
+                  <p className="text-xs text-brand-muted mb-3">
                     Buy credits to start verifying invoices and payments.
                   </p>
                   <BuyCreditsDialog />
@@ -254,60 +227,62 @@ export default async function DashboardPage() {
               )}
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>File</TableHead>
-                  <TableHead>Account Name</TableHead>
-                  <TableHead className="text-right">Amount</TableHead>
-                  <TableHead className="text-right">Risk Level</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {history.map((row) => {
-                  const href = row.source === "verification"
-                    ? `/dashboard/results/${row.id}`
-                    : `/dashboard/scans/${row.id}`;
-                  const riskInfo = row.risk ? RISK_BADGE[row.risk] ?? RISK_BADGE.UNKNOWN : null;
-                  return (
-                    <TableRow key={`${row.source}-${row.id}`}>
-                      <TableCell className="text-muted-foreground whitespace-nowrap">
-                        {formatDate(row.created_at)}
-                      </TableCell>
-                      <TableCell>
-                        <Link
-                          href={href}
-                          className="font-medium underline underline-offset-4 hover:text-primary"
-                        >
-                          {row.fileName ?? "—"}
-                        </Link>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {row.accountName ?? "—"}
-                      </TableCell>
-                      <TableCell className="text-right font-mono">
-                        {formatAmount(row.amount)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {row.status === "completed" && riskInfo ? (
-                          <Badge variant={riskInfo.variant}>{riskInfo.label}</Badge>
-                        ) : row.status !== "completed" ? (
-                          <Badge variant={STATUS_VARIANTS[row.status] ?? "outline"}>
-                            {row.status}
-                          </Badge>
-                        ) : (
-                          <span className="text-muted-foreground">—</span>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-white/[0.06]">
+                    <th className="text-left py-3 px-2 text-xs font-medium text-brand-muted uppercase tracking-wider">Date</th>
+                    <th className="text-left py-3 px-2 text-xs font-medium text-brand-muted uppercase tracking-wider">File</th>
+                    <th className="text-left py-3 px-2 text-xs font-medium text-brand-muted uppercase tracking-wider">Account Name</th>
+                    <th className="text-right py-3 px-2 text-xs font-medium text-brand-muted uppercase tracking-wider">Amount</th>
+                    <th className="text-right py-3 px-2 text-xs font-medium text-brand-muted uppercase tracking-wider">Risk Level</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {history.map((row) => {
+                    const href = row.source === "verification"
+                      ? `/dashboard/results/${row.id}`
+                      : `/dashboard/scans/${row.id}`;
+                    const riskInfo = row.risk ? RISK_BADGE[row.risk] ?? RISK_BADGE.UNKNOWN : null;
+                    return (
+                      <tr key={`${row.source}-${row.id}`} className="border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors">
+                        <td className="py-3 px-2 text-brand-muted-light whitespace-nowrap">
+                          {formatDate(row.created_at)}
+                        </td>
+                        <td className="py-3 px-2">
+                          <Link
+                            href={href}
+                            className="font-medium text-coral hover:text-coral-light underline underline-offset-4"
+                          >
+                            {row.fileName ?? "\u2014"}
+                          </Link>
+                        </td>
+                        <td className="py-3 px-2 text-brand-muted-light">
+                          {row.accountName ?? "\u2014"}
+                        </td>
+                        <td className="py-3 px-2 text-right font-mono text-brand-muted-light">
+                          {formatAmount(row.amount)}
+                        </td>
+                        <td className="py-3 px-2 text-right">
+                          {row.status === "completed" && riskInfo ? (
+                            <Badge variant={riskInfo.variant}>{riskInfo.label}</Badge>
+                          ) : row.status !== "completed" ? (
+                            <Badge variant={STATUS_VARIANTS[row.status] ?? "outline"}>
+                              {row.status}
+                            </Badge>
+                          ) : (
+                            <span className="text-brand-muted">\u2014</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }

@@ -76,16 +76,16 @@ function ProgressBar({ step, total }: { step: number; total: number }) {
   return (
     <div className="mb-8">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-sm text-muted-foreground">
+        <span className="text-sm text-brand-muted-light">
           Step {step} of {total}
         </span>
-        <span className="text-sm text-muted-foreground">
+        <span className="text-sm text-brand-muted-light">
           {Math.round((step / total) * 100)}%
         </span>
       </div>
-      <div className="h-1.5 w-full rounded-full bg-muted">
+      <div className="h-1.5 w-full rounded-full bg-white/[0.07]">
         <div
-          className="h-1.5 rounded-full bg-primary transition-all duration-300"
+          className="h-1.5 rounded-full bg-coral transition-all duration-300"
           style={{ width: `${(step / total) * 100}%` }}
         />
       </div>
@@ -98,21 +98,21 @@ function AnalysisProgress({ label, elapsed }: { label: string; elapsed: number }
   // Estimate: step 1 ~8s, step 2 ~12s = ~20s total
   const pct = Math.min(95, (elapsed / 25) * 100);
   return (
-    <Card className="border-blue-200 bg-blue-50/50 dark:border-blue-800 dark:bg-blue-950/20">
+    <Card className="border-coral/20 bg-coral/[0.05]">
       <CardContent className="pt-6 space-y-3">
         <div className="flex items-center gap-3">
-          <Loader2 className="size-5 animate-spin text-blue-600" />
-          <span className="text-sm font-medium text-blue-800 dark:text-blue-300">
+          <Loader2 className="size-5 animate-spin text-coral" />
+          <span className="text-sm font-medium text-white">
             {label}
           </span>
         </div>
-        <div className="h-2 w-full rounded-full bg-blue-100 dark:bg-blue-900/50">
+        <div className="h-2 w-full rounded-full bg-white/[0.07]">
           <div
-            className="h-2 rounded-full bg-blue-500 transition-all duration-1000 ease-out"
+            className="h-2 rounded-full bg-coral transition-all duration-1000 ease-out"
             style={{ width: `${pct}%` }}
           />
         </div>
-        <p className="text-xs text-muted-foreground">
+        <p className="text-xs text-brand-muted">
           This may take up to 15 seconds. Please do not navigate away.
         </p>
       </CardContent>
@@ -335,21 +335,21 @@ export default function VerifyPage() {
       <div className="mx-auto w-full max-w-[625px] px-4 py-20 text-center">
         <div className="flex flex-col items-center gap-6">
           <div className="relative">
-            <ShieldCheck className="size-16 text-primary animate-pulse" />
+            <ShieldCheck className="size-16 text-coral animate-pulse" />
           </div>
-          <h2 className="text-xl font-semibold">Running verification checks</h2>
-          <p className="text-sm text-muted-foreground max-w-sm">
+          <h2 className="text-xl font-semibold text-white">Running verification checks</h2>
+          <p className="text-sm text-brand-muted-light max-w-sm">
             We are checking the validity of information provided against multiple
             sources. This may take up to 30 seconds.
           </p>
           <div className="w-full max-w-sm">
-            <div className="h-2 w-full rounded-full bg-muted">
+            <div className="h-2 w-full rounded-full bg-white/[0.07]">
               <div
-                className="h-2 rounded-full bg-primary transition-all duration-1000 ease-out"
+                className="h-2 rounded-full bg-coral transition-all duration-1000 ease-out"
                 style={{ width: `${pct}%` }}
               />
             </div>
-            <p className="text-xs text-muted-foreground mt-2">
+            <p className="text-xs text-brand-muted mt-2">
               Please do not navigate away from this page.
             </p>
           </div>
@@ -360,8 +360,8 @@ export default function VerifyPage() {
 
   return (
     <div className="mx-auto w-full max-w-[625px] px-4 py-8 sm:px-6">
-      <h1 className="text-2xl font-bold mb-1">New verification</h1>
-      <p className="text-sm text-muted-foreground mb-6">
+      <h1 className="text-2xl text-white mb-1">New verification</h1>
+      <p className="text-sm text-brand-muted-light mb-6">
         Verify who you are paying before sending money.
       </p>
 
@@ -373,7 +373,7 @@ export default function VerifyPage() {
           <h2 className="text-lg font-semibold mb-1">
             Is this a Facebook Marketplace purchase?
           </h2>
-          <p className="text-sm text-muted-foreground mb-6">
+          <p className="text-sm text-brand-muted-light mb-6">
             We can check the listing price against market value to spot scams.
           </p>
           <div className="grid grid-cols-2 gap-4">
@@ -381,22 +381,22 @@ export default function VerifyPage() {
               type="button"
               onClick={() => { update({ isMarketplace: true }); setStep(2); }}
               className={cn(
-                "flex flex-col items-center gap-3 rounded-xl border-2 p-6 transition-colors hover:border-primary/50 hover:bg-muted/50",
-                data.isMarketplace === true ? "border-primary bg-primary/5" : "border-border"
+                "flex flex-col items-center gap-3 rounded-xl border-2 p-6 transition-colors hover:border-coral/30 hover:bg-white/[0.04]",
+                data.isMarketplace === true ? "border-coral bg-coral/10" : "border-white/10"
               )}
             >
-              <ShoppingCart className="size-8 text-primary" />
+              <ShoppingCart className="size-8 text-coral" />
               <span className="text-sm font-medium">Yes, Marketplace</span>
             </button>
             <button
               type="button"
               onClick={() => { update({ isMarketplace: false }); setStep(3); }}
               className={cn(
-                "flex flex-col items-center gap-3 rounded-xl border-2 p-6 transition-colors hover:border-primary/50 hover:bg-muted/50",
-                data.isMarketplace === false ? "border-primary bg-primary/5" : "border-border"
+                "flex flex-col items-center gap-3 rounded-xl border-2 p-6 transition-colors hover:border-coral/30 hover:bg-white/[0.04]",
+                data.isMarketplace === false ? "border-coral bg-coral/10" : "border-white/10"
               )}
             >
-              <X className="size-8 text-muted-foreground" />
+              <X className="size-8 text-brand-muted-light" />
               <span className="text-sm font-medium">No</span>
             </button>
           </div>
@@ -407,7 +407,7 @@ export default function VerifyPage() {
       {step === 2 && (
         <div>
           <h2 className="text-lg font-semibold mb-1">Upload listing screenshot</h2>
-          <p className="text-sm text-muted-foreground mb-6">
+          <p className="text-sm text-brand-muted-light mb-6">
             Take a screenshot of the Facebook Marketplace listing showing the item
             title and price. We&apos;ll extract the details and check the value.
           </p>
@@ -420,8 +420,8 @@ export default function VerifyPage() {
                 className={cn(
                   "flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed p-10 cursor-pointer transition-colors",
                   dragOver
-                    ? "border-primary bg-primary/5"
-                    : "hover:border-primary/50 hover:bg-muted/50"
+                    ? "border-coral bg-coral/10"
+                    : "hover:border-coral/30 hover:bg-white/[0.04]"
                 )}
                 onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
                 onDragLeave={() => setDragOver(false)}
@@ -449,11 +449,11 @@ export default function VerifyPage() {
                   }
                 }}
               >
-                <Upload className="size-10 text-muted-foreground" />
+                <Upload className="size-10 text-brand-muted-light" />
                 <span className="text-sm font-medium">
                   Drop, paste, or click to upload a screenshot
                 </span>
-                <span className="text-xs text-muted-foreground">
+                <span className="text-xs text-brand-muted-light">
                   PNG, JPG or WebP — you can also paste from clipboard (Ctrl+V)
                 </span>
                 <input
@@ -474,8 +474,8 @@ export default function VerifyPage() {
 
             {/* File name badge when uploaded */}
             {data.marketplaceScreenshot && !marketplaceLookupLoading && !marketplaceLookupDone && (
-              <div className="flex items-center gap-3 rounded-lg border p-3 bg-muted/30">
-                <FileText className="size-5 text-muted-foreground shrink-0" />
+              <div className="flex items-center gap-3 rounded-lg border p-3 bg-white/[0.04]">
+                <FileText className="size-5 text-brand-muted-light shrink-0" />
                 <span className="text-sm truncate flex-1">{data.marketplaceScreenshot.name}</span>
                 <Button
                   variant="outline"
@@ -502,9 +502,9 @@ export default function VerifyPage() {
 
             {/* Error */}
             {marketplaceLookupError && (
-              <Card className="border-red-200 bg-red-50/50 dark:border-red-800 dark:bg-red-950/20">
+              <Card className="border-fail/20 bg-fail/[0.06]">
                 <CardContent className="pt-4">
-                  <p className="text-sm text-red-700 dark:text-red-400">{marketplaceLookupError}</p>
+                  <p className="text-sm text-fail">{marketplaceLookupError}</p>
                   <Button
                     variant="outline"
                     size="sm"
@@ -523,29 +523,29 @@ export default function VerifyPage() {
 
             {/* Success results — item and price only, valuation on results page */}
             {marketplaceLookupDone && (
-              <Card className="border-emerald-200 bg-emerald-50/50 dark:border-emerald-800 dark:bg-emerald-950/20">
+              <Card className="border-pass/20 bg-pass/[0.06]">
                 <CardContent className="pt-4 space-y-3">
                   <div className="flex items-center gap-2 mb-1">
-                    <CheckCircle2 className="size-5 text-emerald-600" />
-                    <span className="text-sm font-semibold text-emerald-800 dark:text-emerald-400">
+                    <CheckCircle2 className="size-5 text-pass" />
+                    <span className="text-sm font-semibold text-pass">
                       Listing found
                     </span>
                   </div>
                   {data.marketplaceItemTitle && (
                     <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Item</span>
+                      <span className="text-brand-muted-light">Item</span>
                       <span className="font-medium text-right max-w-[60%]">{data.marketplaceItemTitle}</span>
                     </div>
                   )}
                   {data.marketplaceListedPrice != null && (
                     <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Listed price</span>
+                      <span className="text-brand-muted-light">Listed price</span>
                       <span className="font-semibold font-mono">
                         &pound;{data.marketplaceListedPrice.toLocaleString("en-GB", { minimumFractionDigits: 2 })}
                       </span>
                     </div>
                   )}
-                  <p className="text-xs text-muted-foreground pt-2 border-t">
+                  <p className="text-xs text-brand-muted-light pt-2 border-t">
                     Market valuation will be shown on the results page.
                   </p>
                 </CardContent>
@@ -575,7 +575,7 @@ export default function VerifyPage() {
           <h2 className="text-lg font-semibold mb-1">
             Do you have an invoice or payment request?
           </h2>
-          <p className="text-sm text-muted-foreground mb-6">
+          <p className="text-sm text-brand-muted-light mb-6">
             We can extract payee details automatically from an uploaded document.
           </p>
           <div className="grid grid-cols-2 gap-4">
@@ -583,22 +583,22 @@ export default function VerifyPage() {
               type="button"
               onClick={() => { update({ hasInvoice: true }); setStep(4); }}
               className={cn(
-                "flex flex-col items-center gap-3 rounded-xl border-2 p-6 transition-colors hover:border-primary/50 hover:bg-muted/50",
-                data.hasInvoice === true ? "border-primary bg-primary/5" : "border-border"
+                "flex flex-col items-center gap-3 rounded-xl border-2 p-6 transition-colors hover:border-coral/30 hover:bg-white/[0.04]",
+                data.hasInvoice === true ? "border-coral bg-coral/10" : "border-white/10"
               )}
             >
-              <FileText className="size-8 text-primary" />
+              <FileText className="size-8 text-coral" />
               <span className="text-sm font-medium">Yes, I have an invoice</span>
             </button>
             <button
               type="button"
               onClick={() => { update({ hasInvoice: false }); setStep(4); }}
               className={cn(
-                "flex flex-col items-center gap-3 rounded-xl border-2 p-6 transition-colors hover:border-primary/50 hover:bg-muted/50",
-                data.hasInvoice === false ? "border-primary bg-primary/5" : "border-border"
+                "flex flex-col items-center gap-3 rounded-xl border-2 p-6 transition-colors hover:border-coral/30 hover:bg-white/[0.04]",
+                data.hasInvoice === false ? "border-coral bg-coral/10" : "border-white/10"
               )}
             >
-              <User className="size-8 text-muted-foreground" />
+              <User className="size-8 text-brand-muted-light" />
               <span className="text-sm font-medium">No, I&apos;ll enter manually</span>
             </button>
           </div>
@@ -618,7 +618,7 @@ export default function VerifyPage() {
           {data.hasInvoice ? (
             <>
               <h2 className="text-lg font-semibold mb-1">Upload invoice</h2>
-              <p className="text-sm text-muted-foreground mb-6">
+              <p className="text-sm text-brand-muted-light mb-6">
                 Upload a PDF or image of the invoice. We will extract the payee details automatically.
               </p>
 
@@ -628,14 +628,14 @@ export default function VerifyPage() {
                 onDrop={handleDrop}
                 className={cn(
                   "flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed p-10 transition-colors",
-                  dragOver ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"
+                  dragOver ? "border-coral bg-coral/10" : "border-white/10 hover:border-primary/50"
                 )}
               >
                 {data.invoiceFile ? (
                   <>
-                    <FileText className="size-8 text-primary" />
+                    <FileText className="size-8 text-coral" />
                     <span className="text-sm font-medium">{data.invoiceFile.name}</span>
-                    <span className="text-xs text-muted-foreground">
+                    <span className="text-xs text-brand-muted-light">
                       {(data.invoiceFile.size / 1024).toFixed(0)} KB
                     </span>
                     <Button variant="ghost" size="sm" onClick={() => update({ invoiceFile: null })}>
@@ -644,8 +644,8 @@ export default function VerifyPage() {
                   </>
                 ) : (
                   <>
-                    <Upload className="size-8 text-muted-foreground" />
-                    <span className="text-sm text-muted-foreground">
+                    <Upload className="size-8 text-brand-muted-light" />
+                    <span className="text-sm text-brand-muted-light">
                       Drag and drop your invoice here, or
                     </span>
                     <label>
@@ -666,7 +666,7 @@ export default function VerifyPage() {
           ) : (
             <>
               <h2 className="text-lg font-semibold mb-1">Payee details</h2>
-              <p className="text-sm text-muted-foreground mb-6">
+              <p className="text-sm text-brand-muted-light mb-6">
                 Enter the details of the person or business you are paying.
               </p>
 
@@ -779,7 +779,7 @@ export default function VerifyPage() {
                   <Label htmlFor="invoice-amount">
                     Amount (GBP)
                     {data.isMarketplace && data.marketplaceListedPrice != null && (
-                      <span className="text-muted-foreground font-normal ml-1">
+                      <span className="text-brand-muted-light font-normal ml-1">
                         — pre-filled from listing
                       </span>
                     )}
@@ -818,7 +818,7 @@ export default function VerifyPage() {
       {step === 5 && (
         <div>
           <h2 className="text-lg font-semibold mb-1">Review &amp; verify</h2>
-          <p className="text-sm text-muted-foreground mb-6">
+          <p className="text-sm text-brand-muted-light mb-6">
             Check the details below and run the verification. This will use 1 credit.
           </p>
 
@@ -835,13 +835,13 @@ export default function VerifyPage() {
                 <CardContent className="space-y-2 text-sm">
                   {data.marketplaceItemTitle && (
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Item</span>
+                      <span className="text-brand-muted-light">Item</span>
                       <span className="font-medium text-right max-w-[60%]">{data.marketplaceItemTitle}</span>
                     </div>
                   )}
                   {data.marketplaceListedPrice != null && (
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Listed price</span>
+                      <span className="text-brand-muted-light">Listed price</span>
                       <span className="font-mono font-semibold">
                         &pound;{data.marketplaceListedPrice.toLocaleString("en-GB", { minimumFractionDigits: 2 })}
                       </span>
@@ -849,7 +849,7 @@ export default function VerifyPage() {
                   )}
                   {data.valuationMin != null && data.valuationMax != null && (
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Est. market value</span>
+                      <span className="text-brand-muted-light">Est. market value</span>
                       <span className="font-mono font-semibold">
                         &pound;{data.valuationMin.toLocaleString("en-GB", { maximumFractionDigits: 0 })} &ndash; &pound;{data.valuationMax.toLocaleString("en-GB", { maximumFractionDigits: 0 })}
                       </span>
@@ -874,49 +874,49 @@ export default function VerifyPage() {
               <CardContent className="space-y-2 text-sm">
                 {data.hasInvoice && data.invoiceFile && (
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">File</span>
+                    <span className="text-brand-muted-light">File</span>
                     <span>{data.invoiceFile.name}</span>
                   </div>
                 )}
                 {data.payeeName && (
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Name</span>
+                    <span className="text-brand-muted-light">Name</span>
                     <span>{data.payeeName}</span>
                   </div>
                 )}
                 {data.companyNameInput && (
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Company</span>
+                    <span className="text-brand-muted-light">Company</span>
                     <span>{data.companyNameInput}</span>
                   </div>
                 )}
                 {data.companyNumberInput && (
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Company number</span>
+                    <span className="text-brand-muted-light">Company number</span>
                     <span className="font-mono">{data.companyNumberInput}</span>
                   </div>
                 )}
                 {data.vatNumberInput && (
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">VAT number</span>
+                    <span className="text-brand-muted-light">VAT number</span>
                     <span className="font-mono">{data.vatNumberInput}</span>
                   </div>
                 )}
                 {data.sortCode && (
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Sort code</span>
+                    <span className="text-brand-muted-light">Sort code</span>
                     <span className="font-mono">{data.sortCode}</span>
                   </div>
                 )}
                 {data.accountNumber && (
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Account number</span>
+                    <span className="text-brand-muted-light">Account number</span>
                     <span className="font-mono">{data.accountNumber}</span>
                   </div>
                 )}
                 {data.invoiceAmount && !data.hasInvoice && (
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Amount</span>
+                    <span className="text-brand-muted-light">Amount</span>
                     <span className="font-mono font-semibold">
                       &pound;{parseFloat(data.invoiceAmount).toLocaleString("en-GB", { minimumFractionDigits: 2 })}
                     </span>

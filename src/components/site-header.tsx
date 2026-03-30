@@ -25,42 +25,42 @@ export function SiteHeader({ email }: { email?: string }) {
   }
 
   return (
-    <header className="border-b">
-      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4 sm:px-6">
+    <header className="bg-navy border-b border-white/[0.06]">
+      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
         <Link href={email ? "/dashboard" : "/"} className="flex items-center">
-          <Logo className="h-6" />
+          <Logo size="sm" variant="dark" />
         </Link>
-        <nav className="flex items-center gap-2">
+        <nav className="flex items-center gap-3">
           {email ? (
             <>
               <DropdownMenu>
                 <DropdownMenuTrigger
                   render={
-                    <button className="flex items-center gap-2 rounded-lg px-2 py-1 text-sm hover:bg-muted outline-none" />
+                    <button className="flex items-center gap-2 rounded-xl px-2.5 py-1.5 text-sm text-brand-muted-light hover:text-white hover:bg-white/[0.07] transition-colors outline-none" />
                   }
                 >
-                  <Avatar className="size-7">
-                    <AvatarFallback className="text-xs">
+                  <Avatar className="size-7 bg-navy-card border border-white/10">
+                    <AvatarFallback className="text-xs text-coral bg-navy-card">
                       {email[0].toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
-                  <span className="hidden sm:inline text-muted-foreground">
+                  <span className="hidden sm:inline">
                     {email}
                   </span>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                <DropdownMenuContent align="end" className="w-56 bg-navy-card border-white/10 text-white">
+                  <div className="px-2 py-1.5 text-xs text-brand-muted-light">
                     {email}
                   </div>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem render={<Link href="/dashboard" />}>
+                  <DropdownMenuSeparator className="bg-white/[0.06]" />
+                  <DropdownMenuItem render={<Link href="/dashboard" />} className="text-brand-muted-light hover:text-white focus:text-white focus:bg-white/[0.07]">
                     Dashboard
                   </DropdownMenuItem>
-                  <DropdownMenuItem render={<Link href="/dashboard/api" />}>
+                  <DropdownMenuItem render={<Link href="/dashboard/api" />} className="text-brand-muted-light hover:text-white focus:text-white focus:bg-white/[0.07]">
                     API
                   </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleSignOut}>
+                  <DropdownMenuSeparator className="bg-white/[0.06]" />
+                  <DropdownMenuItem onClick={handleSignOut} className="text-brand-muted-light hover:text-white focus:text-white focus:bg-white/[0.07]">
                     Sign out
                   </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -69,15 +69,14 @@ export function SiteHeader({ email }: { email?: string }) {
           ) : (
             <>
               <Button
-                variant="default"
-                size="sm"
+                className="bg-coral hover:bg-coral-dark text-white font-bold text-[15px] px-6 py-2.5 rounded-xl shadow-none hover:shadow-[0_4px_16px_rgba(255,92,53,0.4)] transition-all"
                 render={<Link href="/verify" />}
               >
                 Make a check
               </Button>
               <Button
                 variant="ghost"
-                size="sm"
+                className="text-brand-muted-light hover:text-white hover:bg-white/[0.07] rounded-xl"
                 render={<Link href="/auth/login" />}
               >
                 Sign in
