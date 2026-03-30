@@ -27,31 +27,27 @@ const CHECKS = [
     icon: Building2,
     title: "Companies House",
     description: "We verify the company is registered and active on the official UK register.",
-    gradient: "from-blue-500 to-blue-600",
-    bg: "bg-blue-50",
-    iconColor: "text-blue-600",
+    bg: "bg-teal-50",
+    iconColor: "text-teal-600",
   },
   {
     icon: FileText,
     title: "HMRC VAT",
     description: "We validate the VAT number directly with HMRC to confirm it's genuine.",
-    gradient: "from-violet-500 to-violet-600",
-    bg: "bg-violet-50",
-    iconColor: "text-violet-600",
+    bg: "bg-sky-50",
+    iconColor: "text-sky-600",
   },
   {
     icon: Landmark,
     title: "Confirmation of Payee",
     description: "We check the bank account name matches who you think you're paying.",
-    gradient: "from-teal-500 to-teal-600",
-    bg: "bg-teal-50",
-    iconColor: "text-teal-600",
+    bg: "bg-emerald-50",
+    iconColor: "text-emerald-600",
   },
   {
     icon: Star,
     title: "Online reviews",
     description: "We search Google, Trustpilot, and Checkatrade for the business's reputation.",
-    gradient: "from-amber-500 to-orange-500",
     bg: "bg-amber-50",
     iconColor: "text-amber-600",
   },
@@ -59,7 +55,6 @@ const CHECKS = [
     icon: ShoppingCart,
     title: "Marketplace valuation",
     description: "For marketplace purchases, we research the fair market value and flag overpricing.",
-    gradient: "from-rose-500 to-pink-500",
     bg: "bg-rose-50",
     iconColor: "text-rose-600",
   },
@@ -67,9 +62,8 @@ const CHECKS = [
     icon: CalendarDays,
     title: "Trading history",
     description: "We check how long the company has been trading and if their accounts are filed.",
-    gradient: "from-indigo-500 to-indigo-600",
-    bg: "bg-indigo-50",
-    iconColor: "text-indigo-600",
+    bg: "bg-violet-50",
+    iconColor: "text-violet-600",
   },
 ];
 
@@ -124,8 +118,8 @@ export default function Home() {
       {/* ── Hero ─────────────────────────────────────────────────────── */}
       <section className="relative overflow-hidden bg-gradient-to-b from-background to-muted/30">
         <div className="mx-auto max-w-4xl px-6 py-24 sm:py-32 text-center">
-          <div className="mx-auto mb-8 flex size-16 items-center justify-center rounded-2xl bg-primary/10">
-            <LogoIcon className="size-8 text-primary" />
+          <div className="mx-auto mb-8 flex size-16 items-center justify-center">
+            <LogoIcon className="size-14" />
           </div>
           <h1 className="text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl leading-[1.1]">
             Know exactly who
@@ -171,19 +165,19 @@ export default function Home() {
         <div className="mx-auto max-w-6xl px-6 py-12">
           <div className="grid grid-cols-1 gap-8 sm:grid-cols-3 text-center">
             <div>
-              <div className="text-4xl font-bold tracking-tight text-primary">£629m</div>
+              <div className="text-4xl font-bold tracking-tight" style={{ color: "var(--wap-secondary)" }}>£629m</div>
               <p className="mt-2 text-muted-foreground">
                 Stolen by fraudsters in H1 2025 alone
               </p>
             </div>
             <div>
-              <div className="text-4xl font-bold tracking-tight text-primary">2.09m</div>
+              <div className="text-4xl font-bold tracking-tight" style={{ color: "var(--wap-secondary)" }}>2.09m</div>
               <p className="mt-2 text-muted-foreground">
                 Confirmed fraud cases in the first half of 2025
               </p>
             </div>
             <div>
-              <div className="text-4xl font-bold tracking-tight text-primary">72%</div>
+              <div className="text-4xl font-bold tracking-tight" style={{ color: "var(--wap-secondary)" }}>72%</div>
               <p className="mt-2 text-muted-foreground">
                 Of APP fraud starts with a purchase scam
               </p>
@@ -251,7 +245,7 @@ export default function Home() {
               },
             ].map((item) => (
               <div key={item.step} className="text-center">
-                <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-primary text-primary-foreground font-bold text-lg">
+                <div className="mx-auto flex size-14 items-center justify-center rounded-2xl font-bold text-lg text-white" style={{ backgroundColor: "var(--wap-secondary)" }}>
                   {item.step}
                 </div>
                 <h3 className="mt-5 text-lg font-semibold">{item.title}</h3>
@@ -371,9 +365,9 @@ export default function Home() {
       </section>
 
       {/* ── Final CTA ────────────────────────────────────────────────── */}
-      <section className="bg-primary">
+      <section style={{ backgroundColor: "var(--wap-primary)" }}>
         <div className="mx-auto max-w-3xl px-6 py-20 text-center">
-          <ShieldCheck className="size-12 text-primary-foreground mx-auto mb-5" />
+          <ShieldCheck className="size-12 mx-auto mb-5" style={{ color: "var(--wap-secondary)" }} />
           <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-primary-foreground">
             Check your next payment
           </h2>
