@@ -77,30 +77,29 @@ export async function POST(request: NextRequest) {
 
     const duration = Date.now() - startTime;
 
-    // Log the API call (non-blocking, non-critical)
-    try {
-      await admin.from("api_logs").insert({
-        user_id: user.id,
-        endpoint: "/api/v1/verify",
-        method: "POST",
-        status_code: 200,
-        credits_used: 1,
-        duration_ms: duration,
-        request_summary: {
-          company_name: company_name || null,
-          vat_number: vat_number || null,
-          company_number: company_number || null,
-          has_account_number: !!account_number,
-          has_sort_code: !!sort_code,
-        },
-        response_summary: {
-          companies_house: results.companies_house ? (results.companies_house.found ? "found" : "not_found") : "not_checked",
-          hmrc_vat: results.hmrc_vat ? (results.hmrc_vat.found ? "found" : "not_found") : "not_checked",
-          bank_verify: results.bank_verify ? ("verified" in results.bank_verify && results.bank_verify.verified ? "verified" : "not_verified") : "not_checked",
-        },
-      });
-    } catch {
-      // Logging failure is non-critical
+    // Log the API call
+    const { error: logError } = await admin.from("api_logs").insert({
+      user_id: user.id,
+      endpoint: "/api/v1/verify",
+      method: "POST",
+      status_code: 200,
+      credits_used: 1,
+      duration_ms: duration,
+      request_summary: {
+        company_name: company_name || null,
+        vat_number: vat_number || null,
+        company_number: company_number || null,
+        has_account_number: !!account_number,
+        has_sort_code: !!sort_code,
+      },
+      response_summary: {
+        companies_house: results.companies_house ? (results.companies_house.found ? "found" : "not_found") : "not_checked",
+        hmrc_vat: results.hmrc_vat ? (results.hmrc_vat.found ? "found" : "not_found") : "not_checked",
+        bank_verify: results.bank_verify ? ("verified" in results.bank_verify && results.bank_verify.verified ? "verified" : "not_verified") : "not_checked",
+      },
+    });
+    if (logError) {
+      console.error("Failed to insert api_log:", logError);
     }
 
     return NextResponse.json({
