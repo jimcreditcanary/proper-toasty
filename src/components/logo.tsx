@@ -28,7 +28,7 @@ export function Logo({
       <LogoIcon size={size} />
       <div className="flex flex-col">
         <span
-          className={`font-[var(--font-heading)] font-[800] ${s.text} leading-none tracking-[-0.03em] ${wordColor}`}
+          className={`font-[var(--font-heading)] font-bold ${s.text} leading-none tracking-[-0.03em] ${wordColor}`}
           style={{ fontFamily: "var(--font-heading), system-ui, sans-serif" }}
         >
           whoamipaying<span className="text-coral">?</span>
@@ -54,7 +54,7 @@ export function Logo({
           <LogoIcon size={size} pill />
           <div className="flex flex-col">
             <span
-              className={`font-[800] ${s.text} leading-none tracking-[-0.03em] text-white`}
+              className={`font-bold ${s.text} leading-none tracking-[-0.03em] text-white`}
               style={{ fontFamily: "var(--font-heading), system-ui, sans-serif" }}
             >
               whoamipaying<span className="text-white/70">?</span>
