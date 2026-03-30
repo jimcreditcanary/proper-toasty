@@ -39,6 +39,7 @@ type HistoryRow = {
   id: string;
   created_at: string;
   source: "verification" | "scan";
+  flowType: string | null;
   fileName: string | null;
   accountName: string | null;
   amount: number | null;
@@ -84,13 +85,16 @@ export default async function DashboardPage() {
       const amount = v.extracted_invoice_amount ?? v.invoice_amount ?? v.marketplace_listed_price ?? null;
       const fileName = v.invoice_file_path
         ? v.invoice_file_path.split("/").pop() ?? null
-        : v.flow_type === "marketplace"
-          ? "Marketplace"
-          : "Manual entry";
+        : v.flow_type === "api"
+          ? "API request"
+          : v.flow_type === "marketplace"
+            ? "Marketplace"
+            : "Manual entry";
       history.push({
         id: v.id,
         created_at: v.created_at,
         source: "verification",
+        flowType: v.flow_type ?? null,
         fileName,
         accountName: name,
         amount: amount != null ? Number(amount) : null,
@@ -107,6 +111,7 @@ export default async function DashboardPage() {
         id: s.id,
         created_at: s.created_at,
         source: "scan",
+        flowType: null,
         fileName: s.file_name,
         accountName: s.company_name,
         amount: null,
@@ -232,6 +237,7 @@ export default async function DashboardPage() {
                 <thead>
                   <tr className="border-b border-white/[0.06]">
                     <th className="text-left py-3 px-2 text-xs font-medium text-brand-muted uppercase tracking-wider">Date</th>
+                    <th className="text-left py-3 px-2 text-xs font-medium text-brand-muted uppercase tracking-wider">Type</th>
                     <th className="text-left py-3 px-2 text-xs font-medium text-brand-muted uppercase tracking-wider">File</th>
                     <th className="text-left py-3 px-2 text-xs font-medium text-brand-muted uppercase tracking-wider">Account Name</th>
                     <th className="text-right py-3 px-2 text-xs font-medium text-brand-muted uppercase tracking-wider">Amount</th>
@@ -248,6 +254,21 @@ export default async function DashboardPage() {
                       <tr key={`${row.source}-${row.id}`} className="border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors">
                         <td className="py-3 px-2 text-brand-muted-light whitespace-nowrap">
                           {formatDate(row.created_at)}
+                        </td>
+                        <td className="py-3 px-2">
+                          {row.flowType === "api" ? (
+                            <span className="inline-flex items-center rounded-full bg-coral/10 border border-coral/20 px-2 py-0.5 text-[11px] font-medium text-coral">
+                              API
+                            </span>
+                          ) : row.flowType === "marketplace" ? (
+                            <span className="inline-flex items-center rounded-full bg-yellow/10 border border-yellow/20 px-2 py-0.5 text-[11px] font-medium text-yellow">
+                              Marketplace
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center rounded-full bg-pass/10 border border-pass/20 px-2 py-0.5 text-[11px] font-medium text-pass">
+                              Console
+                            </span>
+                          )}
                         </td>
                         <td className="py-3 px-2">
                           <Link

@@ -77,7 +77,77 @@ export async function POST(request: NextRequest) {
 
     const duration = Date.now() - startTime;
 
-    // Log the API call
+    // ── Derive risk + fields from results ────────────────────────────
+    const chData = results.companies_house?.data;
+    const companiesHouseName = chData?.company_name ?? null;
+    const companiesHouseNumber = chData?.company_number ?? null;
+    const companiesHouseStatus = chData?.company_status ?? null;
+    const incorporatedDate = chData?.date_of_creation ?? null;
+    const lastAccounts = chData?.accounts?.last_accounts;
+    const accountsDate = lastAccounts?.made_up_to ?? null;
+    const accountsOverdue = chData?.accounts?.next_accounts?.overdue ?? null;
+
+    const vatApiName = results.hmrc_vat?.data?.target?.name ?? null;
+
+    let copResult: string | null = null;
+    let copReason: string | null = null;
+    if (results.bank_verify) {
+      const bv = results.bank_verify as { data?: { nameMatchResult?: string; resultText?: string } };
+      const matchResult = bv.data?.nameMatchResult;
+      if (matchResult === "Full Match") copResult = "FULL_MATCH";
+      else if (matchResult === "Partial Match") copResult = "PARTIAL_MATCH";
+      else copResult = "NO_MATCH";
+      copReason = bv.data?.resultText ?? null;
+    }
+
+    // Risk scoring (same logic as run-verification.ts)
+    let riskScore = 0;
+    if (results.companies_house && !results.companies_house.found) riskScore += 2;
+    if (copResult === "NO_MATCH") riskScore += 3;
+    else if (copResult === "PARTIAL_MATCH") riskScore += 1;
+    if (results.hmrc_vat?.found && vatApiName) {
+      const inputLower = (company_name || "").toLowerCase().trim();
+      const vatLower = vatApiName.toLowerCase().trim();
+      if (inputLower && vatLower && !inputLower.includes(vatLower) && !vatLower.includes(inputLower)) riskScore += 1;
+    }
+
+    let overallRisk = "UNKNOWN";
+    if (riskScore === 0) overallRisk = "LOW";
+    else if (riskScore <= 2) overallRisk = "MEDIUM";
+    else overallRisk = "HIGH";
+
+    // ── Create verification record (shows in dashboard) ──────────────
+    const { error: vError } = await admin.from("verifications").insert({
+      id: referenceId,
+      user_id: user.id,
+      flow_type: "api",
+      payee_type: "business",
+      payee_name: company_name || null,
+      company_name_input: company_name || null,
+      vat_number_input: vat_number || null,
+      companies_house_number_input: company_number || null,
+      sort_code: sort_code || null,
+      account_number: account_number || null,
+      companies_house_result: results.companies_house?.data ?? null,
+      companies_house_name: companiesHouseName,
+      companies_house_number: companiesHouseNumber,
+      companies_house_status: companiesHouseStatus,
+      companies_house_incorporated_date: incorporatedDate,
+      companies_house_accounts_date: accountsDate,
+      companies_house_accounts_overdue: accountsOverdue,
+      hmrc_vat_result: results.hmrc_vat?.data ?? null,
+      vat_api_name: vatApiName,
+      bank_verify_result: results.bank_verify?.data ?? null,
+      cop_result: copResult,
+      cop_reason: copReason,
+      overall_risk: overallRisk,
+      status: "completed",
+    });
+    if (vError) {
+      console.error("Failed to insert API verification:", vError);
+    }
+
+    // ── Log to api_logs ──────────────────────────────────────────────
     const { error: logError } = await admin.from("api_logs").insert({
       user_id: user.id,
       endpoint: "/api/v1/verify",
