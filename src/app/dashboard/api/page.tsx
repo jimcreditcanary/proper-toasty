@@ -2,19 +2,9 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { Badge } from "@/components/ui/badge";
-import { Coins, Key, BookOpen, Activity } from "lucide-react";
+import { Coins, Key, BookOpen } from "lucide-react";
 import { ApiKeyManager } from "@/components/api-key-manager";
 import { BuyCreditsDialog } from "@/components/buy-credits-dialog";
-
-function formatDate(dateStr: string) {
-  return new Date(dateStr).toLocaleDateString("en-GB", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
 
 export default async function ApiPage() {
   const supabase = await createClient();
@@ -28,19 +18,10 @@ export default async function ApiPage() {
 
   const admin = createAdminClient();
 
-  const [profileResult, logsResult] = await Promise.all([
-    admin.from("users").select("credits, api_key").eq("id", user.id).single(),
-    admin
-      .from("api_logs")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false })
-      .limit(50),
-  ]);
+  const profileResult = await admin.from("users").select("credits, api_key").eq("id", user.id).single();
 
   const credits = profileResult.data?.credits ?? 0;
   const apiKey = profileResult.data?.api_key ?? null;
-  const logs = logsResult.data ?? [];
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.whoamipaying.co.uk";
 
   return (
@@ -59,19 +40,14 @@ export default async function ApiPage() {
       </div>
 
       {/* Stats */}
-      <div className="mt-6 grid gap-4 sm:grid-cols-2">
-        {[
-          { icon: Coins, label: "Credits remaining", value: credits },
-          { icon: Activity, label: "API calls (total)", value: logs.length },
-        ].map((stat) => (
-          <div key={stat.label} className="rounded-2xl bg-navy-card border border-white/[0.06] p-5">
-            <div className="flex items-center gap-1.5 text-brand-muted text-sm mb-2">
-              <stat.icon className="size-3.5" />
-              {stat.label}
-            </div>
-            <div className="text-2xl font-bold text-white">{stat.value}</div>
+      <div className="mt-6">
+        <div className="rounded-2xl bg-navy-card border border-white/[0.06] p-5 max-w-xs">
+          <div className="flex items-center gap-1.5 text-brand-muted text-sm mb-2">
+            <Coins className="size-3.5" />
+            Credits remaining
           </div>
-        ))}
+          <div className="text-2xl font-bold text-white">{credits}</div>
+        </div>
       </div>
 
       {/* API Key */}
@@ -233,66 +209,6 @@ export default async function ApiPage() {
         </div>
       </div>
 
-      {/* API Logs */}
-      <div className="mt-6 rounded-2xl bg-navy-card border border-white/[0.06] overflow-hidden">
-        <div className="px-6 py-4 border-b border-white/[0.06]">
-          <div className="flex items-center gap-2">
-            <Activity className="size-4 text-coral" />
-            <h2 className="font-semibold text-white">Usage Logs</h2>
-          </div>
-          <p className="text-sm text-brand-muted mt-0.5">Recent API requests</p>
-        </div>
-        <div className="p-6">
-          {logs.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <Activity className="mb-3 size-10 text-brand-muted/50" />
-              <p className="text-sm font-medium text-white">No API calls yet</p>
-              <p className="mt-1 text-xs text-brand-muted">
-                Generate an API key and make your first request
-              </p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-white/[0.06]">
-                    <th className="text-left py-3 px-2 text-xs font-medium text-brand-muted uppercase tracking-wider">Endpoint</th>
-                    <th className="text-left py-3 px-2 text-xs font-medium text-brand-muted uppercase tracking-wider">Status</th>
-                    <th className="text-left py-3 px-2 text-xs font-medium text-brand-muted uppercase tracking-wider">Credits</th>
-                    <th className="text-left py-3 px-2 text-xs font-medium text-brand-muted uppercase tracking-wider">Duration</th>
-                    <th className="text-right py-3 px-2 text-xs font-medium text-brand-muted uppercase tracking-wider">Date</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {logs.map((log: { id: string; method: string; endpoint: string; status_code: number; credits_used: number; duration_ms: number | null; created_at: string }) => (
-                    <tr key={log.id} className="border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors">
-                      <td className="py-3 px-2 font-mono text-xs text-brand-muted-light">
-                        {log.method} {log.endpoint}
-                      </td>
-                      <td className="py-3 px-2">
-                        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ${
-                          log.status_code >= 200 && log.status_code < 300
-                            ? "bg-pass/10 border border-pass/20 text-pass"
-                            : "bg-fail/10 border border-fail/20 text-fail"
-                        }`}>
-                          {log.status_code}
-                        </span>
-                      </td>
-                      <td className="py-3 px-2 text-brand-muted-light">{log.credits_used}</td>
-                      <td className="py-3 px-2 text-brand-muted">
-                        {log.duration_ms ? `${log.duration_ms}ms` : "\u2014"}
-                      </td>
-                      <td className="py-3 px-2 text-right text-brand-muted-light">
-                        {formatDate(log.created_at)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      </div>
     </div>
   );
 }
