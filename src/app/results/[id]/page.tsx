@@ -157,12 +157,13 @@ export default async function PublicResultPage({
 
   let vatStatus: CheckStatus = "UNVERIFIED";
   let vatDetail = "HMRC VAT check was not run.";
+  const vatNumber = v.vat_number_input || v.extracted_vat_number;
   if (v.hmrc_vat_result) {
     if (v.vat_api_name) {
       const match = namesMatch(inputName, v.vat_api_name);
       vatStatus = match ? "PASS" : "WARN";
-      vatDetail = match ? `VAT name: ${v.vat_api_name}` : `Mismatch: "${inputName}" vs "${v.vat_api_name}"`;
-    } else { vatStatus = "FAIL"; vatDetail = "VAT number not found."; }
+      vatDetail = match ? `VAT registered name: ${v.vat_api_name}` : `VAT number${vatNumber ? ` ${vatNumber}` : ""} is registered to "${v.vat_api_name}" — this does not match the payee name "${inputName}".`;
+    } else { vatStatus = "FAIL"; vatDetail = `VAT number${vatNumber ? ` ${vatNumber}` : ""} not found on HMRC register.`; }
   }
 
   let copStatus: CheckStatus = "UNVERIFIED";
@@ -250,13 +251,24 @@ export default async function PublicResultPage({
       <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Checks completed</h2>
 
       <div className="space-y-2">
-        {isBusiness && <CheckCard icon={<Building2 className="size-4 text-muted-foreground" />} title="Companies House" status={chStatus} detail={chDetail} accentColor={accentForStatus(chStatus)} />}
-        {showTrading && tradingDetail && <CheckCard icon={<CalendarDays className="size-4 text-muted-foreground" />} title="Business Trading History" status={tradingStatus} detail={tradingDetail} accentColor={accentForStatus(tradingStatus)} />}
-        {showAccounts && accountsDetail && <CheckCard icon={<FileText className="size-4 text-muted-foreground" />} title="Last Accounts Filed" status={accountsStatus} detail={accountsDetail} accentColor={accentForStatus(accountsStatus)} />}
-        {isBusiness && <CheckCard icon={<ShieldCheck className="size-4 text-muted-foreground" />} title="VAT Number" status={vatStatus} detail={vatDetail} accentColor={accentForStatus(vatStatus)} />}
-        <CheckCard icon={<Landmark className="size-4 text-muted-foreground" />} title="Confirmation of Payee" status={copStatus} detail={copDetail} accentColor={accentForStatus(copStatus)} />
-        {showReviews && <CheckCard icon={<Star className="size-4 text-muted-foreground" />} title="Online Reviews" status={reviewsStatus} detail={reviewsDetail} accentColor={accentForStatus(reviewsStatus)} />}
-        {showMarketplace && <CheckCard icon={<ShoppingCart className="size-4 text-muted-foreground" />} title="Marketplace Price Check" status={mktStatus} detail={mktDetail} accentColor={accentForStatus(mktStatus)} />}
+        {(() => {
+          const statusOrder: Record<CheckStatus, number> = { FAIL: 0, WARN: 1, PASS: 2, UNVERIFIED: 3 };
+          const checks: Array<{ icon: React.ReactNode; title: string; status: CheckStatus; detail: string }> = [];
+          if (isBusiness) checks.push({ icon: <Building2 className="size-4 text-muted-foreground" />, title: "Companies House", status: chStatus, detail: chDetail });
+          if (showTrading && tradingDetail) checks.push({ icon: <CalendarDays className="size-4 text-muted-foreground" />, title: "Business Trading History", status: tradingStatus, detail: tradingDetail });
+          if (showAccounts && accountsDetail) checks.push({ icon: <FileText className="size-4 text-muted-foreground" />, title: "Last Accounts Filed", status: accountsStatus, detail: accountsDetail });
+          if (isBusiness) checks.push({ icon: <ShieldCheck className="size-4 text-muted-foreground" />, title: "VAT Number", status: vatStatus, detail: vatDetail });
+          checks.push({ icon: <Landmark className="size-4 text-muted-foreground" />, title: "Confirmation of Payee", status: copStatus, detail: copDetail });
+          if (showReviews) checks.push({ icon: <Star className="size-4 text-muted-foreground" />, title: "Online Reviews", status: reviewsStatus, detail: reviewsDetail });
+          if (showMarketplace) checks.push({ icon: <ShoppingCart className="size-4 text-muted-foreground" />, title: "Marketplace Price Check", status: mktStatus, detail: mktDetail });
+          checks.sort((a, b) => {
+            const so = statusOrder[a.status] - statusOrder[b.status];
+            return so !== 0 ? so : a.title.localeCompare(b.title);
+          });
+          return checks.map((c) => (
+            <CheckCard key={c.title} icon={c.icon} title={c.title} status={c.status} detail={c.detail} accentColor={accentForStatus(c.status)} />
+          ));
+        })()}
       </div>
 
       {/* Marketplace valuation block */}

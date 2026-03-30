@@ -204,16 +204,21 @@ If a field is not found, set its value to null.`;
               tools: [{ type: "web_search_20250305", name: "web_search" }],
               messages: [{
                 role: "user",
-                content: `Search Google for: "${finalCompanyName}" reviews
+                content: `Find online reviews for the UK company: "${finalCompanyName}"
 
-I need the Google Business Profile star rating and review count for this company. Try these searches:
-1. "${finalCompanyName}" Google reviews
-2. "${finalCompanyName}" site:google.com/maps
+Search for reviews on ALL of these platforms (try each one separately):
+1. Google Business Profile / Google Maps — search "${finalCompanyName} reviews"
+2. Trustpilot — search "${finalCompanyName} Trustpilot"
+3. Checkatrade — search "${finalCompanyName} Checkatrade"
+4. Yell.com — search "${finalCompanyName} Yell"
+5. Reviews.io — search "${finalCompanyName} Reviews.io"
 
-Also check if they have reviews on Trustpilot or Checkatrade.
+Pick the platform with the MOST reviews or highest visibility. If you find reviews on multiple platforms, pick the one with the best data (star rating + count).
 
-Return ONLY a JSON object with no markdown:
-{"rating": <number e.g. 4.5 or null if not found>, "review_count": <number or null>, "source": "<where you found the reviews e.g. Google, Trustpilot, Checkatrade>", "summary": "<One sentence summary: the rating, review count, source, and any notable positives or negatives. If no reviews found anywhere, say 'No online reviews found for this business.' Plain text only.>"}`,
+IMPORTANT: Actually perform the web searches. Do not guess or say you cannot find reviews without searching.
+
+Return ONLY a JSON object with no markdown formatting:
+{"rating": <number e.g. 4.5 or null if genuinely not found on any platform>, "review_count": <number or null>, "source": "<platform name where you found reviews e.g. Google, Trustpilot, Checkatrade, Yell>", "summary": "<One sentence: rating, count, source, and any key themes. If no reviews found on ANY platform after searching all of them, say 'No online reviews found for this business on Google, Trustpilot, Checkatrade, or Yell.' Plain text only.>"}`,
               }],
             }),
           });

@@ -169,16 +169,17 @@ export default async function VerificationResultPage({
   // VAT
   let vatStatus: CheckStatus = "UNVERIFIED";
   let vatDetail = "HMRC VAT check was not run.";
+  const vatNumber = v.vat_number_input || v.extracted_vat_number;
   if (v.hmrc_vat_result) {
     if (v.vat_api_name) {
       const match = namesMatch(inputName, v.vat_api_name);
       vatStatus = match ? "PASS" : "WARN";
       vatDetail = match
         ? `VAT registered name: ${v.vat_api_name}`
-        : `Name mismatch: "${inputName}" vs VAT register "${v.vat_api_name}"`;
+        : `VAT number${vatNumber ? ` ${vatNumber}` : ""} is registered to "${v.vat_api_name}" — this does not match the payee name "${inputName}".`;
     } else {
       vatStatus = "FAIL";
-      vatDetail = "VAT number not found on HMRC register.";
+      vatDetail = `VAT number${vatNumber ? ` ${vatNumber}` : ""} not found on HMRC register.`;
     }
   }
 
@@ -309,6 +310,36 @@ export default async function VerificationResultPage({
     }
   }
 
+  // ── Build sorted check list ────────────────────────────────────────
+  const statusOrder: Record<CheckStatus, number> = { FAIL: 0, WARN: 1, PASS: 2, UNVERIFIED: 3 };
+  const allChecks: Array<{ icon: React.ReactNode; title: string; status: CheckStatus; detail: string }> = [];
+
+  if (isBusiness) {
+    allChecks.push({ icon: <Building2 className="size-4 text-muted-foreground" />, title: "Companies House", status: chStatus, detail: chDetail });
+  }
+  if (showTrading && tradingDetail) {
+    allChecks.push({ icon: <CalendarDays className="size-4 text-muted-foreground" />, title: "Business Trading History", status: tradingStatus, detail: tradingDetail });
+  }
+  if (showAccounts && accountsDetail) {
+    allChecks.push({ icon: <FileText className="size-4 text-muted-foreground" />, title: "Last Accounts Filed", status: accountsStatus, detail: accountsDetail });
+  }
+  if (isBusiness) {
+    allChecks.push({ icon: <ShieldCheck className="size-4 text-muted-foreground" />, title: "VAT Number", status: vatStatus, detail: vatDetail });
+  }
+  allChecks.push({ icon: <Landmark className="size-4 text-muted-foreground" />, title: "Confirmation of Payee", status: copStatus, detail: copDetail });
+  if (showReviews) {
+    allChecks.push({ icon: <Star className="size-4 text-muted-foreground" />, title: "Online Reviews", status: reviewsStatus, detail: reviewsDetail });
+  }
+  if (showAdVsInvoice && adVsInvoiceDetail) {
+    allChecks.push({ icon: <FileText className="size-4 text-muted-foreground" />, title: "Ad Price vs Invoice Amount", status: adVsInvoiceStatus, detail: adVsInvoiceDetail });
+  }
+
+  allChecks.sort((a, b) => {
+    const so = statusOrder[a.status] - statusOrder[b.status];
+    if (so !== 0) return so;
+    return a.title.localeCompare(b.title);
+  });
+
   return (
     <div className="mx-auto max-w-[625px] px-4 py-8 sm:px-6">
       {/* Back */}
@@ -344,80 +375,16 @@ export default async function VerificationResultPage({
       </h2>
 
       <div className="space-y-2">
-        {/* Companies House — only for business */}
-        {isBusiness && (
+        {allChecks.map((check) => (
           <CheckCard
-            icon={<Building2 className="size-4 text-muted-foreground" />}
-            title="Companies House"
-            status={chStatus}
-            detail={chDetail}
-            accentColor={accentForStatus(chStatus)}
+            key={check.title}
+            icon={check.icon}
+            title={check.title}
+            status={check.status}
+            detail={check.detail}
+            accentColor={accentForStatus(check.status)}
           />
-        )}
-
-        {/* Business Trading History — only if CH check pulled */}
-        {showTrading && tradingDetail && (
-          <CheckCard
-            icon={<CalendarDays className="size-4 text-muted-foreground" />}
-            title="Business Trading History"
-            status={tradingStatus}
-            detail={tradingDetail}
-            accentColor={accentForStatus(tradingStatus)}
-          />
-        )}
-
-        {/* Accounts Filed — only if CH check pulled */}
-        {showAccounts && accountsDetail && (
-          <CheckCard
-            icon={<FileText className="size-4 text-muted-foreground" />}
-            title="Last Accounts Filed"
-            status={accountsStatus}
-            detail={accountsDetail}
-            accentColor={accentForStatus(accountsStatus)}
-          />
-        )}
-
-        {/* VAT — only for business */}
-        {isBusiness && (
-          <CheckCard
-            icon={<ShieldCheck className="size-4 text-muted-foreground" />}
-            title="VAT Number"
-            status={vatStatus}
-            detail={vatDetail}
-            accentColor={accentForStatus(vatStatus)}
-          />
-        )}
-
-        {/* CoP — always */}
-        <CheckCard
-          icon={<Landmark className="size-4 text-muted-foreground" />}
-          title="Confirmation of Payee"
-          status={copStatus}
-          detail={copDetail}
-          accentColor={accentForStatus(copStatus)}
-        />
-
-        {/* Online Reviews — only for businesses */}
-        {showReviews && (
-          <CheckCard
-            icon={<Star className="size-4 text-muted-foreground" />}
-            title="Online Reviews"
-            status={reviewsStatus}
-            detail={reviewsDetail}
-            accentColor={accentForStatus(reviewsStatus)}
-          />
-        )}
-
-        {/* Ad vs Invoice — only if marketplace */}
-        {showAdVsInvoice && adVsInvoiceDetail && (
-          <CheckCard
-            icon={<FileText className="size-4 text-muted-foreground" />}
-            title="Ad Price vs Invoice Amount"
-            status={adVsInvoiceStatus}
-            detail={adVsInvoiceDetail}
-            accentColor={accentForStatus(adVsInvoiceStatus)}
-          />
-        )}
+        ))}
       </div>
 
       {/* ── Marketplace Valuation Assessment ──────────────────────── */}
