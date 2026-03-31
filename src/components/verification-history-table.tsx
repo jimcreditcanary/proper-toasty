@@ -255,19 +255,9 @@ export function VerificationHistoryTable({ history }: { history: HistoryRow[] })
                         {formatDate(row.created_at)}
                       </td>
                       <td className="py-3 px-2">
-                        {row.flowType === "api" ? (
-                          <span className="inline-flex items-center rounded-full bg-coral/10 border border-coral/20 px-2 py-0.5 text-[11px] font-medium text-coral">
-                            API
-                          </span>
-                        ) : row.flowType === "marketplace" ? (
-                          <span className="inline-flex items-center rounded-full bg-yellow/10 border border-yellow/20 px-2 py-0.5 text-[11px] font-medium text-yellow">
-                            Marketplace
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center rounded-full bg-pass/10 border border-pass/20 px-2 py-0.5 text-[11px] font-medium text-pass">
-                            Console
-                          </span>
-                        )}
+                        <span className="inline-flex items-center rounded-full bg-white/[0.06] border border-white/[0.08] px-2 py-0.5 text-[11px] font-medium text-brand-muted-light">
+                          {row.flowType === "api" ? "API" : row.flowType === "marketplace" ? "Marketplace" : "Console"}
+                        </span>
                       </td>
                       <td className="py-3 px-2">
                         <span
