@@ -358,7 +358,7 @@ export default function Home() {
                     ? "bg-coral hover:bg-coral-dark hover:shadow-[0_4px_16px_rgba(255,92,53,0.4)]"
                     : "bg-white/[0.07] border border-white/10 text-brand-muted-light hover:text-white hover:bg-white/[0.12]"
                 }`}
-                render={<Link href="/auth/signup" />}
+                render={<Link href="/auth/login" />}
               >
                 Buy credits
               </Button>

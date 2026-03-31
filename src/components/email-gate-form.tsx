@@ -67,15 +67,9 @@ export function EmailGateForm({ verificationId }: { verificationId: string }) {
           <div className="flex flex-col gap-2">
             <Button
               className="w-full bg-coral hover:bg-coral-dark text-white font-bold rounded-xl hover:shadow-[0_4px_16px_rgba(255,92,53,0.4)] transition-all"
-              render={<Link href="/auth/signup" />}
-            >
-              Create account &amp; buy credits
-            </Button>
-            <Button
-              className="w-full bg-white/[0.07] border border-white/10 text-brand-muted-light hover:text-white hover:bg-white/[0.12] rounded-xl"
               render={<Link href="/auth/login" />}
             >
-              Sign in
+              Sign in or create account
             </Button>
           </div>
         </div>

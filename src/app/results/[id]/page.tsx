@@ -305,7 +305,7 @@ export default async function PublicResultPage({
         </p>
         <Button
           className="mt-4 bg-coral hover:bg-coral-dark text-white font-bold text-[15px] rounded-xl hover:shadow-[0_4px_16px_rgba(255,92,53,0.4)] transition-all"
-          render={<Link href="/auth/signup" />}
+          render={<Link href="/auth/login?tab=signup" />}
         >
           Create a free account
         </Button>

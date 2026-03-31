@@ -1,23 +1,46 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Logo } from "@/components/logo";
+import { ShieldCheck } from "lucide-react";
 
-export default function LoginPage() {
+export default function AuthPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex min-h-screen flex-col items-center justify-center px-4 bg-navy">
+        <Logo size="md" variant="dark" />
+      </div>
+    }>
+      <AuthPageInner />
+    </Suspense>
+  );
+}
+
+function AuthPageInner() {
+  const searchParams = useSearchParams();
+  const defaultTab = searchParams.get("tab") === "signup" ? "signup" : "signin";
+
+  const [tab, setTab] = useState<"signin" | "signup">(defaultTab);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [signupSuccess, setSignupSuccess] = useState(false);
   const router = useRouter();
   const supabase = createClient();
 
-  async function handleLogin(e: React.FormEvent) {
+  function switchTab(t: "signin" | "signup") {
+    setTab(t);
+    setError(null);
+  }
+
+  async function handleSignin(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError(null);
@@ -33,7 +56,60 @@ export default function LoginPage() {
       return;
     }
 
-    router.push("/dashboard");
+    const redirect = searchParams.get("redirect") || "/dashboard";
+    router.push(redirect);
+  }
+
+  async function handleSignup(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+      },
+    });
+
+    if (error) {
+      setError(error.message);
+      setLoading(false);
+      return;
+    }
+
+    setSignupSuccess(true);
+    setLoading(false);
+  }
+
+  if (signupSuccess) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center px-4 bg-navy">
+        <Link href="/" className="mb-10">
+          <Logo size="md" variant="dark" />
+        </Link>
+        <div className="w-full max-w-sm rounded-2xl bg-navy-card border border-white/[0.06] p-8 text-center">
+          <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-full bg-coral/10">
+            <ShieldCheck className="size-7 text-coral" />
+          </div>
+          <h1 className="text-xl font-semibold text-white">Check your email</h1>
+          <p className="text-sm text-brand-muted-light mt-2">
+            We&apos;ve sent a confirmation link to{" "}
+            <span className="font-medium text-white">{email}</span>
+          </p>
+          <Button
+            className="w-full mt-6 bg-white/[0.07] border border-white/10 text-brand-muted-light hover:text-white hover:bg-white/[0.12] rounded-xl"
+            onClick={() => {
+              setSignupSuccess(false);
+              switchTab("signin");
+            }}
+          >
+            Back to sign in
+          </Button>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -42,58 +118,131 @@ export default function LoginPage() {
         <Logo size="md" variant="dark" />
       </Link>
       <div className="w-full max-w-sm rounded-2xl bg-navy-card border border-white/[0.06] p-8">
-        <div className="text-center mb-6">
-          <h1 className="text-xl font-semibold text-white">Welcome back</h1>
-          <p className="text-sm text-brand-muted-light mt-1">
-            Sign in to your account to continue
-          </p>
+        {/* Tab switcher */}
+        <div className="flex rounded-xl bg-white/[0.05] border border-white/[0.06] p-1 mb-6">
+          <button
+            onClick={() => switchTab("signin")}
+            className={`flex-1 rounded-lg py-2 text-sm font-medium transition-all ${
+              tab === "signin"
+                ? "bg-coral text-white shadow-sm"
+                : "text-brand-muted-light hover:text-white"
+            }`}
+          >
+            Sign in
+          </button>
+          <button
+            onClick={() => switchTab("signup")}
+            className={`flex-1 rounded-lg py-2 text-sm font-medium transition-all ${
+              tab === "signup"
+                ? "bg-coral text-white shadow-sm"
+                : "text-brand-muted-light hover:text-white"
+            }`}
+          >
+            Create account
+          </button>
         </div>
-        <form onSubmit={handleLogin} className="space-y-4">
-          {error && (
-            <div className="rounded-xl bg-fail/10 border border-fail/20 px-3 py-2 text-sm text-fail">
-              {error}
+
+        {/* Sign in form */}
+        {tab === "signin" && (
+          <>
+            <div className="text-center mb-6">
+              <h1 className="text-xl font-semibold text-white">Welcome back</h1>
+              <p className="text-sm text-brand-muted-light mt-1">
+                Sign in to your account to continue
+              </p>
             </div>
-          )}
-          <div className="space-y-2">
-            <Label htmlFor="email" className="text-brand-muted-light">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              placeholder="you@example.com"
-              className="bg-white/[0.05] border-white/10 focus:border-coral text-white placeholder:text-brand-muted rounded-xl px-4 py-3"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="password" className="text-brand-muted-light">Password</Label>
-            <Input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              className="bg-white/[0.05] border-white/10 focus:border-coral text-white placeholder:text-brand-muted rounded-xl px-4 py-3"
-            />
-          </div>
-          <Button
-            type="submit"
-            className="w-full h-11 bg-coral hover:bg-coral-dark text-white font-bold text-[15px] rounded-xl hover:shadow-[0_4px_16px_rgba(255,92,53,0.4)] transition-all"
-            disabled={loading}
-          >
-            {loading ? "Signing in..." : "Sign in"}
-          </Button>
-        </form>
-        <p className="mt-5 text-center text-sm text-brand-muted">
-          Don&apos;t have an account?{" "}
-          <Link
-            href="/auth/signup"
-            className="font-medium text-coral hover:text-coral-light underline underline-offset-4"
-          >
-            Sign up
-          </Link>
-        </p>
+            <form onSubmit={handleSignin} className="space-y-4">
+              {error && (
+                <div className="rounded-xl bg-fail/10 border border-fail/20 px-3 py-2 text-sm text-fail">
+                  {error}
+                </div>
+              )}
+              <div className="space-y-2">
+                <Label htmlFor="email" className="text-brand-muted-light">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  placeholder="you@example.com"
+                  className="bg-white/[0.05] border-white/10 focus:border-coral text-white placeholder:text-brand-muted rounded-xl px-4 py-3"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="password" className="text-brand-muted-light">Password</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  className="bg-white/[0.05] border-white/10 focus:border-coral text-white placeholder:text-brand-muted rounded-xl px-4 py-3"
+                />
+              </div>
+              <Button
+                type="submit"
+                className="w-full h-11 bg-coral hover:bg-coral-dark text-white font-bold text-[15px] rounded-xl hover:shadow-[0_4px_16px_rgba(255,92,53,0.4)] transition-all"
+                disabled={loading}
+              >
+                {loading ? "Signing in..." : "Sign in"}
+              </Button>
+            </form>
+          </>
+        )}
+
+        {/* Sign up form */}
+        {tab === "signup" && (
+          <>
+            <div className="text-center mb-6">
+              <h1 className="text-xl font-semibold text-white">Create an account</h1>
+              <p className="text-sm text-brand-muted-light mt-1">
+                Start verifying invoices in seconds
+              </p>
+            </div>
+            <form onSubmit={handleSignup} className="space-y-4">
+              {error && (
+                <div className="rounded-xl bg-fail/10 border border-fail/20 px-3 py-2 text-sm text-fail">
+                  {error}
+                </div>
+              )}
+              <div className="space-y-2">
+                <Label htmlFor="email-signup" className="text-brand-muted-light">Email</Label>
+                <Input
+                  id="email-signup"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  placeholder="you@example.com"
+                  className="bg-white/[0.05] border-white/10 focus:border-coral text-white placeholder:text-brand-muted rounded-xl px-4 py-3"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="password-signup" className="text-brand-muted-light">Password</Label>
+                <Input
+                  id="password-signup"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  minLength={8}
+                  className="bg-white/[0.05] border-white/10 focus:border-coral text-white placeholder:text-brand-muted rounded-xl px-4 py-3"
+                />
+                <p className="text-xs text-brand-muted">
+                  Must be at least 8 characters
+                </p>
+              </div>
+              <Button
+                type="submit"
+                className="w-full h-11 bg-coral hover:bg-coral-dark text-white font-bold text-[15px] rounded-xl hover:shadow-[0_4px_16px_rgba(255,92,53,0.4)] transition-all"
+                disabled={loading}
+              >
+                {loading ? "Creating account..." : "Create account"}
+              </Button>
+            </form>
+          </>
+        )}
       </div>
     </div>
   );
