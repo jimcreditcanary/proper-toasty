@@ -1,39 +1,10 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { BuyCreditsDialog } from "@/components/buy-credits-dialog";
+import { VerificationHistoryTable } from "@/components/verification-history-table";
 import { Coins, FileCheck, Clock, Upload } from "lucide-react";
-
-const RISK_BADGE: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
-  LOW: { label: "Low Risk", variant: "default" },
-  MEDIUM: { label: "Medium Risk", variant: "secondary" },
-  HIGH: { label: "High Risk", variant: "destructive" },
-  UNKNOWN: { label: "Unknown", variant: "outline" },
-};
-
-const STATUS_VARIANTS: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
-  completed: "default",
-  processing: "secondary",
-  pending: "outline",
-  failed: "destructive",
-};
-
-function formatDate(dateStr: string) {
-  return new Date(dateStr).toLocaleDateString("en-GB", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
-function formatAmount(amount: number | null | undefined) {
-  if (amount == null) return "\u2014";
-  return `\u00A3${Number(amount).toLocaleString("en-GB", { minimumFractionDigits: 2 })}`;
-}
 
 type HistoryRow = {
   id: string;
@@ -204,8 +175,8 @@ export default async function DashboardPage() {
           <h2 className="font-semibold text-white">Verification history</h2>
           <p className="text-sm text-brand-muted mt-0.5">Your recent verification checks</p>
         </div>
-        <div className="p-6">
-          {history.length === 0 ? (
+        {history.length === 0 ? (
+          <div className="p-6">
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <FileCheck className="mb-3 size-10 text-brand-muted/50" />
               <p className="text-sm font-medium text-white">No verifications yet</p>
@@ -231,78 +202,10 @@ export default async function DashboardPage() {
                 </div>
               )}
             </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-white/[0.06]">
-                    <th className="text-left py-3 px-2 text-xs font-medium text-brand-muted uppercase tracking-wider">Date</th>
-                    <th className="text-left py-3 px-2 text-xs font-medium text-brand-muted uppercase tracking-wider">Type</th>
-                    <th className="text-left py-3 px-2 text-xs font-medium text-brand-muted uppercase tracking-wider">File</th>
-                    <th className="text-left py-3 px-2 text-xs font-medium text-brand-muted uppercase tracking-wider">Account Name</th>
-                    <th className="text-right py-3 px-2 text-xs font-medium text-brand-muted uppercase tracking-wider">Amount</th>
-                    <th className="text-right py-3 px-2 text-xs font-medium text-brand-muted uppercase tracking-wider">Risk Level</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {history.map((row) => {
-                    const href = row.source === "verification"
-                      ? `/dashboard/results/${row.id}`
-                      : `/dashboard/scans/${row.id}`;
-                    const riskInfo = row.risk ? RISK_BADGE[row.risk] ?? RISK_BADGE.UNKNOWN : null;
-                    return (
-                      <tr key={`${row.source}-${row.id}`} className="border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors">
-                        <td className="py-3 px-2 text-brand-muted-light whitespace-nowrap">
-                          {formatDate(row.created_at)}
-                        </td>
-                        <td className="py-3 px-2">
-                          {row.flowType === "api" ? (
-                            <span className="inline-flex items-center rounded-full bg-coral/10 border border-coral/20 px-2 py-0.5 text-[11px] font-medium text-coral">
-                              API
-                            </span>
-                          ) : row.flowType === "marketplace" ? (
-                            <span className="inline-flex items-center rounded-full bg-yellow/10 border border-yellow/20 px-2 py-0.5 text-[11px] font-medium text-yellow">
-                              Marketplace
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center rounded-full bg-pass/10 border border-pass/20 px-2 py-0.5 text-[11px] font-medium text-pass">
-                              Console
-                            </span>
-                          )}
-                        </td>
-                        <td className="py-3 px-2">
-                          <Link
-                            href={href}
-                            className="font-medium text-coral hover:text-coral-light underline underline-offset-4"
-                          >
-                            {row.fileName ?? "\u2014"}
-                          </Link>
-                        </td>
-                        <td className="py-3 px-2 text-brand-muted-light">
-                          {row.accountName ?? "\u2014"}
-                        </td>
-                        <td className="py-3 px-2 text-right font-mono text-brand-muted-light">
-                          {formatAmount(row.amount)}
-                        </td>
-                        <td className="py-3 px-2 text-right">
-                          {row.status === "completed" && riskInfo ? (
-                            <Badge variant={riskInfo.variant}>{riskInfo.label}</Badge>
-                          ) : row.status !== "completed" ? (
-                            <Badge variant={STATUS_VARIANTS[row.status] ?? "outline"}>
-                              {row.status}
-                            </Badge>
-                          ) : (
-                            <span className="text-brand-muted">\u2014</span>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
+          </div>
+        ) : (
+          <VerificationHistoryTable history={history} />
+        )}
       </div>
     </div>
   );
