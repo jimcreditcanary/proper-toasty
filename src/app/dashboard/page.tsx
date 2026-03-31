@@ -111,10 +111,10 @@ export default async function DashboardPage() {
         <div className="flex gap-2">
           <BuyCreditsDialog />
           <Button
-            className="bg-coral hover:bg-coral-dark text-white font-bold text-[15px] rounded-xl hover:shadow-[0_4px_16px_rgba(255,92,53,0.4)] transition-all"
+            className="h-12 px-6 bg-coral hover:bg-coral-dark text-white font-bold text-[15px] rounded-xl hover:shadow-[0_4px_16px_rgba(255,92,53,0.4)] transition-all"
             render={<Link href="/verify" />}
           >
-            <Upload className="size-4 mr-1.5" />
+            <Upload className="size-5 mr-2" />
             Make a check
           </Button>
         </div>
@@ -186,10 +186,10 @@ export default async function DashboardPage() {
                     You have {credits} credit{credits === 1 ? "" : "s"} ready to use.
                   </p>
                   <Button
-                    className="bg-coral hover:bg-coral-dark text-white font-bold rounded-xl hover:shadow-[0_4px_16px_rgba(255,92,53,0.4)] transition-all"
+                    className="h-12 px-6 bg-coral hover:bg-coral-dark text-white font-bold text-[15px] rounded-xl hover:shadow-[0_4px_16px_rgba(255,92,53,0.4)] transition-all"
                     render={<Link href="/verify" />}
                   >
-                    <Upload className="size-4 mr-1.5" />
+                    <Upload className="size-5 mr-2" />
                     Run your first check
                   </Button>
                 </div>

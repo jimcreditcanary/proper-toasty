@@ -69,14 +69,14 @@ export function SiteHeader({ email }: { email?: string }) {
           ) : (
             <>
               <Button
-                className="bg-coral hover:bg-coral-dark text-white font-bold text-[15px] px-6 py-2.5 rounded-xl shadow-none hover:shadow-[0_4px_16px_rgba(255,92,53,0.4)] transition-all"
+                className="h-11 bg-coral hover:bg-coral-dark text-white font-bold text-[15px] px-6 rounded-xl shadow-none hover:shadow-[0_4px_16px_rgba(255,92,53,0.4)] transition-all"
                 render={<Link href="/verify" />}
               >
                 Make a check
               </Button>
               <Button
                 variant="ghost"
-                className="text-brand-muted-light hover:text-white hover:bg-white/[0.07] rounded-xl"
+                className="h-11 text-[15px] text-brand-muted-light hover:text-white hover:bg-white/[0.07] rounded-xl"
                 render={<Link href="/auth/login" />}
               >
                 Sign in

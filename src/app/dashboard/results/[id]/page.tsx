@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { isOBConnectEnabled } from "@/lib/obconnect";
-import { PaymentSection } from "@/components/payment-section";
+import { PaymentButton } from "@/components/payment-section";
 import { Button } from "@/components/ui/button";
 import {
   ArrowLeft,
@@ -114,13 +114,12 @@ export default async function VerificationResultPage({
   const inputName = v.extracted_company_name || v.company_name_input || v.payee_name;
 
   const risk = v.overall_risk ?? "UNKNOWN";
-  const riskConfig: Record<string, { bg: string; text: string; border: string; icon: React.ReactNode; heading: string; message: string }> = {
+  const riskConfig: Record<string, { bg: string; text: string; border: string; icon: React.ReactNode; message: string }> = {
     LOW: {
       bg: "bg-pass/[0.08]",
       text: "text-pass",
       border: "border-pass/20",
       icon: <CheckCircle2 className="size-6 text-pass" />,
-      heading: "You are paying " + accountName,
       message: "Our checks look good. It\u2019s ok, move ahead!",
     },
     MEDIUM: {
@@ -128,7 +127,6 @@ export default async function VerificationResultPage({
       text: "text-warn",
       border: "border-warn/20",
       icon: <AlertTriangle className="size-6 text-warn" />,
-      heading: "You are paying " + accountName,
       message: "Some checks returned warnings. Proceed with caution.",
     },
     HIGH: {
@@ -136,7 +134,6 @@ export default async function VerificationResultPage({
       text: "text-fail",
       border: "border-fail/20",
       icon: <XCircle className="size-6 text-fail" />,
-      heading: "You are paying " + accountName,
       message: "One or more checks have failed. We recommend you do not proceed.",
     },
     UNKNOWN: {
@@ -144,7 +141,6 @@ export default async function VerificationResultPage({
       text: "text-brand-muted",
       border: "border-white/[0.06]",
       icon: <Minus className="size-6 text-brand-muted" />,
-      heading: "You are paying " + accountName,
       message: "We could not determine the risk level for this payment.",
     },
   };
@@ -319,109 +315,131 @@ export default async function VerificationResultPage({
     return a.title.localeCompare(b.title);
   });
 
+  const paymentData = {
+    verificationId: v.id,
+    amount: amount != null ? Number(amount) : null,
+    payeeName: accountName,
+    sortCode: v.extracted_sort_code ?? v.sort_code ?? "",
+    accountNumber: v.extracted_account_number ?? v.account_number ?? "",
+    reference: `WAP-${v.id.slice(0, 8).toUpperCase()}`,
+    overallRisk: v.overall_risk,
+    sandboxMode: !isOBConnectEnabled(),
+  };
+
+  const hasMarketplaceValuation = isMarketplace && v.marketplace_item_title;
+
   return (
-    <div className="mx-auto max-w-[625px] px-4 py-8 sm:px-6">
+    <div className={`mx-auto px-4 py-8 sm:px-6 ${hasMarketplaceValuation ? "max-w-5xl" : "max-w-[625px]"}`}>
       <Button
-        className="mb-4 text-brand-muted-light hover:text-white hover:bg-white/[0.07] rounded-xl"
+        className="mb-4 h-11 px-5 text-[15px] text-brand-muted-light hover:text-white hover:bg-white/[0.07] rounded-xl"
         variant="ghost"
         render={<Link href="/dashboard" />}
       >
-        <ArrowLeft className="size-4 mr-1" />
+        <ArrowLeft className="size-4 mr-1.5" />
         Dashboard
       </Button>
 
-      {/* Hero summary */}
-      <div className={`${rc.bg} ${rc.border} border rounded-2xl p-5 mb-6`}>
-        <div className="flex items-start gap-3">
-          <div className="shrink-0 mt-0.5">{rc.icon}</div>
-          <div>
-            <h1 className="text-lg text-white">
-              {rc.heading}
-              {amount != null && <span className="font-mono ml-1">{fmt(amount)}</span>}
-            </h1>
-            <p className="text-sm text-brand-muted-light mt-0.5">
-              for {description}
-            </p>
-            <p className={`text-sm font-semibold mt-2 ${rc.text}`}>
-              {rc.message}
-            </p>
+      {/* Hero: "You are paying" + Pay button */}
+      <div className={`${rc.bg} ${rc.border} border rounded-2xl p-5 sm:p-6 mb-6`}>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <div className="shrink-0 mt-0.5">{rc.icon}</div>
+            <div>
+              <h1 className="text-lg sm:text-xl text-white">
+                You are paying {accountName}
+                {amount != null && <span className="font-mono ml-1.5">{fmt(amount)}</span>}
+              </h1>
+              <p className="text-sm text-brand-muted-light mt-0.5">
+                for {description}
+              </p>
+              <p className={`text-sm font-semibold mt-2 ${rc.text}`}>
+                {rc.message}
+              </p>
+            </div>
+          </div>
+          <div className="shrink-0 sm:ml-4">
+            <PaymentButton data={paymentData} />
           </div>
         </div>
       </div>
 
-      {/* Checks */}
-      <span className="eyebrow block mb-3">Checks completed</span>
-
-      <div className="space-y-2">
-        {allChecks.map((check) => (
-          <CheckRow
-            key={check.title}
-            icon={check.icon}
-            title={check.title}
-            status={check.status}
-            detail={check.detail}
-          />
-        ))}
-      </div>
-
-      {/* Marketplace Valuation */}
-      {isMarketplace && v.marketplace_item_title && (
-        <div className="mt-6">
-          <span className="eyebrow block mb-3">Marketplace valuation</span>
-          <div className="rounded-2xl bg-navy-card border border-white/[0.06] p-5 space-y-4">
-            <div className="flex items-center gap-2 mb-2">
-              <ShoppingCart className="size-5 text-brand-muted-light" />
-              <span className="text-sm font-semibold text-white">{v.marketplace_item_title}</span>
+      {/* Main content: marketplace = 2 col, otherwise single col */}
+      {hasMarketplaceValuation ? (
+        <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
+          {/* Left: Checks */}
+          <div>
+            <span className="eyebrow block mb-3">Checks completed</span>
+            <div className="space-y-2">
+              {allChecks.map((check) => (
+                <CheckRow
+                  key={check.title}
+                  icon={check.icon}
+                  title={check.title}
+                  status={check.status}
+                  detail={check.detail}
+                />
+              ))}
             </div>
+          </div>
 
-            <div className="grid grid-cols-2 gap-3 text-sm">
-              {v.marketplace_listed_price != null && (
-                <div className="rounded-xl bg-white/[0.04] p-3">
-                  <span className="text-xs text-brand-muted block mb-0.5">Listed price</span>
-                  <span className="font-mono font-semibold text-base text-white">{fmt(Number(v.marketplace_listed_price))}</span>
+          {/* Right: Marketplace valuation */}
+          <div>
+            <span className="eyebrow block mb-3">Marketplace valuation</span>
+            <div className="rounded-2xl bg-navy-card border border-white/[0.06] p-5 space-y-4 sticky top-8">
+              <div className="flex items-center gap-2 mb-2">
+                <ShoppingCart className="size-5 text-brand-muted-light" />
+                <span className="text-sm font-semibold text-white">{v.marketplace_item_title}</span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                {v.marketplace_listed_price != null && (
+                  <div className="rounded-xl bg-white/[0.04] p-3">
+                    <span className="text-xs text-brand-muted block mb-0.5">Listed price</span>
+                    <span className="font-mono font-semibold text-base text-white">{fmt(Number(v.marketplace_listed_price))}</span>
+                  </div>
+                )}
+                {v.valuation_min != null && v.valuation_max != null && (
+                  <div className="rounded-xl bg-white/[0.04] p-3">
+                    <span className="text-xs text-brand-muted block mb-0.5">Est. market value</span>
+                    <span className="font-mono font-semibold text-base text-white">
+                      {fmt(Number(v.valuation_min))} &ndash; {fmt(Number(v.valuation_max))}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {showMarketplaceValuation && (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-brand-muted">Price assessment:</span>
+                  <StatusBadge status={marketplaceStatus} />
                 </div>
               )}
-              {v.valuation_min != null && v.valuation_max != null && (
-                <div className="rounded-xl bg-white/[0.04] p-3">
-                  <span className="text-xs text-brand-muted block mb-0.5">Est. market value</span>
-                  <span className="font-mono font-semibold text-base text-white">
-                    {fmt(Number(v.valuation_min))} &ndash; {fmt(Number(v.valuation_max))}
-                  </span>
+
+              {v.valuation_summary && (
+                <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
+                  <p className="text-sm leading-relaxed whitespace-pre-line text-brand-muted-light">{v.valuation_summary}</p>
                 </div>
               )}
             </div>
-
-            {showMarketplaceValuation && (
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-brand-muted">Price assessment:</span>
-                <StatusBadge status={marketplaceStatus} />
-              </div>
-            )}
-
-            {v.valuation_summary && (
-              <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
-                <p className="text-sm leading-relaxed whitespace-pre-line text-brand-muted-light">{v.valuation_summary}</p>
-              </div>
-            )}
+          </div>
+        </div>
+      ) : (
+        /* Non-marketplace: centered single column */
+        <div>
+          <span className="eyebrow block mb-3">Checks completed</span>
+          <div className="space-y-2">
+            {allChecks.map((check) => (
+              <CheckRow
+                key={check.title}
+                icon={check.icon}
+                title={check.title}
+                status={check.status}
+                detail={check.detail}
+              />
+            ))}
           </div>
         </div>
       )}
-
-      {/* Payment section */}
-      <div className="mt-6">
-        <PaymentSection
-          data={{
-            verificationId: v.id,
-            amount: amount != null ? Number(amount) : null,
-            payeeName: accountName,
-            sortCode: v.extracted_sort_code ?? v.sort_code ?? "",
-            accountNumber: v.extracted_account_number ?? v.account_number ?? "",
-            reference: `WAP-${v.id.slice(0, 8).toUpperCase()}`,
-            overallRisk: v.overall_risk,
-            sandboxMode: !isOBConnectEnabled(),
-          }}
-        />
-      </div>
     </div>
   );
 }
