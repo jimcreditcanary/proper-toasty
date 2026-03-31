@@ -293,7 +293,9 @@ export function VerificationHistoryTable({ history }: { history: HistoryRow[] })
                             {row.status}
                           </Badge>
                         ) : (
-                          <span className="text-brand-muted">\u2014</span>
+                          <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${RISK_BADGE.UNKNOWN.className}`}>
+                            Unknown
+                          </span>
                         )}
                       </td>
                     </tr>
