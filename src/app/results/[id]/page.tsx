@@ -172,7 +172,8 @@ export default async function PublicResultPage({
     else { copStatus = "FAIL"; copDetail = `No match. ${v.cop_reason ?? ""}`; }
   }
 
-  const showTrading = !!v.companies_house_result && !!v.companies_house_name;
+  const chNameMatches = !!v.companies_house_name && namesMatch(inputName, v.companies_house_name);
+  const showTrading = !!v.companies_house_result && chNameMatches;
   let tradingStatus: CheckStatus = "UNVERIFIED";
   let tradingDetail = "";
   if (showTrading && v.companies_house_incorporated_date) {
@@ -183,7 +184,7 @@ export default async function PublicResultPage({
     }
   }
 
-  const showAccounts = showTrading;
+  const showAccounts = !!v.companies_house_result && chNameMatches;
   let accountsStatus: CheckStatus = "UNVERIFIED";
   let accountsDetail = "";
   if (showAccounts) {

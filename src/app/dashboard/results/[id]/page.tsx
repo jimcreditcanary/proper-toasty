@@ -199,7 +199,8 @@ export default async function VerificationResultPage({
 
   let tradingStatus: CheckStatus = "UNVERIFIED";
   let tradingDetail = "";
-  const showTrading = !!v.companies_house_result && !!v.companies_house_name;
+  const chNameMatches = !!v.companies_house_name && namesMatch(inputName, v.companies_house_name);
+  const showTrading = !!v.companies_house_result && chNameMatches;
   if (showTrading && v.companies_house_incorporated_date) {
     const months = monthsSince(v.companies_house_incorporated_date);
     if (months !== null) {
@@ -218,7 +219,7 @@ export default async function VerificationResultPage({
 
   let accountsStatus: CheckStatus = "UNVERIFIED";
   let accountsDetail = "";
-  const showAccounts = !!v.companies_house_result && !!v.companies_house_name;
+  const showAccounts = !!v.companies_house_result && chNameMatches;
   if (showAccounts) {
     if (v.companies_house_accounts_date) {
       if (v.companies_house_accounts_overdue) {
