@@ -66,11 +66,47 @@ function CheckRow({
   );
 }
 
+function normaliseName(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/[.,\-()'"]/g, "")
+    .replace(/\b(ltd|limited|plc|llp|inc|llc|uk|the|trading|as|t\/a|co)\b/gi, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function wordSimilarity(a: string, b: string): number {
+  const wa = new Set(a.split(" ").filter(Boolean));
+  const wb = new Set(b.split(" ").filter(Boolean));
+  if (wa.size === 0 || wb.size === 0) return 0;
+  let overlap = 0;
+  for (const w of wa) if (wb.has(w)) overlap++;
+  return overlap / Math.max(wa.size, wb.size);
+}
+
+function compactMatch(a: string, b: string): boolean {
+  const ca = a.replace(/\s/g, "");
+  const cb = b.replace(/\s/g, "");
+  return ca === cb || ca.includes(cb) || cb.includes(ca);
+}
+
+type NameMatchResult = "exact" | "fuzzy" | "none";
+
+function compareNames(a: string | null, b: string | null): NameMatchResult {
+  if (!a || !b) return "none";
+  const rawA = a.toLowerCase().trim();
+  const rawB = b.toLowerCase().trim();
+  if (rawA === rawB || rawA.includes(rawB) || rawB.includes(rawA)) return "exact";
+  const na = normaliseName(a);
+  const nb = normaliseName(b);
+  if (na === nb || na.includes(nb) || nb.includes(na)) return "exact";
+  if (compactMatch(na, nb)) return "fuzzy";
+  if (wordSimilarity(na, nb) >= 0.5) return "fuzzy";
+  return "none";
+}
+
 function namesMatch(a: string | null, b: string | null): boolean {
-  if (!a || !b) return false;
-  const na = a.toLowerCase().trim();
-  const nb = b.toLowerCase().trim();
-  return na === nb || na.includes(nb) || nb.includes(na);
+  return compareNames(a, b) !== "none";
 }
 
 function monthsSince(dateStr: string | null): number | null {
@@ -147,9 +183,17 @@ export default async function PublicResultPage({
   let chDetail = "Companies House was not checked.";
   if (v.companies_house_result) {
     if (v.companies_house_name) {
-      const match = namesMatch(inputName, v.companies_house_name);
-      chStatus = match ? "PASS" : "WARN";
-      chDetail = match ? `Registered name: ${v.companies_house_name}` : `Name mismatch: "${inputName}" vs "${v.companies_house_name}"`;
+      const match = compareNames(inputName, v.companies_house_name);
+      if (match === "exact") {
+        chStatus = "PASS";
+        chDetail = `Registered name: ${v.companies_house_name}`;
+      } else if (match === "fuzzy") {
+        chStatus = "WARN";
+        chDetail = `Close match: "${inputName}" vs registered "${v.companies_house_name}"`;
+      } else {
+        chStatus = "FAIL";
+        chDetail = `Name mismatch: "${inputName}" vs registered "${v.companies_house_name}"`;
+      }
     } else { chStatus = "FAIL"; chDetail = "Company not found on register."; }
   }
 
@@ -158,9 +202,17 @@ export default async function PublicResultPage({
   const vatNumber = v.vat_number_input || v.extracted_vat_number;
   if (v.hmrc_vat_result) {
     if (v.vat_api_name) {
-      const match = namesMatch(inputName, v.vat_api_name);
-      vatStatus = match ? "PASS" : "WARN";
-      vatDetail = match ? `VAT registered name: ${v.vat_api_name}` : `VAT number${vatNumber ? ` ${vatNumber}` : ""} is registered to "${v.vat_api_name}" \u2014 this does not match the payee name "${inputName}".`;
+      const match = compareNames(inputName, v.vat_api_name);
+      if (match === "exact") {
+        vatStatus = "PASS";
+        vatDetail = `VAT registered name: ${v.vat_api_name}`;
+      } else if (match === "fuzzy") {
+        vatStatus = "WARN";
+        vatDetail = `VAT number${vatNumber ? ` ${vatNumber}` : ""} is registered to "${v.vat_api_name}" \u2014 close match to "${inputName}".`;
+      } else {
+        vatStatus = "FAIL";
+        vatDetail = `VAT number${vatNumber ? ` ${vatNumber}` : ""} is registered to "${v.vat_api_name}" \u2014 this does not match the payee name "${inputName}".`;
+      }
     } else { vatStatus = "FAIL"; vatDetail = `VAT number${vatNumber ? ` ${vatNumber}` : ""} not found on HMRC register.`; }
   }
 
