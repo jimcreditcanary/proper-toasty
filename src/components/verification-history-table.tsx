@@ -17,11 +17,11 @@ type HistoryRow = {
   status: string;
 };
 
-const RISK_BADGE: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
-  LOW: { label: "Low Risk", variant: "default" },
-  MEDIUM: { label: "Medium Risk", variant: "secondary" },
-  HIGH: { label: "High Risk", variant: "destructive" },
-  UNKNOWN: { label: "Unknown", variant: "outline" },
+const RISK_BADGE: Record<string, { label: string; className: string }> = {
+  LOW: { label: "Low Risk", className: "bg-pass/10 border-pass/20 text-pass" },
+  MEDIUM: { label: "Medium Risk", className: "bg-warn/10 border-warn/20 text-warn" },
+  HIGH: { label: "High Risk", className: "bg-fail/10 border-fail/20 text-fail" },
+  UNKNOWN: { label: "Unknown", className: "bg-white/[0.05] border-white/10 text-brand-muted-light" },
 };
 
 const STATUS_VARIANTS: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
@@ -285,7 +285,9 @@ export function VerificationHistoryTable({ history }: { history: HistoryRow[] })
                       </td>
                       <td className="py-3 px-2 text-right">
                         {row.status === "completed" && riskInfo ? (
-                          <Badge variant={riskInfo.variant}>{riskInfo.label}</Badge>
+                          <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${riskInfo.className}`}>
+                            {riskInfo.label}
+                          </span>
                         ) : row.status !== "completed" ? (
                           <Badge variant={STATUS_VARIANTS[row.status] ?? "outline"}>
                             {row.status}

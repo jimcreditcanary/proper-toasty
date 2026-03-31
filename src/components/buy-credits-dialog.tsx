@@ -55,10 +55,10 @@ export function BuyCreditsDialog() {
     <Dialog>
       <DialogTrigger
         render={
-          <Button className="bg-white/[0.07] border border-white/10 text-brand-muted-light hover:text-white hover:bg-white/[0.12] rounded-xl text-sm" />
+          <Button className="h-12 px-6 bg-white/[0.07] border border-white/10 text-brand-muted-light hover:text-white hover:bg-white/[0.12] rounded-xl text-[15px] font-bold" />
         }
       >
-        <CreditCard className="size-4 mr-1.5" />
+        <CreditCard className="size-5 mr-2" />
         Buy credits
       </DialogTrigger>
       <DialogContent className="sm:max-w-sm bg-navy-card border-white/10 text-white">
