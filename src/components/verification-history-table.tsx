@@ -18,9 +18,9 @@ type HistoryRow = {
 };
 
 const RISK_BADGE: Record<string, { label: string; className: string }> = {
-  LOW: { label: "Low Risk", className: "bg-pass/10 border-pass/20 text-pass" },
-  MEDIUM: { label: "Medium Risk", className: "bg-warn/10 border-warn/20 text-warn" },
-  HIGH: { label: "High Risk", className: "bg-fail/10 border-fail/20 text-fail" },
+  LOW: { label: "Low", className: "bg-pass/10 border-pass/20 text-pass" },
+  MEDIUM: { label: "Medium", className: "bg-warn/10 border-warn/20 text-warn" },
+  HIGH: { label: "High", className: "bg-fail/10 border-fail/20 text-fail" },
   UNKNOWN: { label: "Unknown", className: "bg-white/[0.05] border-white/10 text-brand-muted-light" },
 };
 
