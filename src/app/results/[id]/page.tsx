@@ -248,7 +248,7 @@ export default async function PublicResultPage({
 
   let reviewsStatus: CheckStatus = "UNVERIFIED";
   let reviewsDetail = "";
-  const showReviews = isBusiness && (v.google_reviews_rating != null || v.google_reviews_count != null || v.google_reviews_summary != null);
+  let showReviews = isBusiness && (v.google_reviews_rating != null || v.google_reviews_count != null || v.google_reviews_summary != null);
   if (showReviews) {
     const rating = v.google_reviews_rating != null ? Number(v.google_reviews_rating) : null;
     const count = v.google_reviews_count != null ? Number(v.google_reviews_count) : null;
@@ -259,8 +259,7 @@ export default async function PublicResultPage({
       reviewsStatus = "PASS";
       reviewsDetail = v.google_reviews_summary ?? `${count} reviews found.`;
     } else {
-      reviewsStatus = "WARN";
-      reviewsDetail = v.google_reviews_summary ?? "No reviews found.";
+      showReviews = false;
     }
   }
 

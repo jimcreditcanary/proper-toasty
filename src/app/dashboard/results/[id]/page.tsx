@@ -337,8 +337,8 @@ export default async function VerificationResultPage({
   }
 
   let reviewsStatus: CheckStatus = "UNVERIFIED";
-  let reviewsDetail = "Online reviews were not checked.";
-  const showReviews = isBusiness && (v.google_reviews_rating != null || v.google_reviews_count != null || v.google_reviews_summary != null);
+  let reviewsDetail = "";
+  let showReviews = isBusiness && (v.google_reviews_rating != null || v.google_reviews_count != null || v.google_reviews_summary != null);
   if (showReviews) {
     const rating = v.google_reviews_rating != null ? Number(v.google_reviews_rating) : null;
     const count = v.google_reviews_count != null ? Number(v.google_reviews_count) : null;
@@ -354,8 +354,8 @@ export default async function VerificationResultPage({
       reviewsStatus = "PASS";
       reviewsDetail = v.google_reviews_summary;
     } else {
-      reviewsStatus = "WARN";
-      reviewsDetail = v.google_reviews_summary ?? "No online reviews found for this business.";
+      // No reviews found — hide the tile entirely
+      showReviews = false;
     }
   }
 
