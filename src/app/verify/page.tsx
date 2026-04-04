@@ -26,6 +26,7 @@ import {
   Loader2,
   CheckCircle2,
   ShieldCheck,
+  Mail,
 } from "lucide-react";
 
 type WizardData = {
@@ -132,6 +133,8 @@ export default function VerifyPage() {
   const [submitElapsed, setSubmitElapsed] = useState(0);
   const [dragOver, setDragOver] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const [leadEmail, setLeadEmail] = useState("");
+  const [leadEmailError, setLeadEmailError] = useState<string | null>(null);
 
   // Check auth state on mount
   useEffect(() => {
@@ -289,13 +292,26 @@ export default function VerifyPage() {
       // Dual-path: authenticated users use verify-full (costs credits),
       // unauthenticated users use verify-lead (free, email-gated results)
       const endpoint = isAuthenticated ? "/api/verify-full" : "/api/verify-lead";
+
+      // For lead flow, include the email collected on the review step
+      if (!isAuthenticated && leadEmail) {
+        fd.append("email", leadEmail);
+      }
+
       const res = await fetch(endpoint, {
         method: "POST",
         body: fd,
       });
 
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Verification failed");
+      if (!res.ok) {
+        // Show email-specific errors inline instead of alert
+        if (!isAuthenticated && json.error) {
+          setLeadEmailError(json.error);
+          return;
+        }
+        throw new Error(json.error || "Verification failed");
+      }
 
       // Authenticated → dashboard results, unauthenticated → public results
       const resultsPath = isAuthenticated
@@ -926,12 +942,43 @@ export default function VerifyPage() {
             </Card>
           </div>
 
+          {/* Email capture for unauthenticated users */}
+          {!isAuthenticated && (
+            <div className="mt-4 space-y-2">
+              <Label htmlFor="lead-email">Email address</Label>
+              <p className="text-xs text-brand-muted-light">
+                Enter your email to receive your free verification report
+              </p>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-brand-muted" />
+                <Input
+                  id="lead-email"
+                  type="email"
+                  placeholder="you@example.com"
+                  className="pl-9"
+                  value={leadEmail}
+                  onChange={(e) => {
+                    setLeadEmail(e.target.value);
+                    setLeadEmailError(null);
+                  }}
+                  required
+                />
+              </div>
+              {leadEmailError && (
+                <p className="text-sm text-fail">{leadEmailError}</p>
+              )}
+            </div>
+          )}
+
           <div className="flex justify-between mt-6">
             <Button variant="outline" onClick={goBack}>
               <ArrowLeft className="size-4 mr-1" />
               Back
             </Button>
-            <Button onClick={handleSubmit} disabled={submitting}>
+            <Button
+              onClick={handleSubmit}
+              disabled={submitting || (!isAuthenticated && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(leadEmail))}
+            >
               <ShieldCheck className="size-4 mr-1" />
               Run Verification
             </Button>

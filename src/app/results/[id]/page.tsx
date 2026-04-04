@@ -1,7 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { EmailGateForm } from "@/components/email-gate-form";
 import { Button } from "@/components/ui/button";
 import {
   ArrowLeft,
@@ -141,15 +140,6 @@ export default async function PublicResultPage({
     redirect(`/dashboard/results/${id}`);
   }
 
-  const { data: lead } = await admin
-    .from("leads")
-    .select("id")
-    .eq("verification_id", id)
-    .limit(1)
-    .single();
-
-  const hasEmail = !!lead;
-
   const accountName = v.companies_house_name || v.extracted_company_name || v.company_name_input || v.payee_name || "Unknown";
   const amount = v.extracted_invoice_amount ?? v.invoice_amount ?? v.marketplace_listed_price ?? null;
   const description = v.marketplace_item_title || (v.invoice_file_path ? v.invoice_file_path.split("/").pop()?.replace(/^\d+-/, "") : null) || "this payment";
@@ -165,18 +155,6 @@ export default async function PublicResultPage({
     UNKNOWN: { bg: "bg-white/[0.03]", text: "text-brand-muted", border: "border-white/[0.06]", icon: <Minus className="size-6 text-brand-muted" />, message: "We could not determine the risk level." },
   };
   const rc = riskConfig[risk] ?? riskConfig.UNKNOWN;
-
-  if (!hasEmail) {
-    return (
-      <div className="mx-auto max-w-[625px] px-4 py-8 sm:px-6 min-h-screen bg-navy">
-        <Button variant="ghost" className="mb-4 text-brand-muted-light hover:text-white hover:bg-white/[0.07] rounded-xl" render={<Link href="/" />}>
-          <ArrowLeft className="size-4 mr-1" />
-          Home
-        </Button>
-        <EmailGateForm verificationId={id} />
-      </div>
-    );
-  }
 
   // ── Check statuses ────────────────────────────────────────────────
   let chStatus: CheckStatus = "UNVERIFIED";
