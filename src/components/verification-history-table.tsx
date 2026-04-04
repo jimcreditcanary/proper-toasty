@@ -16,6 +16,7 @@ type HistoryRow = {
   amount: number | null;
   risk: string | null;
   status: string;
+  paymentStatus: string | null;
 };
 
 const RISK_BADGE: Record<string, { label: string; className: string }> = {
@@ -241,6 +242,7 @@ export function VerificationHistoryTable({ history }: { history: HistoryRow[] })
                   <th className="text-left py-3 px-2 text-xs font-medium text-brand-muted uppercase tracking-wider">Account Name</th>
                   <th className="text-right py-3 px-2 text-xs font-medium text-brand-muted uppercase tracking-wider">Amount</th>
                   <th className="text-right py-3 px-2 text-xs font-medium text-brand-muted uppercase tracking-wider">Risk Level</th>
+                  <th className="text-right py-3 px-2 text-xs font-medium text-brand-muted uppercase tracking-wider">Paid</th>
                 </tr>
               </thead>
               <tbody>
@@ -290,6 +292,23 @@ export function VerificationHistoryTable({ history }: { history: HistoryRow[] })
                           <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${RISK_BADGE.UNKNOWN.className}`}>
                             Unknown
                           </span>
+                        )}
+                      </td>
+                      <td className="py-3 px-2 text-right">
+                        {row.paymentStatus === "completed" ? (
+                          <span className="inline-flex items-center rounded-full border bg-pass/10 text-pass border-pass/20 px-2.5 py-0.5 text-[11px] font-medium">
+                            Paid
+                          </span>
+                        ) : row.paymentStatus === "pending" ? (
+                          <span className="inline-flex items-center rounded-full border bg-warn/10 text-warn border-warn/20 px-2.5 py-0.5 text-[11px] font-medium">
+                            Pending
+                          </span>
+                        ) : row.paymentStatus === "failed" ? (
+                          <span className="inline-flex items-center rounded-full border bg-fail/10 text-fail border-fail/20 px-2.5 py-0.5 text-[11px] font-medium">
+                            Failed
+                          </span>
+                        ) : (
+                          <span className="text-brand-muted">{"\u2014"}</span>
                         )}
                       </td>
                     </tr>

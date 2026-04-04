@@ -17,6 +17,7 @@ type HistoryRow = {
   amount: number | null;
   risk: string | null;
   status: string;
+  paymentStatus: string | null;
 };
 
 export default async function DashboardPage() {
@@ -41,6 +42,20 @@ export default async function DashboardPage() {
     .eq("user_id", user.id)
     .order("created_at", { ascending: false })
     .limit(50);
+
+  const { data: obPayments } = await supabase
+    .from("ob_payments")
+    .select("verification_id, status")
+    .eq("user_id", user.id);
+
+  const paymentStatusMap: Record<string, string> = {};
+  if (obPayments) {
+    for (const op of obPayments) {
+      if (op.verification_id) {
+        paymentStatusMap[op.verification_id] = op.status;
+      }
+    }
+  }
 
   const { data: scans } = await supabase
     .from("scans")
@@ -73,6 +88,7 @@ export default async function DashboardPage() {
         amount: amount != null ? Number(amount) : null,
         risk: v.overall_risk,
         status: v.status ?? "pending",
+        paymentStatus: paymentStatusMap[v.id] ?? null,
       });
     }
   }
@@ -91,6 +107,7 @@ export default async function DashboardPage() {
         amount: null,
         risk: null,
         status: s.status,
+        paymentStatus: null,
       });
     }
   }

@@ -36,6 +36,12 @@ export type AdminSettings = {
   cop_cost_per_check: number;
   monthly_hosting_cost: number;
   anthropic_cost_per_1k_tokens: number;
+  ob_cost_per_transaction: number;
+};
+
+export type ObPaymentRow = {
+  created_at: string;
+  status: string;
 };
 
 export default async function AdminPerformancePage() {
@@ -62,7 +68,7 @@ export default async function AdminPerformancePage() {
   }
 
   // Fetch all data in parallel
-  const [paymentsRes, verificationsRes, usersRes, leadsRes, settingsRes, leadImpressionsRes] =
+  const [paymentsRes, verificationsRes, usersRes, leadsRes, settingsRes, leadImpressionsRes, obPaymentsRes] =
     await Promise.all([
       admin
         .from("payments")
@@ -77,6 +83,10 @@ export default async function AdminPerformancePage() {
       admin.from("leads").select("email, created_at"),
       admin.from("admin_settings").select("key, value"),
       admin.from("lead_impressions").select("created_at"),
+      admin
+        .from("ob_payments")
+        .select("created_at, status")
+        .eq("status", "completed"),
     ]);
 
   // Map payments to expected shape (DB column is "amount", we expose as "amount_total")
@@ -126,6 +136,14 @@ export default async function AdminPerformancePage() {
     };
   });
 
+  const obPayments: ObPaymentRow[] = (obPaymentsRes.data ?? []).map((op) => {
+    const raw = op as Record<string, unknown>;
+    return {
+      created_at: raw.created_at as string,
+      status: raw.status as string,
+    };
+  });
+
   // Build settings object
   const settingsMap: Record<string, number> = {};
   for (const row of settingsRes.data ?? []) {
@@ -137,6 +155,7 @@ export default async function AdminPerformancePage() {
     cop_cost_per_check: settingsMap.cop_cost_per_check ?? 0.15,
     monthly_hosting_cost: settingsMap.monthly_hosting_cost ?? 0,
     anthropic_cost_per_1k_tokens: settingsMap.anthropic_cost_per_1k_tokens ?? 0.003,
+    ob_cost_per_transaction: settingsMap.ob_cost_per_transaction ?? 0.05,
   };
 
   // Build userPriceMap: user_id -> price_per_credit (amount / credits_purchased)
@@ -179,6 +198,7 @@ export default async function AdminPerformancePage() {
           leadImpressions={leadImpressions}
           settings={settings}
           userPriceMap={userPriceMap}
+          obPayments={obPayments}
         />
       </div>
     </div>

@@ -18,6 +18,7 @@ import type {
   LeadRow,
   LeadImpressionRow,
   AdminSettings,
+  ObPaymentRow,
 } from "@/app/dashboard/admin/performance/page";
 
 type Props = {
@@ -28,6 +29,7 @@ type Props = {
   leadImpressions: LeadImpressionRow[];
   settings: AdminSettings;
   userPriceMap: Record<string, number>;
+  obPayments: ObPaymentRow[];
 };
 
 function formatGBP(value: number): string {
@@ -96,6 +98,7 @@ export function AdminPerformance({
   leadImpressions,
   settings,
   userPriceMap,
+  obPayments,
 }: Props) {
   const [selectedMonth, setSelectedMonth] = useState("all");
   const monthOptions = useMemo(() => getMonthOptions(verifications, payments, leadImpressions), [verifications, payments, leadImpressions]);
@@ -160,7 +163,14 @@ export function AdminPerformance({
         countMonthsInRange(selectedMonth) * settings.monthly_hosting_cost;
     }
 
-    const totalCost = copCost + anthropicCost + hostingCost;
+    // OB transaction cost
+    const filteredObPayments = obPayments.filter((op) =>
+      isInMonth(op.created_at, selectedMonth)
+    );
+    const obCount = filteredObPayments.length;
+    const obCost = obCount * settings.ob_cost_per_transaction;
+
+    const totalCost = copCost + anthropicCost + hostingCost + obCost;
 
     // 5. Profit
     const profit = revenueRealised - totalCost;
@@ -212,6 +222,8 @@ export function AdminPerformance({
       totalTokens,
       anthropicCost,
       hostingCost,
+      obCount,
+      obCost,
       totalCost,
       profit,
       wizardStarts,
@@ -226,6 +238,7 @@ export function AdminPerformance({
     users,
     leads,
     leadImpressions,
+    obPayments,
     settings,
     userPriceMap,
     selectedMonth,
@@ -300,6 +313,10 @@ export function AdminPerformance({
             {
               label: `Anthropic tokens (${metrics.totalTokens.toLocaleString()})`,
               value: formatGBP(metrics.anthropicCost),
+            },
+            {
+              label: `OB transactions (${metrics.obCount})`,
+              value: formatGBP(metrics.obCost),
             },
             {
               label: "Hosting (fixed)",
