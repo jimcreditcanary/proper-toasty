@@ -9,13 +9,14 @@ import {
   ServerCog,
   Users,
   UserCheck,
-  Percent,
+  Mail,
 } from "lucide-react";
 import type {
   PaymentRow,
   VerificationRow,
   UserRow,
   LeadRow,
+  LeadImpressionRow,
   AdminSettings,
 } from "@/app/dashboard/admin/performance/page";
 
@@ -24,6 +25,7 @@ type Props = {
   verifications: VerificationRow[];
   users: UserRow[];
   leads: LeadRow[];
+  leadImpressions: LeadImpressionRow[];
   settings: AdminSettings;
   userPriceMap: Record<string, number>;
 };
@@ -39,7 +41,8 @@ function formatGBP(value: number): string {
 
 function getMonthOptions(
   verifications: { created_at: string }[],
-  payments: { created_at: string }[]
+  payments: { created_at: string }[],
+  leadImpressions: { created_at: string }[]
 ): { label: string; value: string }[] {
   // Collect months that have actual data
   const monthsWithData = new Set<string>();
@@ -49,6 +52,10 @@ function getMonthOptions(
   }
   for (const p of payments) {
     const d = new Date(p.created_at);
+    monthsWithData.add(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+  }
+  for (const li of leadImpressions) {
+    const d = new Date(li.created_at);
     monthsWithData.add(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
   }
 
@@ -86,11 +93,12 @@ export function AdminPerformance({
   verifications,
   users,
   leads,
+  leadImpressions,
   settings,
   userPriceMap,
 }: Props) {
   const [selectedMonth, setSelectedMonth] = useState("all");
-  const monthOptions = useMemo(() => getMonthOptions(verifications, payments), [verifications, payments]);
+  const monthOptions = useMemo(() => getMonthOptions(verifications, payments, leadImpressions), [verifications, payments, leadImpressions]);
 
   const metrics = useMemo(() => {
     // Filter data by selected month
@@ -157,13 +165,22 @@ export function AdminPerformance({
     // 5. Profit
     const profit = revenueRealised - totalCost;
 
-    // 6. Leads
+    // 6. Wizard Starts (lead impressions)
+    const filteredImpressions = leadImpressions.filter((li) =>
+      isInMonth(li.created_at, selectedMonth)
+    );
+    const wizardStarts = filteredImpressions.length;
+
+    // 7. Emails Captured (leads)
     const uniqueLeadEmails = new Set(
       filteredLeads.map((l) => l.email.toLowerCase())
     );
-    const leadCount = uniqueLeadEmails.size;
+    const emailsCaptured = uniqueLeadEmails.size;
 
-    // 7. Leads Converted: lead emails that also exist in users with credits > 0 or have payments
+    // 8. Email Capture Rate
+    const emailCaptureRate = wizardStarts > 0 ? (emailsCaptured / wizardStarts) * 100 : 0;
+
+    // 9. Converted to Paying: lead emails that also exist in users with credits > 0 or have payments
     const userEmailSet = new Set(users.map((u) => u.email.toLowerCase()));
     const usersWithPayments = new Set(payments.map((p) => p.user_id));
     const userMap = new Map(users.map((u) => [u.email.toLowerCase(), u]));
@@ -183,8 +200,8 @@ export function AdminPerformance({
       }
     }
 
-    // 8. Conversion Rate
-    const conversionRate = leadCount > 0 ? (convertedCount / leadCount) * 100 : 0;
+    // 10. Conversion Rate (from emails captured)
+    const conversionRate = emailsCaptured > 0 ? (convertedCount / emailsCaptured) * 100 : 0;
 
     return {
       revenue,
@@ -197,7 +214,9 @@ export function AdminPerformance({
       hostingCost,
       totalCost,
       profit,
-      leadCount,
+      wizardStarts,
+      emailsCaptured,
+      emailCaptureRate,
       convertedCount,
       conversionRate,
     };
@@ -206,6 +225,7 @@ export function AdminPerformance({
     verifications,
     users,
     leads,
+    leadImpressions,
     settings,
     userPriceMap,
     selectedMonth,
@@ -300,33 +320,33 @@ export function AdminPerformance({
           description="Realised revenue minus costs"
         />
 
-        {/* Leads */}
+        {/* Wizard Starts */}
         <MetricCard
           icon={Users}
-          label="Leads"
-          value={metrics.leadCount.toString()}
+          label="Wizard Starts"
+          value={metrics.wizardStarts.toString()}
           valueColor="text-white"
-          description="Unique lead emails"
+          description="Free check page visits"
         />
 
-        {/* Leads Converted */}
+        {/* Emails Captured */}
+        <MetricCard
+          icon={Mail}
+          label="Emails Captured"
+          value={metrics.emailsCaptured.toString()}
+          valueColor="text-coral"
+          description="Leads who provided email"
+          note={metrics.wizardStarts > 0 ? `(${metrics.emailCaptureRate.toFixed(1)}% of starts)` : undefined}
+        />
+
+        {/* Converted to Paying */}
         <MetricCard
           icon={UserCheck}
-          label="Leads Converted"
+          label="Converted to Paying"
           value={metrics.convertedCount.toString()}
-          valueColor="text-coral"
-          description="Leads who became paying users"
-        />
-
-        {/* Conversion Rate */}
-        <MetricCard
-          icon={Percent}
-          label="Lead Conversion Rate"
-          value={`${metrics.conversionRate.toFixed(1)}%`}
-          valueColor={
-            metrics.conversionRate > 0 ? "text-pass-green" : "text-brand-muted-light"
-          }
-          description="Converted / Total leads"
+          valueColor={metrics.convertedCount > 0 ? "text-pass-green" : "text-brand-muted-light"}
+          description="Leads who bought credits"
+          note={metrics.emailsCaptured > 0 ? `(${metrics.conversionRate.toFixed(1)}% of emails)` : undefined}
         />
       </div>
     </div>

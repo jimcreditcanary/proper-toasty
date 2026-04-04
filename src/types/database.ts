@@ -433,6 +433,24 @@ export interface Database {
           },
         ];
       };
+      lead_impressions: {
+        Row: {
+          id: string;
+          session_id: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          session_id: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          session_id?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       admin_settings: {
         Row: {
           key: string;

@@ -28,6 +28,10 @@ export type LeadRow = {
   created_at: string;
 };
 
+export type LeadImpressionRow = {
+  created_at: string;
+};
+
 export type AdminSettings = {
   cop_cost_per_check: number;
   monthly_hosting_cost: number;
@@ -58,7 +62,7 @@ export default async function AdminPerformancePage() {
   }
 
   // Fetch all data in parallel
-  const [paymentsRes, verificationsRes, usersRes, leadsRes, settingsRes] =
+  const [paymentsRes, verificationsRes, usersRes, leadsRes, settingsRes, leadImpressionsRes] =
     await Promise.all([
       admin
         .from("payments")
@@ -72,6 +76,7 @@ export default async function AdminPerformancePage() {
       admin.from("users").select("id, credits, email"),
       admin.from("leads").select("email, created_at"),
       admin.from("admin_settings").select("key, value"),
+      admin.from("lead_impressions").select("created_at"),
     ]);
 
   // Map payments to expected shape (DB column is "amount", we expose as "amount_total")
@@ -110,6 +115,13 @@ export default async function AdminPerformancePage() {
     const raw = l as Record<string, unknown>;
     return {
       email: raw.email as string,
+      created_at: raw.created_at as string,
+    };
+  });
+
+  const leadImpressions: LeadImpressionRow[] = (leadImpressionsRes.data ?? []).map((li) => {
+    const raw = li as Record<string, unknown>;
+    return {
       created_at: raw.created_at as string,
     };
   });
@@ -164,6 +176,7 @@ export default async function AdminPerformancePage() {
           verifications={verifications}
           users={users}
           leads={leads}
+          leadImpressions={leadImpressions}
           settings={settings}
           userPriceMap={userPriceMap}
         />

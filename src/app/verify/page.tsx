@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
@@ -136,15 +136,29 @@ export default function VerifyPage() {
   const [leadEmail, setLeadEmail] = useState("");
   const [leadEmailError, setLeadEmailError] = useState<string | null>(null);
 
+  // Track wizard starts for unauthenticated users
+  const [wizardSessionId] = useState(() => crypto.randomUUID());
+  const trackedRef = useRef(false);
+
   // Check auth state on mount
   useEffect(() => {
     import("@/lib/supabase/client").then(({ createClient }) => {
       const supabase = createClient();
       supabase.auth.getUser().then(({ data: { user } }) => {
         setIsAuthenticated(!!user);
+
+        // Fire tracking call for unauthenticated users (free flow)
+        if (!user && !trackedRef.current) {
+          trackedRef.current = true;
+          fetch("/api/track-wizard-start", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ sessionId: wizardSessionId }),
+          }).catch(() => {});
+        }
       });
     });
-  }, []);
+  }, [wizardSessionId]);
 
   const update = useCallback(
     (partial: Partial<WizardData>) =>
