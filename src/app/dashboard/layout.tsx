@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { SiteHeader } from "@/components/site-header";
 
 export default async function DashboardLayout({
@@ -16,7 +17,9 @@ export default async function DashboardLayout({
     redirect("/auth/login");
   }
 
-  const { data: userData } = await supabase
+  // Use admin client to bypass RLS for role check
+  const admin = createAdminClient();
+  const { data: userData } = await admin
     .from("users")
     .select("role")
     .eq("id", user.id)

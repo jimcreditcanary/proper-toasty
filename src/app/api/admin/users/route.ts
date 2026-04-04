@@ -12,8 +12,8 @@ async function verifyAdmin() {
     return { error: "Unauthorized", status: 401, userId: null };
   }
 
-  const admin = createAdminClient();
-  const { data: profile } = await admin
+  const adminClient = createAdminClient();
+  const { data: profile } = await adminClient
     .from("users")
     .select("role")
     .eq("id", user.id)

@@ -23,8 +23,10 @@ export default async function AdminUsersPage() {
     redirect("/auth/login");
   }
 
-  // Verify admin role
-  const { data: currentUser } = await supabase
+  const admin = createAdminClient();
+
+  // Verify admin role using admin client (bypasses RLS)
+  const { data: currentUser } = await admin
     .from("users")
     .select("role")
     .eq("id", user.id)
@@ -33,8 +35,6 @@ export default async function AdminUsersPage() {
   if (!currentUser || currentUser.role !== "admin") {
     redirect("/dashboard");
   }
-
-  const admin = createAdminClient();
 
   // Fetch all users
   const { data: users } = await admin

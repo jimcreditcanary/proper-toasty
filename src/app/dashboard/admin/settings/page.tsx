@@ -19,8 +19,10 @@ export default async function AdminSettingsPage() {
     redirect("/auth/login");
   }
 
-  // Verify admin role
-  const { data: currentUser } = await supabase
+  const admin = createAdminClient();
+
+  // Verify admin role using admin client (bypasses RLS)
+  const { data: currentUser } = await admin
     .from("users")
     .select("role")
     .eq("id", user.id)
@@ -29,8 +31,6 @@ export default async function AdminSettingsPage() {
   if (!currentUser || currentUser.role !== "admin") {
     redirect("/dashboard");
   }
-
-  const admin = createAdminClient();
 
   const { data: settingsData } = await admin
     .from("admin_settings")

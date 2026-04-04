@@ -12,7 +12,8 @@ async function verifyAdmin() {
     return null;
   }
 
-  const { data: profile } = await supabase
+  const adminClient = createAdminClient();
+  const { data: profile } = await adminClient
     .from("users")
     .select("role")
     .eq("id", user.id)

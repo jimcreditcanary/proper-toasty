@@ -60,15 +60,8 @@ create policy "Admins can delete admin_settings"
     )
   );
 
--- Admins can view all users
-create policy "Admins can view all users"
-  on public.users for select
-  using (
-    exists (
-      select 1 from public.users
-      where id = auth.uid() and role = 'admin'
-    )
-  );
+-- Note: Admin queries use service role client (bypasses RLS), so no
+-- additional SELECT policy is needed on the users table.
 
 -- Insert default settings
 insert into public.admin_settings (key, value) values
