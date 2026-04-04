@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 const tabs = [
   { label: "Searches", href: "/log" },
@@ -46,9 +47,16 @@ export function AdminNav({ email }: { email: string }) {
         })}
       </nav>
 
-      <span className="text-sm text-brand-muted-light hidden sm:inline">
-        {email}
-      </span>
+      <div className="flex items-center gap-2">
+        <Avatar className="size-7 bg-navy-card border border-white/10">
+          <AvatarFallback className="text-xs text-coral bg-navy-card">
+            {email?.charAt(0).toUpperCase() ?? "?"}
+          </AvatarFallback>
+        </Avatar>
+        <span className="text-sm text-brand-muted-light hidden sm:inline">
+          {email}
+        </span>
+      </div>
     </div>
   );
 }
