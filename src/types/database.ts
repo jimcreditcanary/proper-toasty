@@ -15,6 +15,8 @@ export interface Database {
           email: string;
           credits: number;
           api_key: string | null;
+          role: string;
+          blocked: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -23,6 +25,8 @@ export interface Database {
           email: string;
           credits?: number;
           api_key?: string | null;
+          role?: string;
+          blocked?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -31,6 +35,8 @@ export interface Database {
           email?: string;
           credits?: number;
           api_key?: string | null;
+          role?: string;
+          blocked?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -329,6 +335,7 @@ export interface Database {
           cop_reason: string | null;
           overall_risk: string | null;
           status: string | null;
+          anthropic_tokens_used: number | null;
         };
         Insert: {
           id?: string;
@@ -371,6 +378,7 @@ export interface Database {
           cop_reason?: string | null;
           overall_risk?: string | null;
           status?: string | null;
+          anthropic_tokens_used?: number | null;
         };
         Update: {
           id?: string;
@@ -413,6 +421,7 @@ export interface Database {
           cop_reason?: string | null;
           overall_risk?: string | null;
           status?: string | null;
+          anthropic_tokens_used?: number | null;
         };
         Relationships: [
           {
@@ -423,6 +432,24 @@ export interface Database {
             referencedColumns: ["id"];
           },
         ];
+      };
+      admin_settings: {
+        Row: {
+          key: string;
+          value: string;
+          updated_at: string;
+        };
+        Insert: {
+          key: string;
+          value: string;
+          updated_at?: string;
+        };
+        Update: {
+          key?: string;
+          value?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
       };
     };
     Views: {

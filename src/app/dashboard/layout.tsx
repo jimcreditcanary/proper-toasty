@@ -16,9 +16,15 @@ export default async function DashboardLayout({
     redirect("/auth/login");
   }
 
+  const { data: userData } = await supabase
+    .from("users")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+
   return (
     <div className="flex min-h-screen flex-col bg-navy text-white">
-      <SiteHeader email={user.email} />
+      <SiteHeader email={user.email} role={userData?.role} />
       <main className="flex-1">{children}</main>
     </div>
   );

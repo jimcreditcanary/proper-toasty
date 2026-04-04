@@ -8,13 +8,14 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Logo } from "@/components/logo";
 
-export function SiteHeader({ email }: { email?: string }) {
+export function SiteHeader({ email, role }: { email?: string; role?: string }) {
   const router = useRouter();
   const supabase = createClient();
 
@@ -59,6 +60,26 @@ export function SiteHeader({ email }: { email?: string }) {
                   <DropdownMenuItem render={<Link href="/dashboard/api" />} className="text-brand-muted-light hover:text-white focus:text-white focus:bg-white/[0.07]">
                     API
                   </DropdownMenuItem>
+                  {role === "admin" && (
+                    <>
+                      <DropdownMenuSeparator className="bg-white/[0.06]" />
+                      <DropdownMenuLabel className="text-xs text-brand-muted-light font-medium">
+                        Admin
+                      </DropdownMenuLabel>
+                      <DropdownMenuItem render={<Link href="/dashboard/admin/searches" />} className="text-brand-muted-light hover:text-white focus:text-white focus:bg-white/[0.07]">
+                        All Searches
+                      </DropdownMenuItem>
+                      <DropdownMenuItem render={<Link href="/dashboard/admin/users" />} className="text-brand-muted-light hover:text-white focus:text-white focus:bg-white/[0.07]">
+                        Users
+                      </DropdownMenuItem>
+                      <DropdownMenuItem render={<Link href="/dashboard/admin/performance" />} className="text-brand-muted-light hover:text-white focus:text-white focus:bg-white/[0.07]">
+                        Performance
+                      </DropdownMenuItem>
+                      <DropdownMenuItem render={<Link href="/dashboard/admin/settings" />} className="text-brand-muted-light hover:text-white focus:text-white focus:bg-white/[0.07]">
+                        Settings
+                      </DropdownMenuItem>
+                    </>
+                  )}
                   <DropdownMenuSeparator className="bg-white/[0.06]" />
                   <DropdownMenuItem onClick={handleSignOut} className="text-brand-muted-light hover:text-white focus:text-white focus:bg-white/[0.07]">
                     Sign out
