@@ -66,11 +66,15 @@ export default async function AdminAllSearchesPage() {
         v.marketplace_item_title ||
         null;
 
+      const userType: "Lead" | "User" | "API" =
+        v.user_id == null ? "Lead" : v.flow_type === "api" ? "API" : "User";
+
       rows.push({
         id: v.id,
         created_at: v.created_at,
         user_email: userEmailMap.get(userId) ?? "Unknown",
         flow_type: v.flow_type ?? null,
+        user_type: userType,
         account_name: accountName,
         overall_risk: v.overall_risk,
         status: v.status,
@@ -91,7 +95,7 @@ export default async function AdminAllSearchesPage() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
+    <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -100,15 +104,6 @@ export default async function AdminAllSearchesPage() {
             All verifications across all users
           </p>
         </div>
-      </div>
-
-      {/* Admin setting notice */}
-      <div className="mt-4 flex items-center gap-2 rounded-xl bg-white/[0.03] border border-white/[0.06] px-4 py-2.5">
-        <Receipt className="size-4 text-brand-muted shrink-0" />
-        <p className="text-xs text-brand-muted-light">
-          CoP cost per check: <span className="font-mono text-white">{formatCurrency(copCostPerCheck)}</span>
-          <span className="text-brand-muted ml-2">(from admin_settings)</span>
-        </p>
       </div>
 
       {/* Stats */}

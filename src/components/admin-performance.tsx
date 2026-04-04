@@ -37,7 +37,21 @@ function formatGBP(value: number): string {
   }).format(value);
 }
 
-function getMonthOptions(): { label: string; value: string }[] {
+function getMonthOptions(
+  verifications: { created_at: string }[],
+  payments: { created_at: string }[]
+): { label: string; value: string }[] {
+  // Collect months that have actual data
+  const monthsWithData = new Set<string>();
+  for (const v of verifications) {
+    const d = new Date(v.created_at);
+    monthsWithData.add(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+  }
+  for (const p of payments) {
+    const d = new Date(p.created_at);
+    monthsWithData.add(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+  }
+
   const options: { label: string; value: string }[] = [
     { label: "All Time", value: "all" },
   ];
@@ -45,6 +59,7 @@ function getMonthOptions(): { label: string; value: string }[] {
   for (let i = 0; i < 12; i++) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
     const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    if (!monthsWithData.has(value)) continue;
     const label = d.toLocaleDateString("en-GB", {
       month: "long",
       year: "numeric",
@@ -75,7 +90,7 @@ export function AdminPerformance({
   userPriceMap,
 }: Props) {
   const [selectedMonth, setSelectedMonth] = useState("all");
-  const monthOptions = useMemo(() => getMonthOptions(), []);
+  const monthOptions = useMemo(() => getMonthOptions(verifications, payments), [verifications, payments]);
 
   const metrics = useMemo(() => {
     // Filter data by selected month

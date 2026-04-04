@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { LogOut } from "lucide-react";
+import { LogOut, ArrowLeft } from "lucide-react";
 
 const tabs = [
   { label: "Searches", href: "/log" },
@@ -26,6 +26,13 @@ export function AdminNav({ email }: { email: string }) {
   return (
     <div className="flex items-center justify-between w-full">
       <nav className="flex items-center gap-1">
+        <Link
+          href="/dashboard"
+          className="flex items-center gap-1 px-3 py-2 text-sm font-medium text-brand-muted-light hover:text-white transition-colors mr-2"
+        >
+          <ArrowLeft className="size-3.5" />
+          Dashboard
+        </Link>
         {tabs.map((tab) => {
           const isActive =
             tab.href === "/log"

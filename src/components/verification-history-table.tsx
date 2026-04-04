@@ -53,9 +53,8 @@ function truncate(str: string, max: number) {
 
 const TYPE_OPTIONS = [
   { value: "all", label: "All types" },
-  { value: "api", label: "API" },
-  { value: "console", label: "Console" },
-  { value: "marketplace", label: "Marketplace" },
+  { value: "User", label: "User" },
+  { value: "API", label: "API" },
 ] as const;
 
 const DATE_OPTIONS = [
@@ -91,10 +90,9 @@ export function VerificationHistoryTable({ history }: { history: HistoryRow[] })
     // Type filter
     if (typeFilter !== "all") {
       rows = rows.filter((r) => {
-        if (typeFilter === "api") return r.flowType === "api";
-        if (typeFilter === "marketplace") return r.flowType === "marketplace";
-        // "console" = everything that's not api or marketplace
-        return r.flowType !== "api" && r.flowType !== "marketplace";
+        if (typeFilter === "API") return r.flowType === "api";
+        // "User" = everything that's not api (dashboard only shows logged-in user's verifications)
+        return r.flowType !== "api";
       });
     }
 
@@ -256,7 +254,7 @@ export function VerificationHistoryTable({ history }: { history: HistoryRow[] })
                       </td>
                       <td className="py-3 px-2">
                         <span className="inline-flex items-center rounded-full bg-white/[0.06] border border-white/[0.08] px-2 py-0.5 text-[11px] font-medium text-brand-muted-light">
-                          {row.flowType === "api" ? "API" : row.flowType === "marketplace" ? "Marketplace" : "Console"}
+                          {row.flowType === "api" ? "API" : "User"}
                         </span>
                       </td>
                       <td className="py-3 px-2">

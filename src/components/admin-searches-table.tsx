@@ -8,6 +8,7 @@ export type AdminSearchRow = {
   created_at: string;
   user_email: string;
   flow_type: string | null;
+  user_type: "Lead" | "User" | "API";
   account_name: string | null;
   overall_risk: string | null;
   status: string | null;
@@ -24,9 +25,9 @@ const RISK_BADGE: Record<string, { label: string; className: string }> = {
 
 const TYPE_OPTIONS = [
   { value: "all", label: "All types" },
-  { value: "api", label: "API" },
-  { value: "console", label: "Console" },
-  { value: "marketplace", label: "Marketplace" },
+  { value: "Lead", label: "Lead" },
+  { value: "User", label: "User" },
+  { value: "API", label: "API" },
 ] as const;
 
 const DATE_OPTIONS = [
@@ -63,10 +64,8 @@ function truncate(str: string, max: number) {
   return str.slice(0, max) + "\u2026";
 }
 
-function getFlowLabel(flowType: string | null) {
-  if (flowType === "api") return "API";
-  if (flowType === "marketplace") return "Marketplace";
-  return "Console";
+function getUserTypeLabel(userType: "Lead" | "User" | "API") {
+  return userType;
 }
 
 export function AdminSearchesTable({ rows }: { rows: AdminSearchRow[] }) {
@@ -91,11 +90,7 @@ export function AdminSearchesTable({ rows }: { rows: AdminSearchRow[] }) {
     }
 
     if (typeFilter !== "all") {
-      result = result.filter((r) => {
-        if (typeFilter === "api") return r.flow_type === "api";
-        if (typeFilter === "marketplace") return r.flow_type === "marketplace";
-        return r.flow_type !== "api" && r.flow_type !== "marketplace";
-      });
+      result = result.filter((r) => r.user_type === typeFilter);
     }
 
     if (riskFilter !== "all") {
@@ -269,7 +264,7 @@ export function AdminSearchesTable({ rows }: { rows: AdminSearchRow[] }) {
                       </td>
                       <td className="py-3 px-2">
                         <span className="inline-flex items-center rounded-full bg-white/[0.06] border border-white/[0.08] px-2 py-0.5 text-[11px] font-medium text-brand-muted-light">
-                          {getFlowLabel(row.flow_type)}
+                          {getUserTypeLabel(row.user_type)}
                         </span>
                       </td>
                       <td className="py-3 px-2 text-brand-muted-light">
