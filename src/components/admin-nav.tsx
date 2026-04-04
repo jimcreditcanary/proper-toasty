@@ -1,9 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
-import { LogOut, ArrowLeft } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 
 const tabs = [
   { label: "Searches", href: "/log" },
@@ -14,14 +13,6 @@ const tabs = [
 
 export function AdminNav({ email }: { email: string }) {
   const pathname = usePathname();
-  const router = useRouter();
-  const supabase = createClient();
-
-  async function handleSignOut() {
-    await supabase.auth.signOut();
-    router.push("/");
-    router.refresh();
-  }
 
   return (
     <div className="flex items-center justify-between w-full">
@@ -55,18 +46,9 @@ export function AdminNav({ email }: { email: string }) {
         })}
       </nav>
 
-      <div className="flex items-center gap-3">
-        <span className="text-sm text-brand-muted-light hidden sm:inline">
-          {email}
-        </span>
-        <button
-          onClick={handleSignOut}
-          className="flex items-center gap-1.5 text-sm text-brand-muted-light hover:text-white transition-colors"
-        >
-          <LogOut className="size-4" />
-          <span className="hidden sm:inline">Sign out</span>
-        </button>
-      </div>
+      <span className="text-sm text-brand-muted-light hidden sm:inline">
+        {email}
+      </span>
     </div>
   );
 }
