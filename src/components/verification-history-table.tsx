@@ -7,6 +7,7 @@ import { Search, SlidersHorizontal, X } from "lucide-react";
 
 type HistoryRow = {
   id: string;
+  shortId: string;
   created_at: string;
   source: "verification" | "scan";
   flowType: string | null;
@@ -82,6 +83,7 @@ export function VerificationHistoryTable({ history }: { history: HistoryRow[] })
       const q = search.toLowerCase();
       rows = rows.filter(
         (r) =>
+          (r.shortId && r.shortId.toLowerCase().includes(q)) ||
           (r.fileName && r.fileName.toLowerCase().includes(q)) ||
           (r.accountName && r.accountName.toLowerCase().includes(q))
       );
@@ -232,6 +234,7 @@ export function VerificationHistoryTable({ history }: { history: HistoryRow[] })
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-white/[0.06]">
+                  <th className="text-left py-3 px-2 text-xs font-medium text-brand-muted uppercase tracking-wider">Search ID</th>
                   <th className="text-left py-3 px-2 text-xs font-medium text-brand-muted uppercase tracking-wider">Date</th>
                   <th className="text-left py-3 px-2 text-xs font-medium text-brand-muted uppercase tracking-wider">Type</th>
                   <th className="text-left py-3 px-2 text-xs font-medium text-brand-muted uppercase tracking-wider">File</th>
@@ -249,6 +252,9 @@ export function VerificationHistoryTable({ history }: { history: HistoryRow[] })
                       onClick={() => handleRowClick(row)}
                       className="border-b border-white/[0.04] hover:bg-white/[0.03] transition-colors cursor-pointer"
                     >
+                      <td className="py-3 px-2 font-mono text-brand-muted-light whitespace-nowrap">
+                        {row.shortId || "\u2014"}
+                      </td>
                       <td className="py-3 px-2 text-brand-muted-light whitespace-nowrap">
                         {formatDate(row.created_at)}
                       </td>

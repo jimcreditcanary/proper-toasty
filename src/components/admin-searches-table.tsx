@@ -1,10 +1,12 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import Link from "next/link";
 import { Search, SlidersHorizontal, X } from "lucide-react";
 
 export type AdminSearchRow = {
   id: string;
+  short_id: string;
   created_at: string;
   user_email: string;
   flow_type: string | null;
@@ -84,6 +86,7 @@ export function AdminSearchesTable({ rows }: { rows: AdminSearchRow[] }) {
       const q = search.toLowerCase();
       result = result.filter(
         (r) =>
+          (r.short_id && r.short_id.toLowerCase().includes(q)) ||
           (r.user_email && r.user_email.toLowerCase().includes(q)) ||
           (r.account_name && r.account_name.toLowerCase().includes(q))
       );
@@ -235,6 +238,7 @@ export function AdminSearchesTable({ rows }: { rows: AdminSearchRow[] }) {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-white/[0.06]">
+                  <th className="text-left py-3 px-2 text-xs font-medium text-brand-muted uppercase tracking-wider">Search ID</th>
                   <th className="text-left py-3 px-2 text-xs font-medium text-brand-muted uppercase tracking-wider">Date</th>
                   <th className="text-left py-3 px-2 text-xs font-medium text-brand-muted uppercase tracking-wider">User Email</th>
                   <th className="text-left py-3 px-2 text-xs font-medium text-brand-muted uppercase tracking-wider">Type</th>
@@ -254,6 +258,15 @@ export function AdminSearchesTable({ rows }: { rows: AdminSearchRow[] }) {
                       key={row.id}
                       className="border-b border-white/[0.04] hover:bg-white/[0.03] transition-colors"
                     >
+                      <td className="py-3 px-2 whitespace-nowrap">
+                        <Link
+                          href={`/dashboard/results/${row.id}`}
+                          className="font-mono text-coral hover:text-coral-light transition-colors"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {row.short_id}
+                        </Link>
+                      </td>
                       <td className="py-3 px-2 text-brand-muted-light whitespace-nowrap">
                         {formatDate(row.created_at)}
                       </td>

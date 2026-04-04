@@ -8,6 +8,7 @@ import { Coins, FileCheck, Clock, Upload } from "lucide-react";
 
 type HistoryRow = {
   id: string;
+  shortId: string;
   created_at: string;
   source: "verification" | "scan";
   flowType: string | null;
@@ -36,7 +37,7 @@ export default async function DashboardPage() {
 
   const { data: verifications } = await supabase
     .from("verifications")
-    .select("id, created_at, status, payee_name, company_name_input, extracted_company_name, invoice_amount, extracted_invoice_amount, marketplace_listed_price, overall_risk, flow_type, invoice_file_path, marketplace_item_title")
+    .select("id, short_id, created_at, status, payee_name, company_name_input, extracted_company_name, invoice_amount, extracted_invoice_amount, marketplace_listed_price, overall_risk, flow_type, invoice_file_path, marketplace_item_title")
     .eq("user_id", user.id)
     .order("created_at", { ascending: false })
     .limit(50);
@@ -63,6 +64,7 @@ export default async function DashboardPage() {
             : "Manual entry";
       history.push({
         id: v.id,
+        shortId: v.short_id,
         created_at: v.created_at,
         source: "verification",
         flowType: v.flow_type ?? null,
@@ -80,6 +82,7 @@ export default async function DashboardPage() {
       if (history.some((h) => h.id === s.id)) continue;
       history.push({
         id: s.id,
+        shortId: "",
         created_at: s.created_at,
         source: "scan",
         flowType: null,

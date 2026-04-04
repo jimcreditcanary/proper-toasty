@@ -8,7 +8,7 @@ export default async function LogSearchesPage() {
   // Fetch all verifications with user email
   const { data: verifications } = await supabase
     .from("verifications")
-    .select("id, created_at, user_id, flow_type, payee_name, company_name_input, extracted_company_name, marketplace_item_title, overall_risk, status")
+    .select("id, short_id, created_at, user_id, flow_type, payee_name, company_name_input, extracted_company_name, marketplace_item_title, overall_risk, status")
     .order("created_at", { ascending: false });
 
   // Fetch all users for email lookup
@@ -71,6 +71,7 @@ export default async function LogSearchesPage() {
 
       rows.push({
         id: v.id,
+        short_id: v.short_id,
         created_at: v.created_at,
         user_email: userEmailMap.get(userId) ?? "Unknown",
         flow_type: v.flow_type ?? null,

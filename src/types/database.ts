@@ -336,12 +336,14 @@ export interface Database {
           overall_risk: string | null;
           status: string | null;
           anthropic_tokens_used: number | null;
+          short_id: string;
         };
         Insert: {
           id?: string;
           user_id?: string | null;
           created_at?: string;
           flow_type?: string | null;
+          short_id?: string;
           marketplace_url?: string | null;
           marketplace_item_title?: string | null;
           marketplace_listed_price?: number | null;
@@ -384,6 +386,7 @@ export interface Database {
           id?: string;
           user_id?: string;
           created_at?: string;
+          short_id?: string;
           flow_type?: string | null;
           marketplace_url?: string | null;
           marketplace_item_title?: string | null;
