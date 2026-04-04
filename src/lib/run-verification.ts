@@ -44,6 +44,9 @@ export async function runVerification(params: {
   } | null = null;
   let invoiceFilePath: string | null = null;
 
+  // Track total Anthropic token usage across all calls
+  let totalTokensUsed = 0;
+
   if (file) {
     const fileBuffer = Buffer.from(await file.arrayBuffer());
     const folderPrefix = userId || "leads";
@@ -106,6 +109,9 @@ If a field is not found, set its value to null.`;
         },
       ],
     });
+
+    // Track token usage from extraction
+    totalTokensUsed += (message.usage?.input_tokens ?? 0) + (message.usage?.output_tokens ?? 0);
 
     const responseText =
       message.content[0].type === "text" ? message.content[0].text : "";
@@ -224,6 +230,8 @@ Return ONLY a JSON object with no markdown formatting:
           });
           if (reviewsRes.ok) {
             const revData = await reviewsRes.json();
+            // Track token usage from reviews check
+            totalTokensUsed += (revData.usage?.input_tokens ?? 0) + (revData.usage?.output_tokens ?? 0);
             const blocks = revData.content as Array<{ type: string; text?: string }>;
             let revText = "";
             for (let i = blocks.length - 1; i >= 0; i--) {
@@ -297,6 +305,8 @@ Return ONLY a JSON object with no markdown fences:
           });
           if (valRes.ok) {
             const valData = await valRes.json();
+            // Track token usage from valuation check
+            totalTokensUsed += (valData.usage?.input_tokens ?? 0) + (valData.usage?.output_tokens ?? 0);
             const blocks = valData.content as Array<{ type: string; text?: string }>;
             let valText = "";
             for (let i = blocks.length - 1; i >= 0; i--) {
@@ -525,6 +535,7 @@ Return ONLY a JSON object with no markdown fences:
       google_reviews_rating: results.reviews?.rating ?? null,
       google_reviews_count: results.reviews?.count ?? null,
       google_reviews_summary: results.reviews?.summary ?? null,
+      anthropic_tokens_used: totalTokensUsed > 0 ? totalTokensUsed : null,
       status: "completed",
     })
     .eq("id", verification.id);
