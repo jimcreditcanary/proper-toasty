@@ -255,27 +255,15 @@ export function AdminPerformance({
         </select>
       </div>
 
-      {/* Metrics grid */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {/* Revenue */}
+      {/* Row 1: Revenue */}
+      <div className="grid gap-4 sm:grid-cols-2">
         <MetricCard
           icon={PoundSterling}
-          label="Revenue"
+          label="Revenue (Credits Purchased)"
           value={formatGBP(metrics.revenue)}
           valueColor="text-coral"
           description="Total credits purchased"
         />
-
-        {/* Revenue Realised */}
-        <MetricCard
-          icon={TrendingUp}
-          label="Revenue Realised"
-          value={formatGBP(metrics.revenueRealised)}
-          valueColor="text-coral"
-          description="Value of searches performed"
-        />
-
-        {/* Revenue Unrealised */}
         <MetricCard
           icon={Wallet}
           label="Revenue Unrealised"
@@ -288,8 +276,17 @@ export function AdminPerformance({
               : undefined
           }
         />
+      </div>
 
-        {/* Cost of Realised Searches */}
+      {/* Row 2: Realised */}
+      <div className="grid gap-4 sm:grid-cols-3">
+        <MetricCard
+          icon={TrendingUp}
+          label="Realised Revenue"
+          value={formatGBP(metrics.revenueRealised)}
+          valueColor="text-coral"
+          description="Value of searches performed"
+        />
         <MetricCard
           icon={ServerCog}
           label="Cost of Realised Searches"
@@ -310,39 +307,35 @@ export function AdminPerformance({
             },
           ]}
         />
-
-        {/* Profit */}
         <MetricCard
           icon={metrics.profit >= 0 ? TrendingUp : TrendingDown}
-          label="Profit"
+          label="Profit from Realised Searches"
           value={formatGBP(metrics.profit)}
           valueColor={metrics.profit >= 0 ? "text-pass-green" : "text-fail"}
           description="Realised revenue minus costs"
         />
+      </div>
 
-        {/* Wizard Starts */}
+      {/* Row 3: Lead Funnel */}
+      <div className="grid gap-4 sm:grid-cols-3">
         <MetricCard
           icon={Users}
-          label="Wizard Starts"
+          label="Website Searches"
           value={metrics.wizardStarts.toString()}
           valueColor="text-white"
           description="Free check page visits"
         />
-
-        {/* Emails Captured */}
         <MetricCard
           icon={Mail}
           label="Emails Captured"
           value={metrics.emailsCaptured.toString()}
           valueColor="text-coral"
           description="Leads who provided email"
-          note={metrics.wizardStarts > 0 ? `(${metrics.emailCaptureRate.toFixed(1)}% of starts)` : undefined}
+          note={metrics.wizardStarts > 0 ? `(${metrics.emailCaptureRate.toFixed(1)}% of website searches)` : undefined}
         />
-
-        {/* Converted to Paying */}
         <MetricCard
           icon={UserCheck}
-          label="Converted to Paying"
+          label="Leads Converted to Paying"
           value={metrics.convertedCount.toString()}
           valueColor={metrics.convertedCount > 0 ? "text-pass-green" : "text-brand-muted-light"}
           description="Leads who bought credits"

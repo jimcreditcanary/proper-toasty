@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { runVerification } from "@/lib/run-verification";
+import { upsertHubSpotContact } from "@/lib/hubspot";
 
 export async function POST(request: NextRequest) {
   try {
@@ -46,6 +47,9 @@ export async function POST(request: NextRequest) {
       email: email.toLowerCase().trim(),
       verification_id: result.id,
     });
+
+    // Sync to HubSpot (fire and forget)
+    upsertHubSpotContact({ email: email.toLowerCase().trim(), source: "lead" }).catch(() => {});
 
     return NextResponse.json({ id: result.id });
   } catch (error) {
