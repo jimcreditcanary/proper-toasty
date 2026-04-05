@@ -226,30 +226,12 @@ export default function Home() {
 
             {/* Right: embedded wizard */}
             <div className="relative">
-              {/* Hand-drawn arrow pointing into wizard */}
-              <div className="hidden lg:flex absolute -top-14 left-4 z-10 items-center gap-2">
-                <span className="text-[15px] font-bold text-coral whitespace-nowrap" style={{ fontFamily: "var(--font-geist-sans), system-ui, sans-serif" }}>
-                  Try for free!
-                </span>
-                <svg width="64" height="52" viewBox="0 0 64 52" fill="none" className="text-coral -ml-1">
-                  {/* Smooth curve from text down into the wizard */}
-                  <path
-                    d="M2 6C16 4 36 6 44 18C50 27 48 38 42 44"
-                    stroke="currentColor"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                    fill="none"
-                  />
-                  {/* Arrowhead */}
-                  <path
-                    d="M36 38L42 44L48 38"
-                    stroke="currentColor"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    fill="none"
-                  />
-                </svg>
+              {/* Callout badge above wizard */}
+              <div className="hidden lg:flex justify-center mb-3">
+                <div className="inline-flex items-center gap-1.5 rounded-full bg-coral px-4 py-1.5 text-white text-sm font-semibold shadow-md animate-bounce [animation-duration:2s]">
+                  Try for free
+                  <ArrowRight className="size-3.5 rotate-90" />
+                </div>
               </div>
               <FreeCheckWizard />
             </div>

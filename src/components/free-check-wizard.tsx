@@ -64,12 +64,9 @@ const initialData: WizardData = {
 function ProgressBar({ step, total }: { step: number; total: number }) {
   return (
     <div className="mb-6">
-      <div className="flex items-center justify-between mb-2">
+      <div className="mb-2">
         <span className="text-sm text-slate-500">
           Step {step} of {total}
-        </span>
-        <span className="text-sm text-slate-500">
-          {Math.round((step / total) * 100)}%
         </span>
       </div>
       <div className="h-1.5 w-full rounded-full bg-slate-100">
