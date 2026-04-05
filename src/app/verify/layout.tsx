@@ -12,7 +12,7 @@ export default async function VerifyLayout({
   } = await supabase.auth.getUser();
 
   return (
-    <div className="dark flex min-h-screen flex-col bg-navy text-white">
+    <div className="flex min-h-screen flex-col bg-slate-50 text-slate-900">
       <SiteHeader email={user?.email} />
       <main className="flex-1">{children}</main>
     </div>

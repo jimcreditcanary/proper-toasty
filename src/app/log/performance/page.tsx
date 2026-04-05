@@ -154,8 +154,8 @@ export default async function LogPerformancePage() {
     <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl text-white">Performance</h1>
-          <p className="text-sm text-brand-muted-light mt-1">
+          <h1 className="text-2xl text-slate-900">Performance</h1>
+          <p className="text-sm text-slate-500 mt-1">
             Revenue, costs, and conversion metrics
           </p>
         </div>

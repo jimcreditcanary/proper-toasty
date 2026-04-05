@@ -123,15 +123,15 @@ export default async function DashboardPage() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl text-white">Dashboard</h1>
-          <p className="text-sm text-brand-muted-light mt-1">
+          <h1 className="text-2xl text-slate-900">Dashboard</h1>
+          <p className="text-sm text-slate-500 mt-1">
             Upload and verify invoices
           </p>
         </div>
         <div className="flex gap-2">
           <BuyCreditsDialog />
           <Button
-            className="h-12 px-6 bg-coral hover:bg-coral-dark text-white font-bold text-[15px] rounded-xl hover:shadow-[0_4px_16px_rgba(255,92,53,0.4)] transition-all"
+            className="h-12 px-6 bg-coral hover:bg-coral-dark text-white font-bold text-[15px] rounded-xl hover:shadow-md transition-all"
             render={<Link href="/verify" />}
           >
             <Upload className="size-5 mr-2" />
@@ -142,13 +142,13 @@ export default async function DashboardPage() {
 
       {/* Low credits alert */}
       {credits > 0 && credits < 5 && (
-        <div className="mt-6 flex items-center gap-3 rounded-xl border border-warn/20 bg-warn/[0.08] p-4">
-          <Coins className="size-5 text-warn shrink-0" />
+        <div className="mt-6 flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
+          <Coins className="size-5 text-amber-600 shrink-0" />
           <div className="flex-1">
-            <p className="text-sm font-medium text-warn">
+            <p className="text-sm font-medium text-amber-600">
               You have {credits} credit{credits === 1 ? "" : "s"} remaining
             </p>
-            <p className="text-xs text-warn/70">
+            <p className="text-xs text-amber-600/70">
               Top up now so you&apos;re ready for your next check.
             </p>
           </div>
@@ -158,13 +158,13 @@ export default async function DashboardPage() {
 
       {/* No credits alert */}
       {credits === 0 && (
-        <div className="mt-6 flex items-center gap-3 rounded-xl border border-fail/20 bg-fail/[0.08] p-4">
-          <Coins className="size-5 text-fail shrink-0" />
+        <div className="mt-6 flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 p-4">
+          <Coins className="size-5 text-red-600 shrink-0" />
           <div className="flex-1">
-            <p className="text-sm font-medium text-fail">
+            <p className="text-sm font-medium text-red-600">
               You have no credits
             </p>
-            <p className="text-xs text-fail/70">
+            <p className="text-xs text-red-600/70">
               Buy credits to start verifying invoices and payments.
             </p>
           </div>
@@ -179,34 +179,34 @@ export default async function DashboardPage() {
           { icon: FileCheck, label: "Verifications completed", value: completedCount },
           { icon: Clock, label: "Total checks", value: totalCount },
         ].map((stat) => (
-          <div key={stat.label} className="rounded-2xl bg-navy-card border border-white/[0.06] p-5">
-            <div className="flex items-center gap-1.5 text-brand-muted text-sm mb-2">
+          <div key={stat.label} className="rounded-2xl bg-white border border-slate-200 p-5">
+            <div className="flex items-center gap-1.5 text-slate-400 text-sm mb-2">
               <stat.icon className="size-3.5" />
               {stat.label}
             </div>
-            <div className="text-2xl font-bold text-white">{stat.value}</div>
+            <div className="text-2xl font-bold text-slate-900">{stat.value}</div>
           </div>
         ))}
       </div>
 
       {/* History table */}
-      <div className="mt-6 rounded-2xl bg-navy-card border border-white/[0.06] overflow-hidden">
-        <div className="px-6 py-4 border-b border-white/[0.06]">
-          <h2 className="font-semibold text-white">Verification history</h2>
-          <p className="text-sm text-brand-muted mt-0.5">Your recent verification checks</p>
+      <div className="mt-6 rounded-2xl bg-white border border-slate-200 overflow-hidden">
+        <div className="px-6 py-4 border-b border-slate-200">
+          <h2 className="font-semibold text-slate-900">Verification history</h2>
+          <p className="text-sm text-slate-400 mt-0.5">Your recent verification checks</p>
         </div>
         {history.length === 0 ? (
           <div className="p-6">
             <div className="flex flex-col items-center justify-center py-12 text-center">
-              <FileCheck className="mb-3 size-10 text-brand-muted/50" />
-              <p className="text-sm font-medium text-white">No verifications yet</p>
+              <FileCheck className="mb-3 size-10 text-slate-400/50" />
+              <p className="text-sm font-medium text-slate-900">No verifications yet</p>
               {credits > 0 ? (
                 <div className="mt-3">
-                  <p className="text-xs text-brand-muted mb-3">
+                  <p className="text-xs text-slate-400 mb-3">
                     You have {credits} credit{credits === 1 ? "" : "s"} ready to use.
                   </p>
                   <Button
-                    className="h-12 px-6 bg-coral hover:bg-coral-dark text-white font-bold text-[15px] rounded-xl hover:shadow-[0_4px_16px_rgba(255,92,53,0.4)] transition-all"
+                    className="h-12 px-6 bg-coral hover:bg-coral-dark text-white font-bold text-[15px] rounded-xl hover:shadow-md transition-all"
                     render={<Link href="/verify" />}
                   >
                     <Upload className="size-5 mr-2" />
@@ -215,7 +215,7 @@ export default async function DashboardPage() {
                 </div>
               ) : (
                 <div className="mt-3">
-                  <p className="text-xs text-brand-muted mb-3">
+                  <p className="text-xs text-slate-400 mb-3">
                     Buy credits to start verifying invoices and payments.
                   </p>
                   <BuyCreditsDialog />

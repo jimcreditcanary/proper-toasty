@@ -53,8 +53,8 @@ export function PaymentButton({ data }: { data: PaymentData }) {
         onClick={() => setOpen(true)}
         className={`h-12 px-6 text-[15px] font-bold rounded-xl transition-all ${
           risk === "HIGH"
-            ? "bg-fail/20 border border-fail/30 text-fail cursor-not-allowed opacity-70"
-            : "bg-coral hover:bg-coral-dark text-white hover:shadow-[0_4px_16px_rgba(255,92,53,0.4)]"
+            ? "bg-red-50 border border-red-200 text-red-700 cursor-not-allowed opacity-70"
+            : "bg-coral hover:bg-coral-dark text-white hover:shadow-md"
         }`}
         disabled={risk === "HIGH"}
       >
@@ -66,7 +66,7 @@ export function PaymentButton({ data }: { data: PaymentData }) {
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogOverlay />
-        <DialogContent className="sm:max-w-[480px] bg-navy-card border-white/10">
+        <DialogContent className="sm:max-w-[480px] bg-white border-slate-200">
           <PaymentModalContent data={data} onClose={() => setOpen(false)} />
         </DialogContent>
       </Dialog>
@@ -149,12 +149,12 @@ function PaymentModalContent({
   return (
     <div>
       <div className="flex items-center gap-3 mb-5">
-        <div className="flex size-10 items-center justify-center rounded-full bg-coral/10">
+        <div className="flex size-10 items-center justify-center rounded-full bg-coral/5">
           <CreditCard className="size-5 text-coral" />
         </div>
         <div>
-          <DialogTitle className="text-white">Payment summary</DialogTitle>
-          <DialogDescription className="text-brand-muted-light mt-0.5">
+          <DialogTitle className="text-slate-900">Payment summary</DialogTitle>
+          <DialogDescription className="text-slate-500 mt-0.5">
             Review details before proceeding
           </DialogDescription>
         </div>
@@ -166,40 +166,40 @@ function PaymentModalContent({
         </div>
       )}
 
-      <div className="divide-y divide-white/[0.06] text-sm">
+      <div className="divide-y divide-slate-200 text-sm">
         <div className="flex justify-between py-3">
-          <span className="text-brand-muted-light">Paying</span>
-          <span className="font-medium text-white">{data.payeeName}</span>
+          <span className="text-slate-500">Paying</span>
+          <span className="font-medium text-slate-900">{data.payeeName}</span>
         </div>
         <div className="flex justify-between py-3">
-          <span className="text-brand-muted-light">Amount</span>
-          <span className="font-mono font-semibold text-white text-base">
+          <span className="text-slate-500">Amount</span>
+          <span className="font-mono font-semibold text-slate-900 text-base">
             {fmt(amount)}
           </span>
         </div>
         <div className="flex justify-between py-3">
-          <span className="text-brand-muted-light">Sort Code</span>
-          <span className="font-mono text-white">{formatSortCode(data.sortCode)}</span>
+          <span className="text-slate-500">Sort Code</span>
+          <span className="font-mono text-slate-900">{formatSortCode(data.sortCode)}</span>
         </div>
         <div className="flex justify-between py-3">
-          <span className="text-brand-muted-light">Account</span>
-          <span className="font-mono text-white">{data.accountNumber}</span>
+          <span className="text-slate-500">Account</span>
+          <span className="font-mono text-slate-900">{data.accountNumber}</span>
         </div>
         <div className="flex justify-between py-3">
-          <span className="text-brand-muted-light">Reference</span>
-          <span className="font-mono text-xs text-white">{data.reference}</span>
+          <span className="text-slate-500">Reference</span>
+          <span className="font-mono text-xs text-slate-900">{data.reference}</span>
         </div>
       </div>
 
-      <Separator className="my-4 bg-white/[0.06]" />
+      <Separator className="my-4 bg-slate-200" />
 
-      <div className="flex items-start gap-2 text-xs text-brand-muted-light mb-4">
+      <div className="flex items-start gap-2 text-xs text-slate-500 mb-4">
         <Info className="size-3.5 mt-0.5 shrink-0" />
         <span>This payment will use 1 credit</span>
       </div>
 
       {error && (
-        <div className="rounded-xl bg-fail/10 border border-fail/20 px-3 py-2 text-sm text-fail mb-4">
+        <div className="rounded-xl bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700 mb-4">
           {error}
           {error.includes("credits") && (
             <a href="/dashboard" className="ml-1 underline underline-offset-2">
@@ -215,7 +215,7 @@ function PaymentModalContent({
             <ShieldAlert className="size-4 text-warn" />
             <span className="text-sm font-semibold text-warn">Proceed with caution</span>
           </div>
-          <p className="text-xs text-brand-muted-light">
+          <p className="text-xs text-slate-500">
             One or more verification checks returned a warning. Are you sure you want to proceed?
           </p>
         </div>
@@ -226,7 +226,7 @@ function PaymentModalContent({
           render={
             <Button
               variant="outline"
-              className="flex-1 h-12 text-[15px] font-bold rounded-xl border-white/10 text-brand-muted-light hover:text-white hover:bg-white/[0.07]"
+              className="flex-1 h-12 text-[15px] font-bold rounded-xl border-slate-200 text-slate-500 hover:text-slate-900 hover:bg-slate-100"
             >
               Cancel
             </Button>
@@ -235,7 +235,7 @@ function PaymentModalContent({
         {risk === "HIGH" ? (
           <Button
             disabled
-            className="flex-1 h-12 text-[15px] font-bold rounded-xl bg-fail/20 text-fail opacity-60 cursor-not-allowed"
+            className="flex-1 h-12 text-[15px] font-bold rounded-xl bg-red-50 text-red-600 opacity-60 cursor-not-allowed"
           >
             <ShieldX className="size-5 mr-2" />
             Not Recommended
@@ -257,7 +257,7 @@ function PaymentModalContent({
           <Button
             onClick={handlePayClick}
             disabled={loading}
-            className="flex-1 h-12 text-[15px] font-bold rounded-xl bg-coral hover:bg-coral-dark text-white hover:shadow-[0_4px_16px_rgba(255,92,53,0.4)]"
+            className="flex-1 h-12 text-[15px] font-bold rounded-xl bg-coral hover:bg-coral-dark text-white hover:shadow-md"
           >
             {loading ? (
               <Loader2 className="size-5 mr-2 animate-spin" />

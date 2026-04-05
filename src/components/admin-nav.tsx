@@ -20,7 +20,7 @@ export function AdminNav({ email }: { email: string }) {
       <nav className="flex items-center gap-1">
         <Link
           href="/dashboard"
-          className="flex items-center gap-1 px-3 py-2 text-sm font-medium text-brand-muted-light hover:text-white transition-colors mr-2"
+          className="flex items-center gap-1 px-3 py-2 text-sm font-medium text-slate-500 hover:text-slate-900 transition-colors mr-2"
         >
           <ArrowLeft className="size-3.5" />
           Dashboard
@@ -37,8 +37,8 @@ export function AdminNav({ email }: { email: string }) {
               href={tab.href}
               className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
                 isActive
-                  ? "text-white border-b-2 border-coral"
-                  : "text-brand-muted-light hover:text-white"
+                  ? "text-slate-900 border-b-2 border-coral"
+                  : "text-slate-500 hover:text-slate-900"
               }`}
             >
               {tab.label}
@@ -48,12 +48,12 @@ export function AdminNav({ email }: { email: string }) {
       </nav>
 
       <div className="flex items-center gap-2">
-        <Avatar className="size-7 bg-navy-card border border-white/10">
-          <AvatarFallback className="text-xs text-coral bg-navy-card">
+        <Avatar className="size-7 bg-slate-50 border border-slate-200">
+          <AvatarFallback className="text-xs text-coral bg-slate-50">
             {email?.charAt(0).toUpperCase() ?? "?"}
           </AvatarFallback>
         </Avatar>
-        <span className="text-sm text-brand-muted-light hidden sm:inline">
+        <span className="text-sm text-slate-500 hidden sm:inline">
           {email}
         </span>
       </div>

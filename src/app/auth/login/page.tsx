@@ -13,8 +13,8 @@ import { ShieldCheck } from "lucide-react";
 export default function AuthPage() {
   return (
     <Suspense fallback={
-      <div className="flex min-h-screen flex-col items-center justify-center px-4 bg-navy">
-        <Logo size="md" variant="dark" />
+      <div className="flex min-h-screen flex-col items-center justify-center px-4 bg-slate-50">
+        <Logo size="md" variant="light" />
       </div>
     }>
       <AuthPageInner />
@@ -85,21 +85,21 @@ function AuthPageInner() {
 
   if (signupSuccess) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center px-4 bg-navy">
+      <div className="flex min-h-screen flex-col items-center justify-center px-4 bg-slate-50">
         <Link href="/" className="mb-10">
-          <Logo size="md" variant="dark" />
+          <Logo size="md" variant="light" />
         </Link>
-        <div className="w-full max-w-sm rounded-2xl bg-navy-card border border-white/[0.06] p-8 text-center">
-          <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-full bg-coral/10">
+        <div className="w-full max-w-sm rounded-2xl bg-white border border-slate-200 p-8 text-center">
+          <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-full bg-coral/5">
             <ShieldCheck className="size-7 text-coral" />
           </div>
-          <h1 className="text-xl font-semibold text-white">Check your email</h1>
-          <p className="text-sm text-brand-muted-light mt-2">
+          <h1 className="text-xl font-semibold text-slate-900">Check your email</h1>
+          <p className="text-sm text-slate-500 mt-2">
             We&apos;ve sent a confirmation link to{" "}
-            <span className="font-medium text-white">{email}</span>
+            <span className="font-medium text-slate-900">{email}</span>
           </p>
           <Button
-            className="w-full mt-6 bg-white/[0.07] border border-white/10 text-brand-muted-light hover:text-white hover:bg-white/[0.12] rounded-xl"
+            className="w-full mt-6 bg-slate-100 border border-slate-200 text-slate-500 hover:text-slate-900 hover:bg-slate-200 rounded-xl"
             onClick={() => {
               setSignupSuccess(false);
               switchTab("signin");
@@ -113,19 +113,19 @@ function AuthPageInner() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center px-4 bg-navy">
+    <div className="flex min-h-screen flex-col items-center justify-center px-4 bg-slate-50">
       <Link href="/" className="mb-10">
-        <Logo size="md" variant="dark" />
+        <Logo size="md" variant="light" />
       </Link>
-      <div className="w-full max-w-sm rounded-2xl bg-navy-card border border-white/[0.06] p-8">
+      <div className="w-full max-w-sm rounded-2xl bg-white border border-slate-200 p-8">
         {/* Tab switcher */}
-        <div className="flex rounded-xl bg-white/[0.05] border border-white/[0.06] p-1 mb-6">
+        <div className="flex rounded-xl bg-slate-50 border border-slate-200 p-1 mb-6">
           <button
             onClick={() => switchTab("signin")}
             className={`flex-1 rounded-lg py-2 text-sm font-medium transition-all ${
               tab === "signin"
                 ? "bg-coral text-white shadow-sm"
-                : "text-brand-muted-light hover:text-white"
+                : "text-slate-500 hover:text-slate-900"
             }`}
           >
             Sign in
@@ -135,7 +135,7 @@ function AuthPageInner() {
             className={`flex-1 rounded-lg py-2 text-sm font-medium transition-all ${
               tab === "signup"
                 ? "bg-coral text-white shadow-sm"
-                : "text-brand-muted-light hover:text-white"
+                : "text-slate-500 hover:text-slate-900"
             }`}
           >
             Create account
@@ -146,19 +146,19 @@ function AuthPageInner() {
         {tab === "signin" && (
           <>
             <div className="text-center mb-6">
-              <h1 className="text-xl font-semibold text-white">Welcome back</h1>
-              <p className="text-sm text-brand-muted-light mt-1">
+              <h1 className="text-xl font-semibold text-slate-900">Welcome back</h1>
+              <p className="text-sm text-slate-500 mt-1">
                 Sign in to your account to continue
               </p>
             </div>
             <form onSubmit={handleSignin} className="space-y-4">
               {error && (
-                <div className="rounded-xl bg-fail/10 border border-fail/20 px-3 py-2 text-sm text-fail">
+                <div className="rounded-xl bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700">
                   {error}
                 </div>
               )}
               <div className="space-y-2">
-                <Label htmlFor="email" className="text-brand-muted-light">Email</Label>
+                <Label htmlFor="email" className="text-slate-500">Email</Label>
                 <Input
                   id="email"
                   type="email"
@@ -166,23 +166,23 @@ function AuthPageInner() {
                   onChange={(e) => setEmail(e.target.value)}
                   required
                   placeholder="you@example.com"
-                  className="bg-white/[0.05] border-white/10 focus:border-coral text-white placeholder:text-brand-muted rounded-xl px-4 py-3"
+                  className="bg-slate-50 border-slate-200 focus:border-coral text-slate-900 placeholder:text-slate-400 rounded-xl px-4 py-3"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="password" className="text-brand-muted-light">Password</Label>
+                <Label htmlFor="password" className="text-slate-500">Password</Label>
                 <Input
                   id="password"
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="bg-white/[0.05] border-white/10 focus:border-coral text-white placeholder:text-brand-muted rounded-xl px-4 py-3"
+                  className="bg-slate-50 border-slate-200 focus:border-coral text-slate-900 placeholder:text-slate-400 rounded-xl px-4 py-3"
                 />
               </div>
               <Button
                 type="submit"
-                className="w-full h-11 bg-coral hover:bg-coral-dark text-white font-bold text-[15px] rounded-xl hover:shadow-[0_4px_16px_rgba(255,92,53,0.4)] transition-all"
+                className="w-full h-11 bg-coral hover:bg-coral-dark text-white font-bold text-[15px] rounded-xl hover:shadow-md transition-all"
                 disabled={loading}
               >
                 {loading ? "Signing in..." : "Sign in"}
@@ -195,19 +195,19 @@ function AuthPageInner() {
         {tab === "signup" && (
           <>
             <div className="text-center mb-6">
-              <h1 className="text-xl font-semibold text-white">Create an account</h1>
-              <p className="text-sm text-brand-muted-light mt-1">
+              <h1 className="text-xl font-semibold text-slate-900">Create an account</h1>
+              <p className="text-sm text-slate-500 mt-1">
                 Start verifying invoices in seconds
               </p>
             </div>
             <form onSubmit={handleSignup} className="space-y-4">
               {error && (
-                <div className="rounded-xl bg-fail/10 border border-fail/20 px-3 py-2 text-sm text-fail">
+                <div className="rounded-xl bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700">
                   {error}
                 </div>
               )}
               <div className="space-y-2">
-                <Label htmlFor="email-signup" className="text-brand-muted-light">Email</Label>
+                <Label htmlFor="email-signup" className="text-slate-500">Email</Label>
                 <Input
                   id="email-signup"
                   type="email"
@@ -215,11 +215,11 @@ function AuthPageInner() {
                   onChange={(e) => setEmail(e.target.value)}
                   required
                   placeholder="you@example.com"
-                  className="bg-white/[0.05] border-white/10 focus:border-coral text-white placeholder:text-brand-muted rounded-xl px-4 py-3"
+                  className="bg-slate-50 border-slate-200 focus:border-coral text-slate-900 placeholder:text-slate-400 rounded-xl px-4 py-3"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="password-signup" className="text-brand-muted-light">Password</Label>
+                <Label htmlFor="password-signup" className="text-slate-500">Password</Label>
                 <Input
                   id="password-signup"
                   type="password"
@@ -227,15 +227,15 @@ function AuthPageInner() {
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   minLength={8}
-                  className="bg-white/[0.05] border-white/10 focus:border-coral text-white placeholder:text-brand-muted rounded-xl px-4 py-3"
+                  className="bg-slate-50 border-slate-200 focus:border-coral text-slate-900 placeholder:text-slate-400 rounded-xl px-4 py-3"
                 />
-                <p className="text-xs text-brand-muted">
+                <p className="text-xs text-slate-400">
                   Must be at least 8 characters
                 </p>
               </div>
               <Button
                 type="submit"
-                className="w-full h-11 bg-coral hover:bg-coral-dark text-white font-bold text-[15px] rounded-xl hover:shadow-[0_4px_16px_rgba(255,92,53,0.4)] transition-all"
+                className="w-full h-11 bg-coral hover:bg-coral-dark text-white font-bold text-[15px] rounded-xl hover:shadow-md transition-all"
                 disabled={loading}
               >
                 {loading ? "Creating account..." : "Create account"}

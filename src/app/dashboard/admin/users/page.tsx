@@ -75,8 +75,8 @@ export default async function AdminUsersPage() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl text-white">Users</h1>
-          <p className="text-sm text-brand-muted-light mt-1">
+          <h1 className="text-2xl text-slate-900">Users</h1>
+          <p className="text-sm text-slate-500 mt-1">
             Manage all registered users
           </p>
         </div>

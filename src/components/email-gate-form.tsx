@@ -51,22 +51,22 @@ export function EmailGateForm({ verificationId }: { verificationId: string }) {
   if (alreadyUsed) {
     return (
       <div className="flex flex-col items-center justify-center py-12 px-4">
-        <div className="w-full max-w-md rounded-2xl bg-navy-card border border-white/[0.06] p-8 text-center space-y-5">
+        <div className="w-full max-w-md rounded-2xl bg-white border border-slate-200 p-8 text-center space-y-5">
           <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-warn/10">
             <AlertCircle className="size-7 text-warn" />
           </div>
           <div>
-            <h2 className="text-xl font-semibold text-white">
+            <h2 className="text-xl font-semibold text-slate-900">
               You&apos;ve already used your free check
             </h2>
-            <p className="text-sm text-brand-muted-light mt-1.5 max-w-xs mx-auto">
+            <p className="text-sm text-slate-500 mt-1.5 max-w-xs mx-auto">
               This email has already been used for a free verification. Create
               an account and buy credits to run more checks.
             </p>
           </div>
           <div className="flex flex-col gap-2">
             <Button
-              className="w-full bg-coral hover:bg-coral-dark text-white font-bold rounded-xl hover:shadow-[0_4px_16px_rgba(255,92,53,0.4)] transition-all"
+              className="w-full bg-coral hover:bg-coral-dark text-white font-bold rounded-xl hover:shadow-md transition-all"
               render={<Link href="/auth/login" />}
             >
               Sign in or create account
@@ -79,28 +79,28 @@ export function EmailGateForm({ verificationId }: { verificationId: string }) {
 
   return (
     <div className="flex flex-col items-center justify-center py-12 px-4">
-      <div className="w-full max-w-md rounded-2xl bg-navy-card border border-white/[0.06] p-8 text-center space-y-5">
-        <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-coral/10">
+      <div className="w-full max-w-md rounded-2xl bg-white border border-slate-200 p-8 text-center space-y-5">
+        <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-coral/5">
           <ShieldCheck className="size-7 text-coral" />
         </div>
 
         <div>
-          <h2 className="text-xl font-semibold text-white">Your results are ready</h2>
-          <p className="text-sm text-brand-muted-light mt-1.5 max-w-xs mx-auto">
+          <h2 className="text-xl font-semibold text-slate-900">Your results are ready</h2>
+          <p className="text-sm text-slate-500 mt-1.5 max-w-xs mx-auto">
             Enter your email to view your full verification report.
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-3 text-left">
           <div className="space-y-1.5">
-            <Label htmlFor="lead-email" className="text-brand-muted-light">Email address</Label>
+            <Label htmlFor="lead-email" className="text-slate-500">Email address</Label>
             <div className="relative">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-brand-muted" />
+              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
               <Input
                 id="lead-email"
                 type="email"
                 placeholder="you@example.com"
-                className="pl-9 bg-white/[0.05] border-white/10 focus:border-coral text-white placeholder:text-brand-muted rounded-xl px-4 py-3"
+                className="pl-9 bg-slate-50 border-slate-200 focus:border-coral text-slate-900 placeholder:text-slate-400 rounded-xl px-4 py-3"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -109,12 +109,12 @@ export function EmailGateForm({ verificationId }: { verificationId: string }) {
           </div>
 
           {error && (
-            <p className="text-sm text-fail">{error}</p>
+            <p className="text-sm text-red-600">{error}</p>
           )}
 
           <Button
             type="submit"
-            className="w-full bg-coral hover:bg-coral-dark text-white font-bold text-[15px] rounded-xl hover:shadow-[0_4px_16px_rgba(255,92,53,0.4)] transition-all"
+            className="w-full bg-coral hover:bg-coral-dark text-white font-bold text-[15px] rounded-xl hover:shadow-md transition-all"
             disabled={!isValidEmail || loading}
           >
             {loading ? (
@@ -128,7 +128,7 @@ export function EmailGateForm({ verificationId }: { verificationId: string }) {
           </Button>
         </form>
 
-        <p className="text-xs text-brand-muted">
+        <p className="text-xs text-slate-400">
           No spam. One free check per email.
         </p>
       </div>

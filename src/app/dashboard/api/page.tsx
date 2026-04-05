@@ -29,8 +29,8 @@ export default async function ApiPage() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl text-white">API</h1>
-          <p className="text-sm text-brand-muted-light mt-1">
+          <h1 className="text-2xl text-slate-900">API</h1>
+          <p className="text-sm text-slate-500 mt-1">
             Verify invoices programmatically
           </p>
         </div>
@@ -41,23 +41,23 @@ export default async function ApiPage() {
 
       {/* Stats */}
       <div className="mt-6">
-        <div className="rounded-2xl bg-navy-card border border-white/[0.06] p-5 max-w-xs">
-          <div className="flex items-center gap-1.5 text-brand-muted text-sm mb-2">
+        <div className="rounded-2xl bg-white border border-slate-200 p-5 max-w-xs">
+          <div className="flex items-center gap-1.5 text-slate-400 text-sm mb-2">
             <Coins className="size-3.5" />
             Credits remaining
           </div>
-          <div className="text-2xl font-bold text-white">{credits}</div>
+          <div className="text-2xl font-bold text-slate-900">{credits}</div>
         </div>
       </div>
 
       {/* API Key */}
-      <div className="mt-6 rounded-2xl bg-navy-card border border-white/[0.06] overflow-hidden">
-        <div className="px-6 py-4 border-b border-white/[0.06]">
+      <div className="mt-6 rounded-2xl bg-white border border-slate-200 overflow-hidden">
+        <div className="px-6 py-4 border-b border-slate-200">
           <div className="flex items-center gap-2">
             <Key className="size-4 text-coral" />
-            <h2 className="font-semibold text-white">API Key</h2>
+            <h2 className="font-semibold text-slate-900">API Key</h2>
           </div>
-          <p className="text-sm text-brand-muted mt-0.5">
+          <p className="text-sm text-slate-400 mt-0.5">
             Use this key in the Authorization header to authenticate API requests
           </p>
         </div>
@@ -67,48 +67,48 @@ export default async function ApiPage() {
       </div>
 
       {/* Documentation */}
-      <div className="mt-6 rounded-2xl bg-navy-card border border-white/[0.06] overflow-hidden">
-        <div className="px-6 py-4 border-b border-white/[0.06]">
+      <div className="mt-6 rounded-2xl bg-white border border-slate-200 overflow-hidden">
+        <div className="px-6 py-4 border-b border-slate-200">
           <div className="flex items-center gap-2">
             <BookOpen className="size-4 text-coral" />
-            <h2 className="font-semibold text-white">Documentation</h2>
+            <h2 className="font-semibold text-slate-900">Documentation</h2>
           </div>
-          <p className="text-sm text-brand-muted mt-0.5">
+          <p className="text-sm text-slate-400 mt-0.5">
             How to use the WhoAmIPaying verification API
           </p>
         </div>
         <div className="p-6 space-y-6">
           {/* Endpoint */}
           <div>
-            <h3 className="text-sm font-semibold text-white">Endpoint</h3>
-            <code className="mt-1 block rounded-xl bg-white/[0.05] border border-white/[0.06] px-3 py-2 text-sm text-brand-muted-light font-mono">
+            <h3 className="text-sm font-semibold text-slate-900">Endpoint</h3>
+            <code className="mt-1 block rounded-xl bg-slate-50 border border-slate-200 px-3 py-2 text-sm text-slate-500 font-mono">
               POST {appUrl}/api/v1/verify
             </code>
           </div>
 
-          <div className="border-t border-white/[0.06]" />
+          <div className="border-t border-slate-200" />
 
           {/* Auth */}
           <div>
-            <h3 className="text-sm font-semibold text-white">Authentication</h3>
-            <p className="mt-1 text-sm text-brand-muted-light">
+            <h3 className="text-sm font-semibold text-slate-900">Authentication</h3>
+            <p className="mt-1 text-sm text-slate-500">
               Include your API key in the Authorization header:
             </p>
-            <code className="mt-1 block rounded-xl bg-white/[0.05] border border-white/[0.06] px-3 py-2 text-sm text-brand-muted-light font-mono">
+            <code className="mt-1 block rounded-xl bg-slate-50 border border-slate-200 px-3 py-2 text-sm text-slate-500 font-mono">
               Authorization: Bearer your_api_key
             </code>
           </div>
 
-          <div className="border-t border-white/[0.06]" />
+          <div className="border-t border-slate-200" />
 
           {/* Request */}
           <div>
-            <h3 className="text-sm font-semibold text-white">Request Body</h3>
-            <p className="mt-1 text-sm text-brand-muted-light">
+            <h3 className="text-sm font-semibold text-slate-900">Request Body</h3>
+            <p className="mt-1 text-sm text-slate-500">
               Send a JSON body with the fields you want to verify. At least one field is required.
               Each request costs 1 credit.
             </p>
-            <pre className="mt-2 overflow-x-auto rounded-xl bg-white/[0.05] border border-white/[0.06] px-3 py-2 text-sm text-brand-muted-light font-mono">
+            <pre className="mt-2 overflow-x-auto rounded-xl bg-slate-50 border border-slate-200 px-3 py-2 text-sm text-slate-500 font-mono">
 {`{
   "company_name": "Acme Ltd",
   "vat_number": "417589169",
@@ -119,11 +119,11 @@ export default async function ApiPage() {
             </pre>
           </div>
 
-          <div className="border-t border-white/[0.06]" />
+          <div className="border-t border-slate-200" />
 
           {/* Fields */}
           <div>
-            <h3 className="text-sm font-semibold text-white">Fields</h3>
+            <h3 className="text-sm font-semibold text-slate-900">Fields</h3>
             <div className="mt-2 space-y-2 text-sm">
               {[
                 { field: "company_name", desc: "Company or business name (required for bank verification)" },
@@ -134,18 +134,18 @@ export default async function ApiPage() {
               ].map((f) => (
                 <div key={f.field} className="flex gap-3">
                   <code className="shrink-0 text-coral font-mono text-xs">{f.field}</code>
-                  <span className="text-brand-muted-light">{f.desc}</span>
+                  <span className="text-slate-500">{f.desc}</span>
                 </div>
               ))}
             </div>
           </div>
 
-          <div className="border-t border-white/[0.06]" />
+          <div className="border-t border-slate-200" />
 
           {/* Example curl */}
           <div>
-            <h3 className="text-sm font-semibold text-white">Example</h3>
-            <pre className="mt-2 overflow-x-auto rounded-xl bg-white/[0.05] border border-white/[0.06] px-3 py-2 text-sm text-brand-muted-light font-mono">
+            <h3 className="text-sm font-semibold text-slate-900">Example</h3>
+            <pre className="mt-2 overflow-x-auto rounded-xl bg-slate-50 border border-slate-200 px-3 py-2 text-sm text-slate-500 font-mono">
 {`curl -X POST ${appUrl}/api/v1/verify \\
   -H "Authorization: Bearer your_api_key" \\
   -H "Content-Type: application/json" \\
@@ -159,12 +159,12 @@ export default async function ApiPage() {
             </pre>
           </div>
 
-          <div className="border-t border-white/[0.06]" />
+          <div className="border-t border-slate-200" />
 
           {/* Response */}
           <div>
-            <h3 className="text-sm font-semibold text-white">Response</h3>
-            <pre className="mt-2 overflow-x-auto rounded-xl bg-white/[0.05] border border-white/[0.06] px-3 py-2 text-sm text-brand-muted-light font-mono">
+            <h3 className="text-sm font-semibold text-slate-900">Response</h3>
+            <pre className="mt-2 overflow-x-auto rounded-xl bg-slate-50 border border-slate-200 px-3 py-2 text-sm text-slate-500 font-mono">
 {`{
   "reference_id": "uuid",
   "credits_remaining": 9,
@@ -187,11 +187,11 @@ export default async function ApiPage() {
             </pre>
           </div>
 
-          <div className="border-t border-white/[0.06]" />
+          <div className="border-t border-slate-200" />
 
           {/* Errors */}
           <div>
-            <h3 className="text-sm font-semibold text-white">Error Codes</h3>
+            <h3 className="text-sm font-semibold text-slate-900">Error Codes</h3>
             <div className="mt-2 space-y-1 text-sm">
               {[
                 { code: "401", desc: "Invalid or missing API key" },
@@ -200,8 +200,8 @@ export default async function ApiPage() {
                 { code: "500", desc: "Internal server error" },
               ].map((e) => (
                 <div key={e.code} className="flex gap-3 items-center">
-                  <Badge variant="outline" className="border-white/10 text-brand-muted-light">{e.code}</Badge>
-                  <span className="text-brand-muted-light">{e.desc}</span>
+                  <Badge variant="outline" className="border-slate-200 text-slate-500">{e.code}</Badge>
+                  <span className="text-slate-500">{e.desc}</span>
                 </div>
               ))}
             </div>

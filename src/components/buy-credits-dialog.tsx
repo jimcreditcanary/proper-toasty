@@ -55,16 +55,16 @@ export function BuyCreditsDialog() {
     <Dialog>
       <DialogTrigger
         render={
-          <Button className="h-12 px-6 bg-white/[0.07] border border-white/10 text-brand-muted-light hover:text-white hover:bg-white/[0.12] rounded-xl text-[15px] font-bold" />
+          <Button className="h-12 px-6 bg-slate-100 border border-slate-200 text-slate-500 hover:text-slate-900 hover:bg-slate-200 rounded-xl text-[15px] font-bold" />
         }
       >
         <CreditCard className="size-5 mr-2" />
         Buy credits
       </DialogTrigger>
-      <DialogContent className="sm:max-w-sm bg-navy-card border-white/10 text-white">
+      <DialogContent className="sm:max-w-sm bg-white border-slate-200 text-slate-900">
         <DialogHeader>
-          <DialogTitle className="text-white">Buy credits</DialogTitle>
-          <DialogDescription className="text-brand-muted-light">
+          <DialogTitle className="text-slate-900">Buy credits</DialogTitle>
+          <DialogDescription className="text-slate-500">
             Each invoice verification uses 1 credit.
           </DialogDescription>
         </DialogHeader>
@@ -77,18 +77,18 @@ export function BuyCreditsDialog() {
               onClick={() => setSelected(plan.credits)}
               className={`flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left text-sm transition-colors ${
                 selected === plan.credits
-                  ? "border-coral bg-coral/10 text-white"
-                  : "border-white/10 hover:bg-white/[0.05] text-brand-muted-light"
+                  ? "border-coral bg-coral/5 text-slate-900"
+                  : "border-slate-200 hover:bg-slate-50 text-slate-500"
               }`}
             >
               <span className="font-medium">{plan.label}</span>
-              <span className={selected === plan.credits ? "text-coral" : "text-brand-muted"}>{plan.price}</span>
+              <span className={selected === plan.credits ? "text-coral" : "text-slate-400"}>{plan.price}</span>
             </button>
           ))}
         </div>
 
         {error && (
-          <div className="rounded-xl bg-fail/10 border border-fail/20 px-3 py-2 text-sm text-fail">
+          <div className="rounded-xl bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700">
             {error}
           </div>
         )}
@@ -97,7 +97,7 @@ export function BuyCreditsDialog() {
           <DialogClose
             render={
               <Button
-                className="bg-white/[0.07] border border-white/10 text-brand-muted-light hover:text-white hover:bg-white/[0.12] rounded-xl"
+                className="bg-slate-100 border border-slate-200 text-slate-500 hover:text-slate-900 hover:bg-slate-200 rounded-xl"
                 disabled={loading}
               />
             }
@@ -107,7 +107,7 @@ export function BuyCreditsDialog() {
           <Button
             onClick={handlePurchase}
             disabled={loading}
-            className="bg-coral hover:bg-coral-dark text-white font-bold rounded-xl hover:shadow-[0_4px_16px_rgba(255,92,53,0.4)] transition-all"
+            className="bg-coral hover:bg-coral-dark text-white font-bold rounded-xl hover:shadow-md transition-all"
           >
             {loading ? (
               <>

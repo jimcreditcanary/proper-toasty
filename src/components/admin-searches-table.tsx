@@ -19,10 +19,10 @@ export type AdminSearchRow = {
 };
 
 const RISK_BADGE: Record<string, { label: string; className: string }> = {
-  LOW: { label: "Low", className: "bg-pass/10 border-pass/20 text-pass" },
-  MEDIUM: { label: "Medium", className: "bg-warn/10 border-warn/20 text-warn" },
-  HIGH: { label: "High", className: "bg-fail/10 border-fail/20 text-fail" },
-  UNKNOWN: { label: "Unknown", className: "bg-white/[0.05] border-white/10 text-brand-muted-light" },
+  LOW: { label: "Low", className: "bg-emerald-50 border-emerald-200 text-emerald-700" },
+  MEDIUM: { label: "Medium", className: "bg-amber-50 border-amber-200 text-amber-700" },
+  HIGH: { label: "High", className: "bg-red-50 border-red-200 text-red-700" },
+  UNKNOWN: { label: "Unknown", className: "bg-slate-50 border-slate-200 text-slate-500" },
 };
 
 const TYPE_OPTIONS = [
@@ -125,20 +125,20 @@ export function AdminSearchesTable({ rows }: { rows: AdminSearchRow[] }) {
   return (
     <>
       {/* Search + filter bar */}
-      <div className="px-6 py-3 border-b border-white/[0.06] flex flex-col gap-3 sm:flex-row sm:items-center">
+      <div className="px-6 py-3 border-b border-slate-200 flex flex-col gap-3 sm:flex-row sm:items-center">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-brand-muted" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by email or account name..."
-            className="w-full rounded-xl bg-white/[0.05] border border-white/[0.06] pl-9 pr-3 py-2 text-sm text-white placeholder:text-brand-muted focus:outline-none focus:border-coral transition-colors"
+            className="w-full rounded-xl bg-slate-50 border border-slate-200 pl-9 pr-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-coral transition-colors"
           />
           {search && (
             <button
               onClick={() => setSearch("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-brand-muted hover:text-white"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-900"
             >
               <X className="size-3.5" />
             </button>
@@ -149,8 +149,8 @@ export function AdminSearchesTable({ rows }: { rows: AdminSearchRow[] }) {
           onClick={() => setShowFilters(!showFilters)}
           className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium transition-colors ${
             showFilters || hasActiveFilters
-              ? "bg-coral/10 border border-coral/20 text-coral"
-              : "bg-white/[0.05] border border-white/[0.06] text-brand-muted-light hover:text-white"
+              ? "bg-coral/5 border border-coral/20 text-coral"
+              : "bg-slate-50 border border-slate-200 text-slate-500 hover:text-slate-900"
           }`}
         >
           <SlidersHorizontal className="size-3.5" />
@@ -165,13 +165,13 @@ export function AdminSearchesTable({ rows }: { rows: AdminSearchRow[] }) {
 
       {/* Filter dropdowns */}
       {showFilters && (
-        <div className="px-6 py-3 border-b border-white/[0.06] flex flex-wrap items-center gap-3">
+        <div className="px-6 py-3 border-b border-slate-200 flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-2">
-            <label className="text-xs font-medium text-brand-muted uppercase tracking-wider">Type</label>
+            <label className="text-xs font-medium text-slate-400 uppercase tracking-wider">Type</label>
             <select
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
-              className="rounded-lg bg-white/[0.05] border border-white/[0.06] px-2.5 py-1.5 text-sm text-white focus:outline-none focus:border-coral [&>option]:bg-navy-card [&>option]:text-white"
+              className="rounded-lg bg-slate-50 border border-slate-200 px-2.5 py-1.5 text-sm text-slate-900 focus:outline-none focus:border-coral"
             >
               {TYPE_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>{o.label}</option>
@@ -179,11 +179,11 @@ export function AdminSearchesTable({ rows }: { rows: AdminSearchRow[] }) {
             </select>
           </div>
           <div className="flex items-center gap-2">
-            <label className="text-xs font-medium text-brand-muted uppercase tracking-wider">Date</label>
+            <label className="text-xs font-medium text-slate-400 uppercase tracking-wider">Date</label>
             <select
               value={dateFilter}
               onChange={(e) => setDateFilter(e.target.value)}
-              className="rounded-lg bg-white/[0.05] border border-white/[0.06] px-2.5 py-1.5 text-sm text-white focus:outline-none focus:border-coral [&>option]:bg-navy-card [&>option]:text-white"
+              className="rounded-lg bg-slate-50 border border-slate-200 px-2.5 py-1.5 text-sm text-slate-900 focus:outline-none focus:border-coral"
             >
               {DATE_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>{o.label}</option>
@@ -191,11 +191,11 @@ export function AdminSearchesTable({ rows }: { rows: AdminSearchRow[] }) {
             </select>
           </div>
           <div className="flex items-center gap-2">
-            <label className="text-xs font-medium text-brand-muted uppercase tracking-wider">Risk</label>
+            <label className="text-xs font-medium text-slate-400 uppercase tracking-wider">Risk</label>
             <select
               value={riskFilter}
               onChange={(e) => setRiskFilter(e.target.value)}
-              className="rounded-lg bg-white/[0.05] border border-white/[0.06] px-2.5 py-1.5 text-sm text-white focus:outline-none focus:border-coral [&>option]:bg-navy-card [&>option]:text-white"
+              className="rounded-lg bg-slate-50 border border-slate-200 px-2.5 py-1.5 text-sm text-slate-900 focus:outline-none focus:border-coral"
             >
               {RISK_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>{o.label}</option>
@@ -217,9 +217,9 @@ export function AdminSearchesTable({ rows }: { rows: AdminSearchRow[] }) {
       <div className="p-6">
         {filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-center">
-            <Search className="mb-3 size-10 text-brand-muted/50" />
-            <p className="text-sm font-medium text-white">No results found</p>
-            <p className="mt-1 text-xs text-brand-muted">
+            <Search className="mb-3 size-10 text-slate-400/50" />
+            <p className="text-sm font-medium text-slate-900">No results found</p>
+            <p className="mt-1 text-xs text-slate-400">
               {hasActiveFilters
                 ? "Try adjusting your search or filters"
                 : "No verifications yet"}
@@ -237,16 +237,16 @@ export function AdminSearchesTable({ rows }: { rows: AdminSearchRow[] }) {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-white/[0.06]">
-                  <th className="text-left py-3 px-2 text-xs font-medium text-brand-muted uppercase tracking-wider">Search ID</th>
-                  <th className="text-left py-3 px-2 text-xs font-medium text-brand-muted uppercase tracking-wider">Date</th>
-                  <th className="text-left py-3 px-2 text-xs font-medium text-brand-muted uppercase tracking-wider">User Email</th>
-                  <th className="text-left py-3 px-2 text-xs font-medium text-brand-muted uppercase tracking-wider">Type</th>
-                  <th className="text-left py-3 px-2 text-xs font-medium text-brand-muted uppercase tracking-wider">Account Name</th>
-                  <th className="text-right py-3 px-2 text-xs font-medium text-brand-muted uppercase tracking-wider">Risk Level</th>
-                  <th className="text-right py-3 px-2 text-xs font-medium text-brand-muted uppercase tracking-wider">Price</th>
-                  <th className="text-right py-3 px-2 text-xs font-medium text-brand-muted uppercase tracking-wider">Cost</th>
-                  <th className="text-right py-3 px-2 text-xs font-medium text-brand-muted uppercase tracking-wider">Profit</th>
+                <tr className="border-b border-slate-200">
+                  <th className="text-left py-3 px-2 text-xs font-medium text-slate-400 uppercase tracking-wider">Search ID</th>
+                  <th className="text-left py-3 px-2 text-xs font-medium text-slate-400 uppercase tracking-wider">Date</th>
+                  <th className="text-left py-3 px-2 text-xs font-medium text-slate-400 uppercase tracking-wider">User Email</th>
+                  <th className="text-left py-3 px-2 text-xs font-medium text-slate-400 uppercase tracking-wider">Type</th>
+                  <th className="text-left py-3 px-2 text-xs font-medium text-slate-400 uppercase tracking-wider">Account Name</th>
+                  <th className="text-right py-3 px-2 text-xs font-medium text-slate-400 uppercase tracking-wider">Risk Level</th>
+                  <th className="text-right py-3 px-2 text-xs font-medium text-slate-400 uppercase tracking-wider">Price</th>
+                  <th className="text-right py-3 px-2 text-xs font-medium text-slate-400 uppercase tracking-wider">Cost</th>
+                  <th className="text-right py-3 px-2 text-xs font-medium text-slate-400 uppercase tracking-wider">Profit</th>
                 </tr>
               </thead>
               <tbody>
@@ -256,7 +256,7 @@ export function AdminSearchesTable({ rows }: { rows: AdminSearchRow[] }) {
                   return (
                     <tr
                       key={row.id}
-                      className="border-b border-white/[0.04] hover:bg-white/[0.03] transition-colors"
+                      className="border-b border-slate-100 hover:bg-slate-50 transition-colors"
                     >
                       <td className="py-3 px-2 whitespace-nowrap">
                         <Link
@@ -267,20 +267,20 @@ export function AdminSearchesTable({ rows }: { rows: AdminSearchRow[] }) {
                           {row.short_id}
                         </Link>
                       </td>
-                      <td className="py-3 px-2 text-brand-muted-light whitespace-nowrap">
+                      <td className="py-3 px-2 text-slate-500 whitespace-nowrap">
                         {formatDate(row.created_at)}
                       </td>
-                      <td className="py-3 px-2 text-brand-muted-light">
+                      <td className="py-3 px-2 text-slate-500">
                         <span title={row.user_email}>
                           {truncate(row.user_email, 28)}
                         </span>
                       </td>
                       <td className="py-3 px-2">
-                        <span className="inline-flex items-center rounded-full bg-white/[0.06] border border-white/[0.08] px-2 py-0.5 text-[11px] font-medium text-brand-muted-light">
+                        <span className="inline-flex items-center rounded-full bg-slate-100 border border-slate-200 px-2 py-0.5 text-[11px] font-medium text-slate-500">
                           {getUserTypeLabel(row.user_type)}
                         </span>
                       </td>
-                      <td className="py-3 px-2 text-brand-muted-light">
+                      <td className="py-3 px-2 text-slate-500">
                         {row.account_name ? truncate(row.account_name, 30) : "\u2014"}
                       </td>
                       <td className="py-3 px-2 text-right">
@@ -294,13 +294,13 @@ export function AdminSearchesTable({ rows }: { rows: AdminSearchRow[] }) {
                           </span>
                         )}
                       </td>
-                      <td className="py-3 px-2 text-right font-mono text-brand-muted-light">
+                      <td className="py-3 px-2 text-right font-mono text-slate-500">
                         {formatCurrency(row.price_per_credit)}
                       </td>
-                      <td className="py-3 px-2 text-right font-mono text-brand-muted-light">
+                      <td className="py-3 px-2 text-right font-mono text-slate-500">
                         {formatCurrency(row.cop_cost_per_check)}
                       </td>
-                      <td className={`py-3 px-2 text-right font-mono ${profit > 0 ? "text-pass" : profit < 0 ? "text-fail" : "text-brand-muted-light"}`}>
+                      <td className={`py-3 px-2 text-right font-mono ${profit > 0 ? "text-emerald-600" : profit < 0 ? "text-red-600" : "text-slate-500"}`}>
                         {profit >= 0 ? "+" : ""}{formatCurrency(profit)}
                       </td>
                     </tr>

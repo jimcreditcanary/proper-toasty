@@ -14,8 +14,6 @@ import {
   ArrowRight,
   Quote,
   CheckCircle2,
-  BadgeCheck,
-  Search,
   Lock,
 } from "lucide-react";
 
@@ -92,7 +90,7 @@ const STORIES = [
 /* ── Inline report mockup component ── */
 function ReportMockup() {
   return (
-    <div className="mx-auto max-w-md">
+    <div className="w-full max-w-md">
       <div className="rounded-2xl border border-slate-200 bg-white shadow-xl shadow-slate-200/50 overflow-hidden">
         {/* Header bar */}
         <div className="bg-slate-900 px-5 py-4 flex items-center justify-between">
@@ -167,20 +165,19 @@ function TrustpilotStars() {
 export default function Home() {
   return (
     <div className="flex min-h-screen flex-col bg-white text-slate-900">
-      <SiteHeader variant="light" />
+      <SiteHeader />
 
-      {/* ── Hero ─────────────────────────────────────────────────────── */}
-      <section className="relative overflow-hidden">
-        {/* Subtle background pattern */}
+      {/* ── Hero with embedded wizard ────────────────────────────────── */}
+      <section id="free-check" className="relative overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-coral/[0.04] via-transparent to-transparent pointer-events-none" />
 
-        <div className="relative mx-auto max-w-6xl px-6 pt-20 pb-16 sm:pt-28 sm:pb-20">
-          <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+        <div className="relative mx-auto max-w-6xl px-6 pt-16 pb-16 sm:pt-24 sm:pb-20">
+          <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-start">
             {/* Left: copy */}
-            <div>
-              <div className="inline-flex items-center gap-2 rounded-full bg-emerald-50 border border-emerald-200 px-3 py-1.5 mb-6">
-                <BadgeCheck className="size-4 text-emerald-600" />
-                <span className="text-sm font-medium text-emerald-700">Trusted by 2,000+ users</span>
+            <div className="lg:sticky lg:top-24">
+              <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 border border-slate-200 px-3 py-1.5 mb-6">
+                <ShieldCheck className="size-4 text-coral" />
+                <span className="text-sm font-medium text-slate-700">Same technology used by banks</span>
               </div>
 
               <h1 className="text-4xl sm:text-5xl lg:text-[3.5rem] font-bold tracking-tight leading-[1.1]">
@@ -197,21 +194,17 @@ export default function Home() {
                 check who you&apos;re really paying.
               </p>
 
-              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                <Button
-                  className="h-12 px-7 text-[15px] font-semibold rounded-lg bg-coral hover:bg-coral-dark text-white shadow-sm hover:shadow-lg transition-all"
-                  render={<Link href="#free-check" />}
-                >
-                  Check a payment — free
-                  <ArrowRight className="size-5 ml-2" />
-                </Button>
-                <Button
-                  variant="outline"
-                  className="h-12 px-7 text-[15px] font-medium rounded-lg border-slate-300 text-slate-700 hover:bg-slate-50 transition-all"
-                  render={<Link href="#how-it-works" />}
-                >
-                  See how it works
-                </Button>
+              <div className="mt-6 space-y-3">
+                {[
+                  "No credit card required",
+                  "Results in under 30 seconds",
+                  "Data encrypted and never shared",
+                ].map((item) => (
+                  <div key={item} className="flex items-center gap-3">
+                    <CheckCircle2 className="size-5 text-emerald-500 shrink-0" />
+                    <span className="text-slate-700">{item}</span>
+                  </div>
+                ))}
               </div>
 
               <div className="mt-8 flex items-center gap-3">
@@ -224,9 +217,9 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Right: report mockup */}
-            <div className="hidden lg:block">
-              <ReportMockup />
+            {/* Right: embedded wizard */}
+            <div>
+              <FreeCheckWizard />
             </div>
           </div>
         </div>
@@ -237,7 +230,7 @@ export default function Home() {
         <div className="mx-auto max-w-6xl px-6 py-12">
           <div className="grid grid-cols-1 gap-8 sm:grid-cols-3 text-center">
             <div>
-              <div className="text-4xl font-bold tracking-tight text-slate-900">£629m</div>
+              <div className="text-4xl font-bold tracking-tight text-slate-900">&pound;629m</div>
               <p className="mt-2 text-slate-600">
                 Stolen by fraudsters in H1 2025 alone
               </p>
@@ -258,7 +251,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── 6 Checks ─────────────────────────────────────────────────── */}
+      {/* ── 6 Checks (1x6 list with report mockup) ───────────────────── */}
       <section className="mx-auto w-full max-w-6xl px-6 py-20 sm:py-24">
         <div className="text-center mb-14">
           <span className="eyebrow">What we check</span>
@@ -270,27 +263,38 @@ export default function Home() {
             clear picture of who you&apos;re paying.
           </p>
         </div>
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {CHECKS.map((check) => (
-            <div
-              key={check.title}
-              className="group relative rounded-xl border border-slate-200 bg-white p-6 transition-all hover:border-slate-300 hover:shadow-lg hover:shadow-slate-100"
-            >
-              <div className={`flex size-11 items-center justify-center rounded-lg ${check.color}`}>
-                <check.icon className="size-5" />
-              </div>
-              <h3 className="mt-4 text-base font-semibold text-slate-900">{check.title}</h3>
-              <p className="mt-2 text-sm text-slate-600 leading-relaxed">
-                {check.description}
-              </p>
-            </div>
-          ))}
-        </div>
-      </section>
 
-      {/* ── Report preview (mobile visible) ──────────────────────────── */}
-      <section className="lg:hidden px-6 pb-16">
-        <ReportMockup />
+        <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-start">
+          {/* Left: 6 checks as vertical list */}
+          <div className="space-y-4">
+            {CHECKS.map((check) => (
+              <div
+                key={check.title}
+                className="flex items-start gap-4 rounded-xl border border-slate-200 bg-white p-5 transition-all hover:border-slate-300 hover:shadow-md"
+              >
+                <div className={`flex size-11 shrink-0 items-center justify-center rounded-lg ${check.color}`}>
+                  <check.icon className="size-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-semibold text-slate-900">{check.title}</h3>
+                  <p className="mt-1 text-sm text-slate-600 leading-relaxed">
+                    {check.description}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Right: report mockup */}
+          <div className="hidden lg:flex lg:justify-center lg:sticky lg:top-24">
+            <ReportMockup />
+          </div>
+        </div>
+
+        {/* Mobile report preview */}
+        <div className="mt-12 lg:hidden flex justify-center">
+          <ReportMockup />
+        </div>
       </section>
 
       {/* ── How it works ──────────────────────────────────────────────── */}
@@ -334,43 +338,34 @@ export default function Home() {
               </div>
             ))}
           </div>
-        </div>
-      </section>
 
-      {/* ── Free Check (embedded wizard) ─────────────────────────────── */}
-      <section id="free-check" className="mx-auto w-full max-w-6xl px-6 py-20 sm:py-24">
-        <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-start">
-          <div className="lg:sticky lg:top-24">
-            <span className="eyebrow">Free check</span>
-            <h2 className="text-3xl sm:text-4xl mt-3 font-bold tracking-tight">
-              Try it now — it&apos;s free
-            </h2>
-            <p className="mt-4 text-lg text-slate-600 leading-relaxed">
-              Run your first verification check for free. No account needed. Enter
-              the details of who you&apos;re paying and we&apos;ll check them
-              against 6 official UK data sources.
+          {/* Sign up CTA */}
+          <div className="mt-14 text-center">
+            <p className="text-slate-600 mb-4">
+              Ready to get started? Create a free account in seconds.
             </p>
-            <div className="mt-6 space-y-3">
-              {[
-                "No credit card required",
-                "Results in under 30 seconds",
-                "Data encrypted and never shared",
-              ].map((item) => (
-                <div key={item} className="flex items-center gap-3">
-                  <CheckCircle2 className="size-5 text-emerald-500 shrink-0" />
-                  <span className="text-slate-700">{item}</span>
-                </div>
-              ))}
+            <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
+              <Button
+                className="h-12 px-7 text-[15px] font-semibold rounded-lg bg-coral hover:bg-coral-dark text-white shadow-sm hover:shadow-lg transition-all"
+                render={<Link href="/auth/login?tab=signup" />}
+              >
+                Create free account
+                <ArrowRight className="size-5 ml-2" />
+              </Button>
+              <Button
+                variant="outline"
+                className="h-12 px-7 text-[15px] font-medium rounded-lg border-slate-300 text-slate-700 hover:bg-white transition-all"
+                render={<Link href="#free-check" />}
+              >
+                Or try a free check first
+              </Button>
             </div>
-          </div>
-          <div>
-            <FreeCheckWizard />
           </div>
         </div>
       </section>
 
       {/* ── Customer stories ──────────────────────────────────────────── */}
-      <section className="bg-slate-50 border-y border-slate-200">
+      <section>
         <div className="mx-auto w-full max-w-6xl px-6 py-20 sm:py-24">
           <div className="text-center mb-14">
             <span className="eyebrow">Customer stories</span>
@@ -410,7 +405,7 @@ export default function Home() {
       </section>
 
       {/* ── Mission ──────────────────────────────────────────────────── */}
-      <section>
+      <section className="bg-slate-50 border-y border-slate-200">
         <div className="mx-auto max-w-3xl px-6 py-20 text-center">
           <span className="eyebrow">Our mission</span>
           <h2 className="text-2xl sm:text-3xl mt-3 mb-5 font-bold tracking-tight">
@@ -427,7 +422,7 @@ export default function Home() {
       </section>
 
       {/* ── Pricing ──────────────────────────────────────────────────── */}
-      <section id="pricing" className="bg-slate-50 border-y border-slate-200">
+      <section id="pricing">
         <div className="mx-auto w-full max-w-6xl px-6 py-20 sm:py-24">
           <div className="text-center mb-14">
             <span className="eyebrow">Pricing</span>
@@ -441,9 +436,9 @@ export default function Home() {
           </div>
           <div className="mx-auto grid max-w-4xl gap-5 sm:grid-cols-3">
             {[
-              { credits: 10, price: "£5", per: "£0.50", label: "Starter", desc: "Perfect for a one-off check" },
-              { credits: 50, price: "£20", per: "£0.40", label: "Business", popular: true, desc: "Most popular for regular use" },
-              { credits: 200, price: "£60", per: "£0.30", label: "Enterprise", desc: "Best value for high volume" },
+              { credits: 10, price: "\u00A35", per: "\u00A30.50", label: "Starter", desc: "Perfect for a one-off check" },
+              { credits: 50, price: "\u00A320", per: "\u00A30.40", label: "Business", popular: true, desc: "Most popular for regular use" },
+              { credits: 200, price: "\u00A360", per: "\u00A30.30", label: "Enterprise", desc: "Best value for high volume" },
             ].map((plan) => (
               <div
                 key={plan.label}

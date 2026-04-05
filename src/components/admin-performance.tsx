@@ -250,7 +250,7 @@ export function AdminPerformance({
       <div className="flex items-center gap-3">
         <label
           htmlFor="month-select"
-          className="text-sm font-medium text-brand-muted-light"
+          className="text-sm font-medium text-slate-500"
         >
           Period
         </label>
@@ -258,7 +258,7 @@ export function AdminPerformance({
           id="month-select"
           value={selectedMonth}
           onChange={(e) => setSelectedMonth(e.target.value)}
-          className="h-10 rounded-xl border border-white/[0.06] bg-navy-card px-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-coral/40"
+          className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-coral/40"
         >
           {monthOptions.map((opt) => (
             <option key={opt.value} value={opt.value}>
@@ -281,7 +281,7 @@ export function AdminPerformance({
           icon={Wallet}
           label="Revenue Unrealised"
           value={formatGBP(metrics.revenueUnrealised)}
-          valueColor="text-brand-muted-light"
+          valueColor="text-slate-500"
           description="Credits still outstanding"
           note={
             selectedMonth !== "all"
@@ -304,7 +304,7 @@ export function AdminPerformance({
           icon={ServerCog}
           label="Cost of Realised Searches"
           value={formatGBP(metrics.totalCost)}
-          valueColor="text-fail"
+          valueColor="text-red-600"
           breakdown={[
             {
               label: `CoP checks (${metrics.copChecks})`,
@@ -328,7 +328,7 @@ export function AdminPerformance({
           icon={metrics.profit >= 0 ? TrendingUp : TrendingDown}
           label="Profit from Realised Searches"
           value={formatGBP(metrics.profit)}
-          valueColor={metrics.profit >= 0 ? "text-pass-green" : "text-fail"}
+          valueColor={metrics.profit >= 0 ? "text-emerald-600" : "text-red-600"}
           description="Realised revenue minus costs"
         />
       </div>
@@ -339,7 +339,7 @@ export function AdminPerformance({
           icon={Users}
           label="Website Searches"
           value={metrics.wizardStarts.toString()}
-          valueColor="text-white"
+          valueColor="text-slate-900"
           description="Free check page visits"
         />
         <MetricCard
@@ -354,7 +354,7 @@ export function AdminPerformance({
           icon={UserCheck}
           label="Leads Converted to Paying"
           value={metrics.convertedCount.toString()}
-          valueColor={metrics.convertedCount > 0 ? "text-pass-green" : "text-brand-muted-light"}
+          valueColor={metrics.convertedCount > 0 ? "text-emerald-600" : "text-slate-500"}
           description="Leads who bought credits"
           note={metrics.emailsCaptured > 0 ? `(${metrics.conversionRate.toFixed(1)}% of emails)` : undefined}
         />
@@ -383,27 +383,27 @@ function MetricCard({
   breakdown,
 }: MetricCardProps) {
   return (
-    <div className="rounded-2xl bg-navy-card border border-white/[0.06] p-5">
-      <div className="flex items-center gap-1.5 text-brand-muted text-sm mb-2">
+    <div className="rounded-2xl bg-white border border-slate-200 p-5">
+      <div className="flex items-center gap-1.5 text-slate-400 text-sm mb-2">
         <Icon className="size-3.5" />
         {label}
       </div>
       <div className={`text-2xl font-bold ${valueColor}`}>{value}</div>
       {description && (
-        <p className="text-xs text-brand-muted-light mt-1">{description}</p>
+        <p className="text-xs text-slate-500 mt-1">{description}</p>
       )}
       {note && (
-        <p className="text-[11px] text-brand-muted mt-1 italic">{note}</p>
+        <p className="text-[11px] text-slate-400 mt-1 italic">{note}</p>
       )}
       {breakdown && breakdown.length > 0 && (
-        <div className="mt-3 space-y-1 border-t border-white/[0.06] pt-3">
+        <div className="mt-3 space-y-1 border-t border-slate-200 pt-3">
           {breakdown.map((item) => (
             <div
               key={item.label}
               className="flex items-center justify-between text-xs"
             >
-              <span className="text-brand-muted-light">{item.label}</span>
-              <span className="text-white font-medium">{item.value}</span>
+              <span className="text-slate-500">{item.label}</span>
+              <span className="text-slate-900 font-medium">{item.value}</span>
             </div>
           ))}
         </div>

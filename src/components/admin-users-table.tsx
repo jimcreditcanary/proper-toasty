@@ -109,42 +109,42 @@ export function AdminUsersTable({
         ].map((stat) => (
           <div
             key={stat.label}
-            className="rounded-2xl bg-navy-card border border-white/[0.06] p-5"
+            className="rounded-2xl bg-white border border-slate-200 p-5"
           >
-            <div className="flex items-center gap-1.5 text-brand-muted text-sm mb-2">
+            <div className="flex items-center gap-1.5 text-slate-400 text-sm mb-2">
               <stat.icon className="size-3.5" />
               {stat.label}
             </div>
-            <div className="text-2xl font-bold text-white">{stat.value}</div>
+            <div className="text-2xl font-bold text-slate-900">{stat.value}</div>
           </div>
         ))}
       </div>
 
       {/* Table card */}
-      <div className="mt-6 rounded-2xl bg-navy-card border border-white/[0.06] overflow-hidden">
+      <div className="mt-6 rounded-2xl bg-white border border-slate-200 overflow-hidden">
         {/* Search bar */}
-        <div className="px-6 py-4 border-b border-white/[0.06]">
+        <div className="px-6 py-4 border-b border-slate-200">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h2 className="font-semibold text-white">All users</h2>
-              <p className="text-sm text-brand-muted mt-0.5">
+              <h2 className="font-semibold text-slate-900">All users</h2>
+              <p className="text-sm text-slate-400 mt-0.5">
                 {filtered.length} user{filtered.length === 1 ? "" : "s"}
                 {search ? " matching search" : ""}
               </p>
             </div>
             <div className="relative w-full sm:w-72">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-brand-muted" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
               <input
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search by email..."
-                className="w-full rounded-xl bg-white/[0.05] border border-white/[0.06] pl-9 pr-3 py-2 text-sm text-white placeholder:text-brand-muted focus:outline-none focus:border-coral transition-colors"
+                className="w-full rounded-xl bg-slate-50 border border-slate-200 pl-9 pr-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-coral transition-colors"
               />
               {search && (
                 <button
                   onClick={() => setSearch("")}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-brand-muted hover:text-white"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-900"
                 >
                   <X className="size-3.5" />
                 </button>
@@ -157,9 +157,9 @@ export function AdminUsersTable({
         <div className="p-6">
           {filtered.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">
-              <Search className="mb-3 size-10 text-brand-muted/50" />
-              <p className="text-sm font-medium text-white">No users found</p>
-              <p className="mt-1 text-xs text-brand-muted">
+              <Search className="mb-3 size-10 text-slate-400/50" />
+              <p className="text-sm font-medium text-slate-900">No users found</p>
+              <p className="mt-1 text-xs text-slate-400">
                 Try adjusting your search
               </p>
               {search && (
@@ -175,26 +175,26 @@ export function AdminUsersTable({
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-white/[0.06]">
-                    <th className="text-left py-3 px-2 text-xs font-medium text-brand-muted uppercase tracking-wider">
+                  <tr className="border-b border-slate-200">
+                    <th className="text-left py-3 px-2 text-xs font-medium text-slate-400 uppercase tracking-wider">
                       Email
                     </th>
-                    <th className="text-left py-3 px-2 text-xs font-medium text-brand-muted uppercase tracking-wider">
+                    <th className="text-left py-3 px-2 text-xs font-medium text-slate-400 uppercase tracking-wider">
                       Role
                     </th>
-                    <th className="text-right py-3 px-2 text-xs font-medium text-brand-muted uppercase tracking-wider">
+                    <th className="text-right py-3 px-2 text-xs font-medium text-slate-400 uppercase tracking-wider">
                       Credits
                     </th>
-                    <th className="text-right py-3 px-2 text-xs font-medium text-brand-muted uppercase tracking-wider">
+                    <th className="text-right py-3 px-2 text-xs font-medium text-slate-400 uppercase tracking-wider">
                       Verifications
                     </th>
-                    <th className="text-left py-3 px-2 text-xs font-medium text-brand-muted uppercase tracking-wider">
+                    <th className="text-left py-3 px-2 text-xs font-medium text-slate-400 uppercase tracking-wider">
                       Status
                     </th>
-                    <th className="text-left py-3 px-2 text-xs font-medium text-brand-muted uppercase tracking-wider">
+                    <th className="text-left py-3 px-2 text-xs font-medium text-slate-400 uppercase tracking-wider">
                       Joined
                     </th>
-                    <th className="text-right py-3 px-2 text-xs font-medium text-brand-muted uppercase tracking-wider">
+                    <th className="text-right py-3 px-2 text-xs font-medium text-slate-400 uppercase tracking-wider">
                       Actions
                     </th>
                   </tr>
@@ -207,14 +207,14 @@ export function AdminUsersTable({
                     return (
                       <tr
                         key={user.id}
-                        className="border-b border-white/[0.04] hover:bg-white/[0.03] transition-colors"
+                        className="border-b border-slate-100 hover:bg-slate-50 transition-colors"
                       >
                         <td className="py-3 px-2">
-                          <span className="font-medium text-white">
+                          <span className="font-medium text-slate-900">
                             {user.email}
                           </span>
                           {isSelf && (
-                            <span className="ml-2 inline-flex items-center rounded-full bg-coral/10 border border-coral/20 px-2 py-0.5 text-[10px] font-medium text-coral">
+                            <span className="ml-2 inline-flex items-center rounded-full bg-coral/5 border border-coral/20 px-2 py-0.5 text-[10px] font-medium text-coral">
                               You
                             </span>
                           )}
@@ -223,8 +223,8 @@ export function AdminUsersTable({
                           <span
                             className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium ${
                               user.role === "admin"
-                                ? "bg-coral/10 border-coral/20 text-coral"
-                                : "bg-white/[0.06] border-white/[0.08] text-brand-muted-light"
+                                ? "bg-coral/5 border-coral/20 text-coral"
+                                : "bg-slate-100 border-slate-200 text-slate-500"
                             }`}
                           >
                             {user.role === "admin" && (
@@ -233,26 +233,26 @@ export function AdminUsersTable({
                             {user.role === "admin" ? "Admin" : "User"}
                           </span>
                         </td>
-                        <td className="py-3 px-2 text-right font-mono text-brand-muted-light">
+                        <td className="py-3 px-2 text-right font-mono text-slate-500">
                           {user.credits}
                         </td>
-                        <td className="py-3 px-2 text-right font-mono text-brand-muted-light">
+                        <td className="py-3 px-2 text-right font-mono text-slate-500">
                           {user.verification_count}
                         </td>
                         <td className="py-3 px-2">
                           {user.blocked ? (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-fail/10 border border-fail/20 px-2 py-0.5 text-[11px] font-medium text-fail">
+                            <span className="inline-flex items-center gap-1 rounded-full bg-red-50 border border-red-200 px-2 py-0.5 text-[11px] font-medium text-red-700">
                               <Ban className="size-3" />
                               Blocked
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-pass/10 border border-pass/20 px-2 py-0.5 text-[11px] font-medium text-pass">
+                            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
                               <CheckCircle className="size-3" />
                               Active
                             </span>
                           )}
                         </td>
-                        <td className="py-3 px-2 text-brand-muted-light whitespace-nowrap">
+                        <td className="py-3 px-2 text-slate-500 whitespace-nowrap">
                           {formatDate(user.created_at)}
                         </td>
                         <td className="py-3 px-2 text-right">
@@ -275,8 +275,8 @@ export function AdminUsersTable({
                                 }
                                 className={`h-9 px-3 text-sm rounded-lg font-medium inline-flex items-center gap-1.5 transition-colors disabled:opacity-50 ${
                                   user.role === "admin"
-                                    ? "bg-white/[0.05] border border-white/[0.06] text-brand-muted-light hover:text-white hover:bg-white/[0.08]"
-                                    : "bg-coral/10 border border-coral/20 text-coral hover:bg-coral/20"
+                                    ? "bg-slate-50 border border-slate-200 text-slate-500 hover:text-slate-900 hover:bg-slate-100"
+                                    : "bg-coral/5 border border-coral/20 text-coral hover:bg-coral/20"
                                 }`}
                               >
                                 {user.role === "admin" ? (
@@ -314,8 +314,8 @@ export function AdminUsersTable({
                                 }
                                 className={`h-9 px-3 text-sm rounded-lg font-medium inline-flex items-center gap-1.5 transition-colors disabled:opacity-50 ${
                                   user.blocked
-                                    ? "bg-pass/10 border border-pass/20 text-pass hover:bg-pass/20"
-                                    : "bg-warn/10 border border-warn/20 text-warn hover:bg-warn/20"
+                                    ? "bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100"
+                                    : "bg-amber-50 border border-amber-200 text-amber-700 hover:bg-amber-100"
                                 }`}
                               >
                                 {user.blocked ? (
@@ -346,13 +346,13 @@ export function AdminUsersTable({
                                         handleAction(user.id, "delete")
                                       }
                                       disabled={isLoading}
-                                      className="h-9 px-3 text-sm rounded-lg font-medium inline-flex items-center gap-1.5 bg-fail hover:bg-fail/80 text-white transition-colors disabled:opacity-50"
+                                      className="h-9 px-3 text-sm rounded-lg font-medium inline-flex items-center gap-1.5 bg-red-600 hover:bg-red-700 text-white transition-colors disabled:opacity-50"
                                     >
                                       Confirm
                                     </button>
                                     <button
                                       onClick={() => setConfirmDelete(null)}
-                                      className="h-9 px-3 text-sm rounded-lg font-medium inline-flex items-center gap-1.5 bg-white/[0.05] border border-white/[0.06] text-brand-muted-light hover:text-white hover:bg-white/[0.08] transition-colors"
+                                      className="h-9 px-3 text-sm rounded-lg font-medium inline-flex items-center gap-1.5 bg-slate-50 border border-slate-200 text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors"
                                     >
                                       Cancel
                                     </button>
@@ -362,7 +362,7 @@ export function AdminUsersTable({
                                     onClick={() => setConfirmDelete(user.id)}
                                     disabled={isLoading}
                                     title="Delete user"
-                                    className="h-9 px-3 text-sm rounded-lg font-medium inline-flex items-center gap-1.5 bg-fail/10 border border-fail/20 text-fail hover:bg-fail/20 transition-colors disabled:opacity-50"
+                                    className="h-9 px-3 text-sm rounded-lg font-medium inline-flex items-center gap-1.5 bg-red-50 border border-red-200 text-red-700 hover:bg-red-100 transition-colors disabled:opacity-50"
                                   >
                                     <Trash2 className="size-3.5" />
                                     <span className="hidden lg:inline">
@@ -374,7 +374,7 @@ export function AdminUsersTable({
                             )}
 
                             {isSelf && (
-                              <span className="text-xs text-brand-muted italic">
+                              <span className="text-xs text-slate-400 italic">
                                 Current user
                               </span>
                             )}

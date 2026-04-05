@@ -96,12 +96,12 @@ export function AdminSettingsForm({ settings }: Props) {
   }
 
   return (
-    <div className="rounded-2xl bg-navy-card border border-white/[0.06]">
-      <div className="px-6 py-4 border-b border-white/[0.06] flex items-center gap-2">
-        <Settings className="size-5 text-brand-muted" />
+    <div className="rounded-2xl bg-white border border-slate-200">
+      <div className="px-6 py-4 border-b border-slate-200 flex items-center gap-2">
+        <Settings className="size-5 text-slate-400" />
         <div>
-          <h2 className="font-semibold text-white">Cost Parameters</h2>
-          <p className="text-sm text-brand-muted mt-0.5">
+          <h2 className="font-semibold text-slate-900">Cost Parameters</h2>
+          <p className="text-sm text-slate-400 mt-0.5">
             These values are used to calculate platform profitability
           </p>
         </div>
@@ -112,12 +112,12 @@ export function AdminSettingsForm({ settings }: Props) {
           <div key={key} className="space-y-2">
             <label
               htmlFor={key}
-              className="text-brand-muted-light text-sm block"
+              className="text-slate-500 text-sm block"
             >
               {SETTING_LABELS[key] ?? key}
             </label>
             <div className="relative">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-brand-muted text-sm">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm">
                 &pound;
               </span>
               <input
@@ -127,10 +127,10 @@ export function AdminSettingsForm({ settings }: Props) {
                 min="0"
                 value={values[key]}
                 onChange={(e) => handleChange(key, e.target.value)}
-                className="w-full bg-white/[0.05] border border-white/10 focus:border-coral focus:outline-none text-white rounded-xl pl-8 pr-4 py-3 text-sm transition-colors"
+                className="w-full bg-slate-50 border border-slate-200 focus:border-coral focus:outline-none text-slate-900 rounded-xl pl-8 pr-4 py-3 text-sm transition-colors"
               />
             </div>
-            <div className="flex items-center gap-1 text-xs text-brand-muted">
+            <div className="flex items-center gap-1 text-xs text-slate-400">
               <Clock className="size-3" />
               <span>Last updated: {formatTimestamp(timestamps[key])}</span>
             </div>
@@ -142,8 +142,8 @@ export function AdminSettingsForm({ settings }: Props) {
           <div
             className={`flex items-center gap-2 rounded-xl px-4 py-3 text-sm ${
               toast.type === "success"
-                ? "bg-pass/10 border border-pass/20 text-pass"
-                : "bg-fail/10 border border-fail/20 text-fail"
+                ? "bg-emerald-50 border border-emerald-200 text-emerald-700"
+                : "bg-red-50 border border-red-200 text-red-700"
             }`}
           >
             {toast.type === "success" ? (
@@ -158,7 +158,7 @@ export function AdminSettingsForm({ settings }: Props) {
         <button
           type="submit"
           disabled={saving}
-          className="h-12 px-6 bg-coral hover:bg-coral-dark text-white font-bold text-[15px] rounded-xl hover:shadow-[0_4px_16px_rgba(255,92,53,0.4)] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+          className="h-12 px-6 bg-coral hover:bg-coral-dark text-white font-bold text-[15px] rounded-xl hover:shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
         >
           <Save className="size-4" />
           {saving ? "Saving..." : "Save settings"}

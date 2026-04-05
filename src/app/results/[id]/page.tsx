@@ -21,10 +21,10 @@ type CheckStatus = "PASS" | "WARN" | "FAIL" | "UNVERIFIED";
 
 function StatusBadge({ status }: { status: CheckStatus }) {
   const styles: Record<CheckStatus, string> = {
-    PASS: "text-pass",
+    PASS: "text-emerald-600",
     WARN: "text-warn",
-    FAIL: "text-fail",
-    UNVERIFIED: "text-brand-muted",
+    FAIL: "text-red-600",
+    UNVERIFIED: "text-slate-400",
   };
   return (
     <span className={`text-xs font-bold uppercase tracking-wider ${styles[status]}`}>
@@ -38,10 +38,10 @@ function dotClass(s: CheckStatus): string {
 }
 
 function rowStyle(s: CheckStatus): string {
-  if (s === "PASS") return "bg-pass/[0.08] border border-pass/20";
+  if (s === "PASS") return "bg-emerald-50 border border-emerald-200";
   if (s === "WARN") return "bg-warn/[0.08] border border-warn/20";
-  if (s === "FAIL") return "bg-fail/[0.08] border border-fail/20";
-  return "bg-white/[0.03] border border-white/[0.06]";
+  if (s === "FAIL") return "bg-red-50 border border-red-200";
+  return "bg-slate-50 border border-slate-200";
 }
 
 function CheckRow({
@@ -56,10 +56,10 @@ function CheckRow({
       <div className="shrink-0 mt-0.5">{icon}</div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between gap-2 mb-0.5">
-          <span className="text-sm font-semibold text-white">{title}</span>
+          <span className="text-sm font-semibold text-slate-900">{title}</span>
           <StatusBadge status={status} />
         </div>
-        <p className="text-xs text-brand-muted-light">{detail}</p>
+        <p className="text-xs text-slate-500">{detail}</p>
       </div>
     </div>
   );
@@ -149,10 +149,10 @@ export default async function PublicResultPage({
   const risk = v.overall_risk ?? "UNKNOWN";
 
   const riskConfig: Record<string, { bg: string; text: string; border: string; icon: React.ReactNode; message: string }> = {
-    LOW: { bg: "bg-pass/[0.08]", text: "text-pass", border: "border-pass/20", icon: <CheckCircle2 className="size-6 text-pass" />, message: "Our checks look good. It\u2019s ok, move ahead!" },
+    LOW: { bg: "bg-emerald-50", text: "text-emerald-600", border: "border-emerald-200", icon: <CheckCircle2 className="size-6 text-emerald-600" />, message: "Our checks look good. It\u2019s ok, move ahead!" },
     MEDIUM: { bg: "bg-warn/[0.08]", text: "text-warn", border: "border-warn/20", icon: <AlertTriangle className="size-6 text-warn" />, message: "Some checks returned warnings. Proceed with caution." },
-    HIGH: { bg: "bg-fail/[0.08]", text: "text-fail", border: "border-fail/20", icon: <XCircle className="size-6 text-fail" />, message: "One or more checks have failed. We recommend you do not proceed." },
-    UNKNOWN: { bg: "bg-white/[0.03]", text: "text-brand-muted", border: "border-white/[0.06]", icon: <Minus className="size-6 text-brand-muted" />, message: "We could not determine the risk level." },
+    HIGH: { bg: "bg-red-50", text: "text-red-600", border: "border-red-200", icon: <XCircle className="size-6 text-red-600" />, message: "One or more checks have failed. We recommend you do not proceed." },
+    UNKNOWN: { bg: "bg-slate-50", text: "text-slate-400", border: "border-slate-200", icon: <Minus className="size-6 text-slate-400" />, message: "We could not determine the risk level." },
   };
   const rc = riskConfig[risk] ?? riskConfig.UNKNOWN;
 
@@ -254,8 +254,8 @@ export default async function PublicResultPage({
   }
 
   return (
-    <div className="mx-auto max-w-[625px] px-4 py-8 sm:px-6 min-h-screen bg-navy">
-      <Button variant="ghost" className="mb-4 text-brand-muted-light hover:text-white hover:bg-white/[0.07] rounded-xl" render={<Link href="/" />}>
+    <div className="mx-auto max-w-[625px] px-4 py-8 sm:px-6 min-h-screen bg-slate-50">
+      <Button variant="ghost" className="mb-4 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-xl" render={<Link href="/" />}>
         <ArrowLeft className="size-4 mr-1" />
         Home
       </Button>
@@ -264,11 +264,11 @@ export default async function PublicResultPage({
         <div className="flex items-start gap-3">
           <div className="shrink-0 mt-0.5">{rc.icon}</div>
           <div>
-            <h1 className="text-lg text-white">
+            <h1 className="text-lg text-slate-900">
               You are paying {accountName}
               {amount != null && <span className="font-mono ml-1">{fmt(amount)}</span>}
             </h1>
-            <p className="text-sm text-brand-muted-light mt-0.5">for {description}</p>
+            <p className="text-sm text-slate-500 mt-0.5">for {description}</p>
             <p className={`text-sm font-semibold mt-2 ${rc.text}`}>{rc.message}</p>
           </div>
         </div>
@@ -280,13 +280,13 @@ export default async function PublicResultPage({
         {(() => {
           const statusOrder: Record<CheckStatus, number> = { FAIL: 0, WARN: 1, PASS: 2, UNVERIFIED: 3 };
           const checks: Array<{ icon: React.ReactNode; title: string; status: CheckStatus; detail: string }> = [];
-          if (isBusiness) checks.push({ icon: <Building2 className="size-4 text-brand-muted-light" />, title: "Companies House", status: chStatus, detail: chDetail });
-          if (showTrading && tradingDetail) checks.push({ icon: <CalendarDays className="size-4 text-brand-muted-light" />, title: "Business Trading History", status: tradingStatus, detail: tradingDetail });
-          if (showAccounts && accountsDetail) checks.push({ icon: <FileText className="size-4 text-brand-muted-light" />, title: "Last Accounts Filed", status: accountsStatus, detail: accountsDetail });
-          if (isBusiness) checks.push({ icon: <ShieldCheck className="size-4 text-brand-muted-light" />, title: "VAT Number", status: vatStatus, detail: vatDetail });
-          checks.push({ icon: <Landmark className="size-4 text-brand-muted-light" />, title: "Confirmation of Payee", status: copStatus, detail: copDetail });
-          if (showReviews) checks.push({ icon: <Star className="size-4 text-brand-muted-light" />, title: "Online Reviews", status: reviewsStatus, detail: reviewsDetail });
-          if (showMarketplace) checks.push({ icon: <ShoppingCart className="size-4 text-brand-muted-light" />, title: "Marketplace Price Check", status: mktStatus, detail: mktDetail });
+          if (isBusiness) checks.push({ icon: <Building2 className="size-4 text-slate-500" />, title: "Companies House", status: chStatus, detail: chDetail });
+          if (showTrading && tradingDetail) checks.push({ icon: <CalendarDays className="size-4 text-slate-500" />, title: "Business Trading History", status: tradingStatus, detail: tradingDetail });
+          if (showAccounts && accountsDetail) checks.push({ icon: <FileText className="size-4 text-slate-500" />, title: "Last Accounts Filed", status: accountsStatus, detail: accountsDetail });
+          if (isBusiness) checks.push({ icon: <ShieldCheck className="size-4 text-slate-500" />, title: "VAT Number", status: vatStatus, detail: vatDetail });
+          checks.push({ icon: <Landmark className="size-4 text-slate-500" />, title: "Confirmation of Payee", status: copStatus, detail: copDetail });
+          if (showReviews) checks.push({ icon: <Star className="size-4 text-slate-500" />, title: "Online Reviews", status: reviewsStatus, detail: reviewsDetail });
+          if (showMarketplace) checks.push({ icon: <ShoppingCart className="size-4 text-slate-500" />, title: "Marketplace Price Check", status: mktStatus, detail: mktDetail });
           checks.sort((a, b) => {
             const so = statusOrder[a.status] - statusOrder[b.status];
             return so !== 0 ? so : a.title.localeCompare(b.title);
@@ -301,40 +301,40 @@ export default async function PublicResultPage({
       {isMarketplace && v.marketplace_item_title && v.valuation_summary && (
         <div className="mt-6">
           <span className="eyebrow block mb-3">Marketplace valuation</span>
-          <div className="rounded-2xl bg-navy-card border border-white/[0.06] p-5 space-y-4">
+          <div className="rounded-2xl bg-white border border-slate-200 p-5 space-y-4">
             <div className="flex items-center gap-2 mb-2">
-              <ShoppingCart className="size-5 text-brand-muted-light" />
-              <span className="text-sm font-semibold text-white">{v.marketplace_item_title}</span>
+              <ShoppingCart className="size-5 text-slate-500" />
+              <span className="text-sm font-semibold text-slate-900">{v.marketplace_item_title}</span>
             </div>
             <div className="grid grid-cols-2 gap-3 text-sm">
               {v.marketplace_listed_price != null && (
-                <div className="rounded-xl bg-white/[0.04] p-3">
-                  <span className="text-xs text-brand-muted block mb-0.5">Listed price</span>
-                  <span className="font-mono font-semibold text-base text-white">{fmt(Number(v.marketplace_listed_price))}</span>
+                <div className="rounded-xl bg-slate-50 p-3">
+                  <span className="text-xs text-slate-400 block mb-0.5">Listed price</span>
+                  <span className="font-mono font-semibold text-base text-slate-900">{fmt(Number(v.marketplace_listed_price))}</span>
                 </div>
               )}
               {v.valuation_min != null && v.valuation_max != null && (
-                <div className="rounded-xl bg-white/[0.04] p-3">
-                  <span className="text-xs text-brand-muted block mb-0.5">Est. market value</span>
-                  <span className="font-mono font-semibold text-base text-white">{fmt(Number(v.valuation_min))} &ndash; {fmt(Number(v.valuation_max))}</span>
+                <div className="rounded-xl bg-slate-50 p-3">
+                  <span className="text-xs text-slate-400 block mb-0.5">Est. market value</span>
+                  <span className="font-mono font-semibold text-base text-slate-900">{fmt(Number(v.valuation_min))} &ndash; {fmt(Number(v.valuation_max))}</span>
                 </div>
               )}
             </div>
-            <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
-              <p className="text-sm leading-relaxed whitespace-pre-line text-brand-muted-light">{v.valuation_summary}</p>
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <p className="text-sm leading-relaxed whitespace-pre-line text-slate-500">{v.valuation_summary}</p>
             </div>
           </div>
         </div>
       )}
 
       {/* CTA to sign up */}
-      <div className="mt-8 rounded-2xl border border-coral/20 bg-coral/[0.05] p-6 text-center">
-        <h3 className="font-semibold text-white">Want to verify more payments?</h3>
-        <p className="text-sm text-brand-muted-light mt-1">
+      <div className="mt-8 rounded-2xl border border-coral/20 bg-coral-pale p-6 text-center">
+        <h3 className="font-semibold text-slate-900">Want to verify more payments?</h3>
+        <p className="text-sm text-slate-500 mt-1">
           Create an account to save your checks, access the API, and buy credits.
         </p>
         <Button
-          className="mt-4 bg-coral hover:bg-coral-dark text-white font-bold text-[15px] rounded-xl hover:shadow-[0_4px_16px_rgba(255,92,53,0.4)] transition-all"
+          className="mt-4 bg-coral hover:bg-coral-dark text-white font-bold text-[15px] rounded-xl hover:shadow-md transition-all"
           render={<Link href="/auth/login?tab=signup" />}
         >
           Create a free account

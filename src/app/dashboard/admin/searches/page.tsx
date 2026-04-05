@@ -100,8 +100,8 @@ export default async function AdminAllSearchesPage() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl text-white">All Searches</h1>
-          <p className="text-sm text-brand-muted-light mt-1">
+          <h1 className="text-2xl text-slate-900">All Searches</h1>
+          <p className="text-sm text-slate-500 mt-1">
             All verifications across all users
           </p>
         </div>
@@ -115,12 +115,12 @@ export default async function AdminAllSearchesPage() {
           { icon: Receipt, label: "Total cost", value: formatCurrency(totalCost) },
           { icon: TrendingUp, label: "Total profit", value: formatCurrency(totalProfit), color: totalProfit >= 0 ? "text-pass" : "text-fail" },
         ].map((stat) => (
-          <div key={stat.label} className="rounded-2xl bg-navy-card border border-white/[0.06] p-5">
-            <div className="flex items-center gap-1.5 text-brand-muted text-sm mb-2">
+          <div key={stat.label} className="rounded-2xl bg-white border border-slate-200 p-5">
+            <div className="flex items-center gap-1.5 text-slate-400 text-sm mb-2">
               <stat.icon className="size-3.5" />
               {stat.label}
             </div>
-            <div className={`text-2xl font-bold ${"color" in stat && stat.color ? stat.color : "text-white"}`}>
+            <div className={`text-2xl font-bold ${"color" in stat && stat.color ? stat.color : "text-slate-900"}`}>
               {stat.value}
             </div>
           </div>
@@ -128,17 +128,17 @@ export default async function AdminAllSearchesPage() {
       </div>
 
       {/* Table */}
-      <div className="mt-6 rounded-2xl bg-navy-card border border-white/[0.06] overflow-hidden">
-        <div className="px-6 py-4 border-b border-white/[0.06]">
-          <h2 className="font-semibold text-white">Verification history</h2>
-          <p className="text-sm text-brand-muted mt-0.5">All user verifications with revenue and cost breakdown</p>
+      <div className="mt-6 rounded-2xl bg-white border border-slate-200 overflow-hidden">
+        <div className="px-6 py-4 border-b border-slate-200">
+          <h2 className="font-semibold text-slate-900">Verification history</h2>
+          <p className="text-sm text-slate-400 mt-0.5">All user verifications with revenue and cost breakdown</p>
         </div>
         {rows.length === 0 ? (
           <div className="p-6">
             <div className="flex flex-col items-center justify-center py-12 text-center">
-              <Search className="mb-3 size-10 text-brand-muted/50" />
-              <p className="text-sm font-medium text-white">No verifications yet</p>
-              <p className="mt-1 text-xs text-brand-muted">
+              <Search className="mb-3 size-10 text-slate-300" />
+              <p className="text-sm font-medium text-slate-900">No verifications yet</p>
+              <p className="mt-1 text-xs text-slate-400">
                 Verifications from all users will appear here.
               </p>
             </div>
