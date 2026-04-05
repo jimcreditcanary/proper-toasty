@@ -26,7 +26,7 @@ export default async function DashboardLayout({
     .single();
 
   return (
-    <div className="flex min-h-screen flex-col bg-navy text-white">
+    <div className="dark flex min-h-screen flex-col bg-navy text-white">
       <SiteHeader email={user.email} role={userData?.role} />
       <main className="flex-1">{children}</main>
     </div>

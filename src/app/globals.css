@@ -7,9 +7,11 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-body);
+  --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-  --font-display: var(--font-heading);
+  --font-display: var(--font-geist-sans);
+  --font-body: var(--font-geist-sans);
+  --font-heading: var(--font-geist-sans);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -57,13 +59,20 @@
   --color-navy-card: #1E2537;
   --color-yellow: #FFCC00;
   --color-off-white: #F5F3F0;
-  --color-pass: #00D896;
-  --color-warn: #FFCC00;
-  --color-fail: #FF3860;
-  --color-brand-muted: #7A8099;
-  --color-brand-muted-light: #B0B7CC;
+  --color-pass: #16A34A;
+  --color-pass-green: #16A34A;
+  --color-warn: #EAB308;
+  --color-fail: #DC2626;
+  --color-brand-muted: #64748B;
+  --color-brand-muted-light: #94A3B8;
+  --color-slate-50: #F8FAFC;
+  --color-slate-100: #F1F5F9;
+  --color-slate-200: #E2E8F0;
+  --color-slate-800: #1E293B;
+  --color-slate-900: #0F172A;
 }
 
+/* ── Light-first design system (public pages) ── */
 :root {
   /* Brand tokens */
   --coral:        #FF5C35;
@@ -75,13 +84,49 @@
   --navy-card:    #1E2537;
   --yellow:       #FFCC00;
   --off-white:    #F5F3F0;
-  --status-pass:  #00D896;
-  --status-warn:  #FFCC00;
-  --status-fail:  #FF3860;
-  --muted-brand:  #7A8099;
-  --muted-light:  #B0B7CC;
+  --status-pass:  #16A34A;
+  --status-warn:  #EAB308;
+  --status-fail:  #DC2626;
+  --muted-brand:  #64748B;
+  --muted-light:  #94A3B8;
 
-  /* Dark-first design system */
+  /* Light design system (default for public pages) */
+  --background: #FFFFFF;
+  --foreground: #0F172A;
+  --card: #FFFFFF;
+  --card-foreground: #0F172A;
+  --popover: #FFFFFF;
+  --popover-foreground: #0F172A;
+  --primary: #FF5C35;
+  --primary-foreground: #FFFFFF;
+  --secondary: #F1F5F9;
+  --secondary-foreground: #0F172A;
+  --muted: #F1F5F9;
+  --muted-foreground: #64748B;
+  --accent: #F1F5F9;
+  --accent-foreground: #0F172A;
+  --destructive: #DC2626;
+  --border: #E2E8F0;
+  --input: #E2E8F0;
+  --ring: #FF5C35;
+  --chart-1: #FF5C35;
+  --chart-2: #16A34A;
+  --chart-3: #EAB308;
+  --chart-4: #DC2626;
+  --chart-5: #94A3B8;
+  --radius: 0.75rem;
+  --sidebar: #FFFFFF;
+  --sidebar-foreground: #0F172A;
+  --sidebar-primary: #FF5C35;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #F1F5F9;
+  --sidebar-accent-foreground: #0F172A;
+  --sidebar-border: #E2E8F0;
+  --sidebar-ring: #FF5C35;
+}
+
+/* ── Dark mode (dashboard, admin, verify) ── */
+.dark {
   --background: #0B0F1A;
   --foreground: #FFFFFF;
   --card: #1E2537;
@@ -105,7 +150,6 @@
   --chart-3: #FFCC00;
   --chart-4: #FF3860;
   --chart-5: #B0B7CC;
-  --radius: 0.75rem;
   --sidebar: #161C2D;
   --sidebar-foreground: #FFFFFF;
   --sidebar-primary: #FF5C35;
@@ -114,21 +158,15 @@
   --sidebar-accent-foreground: #FFFFFF;
   --sidebar-border: rgba(255,255,255,0.06);
   --sidebar-ring: #FF5C35;
+
+  /* Override brand-muted for dark */
+  --muted-brand: #7A8099;
+  --muted-light: #B0B7CC;
 }
 
-/* Light variant for auth pages etc */
-.light-surface {
-  --background: #F5F3F0;
-  --foreground: #0B0F1A;
-  --card: #FFFFFF;
-  --card-foreground: #0B0F1A;
-  --popover: #FFFFFF;
-  --popover-foreground: #0B0F1A;
-  --muted: #E8E5E1;
-  --muted-foreground: #7A8099;
-  --border: rgba(11,15,26,0.08);
-  --input: rgba(11,15,26,0.08);
-}
+/* Dark mode brand-muted overrides */
+.dark .text-brand-muted { color: #7A8099; }
+.dark .text-brand-muted-light { color: #B0B7CC; }
 
 @layer base {
   * {
@@ -136,26 +174,16 @@
   }
   body {
     @apply bg-background text-foreground;
-    font-family: var(--font-body), system-ui, sans-serif;
+    font-family: var(--font-geist-sans), system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
 
-  h1 {
-    font-family: var(--font-heading), system-ui, sans-serif;
+  h1, h2, h3 {
+    font-family: var(--font-geist-sans), system-ui, sans-serif;
     font-weight: 700;
-    letter-spacing: -0.03em;
+    letter-spacing: -0.025em;
     line-height: 1.1;
-  }
-  h2 {
-    font-family: var(--font-heading), system-ui, sans-serif;
-    font-weight: 700;
-    letter-spacing: -0.03em;
-  }
-  h3 {
-    font-family: var(--font-heading), system-ui, sans-serif;
-    font-weight: 700;
-    letter-spacing: -0.02em;
   }
 }
 
@@ -169,32 +197,32 @@
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: #00D896;
-  box-shadow: 0 0 8px rgba(0,216,150,0.6);
+  background: #16A34A;
+  box-shadow: 0 0 8px rgba(22,163,74,0.6);
   flex-shrink: 0;
 }
 .dot-warn {
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: #FFCC00;
-  box-shadow: 0 0 8px rgba(255,204,0,0.5);
+  background: #EAB308;
+  box-shadow: 0 0 8px rgba(234,179,8,0.5);
   flex-shrink: 0;
 }
 .dot-fail {
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: #FF3860;
-  box-shadow: 0 0 8px rgba(255,56,96,0.5);
+  background: #DC2626;
+  box-shadow: 0 0 8px rgba(220,38,38,0.5);
   flex-shrink: 0;
 }
 
 /* Eyebrow label */
 .eyebrow {
-  font-weight: 700;
-  font-size: 11px;
-  letter-spacing: 0.1em;
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--coral);
 }
