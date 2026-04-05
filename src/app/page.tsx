@@ -168,8 +168,15 @@ export default function Home() {
       <SiteHeader />
 
       {/* ── Hero with embedded wizard ────────────────────────────────── */}
-      <section id="free-check" className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-coral/[0.04] via-transparent to-transparent pointer-events-none" />
+      <section id="free-check" className="relative overflow-hidden" style={{ background: "linear-gradient(155deg, #ffffff 0%, #f8fafc 55%, #eff6ff 100%)" }}>
+        {/* Subtle cross grid texture */}
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 25v10M25 30h10' stroke='%23003566' stroke-width='1' opacity='0.03'/%3E%3C/svg%3E")`,
+            backgroundSize: "60px 60px",
+          }}
+        />
 
         <div className="relative mx-auto max-w-6xl px-6 pt-16 pb-16 sm:pt-24 sm:pb-20">
           <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-start">
@@ -219,15 +226,30 @@ export default function Home() {
 
             {/* Right: embedded wizard */}
             <div className="relative">
-              {/* Arrow pointing to wizard */}
-              <div className="hidden lg:block absolute -top-10 -left-8 z-10">
-                <div className="flex items-end gap-1">
-                  <span className="text-sm font-semibold text-coral whitespace-nowrap -rotate-6 mb-1">Try it free</span>
-                  <svg width="40" height="44" viewBox="0 0 40 44" fill="none" className="text-coral">
-                    <path d="M4 4C12 6 22 14 26 28" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeDasharray="0" />
-                    <path d="M20 26L26 28L22 34" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-                  </svg>
-                </div>
+              {/* Hand-drawn arrow pointing into wizard */}
+              <div className="hidden lg:flex absolute -top-14 left-4 z-10 items-center gap-2">
+                <span className="text-[15px] font-bold text-coral whitespace-nowrap" style={{ fontFamily: "var(--font-geist-sans), system-ui, sans-serif" }}>
+                  Try for free!
+                </span>
+                <svg width="64" height="52" viewBox="0 0 64 52" fill="none" className="text-coral -ml-1">
+                  {/* Smooth curve from text down into the wizard */}
+                  <path
+                    d="M2 6C16 4 36 6 44 18C50 27 48 38 42 44"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    fill="none"
+                  />
+                  {/* Arrowhead */}
+                  <path
+                    d="M36 38L42 44L48 38"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    fill="none"
+                  />
+                </svg>
               </div>
               <FreeCheckWizard />
             </div>
