@@ -188,8 +188,8 @@ export default function Home() {
               </h1>
 
               <p className="mt-6 text-lg text-slate-600 max-w-lg leading-relaxed">
-                In the first half of 2025, over{" "}
-                <span className="font-semibold text-slate-900">£629 million</span>{" "}
+                In 2025, over{" "}
+                <span className="font-semibold text-slate-900">&pound;1.2 billion</span>{" "}
                 was stolen by fraudsters in the UK. Before you send money, let us
                 check who you&apos;re really paying.
               </p>
@@ -218,7 +218,17 @@ export default function Home() {
             </div>
 
             {/* Right: embedded wizard */}
-            <div>
+            <div className="relative">
+              {/* Arrow pointing to wizard */}
+              <div className="hidden lg:block absolute -top-10 -left-8 z-10">
+                <div className="flex items-end gap-1">
+                  <span className="text-sm font-semibold text-coral whitespace-nowrap -rotate-6 mb-1">Try it free</span>
+                  <svg width="40" height="44" viewBox="0 0 40 44" fill="none" className="text-coral">
+                    <path d="M4 4C12 6 22 14 26 28" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeDasharray="0" />
+                    <path d="M20 26L26 28L22 34" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                  </svg>
+                </div>
+              </div>
               <FreeCheckWizard />
             </div>
           </div>
@@ -230,15 +240,15 @@ export default function Home() {
         <div className="mx-auto max-w-6xl px-6 py-12">
           <div className="grid grid-cols-1 gap-8 sm:grid-cols-3 text-center">
             <div>
-              <div className="text-4xl font-bold tracking-tight text-slate-900">&pound;629m</div>
+              <div className="text-4xl font-bold tracking-tight text-slate-900">&pound;1.2bn</div>
               <p className="mt-2 text-slate-600">
-                Stolen by fraudsters in H1 2025 alone
+                Stolen by fraudsters in the UK in 2025
               </p>
             </div>
             <div>
-              <div className="text-4xl font-bold tracking-tight text-slate-900">2.09m</div>
+              <div className="text-4xl font-bold tracking-tight text-slate-900">4.18m</div>
               <p className="mt-2 text-slate-600">
-                Confirmed fraud cases in the first half of 2025
+                Confirmed fraud cases reported in 2025
               </p>
             </div>
             <div>

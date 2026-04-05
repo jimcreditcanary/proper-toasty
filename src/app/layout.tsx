@@ -30,7 +30,7 @@ export const metadata: Metadata = {
     siteName: "whoamipaying?",
     title: "whoamipaying? — Know exactly who you're paying",
     description:
-      "Over £629m was stolen by fraudsters in H1 2025. Verify who you're paying against 6 official UK data sources before you send money.",
+      "Over £1.2bn was stolen by fraudsters in 2025. Verify who you're paying against 6 official UK data sources before you send money.",
   },
   twitter: {
     card: "summary_large_image",

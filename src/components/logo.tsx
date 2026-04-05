@@ -101,7 +101,7 @@ export function LogoIcon({
       style={
         pill
           ? undefined
-          : { filter: "drop-shadow(0 8px 24px rgba(255,92,53,0.4))" }
+          : { filter: "drop-shadow(0 8px 24px rgba(0,114,218,0.4))" }
       }
     >
       {/* Coral rounded square */}
@@ -109,7 +109,7 @@ export function LogoIcon({
         width="80"
         height="80"
         rx={radius}
-        fill={pill ? "transparent" : "#FF5C35"}
+        fill={pill ? "transparent" : "#0072DA"}
       />
 
       {/* Person head */}

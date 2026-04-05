@@ -50,10 +50,10 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 
   /* Extended brand colours */
-  --color-coral: #FF5C35;
-  --color-coral-light: #FF8060;
-  --color-coral-dark: #D94220;
-  --color-coral-pale: #FFF1EE;
+  --color-coral: #0072DA;
+  --color-coral-light: #338FE3;
+  --color-coral-dark: #005BB0;
+  --color-coral-pale: #EBF3FC;
   --color-navy: #0B0F1A;
   --color-navy-mid: #161C2D;
   --color-navy-card: #1E2537;
@@ -75,10 +75,10 @@
 /* ── Light-first design system (public pages) ── */
 :root {
   /* Brand tokens */
-  --coral:        #FF5C35;
-  --coral-light:  #FF8060;
-  --coral-dark:   #D94220;
-  --coral-pale:   #FFF1EE;
+  --coral:        #0072DA;
+  --coral-light:  #338FE3;
+  --coral-dark:   #005BB0;
+  --coral-pale:   #EBF3FC;
   --navy:         #0B0F1A;
   --navy-mid:     #161C2D;
   --navy-card:    #1E2537;
@@ -97,7 +97,7 @@
   --card-foreground: #0F172A;
   --popover: #FFFFFF;
   --popover-foreground: #0F172A;
-  --primary: #FF5C35;
+  --primary: #0072DA;
   --primary-foreground: #FFFFFF;
   --secondary: #F1F5F9;
   --secondary-foreground: #0F172A;
@@ -108,8 +108,8 @@
   --destructive: #DC2626;
   --border: #E2E8F0;
   --input: #E2E8F0;
-  --ring: #FF5C35;
-  --chart-1: #FF5C35;
+  --ring: #0072DA;
+  --chart-1: #0072DA;
   --chart-2: #16A34A;
   --chart-3: #EAB308;
   --chart-4: #DC2626;
@@ -117,12 +117,12 @@
   --radius: 0.75rem;
   --sidebar: #FFFFFF;
   --sidebar-foreground: #0F172A;
-  --sidebar-primary: #FF5C35;
+  --sidebar-primary: #0072DA;
   --sidebar-primary-foreground: #FFFFFF;
   --sidebar-accent: #F1F5F9;
   --sidebar-accent-foreground: #0F172A;
   --sidebar-border: #E2E8F0;
-  --sidebar-ring: #FF5C35;
+  --sidebar-ring: #0072DA;
 }
 
 /* ── Dark mode (dashboard, admin, verify) ── */
@@ -133,7 +133,7 @@
   --card-foreground: #FFFFFF;
   --popover: #1E2537;
   --popover-foreground: #FFFFFF;
-  --primary: #FF5C35;
+  --primary: #0072DA;
   --primary-foreground: #FFFFFF;
   --secondary: rgba(255,255,255,0.07);
   --secondary-foreground: #B0B7CC;
@@ -144,20 +144,20 @@
   --destructive: #FF3860;
   --border: rgba(255,255,255,0.06);
   --input: rgba(255,255,255,0.1);
-  --ring: #FF5C35;
-  --chart-1: #FF5C35;
+  --ring: #0072DA;
+  --chart-1: #0072DA;
   --chart-2: #00D896;
   --chart-3: #FFCC00;
   --chart-4: #FF3860;
   --chart-5: #B0B7CC;
   --sidebar: #161C2D;
   --sidebar-foreground: #FFFFFF;
-  --sidebar-primary: #FF5C35;
+  --sidebar-primary: #0072DA;
   --sidebar-primary-foreground: #FFFFFF;
   --sidebar-accent: rgba(255,255,255,0.07);
   --sidebar-accent-foreground: #FFFFFF;
   --sidebar-border: rgba(255,255,255,0.06);
-  --sidebar-ring: #FF5C35;
+  --sidebar-ring: #0072DA;
 
   /* Override brand-muted for dark */
   --muted-brand: #7A8099;
@@ -189,7 +189,7 @@
 
 /* Coral glow helper */
 .glow-coral {
-  box-shadow: 0 0 24px rgba(255,92,53,0.25);
+  box-shadow: 0 0 24px rgba(0,114,218,0.25);
 }
 
 /* Status dot glows */
