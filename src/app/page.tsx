@@ -1,8 +1,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { SiteHeader } from "@/components/site-header";
 import { Logo } from "@/components/logo";
-import { FreeCheckWizard } from "@/components/free-check-wizard";
+import { LazyWizard } from "@/components/lazy-wizard";
 import {
   ShieldCheck,
   Building2,
@@ -16,6 +15,34 @@ import {
   CheckCircle2,
   Lock,
 } from "lucide-react";
+
+/* Lightweight server-rendered header for the landing page (no Supabase, no client JS) */
+function LandingHeader() {
+  return (
+    <header className="bg-white/80 backdrop-blur-md border-b border-slate-200 sticky top-0 z-50">
+      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
+        <Link href="/" className="flex items-center">
+          <Logo size="sm" variant="light" />
+        </Link>
+        <nav className="flex items-center gap-3">
+          <Button
+            className="h-10 bg-coral hover:bg-coral-dark text-white font-semibold text-sm px-5 rounded-lg shadow-sm hover:shadow-md transition-all"
+            render={<Link href="/verify" />}
+          >
+            Make a check
+          </Button>
+          <Button
+            variant="ghost"
+            className="h-10 text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg"
+            render={<Link href="/auth/login" />}
+          >
+            Sign in
+          </Button>
+        </nav>
+      </div>
+    </header>
+  );
+}
 
 const CHECKS = [
   {
@@ -165,7 +192,7 @@ function TrustpilotStars() {
 export default function Home() {
   return (
     <div className="flex min-h-screen flex-col bg-white text-slate-900">
-      <SiteHeader />
+      <LandingHeader />
 
       {/* ── Hero with embedded wizard ────────────────────────────────── */}
       <section id="free-check" className="relative overflow-hidden" style={{ background: "linear-gradient(155deg, #ffffff 0%, #f8fafc 55%, #eff6ff 100%)" }}>
@@ -233,7 +260,7 @@ export default function Home() {
                   <ArrowRight className="size-3.5 rotate-90" />
                 </div>
               </div>
-              <FreeCheckWizard />
+              <LazyWizard />
             </div>
           </div>
         </div>

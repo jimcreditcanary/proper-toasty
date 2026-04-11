@@ -53,6 +53,10 @@ export default function RootLayout({
       lang="en"
       className={`${GeistSans.variable} ${GeistMono.variable} h-full`}
     >
+      <head>
+        <link rel="dns-prefetch" href="https://va.vercel-scripts.com" />
+        <link rel="preconnect" href="https://va.vercel-scripts.com" crossOrigin="anonymous" />
+      </head>
       <body className="min-h-full flex flex-col">
         {children}
         <Analytics />
