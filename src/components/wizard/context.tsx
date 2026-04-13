@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useReducer, useCallback } from "react";
-import { type WizardState, type WizardStep, initialWizardState } from "./types";
+import { type PayeeType, type WizardState, type WizardStep, initialWizardState } from "./types";
 
 type WizardAction =
   | { type: "UPDATE"; payload: Partial<WizardState> }
@@ -44,16 +44,19 @@ function getStepNumber(step: WizardStep): number {
 export function WizardProvider({
   children,
   initialAuth,
+  initialPayee,
 }: {
   children: React.ReactNode;
   initialAuth?: { isAuthenticated: boolean; userCredits: number; userEmail: string | null };
+  initialPayee?: PayeeType;
 }) {
   const [full, dispatch] = useReducer(reducer, {
     wizard: {
       ...initialWizardState,
       ...(initialAuth ?? {}),
+      ...(initialPayee ? { payeeType: initialPayee } : {}),
     },
-    step: 1 as WizardStep,
+    step: (initialPayee ? "1b" : 1) as WizardStep,
   });
 
   const update = useCallback(

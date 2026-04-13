@@ -1,11 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { WizardProvider } from "@/components/wizard/context";
 import { WizardShell } from "@/components/wizard/wizard-shell";
 import { ShieldCheck } from "lucide-react";
+import type { PayeeType, WizardStep } from "@/components/wizard/types";
 
 export default function VerifyPage() {
+  const searchParams = useSearchParams();
+  const payeeParam = searchParams.get("payee") as PayeeType | null;
+
   const [authState, setAuthState] = useState<{
     isAuthenticated: boolean;
     userCredits: number;
@@ -13,12 +18,10 @@ export default function VerifyPage() {
   } | null>(null);
 
   useEffect(() => {
-    // Check auth state on mount
     import("@/lib/supabase/client").then(({ createClient }) => {
       const supabase = createClient();
       supabase.auth.getUser().then(async ({ data: { user } }) => {
         if (user) {
-          // Fetch credits
           const { data: profile } = await supabase
             .from("users")
             .select("credits")
@@ -55,7 +58,10 @@ export default function VerifyPage() {
   return (
     <div className="min-h-screen bg-slate-50">
       <div className="py-8 sm:py-12">
-        <WizardProvider initialAuth={authState}>
+        <WizardProvider
+          initialAuth={authState}
+          initialPayee={payeeParam && ["business", "person", "unknown"].includes(payeeParam) ? payeeParam : undefined}
+        >
           <WizardShell />
         </WizardProvider>
       </div>
