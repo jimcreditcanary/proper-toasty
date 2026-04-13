@@ -1,7 +1,21 @@
 "use client";
 
 import { useState } from "react";
-import { CheckCircle2, ShieldCheck, ArrowLeft, ArrowRight, Loader2 } from "lucide-react";
+import {
+  Landmark,
+  Building2,
+  ShieldCheck,
+  CalendarDays,
+  FileText,
+  ShoppingCart,
+  Star,
+  ArrowLeft,
+  ArrowRight,
+  Loader2,
+  Check,
+  X,
+  Sparkles,
+} from "lucide-react";
 import { useWizard } from "./context";
 import { Button } from "@/components/ui/button";
 import type { CheckTier } from "./types";
@@ -12,6 +26,15 @@ const PURCHASE_OPTIONS = [
   { credits: 7 as const, price: "£10.00", note: "save £7.50" },
 ];
 
+type Feature = {
+  icon: React.ElementType;
+  label: string;
+  description: string;
+  basic: boolean;
+  enhanced: boolean;
+  marketplaceOnly?: boolean;
+};
+
 export function Step4Tier() {
   const { state, update, setStep } = useWizard();
   const [selectedCredits, setSelectedCredits] = useState<1 | 3 | 7 | null>(null);
@@ -19,19 +42,73 @@ export function Step4Tier() {
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
 
   const tier = state.checkTier;
-  const showMarketplaceFeature = state.isMarketplace === true;
+  const showMarketplace = state.isMarketplace === true;
+
+  const features: Feature[] = [
+    {
+      icon: Landmark,
+      label: "Confirmation of Payee",
+      description: "Bank account matches the name given",
+      basic: true,
+      enhanced: true,
+    },
+    {
+      icon: Building2,
+      label: "Companies House check",
+      description: "Company is registered and active",
+      basic: false,
+      enhanced: true,
+    },
+    {
+      icon: ShieldCheck,
+      label: "VAT verification",
+      description: "VAT number is valid with HMRC",
+      basic: false,
+      enhanced: true,
+    },
+    {
+      icon: CalendarDays,
+      label: "Trading history",
+      description: "How long the company has been trading",
+      basic: false,
+      enhanced: true,
+    },
+    {
+      icon: FileText,
+      label: "Accounts filed",
+      description: "Accounts are up to date with Companies House",
+      basic: false,
+      enhanced: true,
+    },
+    {
+      icon: Star,
+      label: "Online reviews",
+      description: "Reputation across Google, Trustpilot & more",
+      basic: false,
+      enhanced: true,
+    },
+    {
+      icon: ShoppingCart,
+      label: "Marketplace valuation",
+      description: "Listed price vs estimated market value",
+      basic: false,
+      enhanced: true,
+      marketplaceOnly: true,
+    },
+  ];
+
+  const visibleFeatures = features.filter(
+    (f) => !f.marketplaceOnly || showMarketplace
+  );
 
   function selectTier(t: CheckTier) {
     update({ checkTier: t });
-
-    // Auto-advance if enhanced + authenticated + has credits
     if (t === "enhanced" && state.isAuthenticated && state.userCredits > 0) {
       setStep(5);
     }
   }
 
   function handleBack() {
-    // Go back to step 3 if marketplace was shown, else step 2
     if (state.isMarketplace !== null) {
       setStep(3);
     } else {
@@ -40,9 +117,7 @@ export function Step4Tier() {
   }
 
   function handleContinue() {
-    if (tier === "basic" && !state.isAuthenticated && !state.email.trim()) {
-      return; // email required
-    }
+    if (tier === "basic" && !state.isAuthenticated && !state.email.trim()) return;
     setStep(5);
   }
 
@@ -53,19 +128,14 @@ export function Step4Tier() {
       const res = await fetch("/api/wizard-checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          credits,
-          wizardState: JSON.stringify(state),
-        }),
+        body: JSON.stringify({ credits }),
       });
       const data = await res.json();
       if (!res.ok) {
         setCheckoutError(data.error || "Something went wrong");
         return;
       }
-      if (data.url) {
-        window.location.href = data.url;
-      }
+      if (data.url) window.location.href = data.url;
     } catch {
       setCheckoutError("Failed to create checkout session");
     } finally {
@@ -78,68 +148,94 @@ export function Step4Tier() {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-semibold text-slate-900">
-        We can check those details for you — would you like to run a full check?
+      <h2 className="text-xl sm:text-2xl font-semibold text-slate-900">
+        Choose your check
       </h2>
+      <p className="text-sm text-slate-500">
+        Select what you&apos;d like us to verify before you pay.
+      </p>
 
-      {/* Tier cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Basic — Free */}
+      {/* ── Tier selector tabs ── */}
+      <div className="grid grid-cols-2 gap-2 rounded-lg bg-slate-100 p-1">
         <button
           type="button"
           onClick={() => selectTier("basic")}
-          className={`rounded-xl border-2 p-6 text-left transition-colors cursor-pointer hover:border-coral/40 ${
+          className={`rounded-md px-4 py-2.5 text-sm font-semibold transition-all ${
             tier === "basic"
-              ? "border-coral bg-coral/5"
-              : "border-slate-200"
+              ? "bg-white text-slate-900 shadow-sm"
+              : "text-slate-500 hover:text-slate-700"
           }`}
         >
-          <div className="flex items-center gap-2 mb-3">
-            <CheckCircle2 className="h-6 w-6 text-coral" />
-            <h3 className="text-lg font-semibold text-slate-900">Basic</h3>
-          </div>
-          <p className="text-sm font-medium text-slate-700 mb-1">
-            Confirmation of Payee (CoP) only
-          </p>
-          <p className="text-sm text-slate-500 mb-4">
-            Checks that the bank account matches the name given
-          </p>
-          <p className="text-lg font-semibold text-slate-900">Free</p>
+          Basic — Free
         </button>
-
-        {/* Enhanced — Paid */}
         <button
           type="button"
           onClick={() => selectTier("enhanced")}
-          className={`relative rounded-xl border-2 p-6 text-left transition-colors cursor-pointer ring-1 ring-coral/30 shadow-lg hover:border-coral/40 ${
+          className={`rounded-md px-4 py-2.5 text-sm font-semibold transition-all flex items-center justify-center gap-1.5 ${
             tier === "enhanced"
-              ? "border-coral bg-coral/5"
-              : "border-coral"
+              ? "bg-white text-slate-900 shadow-sm"
+              : "text-slate-500 hover:text-slate-700"
           }`}
         >
-          <span className="absolute -top-2.5 right-4 inline-flex items-center rounded-full bg-coral px-2.5 py-0.5 text-xs font-medium text-white">
-            Recommended
-          </span>
-          <div className="flex items-center gap-2 mb-3">
-            <ShieldCheck className="h-6 w-6 text-coral" />
-            <h3 className="text-lg font-semibold text-slate-900">Enhanced</h3>
-          </div>
-          <p className="text-sm font-medium text-slate-700 mb-1">
-            Everything in Basic, plus:
-          </p>
-          <ul className="text-sm text-slate-500 space-y-1 mb-4">
-            <li>Companies House verification</li>
-            <li>VAT API verification</li>
-            <li>Trading history &amp; accounts filed</li>
-            {showMarketplaceFeature && (
-              <li>+ Marketplace price vs valuation</li>
-            )}
-          </ul>
-          <p className="text-lg font-semibold text-slate-900">Paid</p>
+          <Sparkles className="size-3.5" />
+          Enhanced — Paid
         </button>
       </div>
 
-      {/* Enhanced selected + authenticated + has credits */}
+      {/* ── Feature checklist ── */}
+      <div className="rounded-xl border border-slate-200 bg-white overflow-hidden divide-y divide-slate-100">
+        {visibleFeatures.map((feature) => {
+          const included = tier === "enhanced" ? feature.enhanced : feature.basic;
+
+          return (
+            <div
+              key={feature.label}
+              className={`flex items-center gap-3 px-4 py-3.5 transition-colors ${
+                included ? "bg-white" : "bg-slate-50/50"
+              }`}
+            >
+              <div
+                className={`flex size-9 shrink-0 items-center justify-center rounded-lg ${
+                  included
+                    ? "bg-coral/10 text-coral"
+                    : "bg-slate-100 text-slate-300"
+                }`}
+              >
+                <feature.icon className="size-4.5" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p
+                  className={`text-sm font-medium ${
+                    included ? "text-slate-900" : "text-slate-400"
+                  }`}
+                >
+                  {feature.label}
+                </p>
+                <p
+                  className={`text-xs ${
+                    included ? "text-slate-500" : "text-slate-300"
+                  }`}
+                >
+                  {feature.description}
+                </p>
+              </div>
+              <div className="shrink-0">
+                {included ? (
+                  <div className="flex size-6 items-center justify-center rounded-full bg-emerald-100">
+                    <Check className="size-3.5 text-emerald-600" strokeWidth={3} />
+                  </div>
+                ) : (
+                  <div className="flex size-6 items-center justify-center rounded-full bg-slate-100">
+                    <X className="size-3.5 text-slate-300" strokeWidth={3} />
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* ── Enhanced: credits badge if authenticated ── */}
       {tier === "enhanced" && state.isAuthenticated && state.userCredits > 0 && (
         <div className="rounded-lg bg-emerald-50 border border-emerald-200 px-4 py-3">
           <p className="text-sm font-medium text-emerald-700">
@@ -148,32 +244,34 @@ export function Step4Tier() {
         </div>
       )}
 
-      {/* Enhanced selected + (not authenticated OR no credits) */}
+      {/* ── Enhanced: purchase options if no credits ── */}
       {tier === "enhanced" && (!state.isAuthenticated || state.userCredits === 0) && (
-        <div className="space-y-6">
-          {/* Purchase options */}
+        <div className="space-y-5">
           <div>
-            <h3 className="text-lg font-semibold text-slate-900 mb-4">
+            <h3 className="text-base font-semibold text-slate-900 mb-3">
               How many checks do you need?
             </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-3 gap-2">
               {PURCHASE_OPTIONS.map(({ credits, price, note }) => (
                 <button
                   key={credits}
                   type="button"
                   onClick={() => setSelectedCredits(credits)}
-                  className={`rounded-xl border-2 p-4 text-center transition-colors cursor-pointer hover:border-coral/40 ${
+                  className={`rounded-xl border-2 p-3 sm:p-4 text-center transition-all cursor-pointer hover:border-coral/40 ${
                     selectedCredits === credits
                       ? "border-coral bg-coral/5"
                       : "border-slate-200"
                   }`}
                 >
-                  <p className="text-lg font-semibold text-slate-900">
-                    {credits} check{credits !== 1 ? "s" : ""}
+                  <p className="text-base sm:text-lg font-bold text-slate-900">
+                    {credits}
                   </p>
-                  <p className="text-sm font-medium text-coral">{price}</p>
+                  <p className="text-xs text-slate-500">
+                    check{credits !== 1 ? "s" : ""}
+                  </p>
+                  <p className="text-sm font-semibold text-coral mt-1">{price}</p>
                   {note && (
-                    <p className="text-xs text-emerald-600 mt-1">{note}</p>
+                    <p className="text-[11px] text-emerald-600 font-medium mt-0.5">{note}</p>
                   )}
                 </button>
               ))}
@@ -184,7 +282,7 @@ export function Step4Tier() {
             <Button
               onClick={() => handlePurchase(selectedCredits)}
               disabled={checkoutLoading}
-              className="w-full h-10 bg-coral hover:bg-coral-dark text-white font-semibold rounded-lg"
+              className="w-full h-11 bg-coral hover:bg-coral-dark text-white font-semibold rounded-lg"
             >
               {checkoutLoading ? (
                 <>
@@ -214,22 +312,15 @@ export function Step4Tier() {
             </div>
           </div>
 
-          {/* Sign in / create account */}
           <div className="text-center space-y-3">
             <p className="text-sm text-slate-600">
               Already have an account? Sign in to use your existing checks.
             </p>
             <div className="flex items-center justify-center gap-3">
-              <Button
-                variant="outline"
-                render={<a href="/auth/login" />}
-              >
+              <Button variant="outline" render={<a href="/auth/login" />}>
                 Sign In
               </Button>
-              <Button
-                variant="outline"
-                render={<a href="/auth/login?tab=signup" />}
-              >
+              <Button variant="outline" render={<a href="/auth/login?tab=signup" />}>
                 Create Account
               </Button>
             </div>
@@ -237,13 +328,10 @@ export function Step4Tier() {
         </div>
       )}
 
-      {/* Basic selected + not authenticated: email input */}
+      {/* ── Basic: email input ── */}
       {tier === "basic" && !state.isAuthenticated && (
         <div>
-          <label
-            htmlFor="lead-email"
-            className="block text-sm font-medium text-slate-700 mb-1.5"
-          >
+          <label htmlFor="lead-email" className="block text-sm font-medium text-slate-700 mb-1.5">
             Email address <span className="text-red-500">*</span>
           </label>
           <input
@@ -261,7 +349,7 @@ export function Step4Tier() {
         </div>
       )}
 
-      {/* Navigation */}
+      {/* ── Navigation ── */}
       <div className="flex items-center justify-between pt-2">
         <button
           type="button"
