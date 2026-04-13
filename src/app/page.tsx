@@ -14,6 +14,12 @@ import {
   Quote,
   CheckCircle2,
   Lock,
+  Check,
+  X,
+  Sparkles,
+  Zap,
+  Crown,
+  Gift,
 } from "lucide-react";
 
 /* Lightweight server-rendered header for the landing page (no Supabase, no client JS) */
@@ -292,6 +298,170 @@ export default function Home() {
         </div>
       </section>
 
+      {/* ── Pricing + Basic vs Enhanced ─────────────────────────────── */}
+      <section id="pricing">
+        <div className="mx-auto w-full max-w-6xl px-6 py-20 sm:py-24">
+          <div className="text-center mb-14">
+            <span className="eyebrow">Pricing</span>
+            <h2 className="text-3xl sm:text-4xl mt-3 font-bold tracking-tight">
+              Simple, transparent pricing
+            </h2>
+            <p className="mt-4 text-lg text-slate-600 max-w-2xl mx-auto">
+              Your basic check is always free. Enhanced checks give you the
+              full picture — buy credits when you need them.
+            </p>
+          </div>
+
+          {/* ── Basic vs Enhanced comparison ── */}
+          <div className="mx-auto max-w-3xl mb-16">
+            <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-lg shadow-slate-200/50">
+              {/* Header row */}
+              <div className="grid grid-cols-[1fr_100px_100px] sm:grid-cols-[1fr_120px_120px] bg-slate-900 text-white">
+                <div className="px-5 py-4 flex items-center">
+                  <span className="text-sm font-semibold">What&apos;s included?</span>
+                </div>
+                <div className="px-3 py-4 text-center border-l border-slate-700">
+                  <p className="text-sm font-semibold">Basic</p>
+                  <p className="text-xs text-slate-400 mt-0.5">Free</p>
+                </div>
+                <div className="px-3 py-4 text-center border-l border-slate-700 bg-coral/20">
+                  <p className="text-sm font-semibold flex items-center justify-center gap-1">
+                    <Sparkles className="size-3.5" />
+                    Enhanced
+                  </p>
+                  <p className="text-xs text-coral-light mt-0.5">From &pound;1.43</p>
+                </div>
+              </div>
+
+              {/* Feature rows */}
+              {[
+                { icon: Landmark, label: "Confirmation of Payee", desc: "Bank account matches payee name", basic: true, enhanced: true },
+                { icon: Building2, label: "Companies House", desc: "Company registered & active", basic: false, enhanced: true },
+                { icon: ShieldCheck, label: "VAT verification", desc: "VAT number valid with HMRC", basic: false, enhanced: true },
+                { icon: CalendarDays, label: "Trading history", desc: "Years trading & activity", basic: false, enhanced: true },
+                { icon: FileText, label: "Accounts filed", desc: "Up to date with Companies House", basic: false, enhanced: true },
+                { icon: Star, label: "Online reviews", desc: "Google, Trustpilot & more", basic: false, enhanced: true },
+                { icon: ShoppingCart, label: "Marketplace valuation", desc: "Fair price analysis", basic: false, enhanced: true },
+              ].map((feature, i) => (
+                <div
+                  key={feature.label}
+                  className={`grid grid-cols-[1fr_100px_100px] sm:grid-cols-[1fr_120px_120px] ${
+                    i % 2 === 0 ? "bg-white" : "bg-slate-50/50"
+                  } border-t border-slate-100`}
+                >
+                  <div className="px-5 py-3.5 flex items-center gap-3">
+                    <div className={`flex size-8 shrink-0 items-center justify-center rounded-lg ${
+                      feature.enhanced ? "bg-coral/10 text-coral" : "bg-slate-100 text-slate-400"
+                    }`}>
+                      <feature.icon className="size-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-slate-900">{feature.label}</p>
+                      <p className="text-xs text-slate-500 hidden sm:block">{feature.desc}</p>
+                    </div>
+                  </div>
+                  <div className="px-3 py-3.5 flex items-center justify-center border-l border-slate-100">
+                    {feature.basic ? (
+                      <div className="flex size-6 items-center justify-center rounded-full bg-emerald-100">
+                        <Check className="size-3.5 text-emerald-600" strokeWidth={3} />
+                      </div>
+                    ) : (
+                      <div className="flex size-6 items-center justify-center rounded-full bg-slate-100">
+                        <X className="size-3.5 text-slate-300" strokeWidth={3} />
+                      </div>
+                    )}
+                  </div>
+                  <div className="px-3 py-3.5 flex items-center justify-center border-l border-slate-100 bg-coral/[0.02]">
+                    <div className="flex size-6 items-center justify-center rounded-full bg-emerald-100">
+                      <Check className="size-3.5 text-emerald-600" strokeWidth={3} />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* ── Credit packs ── */}
+          <div className="text-center mb-8">
+            <h3 className="text-xl sm:text-2xl font-bold text-slate-900">
+              Buy enhanced check credits
+            </h3>
+            <p className="mt-2 text-slate-600">
+              The more you buy, the more you save. No expiry.
+            </p>
+          </div>
+
+          <div className="mx-auto grid max-w-3xl gap-4 sm:grid-cols-3">
+            {/* 1 check */}
+            <div className="relative rounded-2xl border-2 border-slate-200 bg-white p-6 text-center transition-all hover:border-slate-300 hover:shadow-lg">
+              <div className="mx-auto flex size-12 items-center justify-center rounded-xl bg-slate-100 mb-4">
+                <Zap className="size-6 text-slate-600" />
+              </div>
+              <p className="text-2xl font-bold text-slate-900">1 check</p>
+              <p className="text-sm text-slate-500 mt-1">Try it out</p>
+              <div className="text-3xl font-bold text-slate-900 mt-4">&pound;2.50</div>
+              <p className="text-sm text-slate-500 mt-1">&pound;2.50 per check</p>
+              <Button
+                className="mt-5 w-full h-11 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-lg"
+                render={<Link href="/verify" />}
+              >
+                Get started
+              </Button>
+            </div>
+
+            {/* 3 checks — popular */}
+            <div className="relative rounded-2xl border-2 border-coral bg-white p-6 text-center shadow-lg shadow-coral/10 sm:scale-[1.04] transition-all">
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                <span className="inline-flex items-center gap-1 rounded-full bg-coral px-3 py-1 text-xs font-semibold text-white shadow-sm">
+                  <Crown className="size-3" />
+                  Best value
+                </span>
+              </div>
+              <div className="mx-auto flex size-12 items-center justify-center rounded-xl bg-coral/10 mb-4">
+                <Gift className="size-6 text-coral" />
+              </div>
+              <p className="text-2xl font-bold text-slate-900">3 checks</p>
+              <p className="text-sm text-slate-500 mt-1">Most popular</p>
+              <div className="text-3xl font-bold text-slate-900 mt-4">&pound;5.00</div>
+              <p className="text-sm text-slate-500 mt-1">&pound;1.67 per check</p>
+              <div className="mt-2 inline-flex items-center rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-0.5">
+                <span className="text-xs font-semibold text-emerald-700">Save &pound;2.50</span>
+              </div>
+              <Button
+                className="mt-4 w-full h-11 bg-coral hover:bg-coral-dark text-white font-semibold rounded-lg shadow-sm"
+                render={<Link href="/verify" />}
+              >
+                Get started
+              </Button>
+            </div>
+
+            {/* 7 checks */}
+            <div className="relative rounded-2xl border-2 border-slate-200 bg-white p-6 text-center transition-all hover:border-slate-300 hover:shadow-lg">
+              <div className="mx-auto flex size-12 items-center justify-center rounded-xl bg-amber-50 mb-4">
+                <Sparkles className="size-6 text-amber-600" />
+              </div>
+              <p className="text-2xl font-bold text-slate-900">7 checks</p>
+              <p className="text-sm text-slate-500 mt-1">Pro pack</p>
+              <div className="text-3xl font-bold text-slate-900 mt-4">&pound;10.00</div>
+              <p className="text-sm text-slate-500 mt-1">&pound;1.43 per check</p>
+              <div className="mt-2 inline-flex items-center rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-0.5">
+                <span className="text-xs font-semibold text-emerald-700">Save &pound;7.50</span>
+              </div>
+              <Button
+                className="mt-4 w-full h-11 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-lg"
+                render={<Link href="/verify" />}
+              >
+                Get started
+              </Button>
+            </div>
+          </div>
+
+          <p className="text-center text-sm text-slate-500 mt-6">
+            Credits never expire. Use them whenever you need a check.
+          </p>
+        </div>
+      </section>
+
       {/* ── 6 Checks (1x6 list with report mockup) ───────────────────── */}
       <section className="mx-auto w-full max-w-6xl px-6 py-20 sm:py-24">
         <div className="text-center mb-14">
@@ -459,60 +629,6 @@ export default function Home() {
             invoices, or get scammed on marketplaces. We wanted to make it
             simple to check before you pay.
           </p>
-        </div>
-      </section>
-
-      {/* ── Pricing ──────────────────────────────────────────────────── */}
-      <section id="pricing">
-        <div className="mx-auto w-full max-w-6xl px-6 py-20 sm:py-24">
-          <div className="text-center mb-14">
-            <span className="eyebrow">Pricing</span>
-            <h2 className="text-3xl sm:text-4xl mt-3 font-bold tracking-tight">
-              Simple, transparent pricing
-            </h2>
-            <p className="mt-4 text-lg text-slate-600">
-              Your first check is free. After that, buy credits when you need
-              them. No subscriptions.
-            </p>
-          </div>
-          <div className="mx-auto grid max-w-4xl gap-5 sm:grid-cols-3">
-            {[
-              { credits: 10, price: "\u00A35", per: "\u00A30.50", label: "Starter", desc: "Perfect for a one-off check" },
-              { credits: 50, price: "\u00A320", per: "\u00A30.40", label: "Business", popular: true, desc: "Most popular for regular use" },
-              { credits: 200, price: "\u00A360", per: "\u00A30.30", label: "Enterprise", desc: "Best value for high volume" },
-            ].map((plan) => (
-              <div
-                key={plan.label}
-                className={`rounded-xl bg-white border p-6 sm:p-8 transition-shadow ${
-                  plan.popular
-                    ? "border-coral ring-1 ring-coral/30 shadow-lg shadow-coral/10 scale-[1.02]"
-                    : "border-slate-200 hover:shadow-lg hover:shadow-slate-100"
-                }`}
-              >
-                {plan.popular && (
-                  <span className="inline-flex items-center rounded-full bg-coral px-3 py-1 text-xs font-semibold text-white mb-3">
-                    Most popular
-                  </span>
-                )}
-                <h3 className="text-xl font-semibold text-slate-900">{plan.label}</h3>
-                <p className="text-sm text-slate-500 mt-1">{plan.desc}</p>
-                <div className="text-4xl font-bold text-slate-900 mt-4">{plan.price}</div>
-                <p className="mt-2 text-slate-500">
-                  {plan.credits} credits at {plan.per} each
-                </p>
-                <Button
-                  className={`mt-6 w-full h-11 text-[15px] font-semibold rounded-lg transition-all ${
-                    plan.popular
-                      ? "bg-coral hover:bg-coral-dark text-white shadow-sm"
-                      : "bg-slate-900 hover:bg-slate-800 text-white"
-                  }`}
-                  render={<Link href="/auth/login" />}
-                >
-                  Buy credits
-                </Button>
-              </div>
-            ))}
-          </div>
         </div>
       </section>
 
