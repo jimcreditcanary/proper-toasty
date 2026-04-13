@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { isOBConnectEnabled } from "@/lib/obconnect";
 import { PaymentButton } from "@/components/payment-section";
 import { Button } from "@/components/ui/button";
@@ -147,12 +148,26 @@ export default async function VerificationResultPage({
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) notFound();
 
-  const { data: v } = await supabase
+  // Check if user is admin
+  const admin = createAdminClient();
+  const { data: userData } = await admin
+    .from("users")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+  const isAdmin = userData?.role === "admin";
+
+  // Admins can view any verification; regular users only their own
+  let query = admin
     .from("verifications")
     .select("*")
-    .eq("id", id)
-    .eq("user_id", user.id)
-    .single();
+    .eq("id", id);
+
+  if (!isAdmin) {
+    query = query.eq("user_id", user.id);
+  }
+
+  const { data: v } = await query.single();
 
   if (!v) notFound();
 
