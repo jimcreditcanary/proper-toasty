@@ -16,30 +16,35 @@ export async function POST(request: NextRequest) {
     const isPdf = file.type === "application/pdf";
 
     const isBusiness = payeeType === "business";
+    const fileName = file.name || "";
 
     const extractPrompt = isBusiness
-      ? `Extract the following fields from this invoice. Return ONLY a JSON object with these exact keys:
+      ? `Extract payment details from this document (invoice, estimate, quote, or payment request).${fileName ? ` The filename is: "${fileName}".` : ""} Look carefully at all text including headers, footers, letterhead, and fine print.
+
+Return ONLY a JSON object with these exact keys:
 {
-  "company_name": "the company or business name on the invoice",
-  "vat_number": "the VAT registration number (GB format)",
-  "company_number": "the Companies House registration number",
-  "sort_code": "the bank sort code (XX-XX-XX format)",
-  "account_number": "the bank account number",
-  "invoice_amount": the total amount as a number or null,
-  "invoice_date": "the invoice date in YYYY-MM-DD format or null"
+  "company_name": "the company or business name that is requesting payment (the payee/seller, NOT the customer)",
+  "vat_number": "the VAT registration number if shown (GB format, e.g. GB123456789)",
+  "company_number": "the Companies House registration number if shown",
+  "sort_code": "the bank sort code if shown (XX-XX-XX format, 6 digits)",
+  "account_number": "the bank account number if shown (typically 8 digits)",
+  "invoice_amount": the total amount due as a number (e.g. 3012.00) or null,
+  "invoice_date": "the document date in YYYY-MM-DD format or null"
 }
 
-If a field is not found, set its value to null.`
-      : `Extract the following fields from this invoice or payment request. Return ONLY a JSON object with these exact keys:
+Important: Extract the company/business name even if this is a quote or estimate, not just invoices. Check the letterhead, header, footer, and "from" section. If a field is not found in the document, set its value to null.`
+      : `Extract payment details from this document (invoice, estimate, quote, or payment request).${fileName ? ` The filename is: "${fileName}".` : ""} Look carefully at all text including headers, footers, and fine print.
+
+Return ONLY a JSON object with these exact keys:
 {
-  "payee_name": "the name of the person or entity to be paid",
-  "sort_code": "the bank sort code (XX-XX-XX format)",
-  "account_number": "the bank account number",
-  "invoice_amount": the total amount as a number or null,
-  "invoice_date": "the invoice date in YYYY-MM-DD format or null"
+  "payee_name": "the name of the person or entity requesting payment (the payee/seller, NOT the customer)",
+  "sort_code": "the bank sort code if shown (XX-XX-XX format, 6 digits)",
+  "account_number": "the bank account number if shown (typically 8 digits)",
+  "invoice_amount": the total amount due as a number (e.g. 3012.00) or null,
+  "invoice_date": "the document date in YYYY-MM-DD format or null"
 }
 
-If a field is not found, set its value to null.`;
+Important: Extract the payee name even if this is a quote or estimate. Check the letterhead, header, footer, and "from" section. If a field is not found in the document, set its value to null.`;
 
     const fileBlock = isPdf
       ? ({
@@ -82,6 +87,7 @@ If a field is not found, set its value to null.`;
     }
 
     const extracted = JSON.parse(jsonMatch[0]);
+    console.log("Extract-wizard result:", JSON.stringify(extracted, null, 2));
     return NextResponse.json({ extracted });
   } catch (error) {
     console.error("Extract-wizard error:", error);
