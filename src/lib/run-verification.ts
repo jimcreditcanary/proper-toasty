@@ -31,6 +31,8 @@ export async function runVerification(params: {
   const vatNumberInput = formData.get("vatNumberInput") as string | null;
   const companyNumberInput = formData.get("companyNumberInput") as string | null;
   const invoiceAmount = formData.get("invoiceAmount") as string | null;
+  const purchaseCategory = formData.get("purchaseCategory") as string | null;
+  const checkTier = formData.get("checkTier") as string | null;
   const file = formData.get("file") as File | null;
 
   // ── Invoice extraction (if file uploaded) ──────────────────────────
@@ -160,6 +162,8 @@ If a field is not found, set its value to null.`;
       account_number: finalAccountNumber,
       vat_number_input: vatNumberInput,
       invoice_amount: finalInvoiceAmount,
+      purchase_category: purchaseCategory,
+      check_tier: checkTier,
       extracted_company_name: extractedData?.company_name ?? null,
       extracted_vat_number: extractedData?.vat_number ?? null,
       extracted_invoice_amount: extractedData?.invoice_amount ?? null,
@@ -190,10 +194,13 @@ If a field is not found, set its value to null.`;
 
   const promises: Promise<void>[] = [];
 
-  // Google Reviews check — only for businesses
+  // Determine if enhanced checks should run (default to enhanced for backwards compat)
+  const isEnhanced = checkTier !== "basic";
+
+  // Google Reviews check — only for businesses + enhanced tier
   const isBusiness = payeeType === "business" || !!finalCompanyNumber || !!finalVatNumber;
   console.log("Reviews check:", { isBusiness, payeeType, finalCompanyName, finalCompanyNumber: !!finalCompanyNumber, finalVatNumber: !!finalVatNumber });
-  if (isBusiness && finalCompanyName) {
+  if (isEnhanced && isBusiness && finalCompanyName) {
     promises.push(
       (async () => {
         try {
@@ -335,7 +342,7 @@ Return ONLY a JSON object with no markdown fences:
     );
   }
 
-  if (finalCompanyNumber) {
+  if (isEnhanced && finalCompanyNumber) {
     promises.push(
       lookupCompaniesHouse(finalCompanyNumber)
         .then((r) => { results.ch = r as CHResult; })
@@ -346,7 +353,7 @@ Return ONLY a JSON object with no markdown fences:
     );
   }
 
-  if (finalVatNumber) {
+  if (isEnhanced && finalVatNumber) {
     promises.push(
       lookupHmrcVat(finalVatNumber)
         .then((r) => { results.vat = r as VATResult; })

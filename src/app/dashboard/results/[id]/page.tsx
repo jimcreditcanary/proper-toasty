@@ -390,6 +390,16 @@ export default async function VerificationResultPage({
 
   const hasMarketplaceValuation = isMarketplace && v.marketplace_item_title;
 
+  const categoryLabels: Record<string, string> = {
+    vehicle: "Vehicle",
+    property: "Property",
+    investment: "Investment",
+    building_work: "Building work",
+    services: "Paying for services",
+    other: "Something else",
+  };
+  const categoryLabel = v.purchase_category ? categoryLabels[v.purchase_category] ?? v.purchase_category : null;
+
   return (
     <div className={`mx-auto px-4 py-8 sm:px-6 ${hasMarketplaceValuation ? "max-w-5xl" : "max-w-[625px]"}`}>
       <Button
@@ -424,6 +434,26 @@ export default async function VerificationResultPage({
           </div>
         </div>
       </div>
+
+      {/* Context badges */}
+      {(categoryLabel || v.check_tier) && (
+        <div className="flex flex-wrap gap-2 mb-4">
+          {categoryLabel && (
+            <span className="inline-flex items-center rounded-full bg-slate-100 border border-slate-200 px-3 py-1 text-xs font-medium text-slate-600">
+              Buying: {categoryLabel}
+            </span>
+          )}
+          {v.check_tier && (
+            <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${
+              v.check_tier === "enhanced"
+                ? "bg-coral/10 border border-coral/20 text-coral"
+                : "bg-slate-100 border border-slate-200 text-slate-600"
+            }`}>
+              {v.check_tier === "enhanced" ? "Enhanced check" : "Basic check"}
+            </span>
+          )}
+        </div>
+      )}
 
       {/* Main content: marketplace = 2 col, otherwise single col */}
       {hasMarketplaceValuation ? (

@@ -316,6 +316,8 @@ export interface Database {
           account_number: string | null;
           vat_number_input: string | null;
           invoice_amount: number | null;
+          purchase_category: string | null;
+          check_tier: string | null;
           extracted_company_name: string | null;
           extracted_vat_number: string | null;
           extracted_invoice_amount: number | null;
@@ -361,6 +363,8 @@ export interface Database {
           account_number?: string | null;
           vat_number_input?: string | null;
           invoice_amount?: number | null;
+          purchase_category?: string | null;
+          check_tier?: string | null;
           extracted_company_name?: string | null;
           extracted_vat_number?: string | null;
           extracted_invoice_amount?: number | null;
@@ -405,6 +409,8 @@ export interface Database {
           account_number?: string | null;
           vat_number_input?: string | null;
           invoice_amount?: number | null;
+          purchase_category?: string | null;
+          check_tier?: string | null;
           extracted_company_name?: string | null;
           extracted_vat_number?: string | null;
           extracted_invoice_amount?: number | null;
