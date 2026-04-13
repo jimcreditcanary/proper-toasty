@@ -428,26 +428,24 @@ export default async function VerificationResultPage({
 
       {/* Hero: "You are paying" + Pay button */}
       <div className={`${rc.bg} ${rc.border} border rounded-2xl p-5 sm:p-6 mb-6`}>
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="flex items-start gap-3">
-            <div className="shrink-0 mt-0.5">{rc.icon}</div>
-            <div>
-              <h1 className="text-lg sm:text-xl text-slate-900">
-                You are paying {accountName}
-                {amount != null && <span className="font-mono ml-1.5">{fmt(amount)}</span>}
-              </h1>
-              <p className="text-sm text-slate-500 mt-0.5">
-                for {description}
-              </p>
-              <p className={`text-sm font-semibold mt-2 ${rc.text}`}>
-                {rc.message}
-              </p>
-            </div>
-          </div>
-          <div className="shrink-0 sm:ml-4">
-            <PaymentButton data={paymentData} />
+        <div className="flex items-start gap-3 mb-4">
+          <div className="shrink-0 mt-0.5">{rc.icon}</div>
+          <div className="min-w-0">
+            <h1 className="text-lg sm:text-xl font-semibold text-slate-900 break-words">
+              You are paying {accountName}
+            </h1>
+            {amount != null && (
+              <p className="text-2xl font-bold font-mono text-slate-900 mt-1">{fmt(amount)}</p>
+            )}
+            <p className="text-sm text-slate-500 mt-1">
+              for {description}
+            </p>
+            <p className={`text-sm font-semibold mt-2 ${rc.text}`}>
+              {rc.message}
+            </p>
           </div>
         </div>
+        <PaymentButton data={paymentData} />
       </div>
 
       {/* Context badges */}

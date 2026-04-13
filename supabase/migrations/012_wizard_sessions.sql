@@ -1,3 +1,12 @@
+-- Create lead_impressions if it doesn't exist (may not have been created by migration 008)
+CREATE TABLE IF NOT EXISTS public.lead_impressions (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  session_id text NOT NULL UNIQUE,
+  created_at timestamptz DEFAULT now()
+);
+
+ALTER TABLE public.lead_impressions ENABLE ROW LEVEL SECURITY;
+
 -- Track wizard journey progress and costs for incomplete sessions
 ALTER TABLE public.lead_impressions
   ADD COLUMN IF NOT EXISTS last_step text,

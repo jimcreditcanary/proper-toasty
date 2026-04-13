@@ -13,7 +13,6 @@ import {
   ArrowRight,
   Quote,
   CheckCircle2,
-  Lock,
   Check,
   X,
   Sparkles,
@@ -50,45 +49,6 @@ function LandingHeader() {
   );
 }
 
-const CHECKS = [
-  {
-    icon: Building2,
-    title: "Companies House",
-    description: "We verify the company is registered and active on the official UK register.",
-    color: "bg-blue-50 text-blue-600",
-  },
-  {
-    icon: FileText,
-    title: "HMRC VAT",
-    description: "We validate the VAT number directly with HMRC to confirm it's genuine.",
-    color: "bg-emerald-50 text-emerald-600",
-  },
-  {
-    icon: Landmark,
-    title: "Confirmation of Payee",
-    description: "We check the bank account name matches who you think you're paying.",
-    color: "bg-violet-50 text-violet-600",
-  },
-  {
-    icon: Star,
-    title: "Online reviews",
-    description: "We search Google, Trustpilot, and Checkatrade for the business's reputation.",
-    color: "bg-amber-50 text-amber-600",
-  },
-  {
-    icon: ShoppingCart,
-    title: "Marketplace valuation",
-    description: "For marketplace purchases, we research the fair market value and flag overpricing.",
-    color: "bg-rose-50 text-rose-600",
-  },
-  {
-    icon: CalendarDays,
-    title: "Trading history",
-    description: "We check how long the company has been trading and if their accounts are filed.",
-    color: "bg-cyan-50 text-cyan-600",
-  },
-];
-
 const STORIES = [
   {
     quote: "I was about to pay a builder for a kitchen refit. WhoAmIPaying flagged that the bank account didn't match the company name. The invoice had been intercepted. Saved me thousands.",
@@ -119,69 +79,6 @@ const STORIES = [
     saved: "12,000",
   },
 ];
-
-/* ── Inline report mockup component ── */
-function ReportMockup() {
-  return (
-    <div className="w-full max-w-md">
-      <div className="rounded-2xl border border-slate-200 bg-white shadow-xl shadow-slate-200/50 overflow-hidden">
-        {/* Header bar */}
-        <div className="bg-slate-900 px-5 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <ShieldCheck className="size-5 text-coral" />
-            <span className="text-sm font-semibold text-white">Verification Report</span>
-          </div>
-          <span className="text-xs text-slate-400 font-mono">ID: 4F3C21</span>
-        </div>
-
-        {/* Overall risk */}
-        <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-          <div>
-            <p className="text-xs text-slate-500 uppercase tracking-wide font-medium">Overall Risk</p>
-            <p className="text-lg font-bold text-emerald-600 mt-0.5">Low Risk</p>
-          </div>
-          <div className="flex items-center gap-1.5 rounded-full bg-emerald-50 border border-emerald-200 px-3 py-1.5">
-            <CheckCircle2 className="size-4 text-emerald-600" />
-            <span className="text-sm font-semibold text-emerald-700">Pass</span>
-          </div>
-        </div>
-
-        {/* Check rows */}
-        <div className="divide-y divide-slate-100">
-          {[
-            { label: "Companies House", status: "Active", pass: true, detail: "Incorporated 2018" },
-            { label: "HMRC VAT", status: "Valid", pass: true, detail: "GB 123 456 789" },
-            { label: "Confirmation of Payee", status: "Match", pass: true, detail: "Account name matches" },
-            { label: "Online Reviews", status: "4.8/5", pass: true, detail: "127 reviews" },
-            { label: "Trading History", status: "6 years", pass: true, detail: "Accounts filed" },
-          ].map((check) => (
-            <div key={check.label} className="px-5 py-3 flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-slate-900">{check.label}</p>
-                <p className="text-xs text-slate-500">{check.detail}</p>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className={`text-sm font-medium ${check.pass ? "text-emerald-600" : "text-red-600"}`}>
-                  {check.status}
-                </span>
-                <CheckCircle2 className={`size-4 ${check.pass ? "text-emerald-500" : "text-red-500"}`} />
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Footer */}
-        <div className="bg-slate-50 px-5 py-3 flex items-center justify-between">
-          <p className="text-xs text-slate-500">Report generated in 12 seconds</p>
-          <div className="flex items-center gap-1 text-xs text-slate-400">
-            <Lock className="size-3" />
-            Encrypted
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 function TrustpilotStars() {
   return (
@@ -463,52 +360,6 @@ export default function Home() {
           <p className="text-center text-sm text-slate-500 mt-6">
             Credits never expire. Use them whenever you need a check.
           </p>
-        </div>
-      </section>
-
-      {/* ── 6 Checks (1x6 list with report mockup) ───────────────────── */}
-      <section className="mx-auto w-full max-w-6xl px-6 py-20 sm:py-24">
-        <div className="text-center mb-14">
-          <span className="eyebrow">What we check</span>
-          <h2 className="text-3xl sm:text-4xl mt-3 font-bold tracking-tight">
-            Six checks. One report.
-          </h2>
-          <p className="mt-4 text-lg text-slate-600 max-w-2xl mx-auto">
-            We cross-reference multiple official UK data sources to give you a
-            clear picture of who you&apos;re paying.
-          </p>
-        </div>
-
-        <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-start">
-          {/* Left: 6 checks as vertical list */}
-          <div className="space-y-4">
-            {CHECKS.map((check) => (
-              <div
-                key={check.title}
-                className="flex items-start gap-4 rounded-xl border border-slate-200 bg-white p-5 transition-all hover:border-slate-300 hover:shadow-md"
-              >
-                <div className={`flex size-11 shrink-0 items-center justify-center rounded-lg ${check.color}`}>
-                  <check.icon className="size-5" />
-                </div>
-                <div>
-                  <h3 className="text-base font-semibold text-slate-900">{check.title}</h3>
-                  <p className="mt-1 text-sm text-slate-600 leading-relaxed">
-                    {check.description}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Right: report mockup */}
-          <div className="hidden lg:flex lg:justify-center lg:sticky lg:top-24">
-            <ReportMockup />
-          </div>
-        </div>
-
-        {/* Mobile report preview */}
-        <div className="mt-12 lg:hidden flex justify-center">
-          <ReportMockup />
         </div>
       </section>
 

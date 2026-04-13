@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { ShieldCheck, ArrowLeft, ArrowRight } from "lucide-react";
+import { ShieldCheck, ArrowLeft, ArrowRight, Landmark, Building2, Star, FileText, Loader2 } from "lucide-react";
 import { useWizard, clearPersistedWizard, trackStep } from "./context";
 import { Button } from "@/components/ui/button";
 import type { PurchaseCategory } from "./types";
@@ -184,6 +184,18 @@ export function Step5Summary() {
 
   rows.push({ label: "Check type", value: checkTypeLabel });
 
+  // Smoother progress: tick up gradually while waiting
+  useEffect(() => {
+    if (!submitting) return;
+    const interval = setInterval(() => {
+      setProgress((p) => {
+        if (p >= 90) return p; // Don't go past 90 until real completion
+        return p + Math.random() * 3;
+      });
+    }, 400);
+    return () => clearInterval(interval);
+  }, [submitting]);
+
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-semibold text-slate-900">
@@ -211,20 +223,7 @@ export function Step5Summary() {
 
       {/* Submitting state */}
       {submitting ? (
-        <div className="space-y-4">
-          <div className="flex flex-col items-center gap-3 py-4">
-            <ShieldCheck className="h-10 w-10 text-coral animate-pulse" />
-            <p className="text-sm font-medium text-slate-700">
-              Running checks...
-            </p>
-          </div>
-          <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
-            <div
-              className="bg-coral h-2 rounded-full transition-all duration-500 ease-out"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-        </div>
+        <LoadingChecks progress={progress} />
       ) : (
         <>
           {/* CTA */}
@@ -249,6 +248,84 @@ export function Step5Summary() {
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+const CHECK_STEPS = [
+  { icon: Landmark, label: "Verifying bank account...", delay: 0 },
+  { icon: Building2, label: "Checking Companies House...", delay: 1500 },
+  { icon: FileText, label: "Validating VAT with HMRC...", delay: 3000 },
+  { icon: Star, label: "Searching online reviews...", delay: 4500 },
+  { icon: ShieldCheck, label: "Compiling your report...", delay: 6000 },
+];
+
+function LoadingChecks({ progress }: { progress: number }) {
+  const [visibleSteps, setVisibleSteps] = useState(0);
+
+  useEffect(() => {
+    const timers = CHECK_STEPS.map((_, i) =>
+      setTimeout(() => setVisibleSteps(i + 1), CHECK_STEPS[i].delay)
+    );
+    return () => timers.forEach(clearTimeout);
+  }, []);
+
+  return (
+    <div className="space-y-6 py-2">
+      <div className="flex flex-col items-center gap-2">
+        <div className="relative">
+          <ShieldCheck className="h-12 w-12 text-coral" />
+          <Loader2 className="absolute -top-1 -right-1 h-5 w-5 text-coral animate-spin" />
+        </div>
+        <p className="text-base font-semibold text-slate-900 mt-1">
+          Running your checks
+        </p>
+        <p className="text-sm text-slate-500">This usually takes 10-15 seconds</p>
+      </div>
+
+      <div className="space-y-2.5">
+        {CHECK_STEPS.map((step, i) => {
+          const visible = i < visibleSteps;
+          const active = i === visibleSteps - 1;
+          return (
+            <div
+              key={step.label}
+              className={`flex items-center gap-3 rounded-lg px-4 py-2.5 transition-all duration-500 ${
+                visible
+                  ? active
+                    ? "bg-coral/5 border border-coral/20"
+                    : "bg-emerald-50 border border-emerald-200"
+                  : "bg-slate-50 border border-transparent opacity-40"
+              }`}
+            >
+              <step.icon className={`size-4.5 shrink-0 ${
+                visible
+                  ? active
+                    ? "text-coral animate-pulse"
+                    : "text-emerald-600"
+                  : "text-slate-300"
+              }`} />
+              <span className={`text-sm font-medium ${
+                visible
+                  ? active ? "text-slate-900" : "text-emerald-700"
+                  : "text-slate-400"
+              }`}>
+                {!active && visible ? step.label.replace("...", " ✓") : step.label}
+              </span>
+              {active && (
+                <Loader2 className="size-3.5 text-coral animate-spin ml-auto" />
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+        <div
+          className="bg-coral h-2 rounded-full transition-all duration-700 ease-out"
+          style={{ width: `${Math.min(progress, 100)}%` }}
+        />
+      </div>
     </div>
   );
 }
