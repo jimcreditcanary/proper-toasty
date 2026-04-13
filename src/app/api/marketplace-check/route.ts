@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { url } = body;
+    const { url, sessionId } = body;
 
     if (!url || typeof url !== "string") {
       return NextResponse.json(
@@ -105,6 +105,18 @@ Return ONLY a JSON object with no markdown fences:
     }
 
     const parsed = JSON.parse(match[0]);
+
+    // Track marketplace check cost against wizard session
+    if (sessionId && data.usage) {
+      const totalTokens = (data.usage.input_tokens || 0) + (data.usage.output_tokens || 0);
+      const costPer1k = 0.003;
+      const marketplaceCost = (totalTokens / 1000) * costPer1k;
+      fetch(new URL("/api/track-wizard-start", req.url).toString(), {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId, marketplaceCost }),
+      }).catch(() => {});
+    }
 
     return NextResponse.json({
       itemTitle: parsed.itemTitle ?? "Unknown item",

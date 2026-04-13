@@ -10,6 +10,8 @@ import {
   Users,
   UserCheck,
   Mail,
+  AlertTriangle,
+  Route,
 } from "lucide-react";
 import type {
   PaymentRow,
@@ -181,6 +183,28 @@ export function AdminPerformance({
     );
     const wizardStarts = filteredImpressions.length;
 
+    // Incomplete journeys
+    const incompleteJourneys = filteredImpressions.filter((li) => !li.completed);
+    const incompleteCount = incompleteJourneys.length;
+    const completedCount = filteredImpressions.filter((li) => li.completed).length;
+    const completionRate = wizardStarts > 0 ? (completedCount / wizardStarts) * 100 : 0;
+
+    // Wasted costs on incomplete journeys
+    const incompleteExtractionCost = incompleteJourneys.reduce(
+      (sum, li) => sum + (li.extraction_cost || 0), 0
+    );
+    const incompleteMarketplaceCost = incompleteJourneys.reduce(
+      (sum, li) => sum + (li.marketplace_cost || 0), 0
+    );
+    const totalWastedCost = incompleteExtractionCost + incompleteMarketplaceCost;
+
+    // Drop-off by step
+    const stepDropoffs: Record<string, number> = {};
+    for (const li of incompleteJourneys) {
+      const step = li.last_step || "1";
+      stepDropoffs[step] = (stepDropoffs[step] || 0) + 1;
+    }
+
     // 7. Emails Captured (leads)
     const uniqueLeadEmails = new Set(
       filteredLeads.map((l) => l.email.toLowerCase())
@@ -231,6 +255,13 @@ export function AdminPerformance({
       emailCaptureRate,
       convertedCount,
       conversionRate,
+      incompleteCount,
+      completedCount,
+      completionRate,
+      incompleteExtractionCost,
+      incompleteMarketplaceCost,
+      totalWastedCost,
+      stepDropoffs,
     };
   }, [
     payments,
@@ -357,6 +388,48 @@ export function AdminPerformance({
           valueColor={metrics.convertedCount > 0 ? "text-emerald-600" : "text-slate-500"}
           description="Leads who bought credits"
           note={metrics.emailsCaptured > 0 ? `(${metrics.conversionRate.toFixed(1)}% of emails)` : undefined}
+        />
+      </div>
+
+      {/* Row 4: Incomplete Journeys */}
+      <div className="grid gap-4 sm:grid-cols-3">
+        <MetricCard
+          icon={Route}
+          label="Journey Completion"
+          value={`${metrics.completedCount} / ${metrics.wizardStarts}`}
+          valueColor="text-slate-900"
+          description="Completed vs started"
+          note={metrics.wizardStarts > 0 ? `(${metrics.completionRate.toFixed(1)}% completion rate)` : undefined}
+        />
+        <MetricCard
+          icon={AlertTriangle}
+          label="Incomplete Journeys"
+          value={metrics.incompleteCount.toString()}
+          valueColor={metrics.incompleteCount > 0 ? "text-amber-600" : "text-slate-500"}
+          description="Started but not completed"
+          breakdown={Object.keys(metrics.stepDropoffs).length > 0
+            ? Object.entries(metrics.stepDropoffs)
+                .sort(([, a], [, b]) => b - a)
+                .map(([step, count]) => ({
+                  label: `Dropped at step ${step}`,
+                  value: count.toString(),
+                }))
+            : undefined
+          }
+        />
+        <MetricCard
+          icon={TrendingDown}
+          label="Wasted Cost (Incomplete)"
+          value={formatGBP(metrics.totalWastedCost)}
+          valueColor={metrics.totalWastedCost > 0 ? "text-red-600" : "text-slate-500"}
+          description="API costs with no conversion"
+          breakdown={metrics.totalWastedCost > 0
+            ? [
+                { label: "Invoice extraction", value: formatGBP(metrics.incompleteExtractionCost) },
+                { label: "Marketplace checks", value: formatGBP(metrics.incompleteMarketplaceCost) },
+              ]
+            : undefined
+          }
         />
       </div>
     </div>

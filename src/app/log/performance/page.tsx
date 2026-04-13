@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { AdminPerformance } from "@/components/admin-performance";
+import type { LeadImpressionRow } from "@/app/dashboard/admin/performance/page";
 
 export type PaymentRow = {
   created_at: string;
@@ -56,7 +57,7 @@ export default async function LogPerformancePage() {
       admin.from("users").select("id, credits, email"),
       admin.from("leads").select("email, created_at"),
       admin.from("admin_settings").select("key, value"),
-      admin.from("lead_impressions").select("created_at"),
+      admin.from("lead_impressions").select("created_at, last_step, completed, extraction_cost, marketplace_cost"),
       admin
         .from("ob_payments")
         .select("created_at, status")
@@ -103,10 +104,14 @@ export default async function LogPerformancePage() {
     };
   });
 
-  const leadImpressions = (leadImpressionsRes.data ?? []).map((li) => {
-    const raw = li as Record<string, unknown>;
+  const leadImpressions: LeadImpressionRow[] = (leadImpressionsRes.data ?? []).map((li) => {
+    const raw = li as unknown as Record<string, unknown>;
     return {
       created_at: raw.created_at as string,
+      last_step: (raw.last_step as string) ?? null,
+      completed: (raw.completed as boolean) ?? false,
+      extraction_cost: Number(raw.extraction_cost) || 0,
+      marketplace_cost: Number(raw.marketplace_cost) || 0,
     };
   });
 

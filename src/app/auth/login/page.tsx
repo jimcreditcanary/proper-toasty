@@ -65,11 +65,12 @@ function AuthPageInner() {
     setLoading(true);
     setError(null);
 
+    const redirect = searchParams.get("redirect") || "/dashboard";
     const { error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(redirect)}`,
       },
     });
 

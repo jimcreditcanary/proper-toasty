@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ShieldCheck, ArrowLeft, ArrowRight } from "lucide-react";
-import { useWizard } from "./context";
+import { useWizard, clearPersistedWizard, trackStep } from "./context";
 import { Button } from "@/components/ui/button";
 import type { PurchaseCategory } from "./types";
 
@@ -133,6 +133,8 @@ export function Step5Summary() {
       }
 
       setProgress(100);
+      trackStep(5, true, data.id);
+      clearPersistedWizard();
 
       const resultPath = state.isAuthenticated
         ? `/dashboard/results/${data.id}`

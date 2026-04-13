@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useWizard } from "./context";
+import { useWizard, getSessionId } from "./context";
 
 export function Step3Marketplace() {
   const { state, update, setStep } = useWizard();
@@ -33,7 +33,7 @@ export function Step3Marketplace() {
       const res = await fetch("/api/marketplace-check", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: state.marketplaceUrl }),
+        body: JSON.stringify({ url: state.marketplaceUrl, sessionId: (() => { try { return getSessionId(); } catch { return undefined; } })() }),
       });
 
       if (!res.ok) {

@@ -6,6 +6,7 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
     const payeeType = formData.get("payeeType") as string | null;
+    const wizardSessionId = formData.get("sessionId") as string | null;
 
     if (!file) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
@@ -88,6 +89,19 @@ Important: Extract the payee name even if this is a quote or estimate. Check the
 
     const extracted = JSON.parse(jsonMatch[0]);
     console.log("Extract-wizard result:", JSON.stringify(extracted, null, 2));
+
+    // Track extraction cost against wizard session
+    if (wizardSessionId && message.usage) {
+      const totalTokens = (message.usage.input_tokens || 0) + (message.usage.output_tokens || 0);
+      const costPer1k = 0.003; // default, matches admin_settings
+      const extractionCost = (totalTokens / 1000) * costPer1k;
+      fetch(new URL("/api/track-wizard-start", request.url).toString(), {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId: wizardSessionId, extractionCost }),
+      }).catch(() => {});
+    }
+
     return NextResponse.json({ extracted });
   } catch (error) {
     console.error("Extract-wizard error:", error);

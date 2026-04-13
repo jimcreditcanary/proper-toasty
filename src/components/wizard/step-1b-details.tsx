@@ -12,7 +12,7 @@ import {
   Loader2,
   CheckCircle2,
 } from "lucide-react";
-import { useWizard } from "./context";
+import { useWizard, getSessionId } from "./context";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -81,6 +81,7 @@ export function Step1bDetails() {
         const formData = new FormData();
         formData.append("file", file);
         formData.append("payeeType", state.payeeType ?? "unknown");
+        try { formData.append("sessionId", getSessionId()); } catch { /* SSR */ }
 
         const res = await fetch("/api/extract-wizard", {
           method: "POST",

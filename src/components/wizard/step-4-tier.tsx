@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Landmark,
   Building2,
@@ -40,6 +40,14 @@ export function Step4Tier() {
   const [selectedCredits, setSelectedCredits] = useState<1 | 3 | 7 | null>(null);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
+
+  // Logged-in users with credits skip tier selection — always enhanced
+  useEffect(() => {
+    if (state.isAuthenticated && state.userCredits > 0) {
+      update({ checkTier: "enhanced" });
+      setStep(5);
+    }
+  }, [state.isAuthenticated, state.userCredits, update, setStep]);
 
   const tier = state.checkTier;
   const showMarketplace = state.isMarketplace === true;
@@ -317,10 +325,10 @@ export function Step4Tier() {
               Already have an account? Sign in to use your existing checks.
             </p>
             <div className="flex items-center justify-center gap-3">
-              <Button variant="outline" render={<a href="/auth/login" />}>
+              <Button variant="outline" render={<a href="/auth/login?redirect=/verify" />}>
                 Sign In
               </Button>
-              <Button variant="outline" render={<a href="/auth/login?tab=signup" />}>
+              <Button variant="outline" render={<a href="/auth/login?tab=signup&redirect=/verify" />}>
                 Create Account
               </Button>
             </div>
