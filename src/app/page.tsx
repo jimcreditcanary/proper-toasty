@@ -273,24 +273,28 @@ export default function Home() {
       </section>
 
       {/* ── Stats bar ────────────────────────────────────────────────── */}
-      <section className="border-y border-slate-200 bg-slate-50">
-        <div className="mx-auto max-w-6xl px-6 py-12">
-          <div className="grid grid-cols-1 gap-8 sm:grid-cols-3 text-center">
-            <div>
-              <div className="text-4xl font-bold tracking-tight text-slate-900">&pound;1.2bn</div>
-              <p className="mt-2 text-slate-600">
+      <section className="bg-slate-900 relative overflow-hidden">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-coral/15 via-transparent to-transparent pointer-events-none" />
+        <div className="relative mx-auto max-w-6xl px-6 py-14 sm:py-16">
+          <p className="text-center text-sm font-semibold uppercase tracking-widest text-coral mb-8">
+            Did you know?
+          </p>
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-3 text-center">
+            <div className="rounded-xl bg-white/[0.06] border border-white/10 px-6 py-6 backdrop-blur-sm">
+              <div className="text-4xl sm:text-5xl font-extrabold tracking-tight text-white">&pound;1.2bn</div>
+              <p className="mt-3 text-sm text-slate-400 leading-relaxed">
                 Stolen by fraudsters in the UK in 2025
               </p>
             </div>
-            <div>
-              <div className="text-4xl font-bold tracking-tight text-slate-900">4.18m</div>
-              <p className="mt-2 text-slate-600">
+            <div className="rounded-xl bg-white/[0.06] border border-white/10 px-6 py-6 backdrop-blur-sm">
+              <div className="text-4xl sm:text-5xl font-extrabold tracking-tight text-white">4.18m</div>
+              <p className="mt-3 text-sm text-slate-400 leading-relaxed">
                 Confirmed fraud cases reported in 2025
               </p>
             </div>
-            <div>
-              <div className="text-4xl font-bold tracking-tight text-slate-900">72%</div>
-              <p className="mt-2 text-slate-600">
+            <div className="rounded-xl bg-white/[0.06] border border-white/10 px-6 py-6 backdrop-blur-sm">
+              <div className="text-4xl sm:text-5xl font-extrabold tracking-tight text-coral">72%</div>
+              <p className="mt-3 text-sm text-slate-400 leading-relaxed">
                 Of APP fraud starts with a purchase scam
               </p>
             </div>
