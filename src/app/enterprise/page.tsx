@@ -22,17 +22,24 @@ function EnterpriseHeader() {
         <Link href="/" className="flex items-center">
           <Logo size="sm" variant="light" />
         </Link>
+        <nav className="hidden sm:flex items-center gap-6">
+          <Link href="/enterprise" className="text-sm font-semibold text-slate-900 transition-colors">
+            Enterprise
+          </Link>
+          <Link href="/blog" className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors">
+            Blog
+          </Link>
+        </nav>
         <nav className="flex items-center gap-3">
+          <Button
+            className="h-10 bg-coral hover:bg-coral-dark text-white font-semibold text-sm px-5 rounded-lg shadow-sm hover:shadow-md transition-all"
+            render={<Link href="/verify" />}
+          >
+            Make a check
+          </Button>
           <Button
             variant="ghost"
             className="h-10 text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg"
-            render={<Link href="/" />}
-          >
-            <ArrowLeft className="size-4 mr-1.5" />
-            Back
-          </Button>
-          <Button
-            className="h-10 bg-coral hover:bg-coral-dark text-white font-semibold text-sm px-5 rounded-lg shadow-sm hover:shadow-md transition-all"
             render={<Link href="/auth/login" />}
           >
             Sign in

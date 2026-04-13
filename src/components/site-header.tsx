@@ -36,6 +36,14 @@ export function SiteHeader({
         <Link href={email ? "/dashboard" : "/"} className="flex items-center">
           <Logo size="sm" variant="light" />
         </Link>
+        <nav className="hidden sm:flex items-center gap-6">
+          <Link href="/enterprise" className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors">
+            Enterprise
+          </Link>
+          <Link href="/blog" className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors">
+            Blog
+          </Link>
+        </nav>
         <nav className="flex items-center gap-3">
           {email ? (
             <>
@@ -73,6 +81,9 @@ export function SiteHeader({
                       <DropdownMenuSeparator className="bg-slate-200" />
                       <DropdownMenuItem render={<Link href="/log" />} className="text-coral hover:text-coral focus:text-coral focus:bg-slate-100 font-medium">
                         Admin Log
+                      </DropdownMenuItem>
+                      <DropdownMenuItem render={<Link href="/dashboard/admin/blog" />} className="text-coral hover:text-coral focus:text-coral focus:bg-slate-100 font-medium">
+                        Blog Manager
                       </DropdownMenuItem>
                     </>
                   )}
