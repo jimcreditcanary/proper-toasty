@@ -360,6 +360,35 @@ export default function Home() {
           <p className="text-center text-sm text-slate-500 mt-6">
             Credits never expire. Use them whenever you need a check.
           </p>
+
+          {/* ── Enterprise CTA ── */}
+          <div className="mt-16 rounded-2xl bg-slate-900 p-8 sm:p-10 relative overflow-hidden">
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-coral/20 via-transparent to-transparent pointer-events-none" />
+            <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
+              <div>
+                <div className="inline-flex items-center gap-2 rounded-full bg-coral/20 border border-coral/30 px-3 py-1 mb-4">
+                  <Building2 className="size-3.5 text-coral" />
+                  <span className="text-xs font-semibold text-coral">Enterprise</span>
+                </div>
+                <h3 className="text-xl sm:text-2xl font-bold text-white">
+                  Need more? Go enterprise.
+                </h3>
+                <p className="mt-2 text-slate-400 max-w-lg">
+                  Monthly credit subscriptions from &pound;0.70/check. Volume
+                  pricing, API access, and invoiced billing for your team.
+                </p>
+              </div>
+              <div className="shrink-0">
+                <Button
+                  className="h-12 px-7 text-[15px] font-semibold rounded-lg bg-coral hover:bg-coral-dark text-white shadow-lg transition-all whitespace-nowrap"
+                  render={<Link href="/enterprise" />}
+                >
+                  View enterprise plans
+                  <ArrowRight className="size-4 ml-2" />
+                </Button>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 

@@ -65,6 +65,9 @@ export function SiteHeader({
                   <DropdownMenuItem render={<Link href="/dashboard/api" />} className="text-slate-500 hover:text-slate-900 focus:text-slate-900 focus:bg-slate-100">
                     API
                   </DropdownMenuItem>
+                  <DropdownMenuItem render={<Link href="/dashboard/billing" />} className="text-slate-500 hover:text-slate-900 focus:text-slate-900 focus:bg-slate-100">
+                    Billing
+                  </DropdownMenuItem>
                   {role === "admin" && (
                     <>
                       <DropdownMenuSeparator className="bg-slate-200" />
