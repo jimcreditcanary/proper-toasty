@@ -183,9 +183,14 @@ export default async function BlogPage() {
               <Link href="/verify" className="hover:text-slate-900 transition-colors">Make a check</Link>
             </nav>
           </div>
-          <div className="mt-8 pt-6 border-t border-slate-200 text-center sm:text-left">
+          <div className="mt-6 flex flex-wrap justify-center sm:justify-start gap-x-6 gap-y-1 text-xs text-slate-400">
+            <Link href="/privacy" className="hover:text-slate-600 transition-colors">Privacy Policy</Link>
+            <Link href="/terms" className="hover:text-slate-600 transition-colors">Terms of Service</Link>
+            <Link href="/ai-statement" className="hover:text-slate-600 transition-colors">AI Statement</Link>
+          </div>
+          <div className="mt-6 pt-6 border-t border-slate-200 text-center sm:text-left">
             <p className="text-xs text-slate-400">
-              &copy; {new Date().getFullYear()} WhoAmIPaying. All rights reserved.
+              &copy; {new Date().getFullYear()} WhoAmIPaying is a trading name of Ebanking Integration Limited (company no. 06596920). All rights reserved.
             </p>
           </div>
         </div>

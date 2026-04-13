@@ -553,9 +553,15 @@ export default function Home() {
         <div className="mx-auto max-w-6xl px-6">
           <div className="flex flex-col items-center gap-6 sm:flex-row sm:justify-between">
             <Logo size="sm" variant="light" showTagline />
-            <nav className="flex gap-6 text-sm text-slate-500">
+            <nav className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm text-slate-500">
               <Link href="#how-it-works" className="hover:text-slate-900 transition-colors">
                 How it works
+              </Link>
+              <Link href="/enterprise" className="hover:text-slate-900 transition-colors">
+                Enterprise
+              </Link>
+              <Link href="/blog" className="hover:text-slate-900 transition-colors">
+                Blog
               </Link>
               <Link href="/verify" className="hover:text-slate-900 transition-colors">
                 Make a check
@@ -565,9 +571,14 @@ export default function Home() {
               </Link>
             </nav>
           </div>
-          <div className="mt-8 pt-6 border-t border-slate-200 text-center sm:text-left">
+          <div className="mt-6 flex flex-wrap justify-center sm:justify-start gap-x-6 gap-y-1 text-xs text-slate-400">
+            <Link href="/privacy" className="hover:text-slate-600 transition-colors">Privacy Policy</Link>
+            <Link href="/terms" className="hover:text-slate-600 transition-colors">Terms of Service</Link>
+            <Link href="/ai-statement" className="hover:text-slate-600 transition-colors">AI Statement</Link>
+          </div>
+          <div className="mt-6 pt-6 border-t border-slate-200 text-center sm:text-left">
             <p className="text-xs text-slate-400">
-              &copy; {new Date().getFullYear()} WhoAmIPaying. All rights reserved.
+              &copy; {new Date().getFullYear()} WhoAmIPaying is a trading name of Ebanking Integration Limited (company no. 06596920). All rights reserved.
             </p>
           </div>
         </div>
