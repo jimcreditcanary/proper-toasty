@@ -155,7 +155,7 @@ export function Step5Summary() {
   if (state.paymentAmount) {
     rows.push({
       label: "Payment amount",
-      value: `\u00A3${parseFloat(state.paymentAmount).toFixed(2)}`,
+      value: `\u00A3${parseFloat(state.paymentAmount).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
     });
   }
 

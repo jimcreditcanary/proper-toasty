@@ -24,6 +24,24 @@ const ACCEPTED_TYPES = [
   "image/webp",
 ];
 
+function formatCurrency(value: string): string {
+  // Strip everything except digits and decimal point
+  const clean = value.replace(/[^0-9.]/g, "");
+  // Split on decimal
+  const parts = clean.split(".");
+  // Format integer part with commas
+  const intPart = parts[0].replace(/^0+(?=\d)/, "");
+  const formatted = (intPart || "0").replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  if (parts.length > 1) {
+    return `${formatted}.${parts[1].slice(0, 2)}`;
+  }
+  return formatted === "0" && value === "" ? "" : formatted;
+}
+
+function parseCurrencyToRaw(value: string): string {
+  return value.replace(/,/g, "");
+}
+
 function formatSortCode(value: string): string {
   const digits = value.replace(/\D/g, "").slice(0, 6);
   if (digits.length <= 2) return digits;
@@ -355,11 +373,10 @@ export function Step1bDetails() {
             </span>
             <Input
               className="h-10 rounded-lg border-slate-200 pl-7"
-              type="number"
-              min={0}
-              step="0.01"
-              value={state.paymentAmount}
-              onChange={(e) => update({ paymentAmount: e.target.value })}
+              type="text"
+              inputMode="decimal"
+              value={formatCurrency(state.paymentAmount)}
+              onChange={(e) => update({ paymentAmount: parseCurrencyToRaw(e.target.value) })}
               placeholder="0.00"
             />
           </div>
