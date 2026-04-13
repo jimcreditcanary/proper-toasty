@@ -62,6 +62,7 @@ export function Step1bDetails() {
       try {
         const formData = new FormData();
         formData.append("file", file);
+        formData.append("payeeType", state.payeeType ?? "unknown");
 
         const res = await fetch("/api/extract-wizard", {
           method: "POST",

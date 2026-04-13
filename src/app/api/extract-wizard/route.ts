@@ -82,7 +82,7 @@ If a field is not found, set its value to null.`;
     }
 
     const extracted = JSON.parse(jsonMatch[0]);
-    return NextResponse.json(extracted);
+    return NextResponse.json({ extracted });
   } catch (error) {
     console.error("Extract-wizard error:", error);
     return NextResponse.json(
