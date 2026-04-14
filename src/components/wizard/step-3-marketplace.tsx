@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import {
   ShoppingCart,
   X,
@@ -9,46 +9,132 @@ import {
   ArrowRight,
   Loader2,
   CheckCircle2,
-  ExternalLink,
+  Upload,
+  Image as ImageIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { useWizard, getSessionId } from "./context";
+
+const ACCEPTED_IMAGE_TYPES = ["image/png", "image/jpeg", "image/jpg", "image/webp"];
 
 export function Step3Marketplace() {
   const { state, update, setStep } = useWizard();
   const [error, setError] = useState<string | null>(null);
+  const [dragOver, setDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const inFlightRef = useRef(false);
 
   function handleMarketplaceChoice(isMarketplace: boolean) {
     update({ isMarketplace: isMarketplace });
   }
 
-  async function handleCheckListing() {
-    if (!state.marketplaceUrl.trim()) return;
+  const handleCheckScreenshot = useCallback(
+    async (file: File) => {
+      if (inFlightRef.current) return;
+      inFlightRef.current = true;
 
-    setError(null);
-    update({ marketplaceLoading: true, marketplaceError: null, marketplaceResult: null });
-
-    try {
-      const res = await fetch("/api/marketplace-check", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: state.marketplaceUrl, sessionId: (() => { try { return getSessionId(); } catch { return undefined; } })() }),
+      setError(null);
+      update({
+        marketplaceScreenshot: file,
+        marketplaceLoading: true,
+        marketplaceError: null,
+        marketplaceResult: null,
       });
 
-      if (!res.ok) {
-        const data = await res.json().catch(() => null);
-        throw new Error(data?.error ?? "Something went wrong. Please try again.");
-      }
+      try {
+        const fd = new FormData();
+        fd.append("screenshot", file);
+        try {
+          fd.append("sessionId", getSessionId());
+        } catch {
+          /* SSR */
+        }
 
-      const result = await res.json();
-      update({ marketplaceResult: result, marketplaceLoading: false });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Something went wrong. Please try again.";
-      setError(message);
-      update({ marketplaceLoading: false, marketplaceError: message });
+        const res = await fetch("/api/marketplace-check", {
+          method: "POST",
+          body: fd,
+        });
+
+        if (!res.ok) {
+          const data = await res.json().catch(() => null);
+          throw new Error(data?.error ?? "Something went wrong. Please try again.");
+        }
+
+        const result = await res.json();
+        update({ marketplaceResult: result, marketplaceLoading: false });
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "Something went wrong. Please try again.";
+        setError(message);
+        update({ marketplaceLoading: false, marketplaceError: message });
+      } finally {
+        inFlightRef.current = false;
+      }
+    },
+    [update]
+  );
+
+  function handleFileChosen(file: File | null | undefined) {
+    if (!file) return;
+    if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) {
+      setError("Please upload a PNG, JPG, or WebP image.");
+      return;
     }
+    handleCheckScreenshot(file);
   }
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault();
+    setDragOver(false);
+    handleFileChosen(e.dataTransfer.files[0]);
+  }
+
+  function clearScreenshot() {
+    update({
+      marketplaceScreenshot: null,
+      marketplaceResult: null,
+      marketplaceError: null,
+    });
+    setError(null);
+  }
+
+  // Paste-from-clipboard handler while user is on the screenshot step
+  useEffect(() => {
+    if (
+      state.isMarketplace !== true ||
+      !state.marketplaceSafetyAcknowledged ||
+      state.marketplaceScreenshot ||
+      state.marketplaceLoading ||
+      state.marketplaceResult
+    ) {
+      return;
+    }
+
+    function handlePaste(e: ClipboardEvent) {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.startsWith("image/")) {
+          const file = items[i].getAsFile();
+          if (file) {
+            e.preventDefault();
+            handleCheckScreenshot(file);
+          }
+          break;
+        }
+      }
+    }
+
+    document.addEventListener("paste", handlePaste);
+    return () => document.removeEventListener("paste", handlePaste);
+  }, [
+    state.isMarketplace,
+    state.marketplaceSafetyAcknowledged,
+    state.marketplaceScreenshot,
+    state.marketplaceLoading,
+    state.marketplaceResult,
+    handleCheckScreenshot,
+  ]);
 
   const canContinue =
     state.isMarketplace === false ||
@@ -79,15 +165,11 @@ export function Step3Marketplace() {
               type="button"
               onClick={() => handleMarketplaceChoice(value)}
               className={`rounded-xl border-2 p-5 flex flex-col items-center gap-2 text-center transition-colors cursor-pointer hover:border-coral/40 ${
-                selected
-                  ? "border-coral bg-coral/5"
-                  : "border-slate-200"
+                selected ? "border-coral bg-coral/5" : "border-slate-200"
               }`}
             >
               <Icon className="h-8 w-8 text-slate-600" />
-              <span className="text-sm font-medium text-slate-700">
-                {label}
-              </span>
+              <span className="text-sm font-medium text-slate-700">{label}</span>
             </button>
           );
         })}
@@ -105,26 +187,26 @@ export function Step3Marketplace() {
 
             <div className="space-y-3 text-sm text-slate-700 leading-relaxed">
               <p>
-                <strong>Check their profile</strong> — How long have they been on
-                Facebook? Do they have real friends and real posts? Do they have
-                reviews or star ratings from other buyers on Marketplace? A new
-                account with no friends and no reviews is a warning sign.
+                <strong>Check their profile</strong> &mdash; How long have they been on
+                Facebook? Do they have real friends and real posts? Do they have reviews
+                or star ratings from other buyers on Marketplace? A new account with no
+                friends and no reviews is a warning sign.
               </p>
               <p>
-                <strong>Ask for proof they have the item</strong> — Ask the seller
+                <strong>Ask for proof they have the item</strong> &mdash; Ask the seller
                 to send you a photo of the item with a piece of paper showing
                 today&apos;s date, written by hand. This proves they actually have it
                 right now.
               </p>
               <p>
-                <strong>Get contact details you can check</strong> — Ask for a
-                landline number or an email address. Then look it up yourself to
-                make sure it&apos;s real.
+                <strong>Get contact details you can check</strong> &mdash; Ask for a
+                landline number or an email address. Then look it up yourself to make
+                sure it&apos;s real.
               </p>
               <p>
-                <strong>If they say no</strong> — If the seller won&apos;t do any of
-                these things, be very careful. Most honest sellers are happy to
-                help. If someone refuses, that is a warning sign.
+                <strong>If they say no</strong> &mdash; If the seller won&apos;t do any
+                of these things, be very careful. Most honest sellers are happy to help.
+                If someone refuses, that is a warning sign.
               </p>
             </div>
           </div>
@@ -144,43 +226,83 @@ export function Step3Marketplace() {
             </span>
           </label>
 
-          {/* URL input and check button */}
+          {/* Screenshot upload + result */}
           {state.marketplaceSafetyAcknowledged && (
             <div className="space-y-3">
-              <label className="block text-sm font-medium text-slate-700">
-                Paste the Facebook Marketplace listing URL
-              </label>
-              <div className="flex gap-2">
-                <Input
-                  type="url"
-                  placeholder="https://www.facebook.com/marketplace/item/..."
-                  value={state.marketplaceUrl}
-                  onChange={(e) =>
-                    update({ marketplaceUrl: e.target.value })
-                  }
-                  className="flex-1"
-                />
-                <Button
-                  onClick={handleCheckListing}
-                  disabled={
-                    !state.marketplaceUrl.trim() || state.marketplaceLoading
-                  }
-                >
-                  {state.marketplaceLoading ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Checking...
-                    </>
-                  ) : (
-                    "Check listing"
-                  )}
-                </Button>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Upload a screenshot of the listing
+                </label>
+                <p className="text-xs text-slate-500">
+                  Take a screenshot showing the item title and price. You can drop,
+                  paste, or click to upload.
+                </p>
               </div>
 
-              {/* Error state */}
-              {error && (
-                <p className="text-sm text-red-600">{error}</p>
+              {/* Empty upload zone */}
+              {!state.marketplaceScreenshot &&
+                !state.marketplaceLoading &&
+                !state.marketplaceResult && (
+                  <div
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      setDragOver(true);
+                    }}
+                    onDragLeave={() => setDragOver(false)}
+                    onDrop={handleDrop}
+                    onClick={() => fileInputRef.current?.click()}
+                    className={`rounded-xl border-2 border-dashed p-10 flex flex-col items-center gap-3 cursor-pointer transition-colors ${
+                      dragOver
+                        ? "border-coral bg-coral/5"
+                        : "border-slate-300 hover:border-slate-400"
+                    }`}
+                  >
+                    <Upload className="h-8 w-8 text-slate-400" />
+                    <div className="text-center">
+                      <p className="text-sm font-medium text-slate-700">
+                        Drop, paste, or click to upload
+                      </p>
+                      <p className="text-xs text-slate-500 mt-1">PNG, JPG, or WebP</p>
+                    </div>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      onChange={(e) => handleFileChosen(e.target.files?.[0])}
+                      className="hidden"
+                    />
+                  </div>
+                )}
+
+              {/* File attached preview */}
+              {state.marketplaceScreenshot && !state.marketplaceLoading && (
+                <div className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                  <ImageIcon className="h-4 w-4 text-slate-500 shrink-0" />
+                  <span className="text-sm text-slate-700 truncate flex-1">
+                    {state.marketplaceScreenshot.name}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={clearScreenshot}
+                    className="text-xs text-slate-500 hover:text-slate-900"
+                  >
+                    Remove
+                  </button>
+                </div>
               )}
+
+              {/* Loading state */}
+              {state.marketplaceLoading && (
+                <div className="flex flex-col items-center gap-3 rounded-xl border border-slate-200 bg-white p-8">
+                  <Loader2 className="h-8 w-8 text-coral animate-spin" />
+                  <p className="text-sm text-slate-600">
+                    Reading the listing and researching market value...
+                  </p>
+                </div>
+              )}
+
+              {/* Error state */}
+              {error && <p className="text-sm text-red-600">{error}</p>}
 
               {/* Result preview card */}
               {state.marketplaceResult && (
@@ -202,9 +324,8 @@ export function Step3Marketplace() {
                     </div>
                     <span
                       className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                        confidenceColors[
-                          state.marketplaceResult.confidence
-                        ] ?? "bg-slate-100 text-slate-700"
+                        confidenceColors[state.marketplaceResult.confidence] ??
+                        "bg-slate-100 text-slate-700"
                       }`}
                     >
                       <CheckCircle2 className="h-3 w-3" />
@@ -226,16 +347,6 @@ export function Step3Marketplace() {
                       {state.marketplaceResult.valuationSummary}
                     </p>
                   </div>
-
-                  <a
-                    href={state.marketplaceUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-xs text-coral hover:underline"
-                  >
-                    View listing
-                    <ExternalLink className="h-3 w-3" />
-                  </a>
                 </div>
               )}
             </div>

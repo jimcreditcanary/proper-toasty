@@ -37,7 +37,7 @@ export type WizardState = {
   // Step 3
   isMarketplace: boolean | null;
   marketplaceSafetyAcknowledged: boolean;
-  marketplaceUrl: string;
+  marketplaceScreenshot: File | null;
   marketplaceResult: {
     itemTitle: string;
     listedPrice: number | null;
@@ -78,7 +78,7 @@ export const initialWizardState: WizardState = {
   purchaseCategory: null,
   isMarketplace: null,
   marketplaceSafetyAcknowledged: false,
-  marketplaceUrl: "",
+  marketplaceScreenshot: null,
   marketplaceResult: null,
   marketplaceLoading: false,
   marketplaceError: null,

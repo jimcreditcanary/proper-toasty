@@ -117,7 +117,12 @@ export function Step4Tier() {
   }
 
   function handleBack() {
-    if (state.isMarketplace !== null) {
+    // If this category doesn't use the marketplace step, go straight back to Step 2.
+    const marketplaceCategories = ["vehicle", "other"];
+    const usesMarketplaceStep =
+      state.purchaseCategory !== null &&
+      marketplaceCategories.includes(state.purchaseCategory);
+    if (usesMarketplaceStep) {
       setStep(3);
     } else {
       setStep(2);

@@ -16,9 +16,26 @@ const options: { type: PurchaseCategory; label: string; icon: React.ElementType 
 export function Step2Category() {
   const { state, update, setStep } = useWizard();
 
+  // Facebook Marketplace only makes sense for vehicles and "something else".
+  // For property / investment / building work / services, skip straight to tier selection.
+  const MARKETPLACE_CATEGORIES: PurchaseCategory[] = ["vehicle", "other"];
+
   function handleSelect(type: PurchaseCategory) {
-    update({ purchaseCategory: type });
-    setStep(3);
+    if (MARKETPLACE_CATEGORIES.includes(type)) {
+      update({ purchaseCategory: type });
+      setStep(3);
+    } else {
+      // Skip marketplace step entirely
+      update({
+        purchaseCategory: type,
+        isMarketplace: false,
+        marketplaceSafetyAcknowledged: false,
+        marketplaceScreenshot: null,
+        marketplaceResult: null,
+        marketplaceError: null,
+      });
+      setStep(4);
+    }
   }
 
   return (

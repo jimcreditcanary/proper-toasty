@@ -97,9 +97,6 @@ export function Step5Summary() {
         );
         formData.append("valuationSummary", state.marketplaceResult.valuationSummary);
       }
-      if (state.marketplaceUrl) {
-        formData.append("marketplaceUrl", state.marketplaceUrl);
-      }
 
       // Invoice file
       if (state.invoiceFile) {
