@@ -24,6 +24,13 @@ function LegalHeader() {
           >
             Make a check
           </Button>
+          <Button
+            variant="ghost"
+            className="h-10 text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg"
+            render={<Link href="/auth/login" />}
+          >
+            Sign in
+          </Button>
         </nav>
       </div>
     </header>
@@ -41,7 +48,7 @@ export default function TermsPage() {
         </h1>
         <p className="text-sm text-slate-500 mb-10">Last updated: 14 April 2026</p>
 
-        <div className="prose prose-slate max-w-none prose-headings:font-bold prose-headings:tracking-tight prose-h2:text-xl prose-h2:mt-10 prose-h2:mb-4 prose-h3:text-lg prose-h3:mt-6 prose-h3:mb-3 prose-p:leading-relaxed prose-p:text-slate-600 prose-li:text-slate-600 prose-a:text-coral prose-a:font-semibold prose-a:no-underline hover:prose-a:underline">
+        <div className="prose prose-slate prose-lg max-w-none prose-headings:font-bold prose-headings:tracking-tight prose-h2:text-xl prose-h2:mt-14 prose-h2:mb-6 prose-h3:text-lg prose-h3:mt-10 prose-h3:mb-4 prose-p:leading-[1.8] prose-p:text-slate-600 prose-p:mb-7 prose-li:text-slate-600 prose-li:my-2 prose-li:leading-[1.8] prose-ul:my-7 prose-ol:my-7 prose-a:text-coral prose-a:font-semibold prose-a:no-underline hover:prose-a:underline">
 
           <p>
             These Terms of Service (&ldquo;Terms&rdquo;) govern your use of the WhoAmIPaying website and services at whoamipaying.co.uk (&ldquo;the Service&rdquo;). WhoAmIPaying is a trading name of <strong>Ebanking Integration Limited</strong> (company number 06596920), registered at Chapel Meadows, Sugar Lane, Adlington, Macclesfield, England, SK10 5SQ (&ldquo;we&rdquo;, &ldquo;us&rdquo;, &ldquo;our&rdquo;).
@@ -181,15 +188,22 @@ export default function TermsPage() {
           <div className="flex flex-col items-center gap-6 sm:flex-row sm:justify-between">
             <Logo size="sm" variant="light" showTagline />
             <nav className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm text-slate-500">
-              <Link href="/privacy" className="hover:text-slate-900 transition-colors">Privacy</Link>
-              <Link href="/terms" className="hover:text-slate-900 transition-colors">Terms</Link>
-              <Link href="/ai-statement" className="hover:text-slate-900 transition-colors">AI Statement</Link>
+              <Link href="/#how-it-works" className="hover:text-slate-900 transition-colors">How it works</Link>
+              <Link href="/enterprise" className="hover:text-slate-900 transition-colors">Enterprise</Link>
+              <Link href="/blog" className="hover:text-slate-900 transition-colors">Blog</Link>
+              <Link href="/verify" className="hover:text-slate-900 transition-colors">Make a check</Link>
+              <Link href="/auth/login" className="hover:text-slate-900 transition-colors">Sign in</Link>
             </nav>
           </div>
-          <div className="mt-8 pt-6 border-t border-slate-200 text-center sm:text-left">
+          <div className="mt-6 pt-6 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-center sm:text-left">
             <p className="text-xs text-slate-400">
               &copy; {new Date().getFullYear()} WhoAmIPaying is a trading name of Ebanking Integration Limited (company no. 06596920). All rights reserved.
             </p>
+            <nav className="flex flex-wrap justify-center sm:justify-end gap-x-6 gap-y-1 text-xs text-slate-400">
+              <Link href="/privacy" className="hover:text-slate-600 transition-colors">Privacy Policy</Link>
+              <Link href="/terms" className="hover:text-slate-600 transition-colors">Terms of Service</Link>
+              <Link href="/ai-statement" className="hover:text-slate-600 transition-colors">AI Statement</Link>
+            </nav>
           </div>
         </div>
       </footer>
