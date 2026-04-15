@@ -74,7 +74,7 @@ export function validateVatNumber(input: string): { ok: boolean; error?: string 
     return {
       ok: false,
       error:
-        "That VAT number doesn't pass the HMRC checksum — please double-check.",
+        "That doesn't look like a valid UK VAT number — please double-check the digits.",
     };
   }
 
