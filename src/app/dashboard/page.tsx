@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { BuyCreditsDialog } from "@/components/buy-credits-dialog";
 import { VerificationHistoryTable } from "@/components/verification-history-table";
+import { PendingCheckCard } from "@/components/pending-check-card";
 import { Coins, FileCheck, Clock, Upload } from "lucide-react";
 
 type HistoryRow = {
@@ -139,6 +140,9 @@ export default async function DashboardPage() {
           </Button>
         </div>
       </div>
+
+      {/* Pending wizard journey from before signup */}
+      <PendingCheckCard credits={credits} />
 
       {/* Low credits alert */}
       {credits > 0 && credits < 5 && (

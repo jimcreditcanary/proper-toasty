@@ -136,17 +136,23 @@ export function Step6Checks() {
   const subjectName =
     state.companyName.trim() || state.payeeName.trim() || "this payee";
 
-  // ── Returning from Stripe success: auto-run ──────────────────────────
+  // ── Auto-run triggers ───────────────────────────────────────────────
+  // Two triggers, both require the user to be signed in with credits:
+  //   1. ?payment=success  — returning from Stripe
+  //   2. ?auto=1           — "Continue & run check" from the dashboard
   useEffect(() => {
     const payment = searchParams.get("payment");
-    if (
-      payment === "success" &&
+    const auto = searchParams.get("auto");
+    const shouldAutoRun =
+      (payment === "success" || auto === "1") &&
       state.isAuthenticated &&
-      state.userCredits > 0
-    ) {
-      // Strip the param so we don't re-trigger and run the check
+      state.userCredits > 0;
+
+    if (shouldAutoRun) {
+      // Strip the params so we don't re-trigger
       const url = new URL(window.location.href);
       url.searchParams.delete("payment");
+      url.searchParams.delete("auto");
       window.history.replaceState({}, "", url.toString());
       runChecks();
     }
