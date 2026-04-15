@@ -144,20 +144,11 @@ export function Step3Vehicle() {
               <Row label="Colour" value={state.dvlaData.colour} />
               <Row label="Fuel" value={state.dvlaData.fuelType} />
               <Row label="Year" value={state.dvlaData.yearOfManufacture} />
-              <Row label="Engine" value={state.dvlaData.engineCapacity ? `${state.dvlaData.engineCapacity}cc` : null} />
               <Row
-                label="Tax"
+                label="Engine"
                 value={
-                  state.dvlaData.taxStatus
-                    ? `${state.dvlaData.taxStatus}${state.dvlaData.taxDueDate ? ` \u2022 due ${state.dvlaData.taxDueDate}` : ""}`
-                    : null
-                }
-              />
-              <Row
-                label="MOT"
-                value={
-                  state.dvlaData.motStatus
-                    ? `${state.dvlaData.motStatus}${state.dvlaData.motExpiryDate ? ` \u2022 expires ${state.dvlaData.motExpiryDate}` : ""}`
+                  state.dvlaData.engineCapacity
+                    ? `${state.dvlaData.engineCapacity}cc`
                     : null
                 }
               />
