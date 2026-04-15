@@ -166,7 +166,7 @@ export default function Home() {
               {/* Callout badge above wizard */}
               <div className="hidden lg:flex justify-center mb-3">
                 <div className="inline-flex items-center gap-1.5 rounded-full bg-coral px-4 py-1.5 text-white text-sm font-semibold shadow-md animate-bounce [animation-duration:2s]">
-                  Try for free
+                  Start a check
                   <ArrowRight className="size-3.5 rotate-90" />
                 </div>
               </div>
