@@ -14,6 +14,12 @@ import { useWizard, getSessionId } from "./context";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import {
+  normaliseCompanyNumber,
+  normaliseVatNumber,
+  validateCompanyNumber,
+  validateVatNumber,
+} from "@/lib/validators";
 
 const ACCEPTED_TYPES = [
   "application/pdf",
@@ -51,12 +57,18 @@ export function Step5Details() {
 
   const isBusiness = state.payeeType === "business";
 
+  // Live validation for the optional business identifiers
+  const companyNumberCheck = validateCompanyNumber(state.companyNumber);
+  const vatNumberCheck = validateVatNumber(state.vatNumber);
+
   // Minimum required fields to continue
   const nameField = isBusiness ? state.companyName : state.payeeName;
   const canContinue =
     nameField.trim().length > 0 &&
     state.sortCode.replace(/\D/g, "").length === 6 &&
-    state.accountNumber.replace(/\D/g, "").length === 8;
+    state.accountNumber.replace(/\D/g, "").length === 8 &&
+    companyNumberCheck.ok &&
+    vatNumberCheck.ok;
 
   const handleFileUpload = useCallback(
     async (file: File) => {
@@ -298,11 +310,23 @@ export function Step5Details() {
                   Company Number <span className="text-slate-400">(optional)</span>
                 </Label>
                 <Input
-                  className="h-10 rounded-lg border-slate-200"
+                  className={`h-10 rounded-lg ${
+                    companyNumberCheck.ok
+                      ? "border-slate-200"
+                      : "border-red-300 focus-visible:ring-red-300/30"
+                  }`}
                   value={state.companyNumber}
-                  onChange={(e) => update({ companyNumber: e.target.value })}
+                  onChange={(e) =>
+                    update({ companyNumber: normaliseCompanyNumber(e.target.value) })
+                  }
                   placeholder="12345678"
+                  maxLength={8}
+                  inputMode="text"
+                  autoCapitalize="characters"
                 />
+                {!companyNumberCheck.ok && (
+                  <p className="text-xs text-red-600">{companyNumberCheck.error}</p>
+                )}
               </div>
 
               <div className="space-y-1.5">
@@ -310,11 +334,23 @@ export function Step5Details() {
                   VAT Number <span className="text-slate-400">(optional)</span>
                 </Label>
                 <Input
-                  className="h-10 rounded-lg border-slate-200"
+                  className={`h-10 rounded-lg ${
+                    vatNumberCheck.ok
+                      ? "border-slate-200"
+                      : "border-red-300 focus-visible:ring-red-300/30"
+                  }`}
                   value={state.vatNumber}
-                  onChange={(e) => update({ vatNumber: e.target.value })}
+                  onChange={(e) =>
+                    update({ vatNumber: normaliseVatNumber(e.target.value) })
+                  }
                   placeholder="GB123456789"
+                  maxLength={14}
+                  inputMode="text"
+                  autoCapitalize="characters"
                 />
+                {!vatNumberCheck.ok && (
+                  <p className="text-xs text-red-600">{vatNumberCheck.error}</p>
+                )}
               </div>
             </div>
 
