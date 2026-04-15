@@ -197,16 +197,14 @@ export function Step6Checks() {
 
       if (state.invoiceFile) formData.append("file", state.invoiceFile);
 
-      if (!state.isAuthenticated && state.email)
-        formData.append("email", state.email.trim());
-
       setProgress(30);
 
-      const endpoint = state.isAuthenticated
-        ? "/api/verify-full"
-        : "/api/verify-lead";
-
-      const res = await fetch(endpoint, { method: "POST", body: formData });
+      // Anonymous users no longer reach this point — every check requires
+      // an authenticated user with at least 1 credit.
+      const res = await fetch("/api/verify-full", {
+        method: "POST",
+        body: formData,
+      });
 
       setProgress(70);
 
@@ -221,10 +219,7 @@ export function Step6Checks() {
       trackStep(6, true, data.id);
       clearPersistedWizard();
 
-      const resultPath = state.isAuthenticated
-        ? `/dashboard/results/${data.id}`
-        : `/results/${data.id}`;
-      router.push(resultPath);
+      router.push(`/dashboard/results/${data.id}`);
     } catch {
       setError("An unexpected error occurred. Please try again.");
       setSubmitting(false);
