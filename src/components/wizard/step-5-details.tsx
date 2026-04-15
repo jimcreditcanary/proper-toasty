@@ -156,8 +156,14 @@ export function Step5Details() {
   };
 
   function handleBack() {
-    // Back: either to marketplace (step 4) or directly to step 2/3 if marketplace was skipped
-    setStep(4);
+    const cat = state.purchaseCategory;
+    if (cat === "vehicle" || cat === "something_else") {
+      // Marketplace step was shown
+      setStep(4);
+    } else {
+      // Marketplace was skipped — go straight back to category selection
+      setStep(2);
+    }
   }
 
   // Phase 1: Ask about invoice

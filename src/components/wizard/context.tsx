@@ -110,19 +110,28 @@ function reducer(state: FullState, action: WizardAction): FullState {
 }
 
 /**
- * Visible step number on the progress bar. Steps 1..6 map directly, but the
- * vehicle registration step (3) is skipped when `purchaseCategory !== "vehicle"`
- * so the user doesn't see a "missing step" jump from 2 → 4.
+ * Visible-step bookkeeping. The wizard has up to 6 underlying steps, but the
+ * vehicle registration step (3) and marketplace step (4) are conditionally
+ * shown based on what the user is paying for. We compute the visible
+ * sequence so the progress bar reads naturally (e.g. "Step 3 of 4" instead
+ * of jumping from 2 to 5).
  */
+function visibleSteps(state: WizardState): WizardStep[] {
+  const cat = state.purchaseCategory;
+  const showVehicle = cat === "vehicle";
+  const showMarketplace = cat === "vehicle" || cat === "something_else";
+
+  const out: WizardStep[] = [1, 2];
+  if (showVehicle) out.push(3);
+  if (showMarketplace) out.push(4);
+  out.push(5, 6);
+  return out;
+}
+
 function getStepNumber(step: WizardStep, state: WizardState): number {
-  const isVehicle = state.purchaseCategory === "vehicle";
-  if (isVehicle) {
-    // All 6 steps visible
-    return step as number;
-  }
-  // Non-vehicle: 5 visible steps (skip 3)
-  const map: Record<number, number> = { 1: 1, 2: 2, 3: 3, 4: 3, 5: 4, 6: 5 };
-  return map[step as number] ?? 1;
+  const seq = visibleSteps(state);
+  const idx = seq.indexOf(step);
+  return idx === -1 ? 1 : idx + 1;
 }
 
 export function WizardProvider({
@@ -181,7 +190,7 @@ export function WizardProvider({
     dispatch({ type: "RESET" });
   }, []);
 
-  const totalSteps = full.wizard.purchaseCategory === "vehicle" ? 6 : 5;
+  const totalSteps = visibleSteps(full.wizard).length;
 
   return (
     <WizardContext

@@ -17,18 +17,36 @@ export function Step2Category() {
 
   function handleSelect(type: PurchaseCategory) {
     update({ purchaseCategory: type });
+
     if (type === "vehicle") {
+      // Vehicle reg → marketplace → details
       setStep(3);
-    } else {
-      // Skip the vehicle step
-      update({
-        vehicleReg: "",
-        dvlaData: null,
-        dvlaError: null,
-        vehicleConfirmed: false,
-      });
-      setStep(4);
+      return;
     }
+
+    // No vehicle reg for non-vehicle categories
+    update({
+      vehicleReg: "",
+      dvlaData: null,
+      dvlaError: null,
+      vehicleConfirmed: false,
+    });
+
+    if (type === "something_else") {
+      // Marketplace step still relevant (eBay/Gumtree/etc.)
+      setStep(4);
+      return;
+    }
+
+    // Tradesperson / property / service — skip marketplace too
+    update({
+      marketplaceSource: null,
+      marketplaceOther: "",
+      marketplaceScreenshot: null,
+      marketplaceScreenshotUrl: null,
+      marketplaceError: null,
+    });
+    setStep(5);
   }
 
   return (
