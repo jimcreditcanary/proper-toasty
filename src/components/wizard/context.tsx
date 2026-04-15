@@ -6,25 +6,44 @@ import { type PayeeType, type WizardState, type WizardStep, initialWizardState }
 const STORAGE_KEY = "wap_wizard_state";
 const SESSION_KEY = "wap_wizard_session";
 
-/** Save serialisable wizard state + step to sessionStorage */
+/** How long saved wizard state survives. Long enough to handle a sign-up +
+ *  email confirmation round-trip even if the user takes a coffee break,
+ *  short enough that the wizard isn't pre-filled with last week's answers. */
+const STATE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+/** Persist wizard state + step. We use localStorage so the journey survives
+ *  signup → email confirmation → return-to-wizard, even if those happen in
+ *  different tabs of the same browser. */
 function persistWizard(state: WizardState, step: WizardStep) {
   try {
     // Strip non-serialisable fields (File objects)
     const { invoiceFile, marketplaceScreenshot, ...rest } = state;
     void invoiceFile;
     void marketplaceScreenshot;
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ wizard: rest, step }));
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ wizard: rest, step, savedAt: Date.now() })
+    );
   } catch {
     /* quota or SSR – ignore */
   }
 }
 
-/** Restore wizard state from sessionStorage (returns null if nothing saved) */
+/** Restore wizard state if it's recent enough. Returns null otherwise. */
 function restoreWizard(): { wizard: Partial<WizardState>; step: WizardStep } | null {
   try {
-    const raw = sessionStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw) as {
+      wizard: Partial<WizardState>;
+      step: WizardStep;
+      savedAt?: number;
+    };
+    if (parsed.savedAt && Date.now() - parsed.savedAt > STATE_TTL_MS) {
+      localStorage.removeItem(STORAGE_KEY);
+      return null;
+    }
+    return { wizard: parsed.wizard, step: parsed.step };
   } catch {
     return null;
   }
@@ -33,14 +52,15 @@ function restoreWizard(): { wizard: Partial<WizardState>; step: WizardStep } | n
 /** Clear saved wizard state */
 export function clearPersistedWizard() {
   try {
-    sessionStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(STORAGE_KEY);
     sessionStorage.removeItem(SESSION_KEY);
   } catch {
     /* SSR */
   }
 }
 
-/** Get or create a wizard session ID for journey tracking */
+/** Get or create a wizard session ID for journey tracking. Stays in
+ *  sessionStorage on purpose — it's an analytics ID, not journey data. */
 function getSessionId(): string {
   try {
     let id = sessionStorage.getItem(SESSION_KEY);
