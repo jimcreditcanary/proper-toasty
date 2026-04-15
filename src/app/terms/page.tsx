@@ -91,12 +91,7 @@ export default function TermsPage() {
             <li>No refunds are provided for partial billing periods.</li>
           </ul>
 
-          <h2>5. Free checks</h2>
-          <p>
-            New users may run one free check before purchasing credits. We reserve the right to modify or discontinue free checks at any time.
-          </p>
-
-          <h2>6. API access</h2>
+          <h2>5. API access</h2>
           <p>
             Enterprise users may access our verification services via API. API access is subject to these Terms and any additional API-specific terms. You agree not to:
           </p>
@@ -107,7 +102,7 @@ export default function TermsPage() {
             <li>Attempt to reverse-engineer or extract our underlying data sources</li>
           </ul>
 
-          <h2>7. Accuracy and limitations</h2>
+          <h2>6. Accuracy and limitations</h2>
           <p>
             <strong>Important:</strong> Our verification checks are informational tools designed to help you make more informed decisions. They are not a guarantee of a payee&apos;s legitimacy or trustworthiness.
           </p>
@@ -118,7 +113,7 @@ export default function TermsPage() {
             <li>You remain solely responsible for your payment decisions.</li>
           </ul>
 
-          <h2>8. Acceptable use</h2>
+          <h2>7. Acceptable use</h2>
           <p>You agree not to use our Service to:</p>
           <ul>
             <li>Conduct any unlawful or fraudulent activity</li>
@@ -129,12 +124,12 @@ export default function TermsPage() {
             <li>Scrape, crawl, or automatically collect data from our website without permission</li>
           </ul>
 
-          <h2>9. Intellectual property</h2>
+          <h2>8. Intellectual property</h2>
           <p>
             All content, branding, software, and design on our website are owned by Ebanking Integration Limited or our licensors and are protected by copyright, trademark, and other intellectual property laws. You may not copy, modify, distribute, or create derivative works without our written consent.
           </p>
 
-          <h2>10. Limitation of liability</h2>
+          <h2>9. Limitation of liability</h2>
           <p>To the maximum extent permitted by law:</p>
           <ul>
             <li>Our Service is provided &ldquo;as is&rdquo; and &ldquo;as available&rdquo; without warranties of any kind, whether express or implied.</li>
@@ -146,29 +141,29 @@ export default function TermsPage() {
             Nothing in these Terms excludes or limits our liability for death or personal injury caused by negligence, fraud or fraudulent misrepresentation, or any other liability that cannot be excluded under English law.
           </p>
 
-          <h2>11. Indemnification</h2>
+          <h2>10. Indemnification</h2>
           <p>
             You agree to indemnify and hold harmless Ebanking Integration Limited, its directors, employees, and agents from any claims, losses, damages, or expenses (including legal fees) arising from your use of the Service or breach of these Terms.
           </p>
 
-          <h2>12. Termination</h2>
+          <h2>11. Termination</h2>
           <ul>
             <li>You may close your account at any time by contacting us.</li>
             <li>We may suspend or terminate your access if you breach these Terms or if we reasonably believe your use poses a risk to our Service or other users.</li>
             <li>Upon termination, your right to use the Service ceases immediately. Any unused credits are forfeited unless otherwise required by law.</li>
           </ul>
 
-          <h2>13. Changes to these Terms</h2>
+          <h2>12. Changes to these Terms</h2>
           <p>
             We may update these Terms from time to time. Material changes will be notified via email or a prominent notice on our website. Continued use of the Service after changes take effect constitutes acceptance of the updated Terms.
           </p>
 
-          <h2>14. Governing law and disputes</h2>
+          <h2>13. Governing law and disputes</h2>
           <p>
             These Terms are governed by the laws of England and Wales. Any disputes arising from or relating to these Terms or the Service shall be subject to the exclusive jurisdiction of the courts of England and Wales.
           </p>
 
-          <h2>15. Contact us</h2>
+          <h2>14. Contact us</h2>
           <p>
             If you have questions about these Terms, please contact:
           </p>

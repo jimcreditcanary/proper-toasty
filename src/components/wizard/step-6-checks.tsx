@@ -24,8 +24,6 @@ import {
   trackStep,
 } from "./context";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { availableChecksFor, type CheckId } from "./types";
 
 /** Pricing tiers — must match /api/wizard-checkout */
@@ -116,7 +114,7 @@ const PREVIEW_CONTENT: Record<
 };
 
 export function Step6Checks() {
-  const { state, setStep, update } = useWizard();
+  const { state, setStep } = useWizard();
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -275,8 +273,6 @@ export function Step6Checks() {
   const authedNoCredits = state.isAuthenticated && state.userCredits === 0;
   const isAnon = !state.isAuthenticated;
 
-  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(state.email.trim());
-
   return (
     <div className="space-y-6">
       {/* ── Header ───────────────────────────────────────────────── */}
@@ -329,71 +325,33 @@ export function Step6Checks() {
           />
         )}
 
-        {/* State C: not signed in */}
+        {/* State C: not signed in — must create an account / sign in to buy */}
         {isAnon && (
-          <div className="space-y-4">
-            {/* Free first check via email */}
-            <div className="rounded-xl bg-white border border-slate-200 p-4 space-y-3">
-              <div className="flex items-center gap-2">
-                <span className="inline-flex items-center rounded-full bg-emerald-100 text-emerald-700 text-xs font-semibold px-2.5 py-0.5">
-                  First check free
-                </span>
-              </div>
-              <Label
-                htmlFor="lead-email"
-                className="block text-sm font-medium text-slate-700"
-              >
-                Where should we send your report?
-              </Label>
-              <Input
-                id="lead-email"
-                type="email"
-                value={state.email}
-                onChange={(e) => update({ email: e.target.value })}
-                placeholder="your@email.com"
-                className="h-10 bg-white border-slate-300"
-              />
+          <div className="space-y-3">
+            <p className="text-sm text-slate-600">
+              Create a free account or sign in to buy your first check from
+              &pound;2.50.
+            </p>
+            <div className="grid grid-cols-2 gap-2">
               <Button
-                onClick={runChecks}
-                disabled={!emailValid}
-                className="w-full h-11 bg-coral hover:bg-coral-dark text-white font-semibold rounded-lg"
+                onClick={() =>
+                  router.push("/auth/login?tab=signup&redirect=/verify")
+                }
+                className="h-12 bg-coral hover:bg-coral-dark text-white font-semibold rounded-lg"
               >
-                Get my free report
+                Create account
               </Button>
-              <p className="text-xs text-slate-500 text-center">
-                One free check per email. No card needed.
-              </p>
+              <Button
+                variant="outline"
+                onClick={() => router.push("/auth/login?redirect=/verify")}
+                className="h-12 border-coral/30 text-coral hover:bg-coral/5"
+              >
+                Sign in
+              </Button>
             </div>
-
-            {/* Upsell — sign in / sign up */}
-            <div className="rounded-xl bg-slate-900 text-white p-4 space-y-3">
-              <p className="text-sm font-semibold">
-                Want to run multiple checks?
-              </p>
-              <p className="text-xs text-slate-300">
-                Buy a credit pack from £2.50 \u2014 unused credits don&apos;t expire.
-              </p>
-              <div className="grid grid-cols-2 gap-2 pt-1">
-                <Button
-                  variant="outline"
-                  className="bg-white text-slate-900 hover:bg-slate-100 border-white h-10"
-                  onClick={() =>
-                    router.push("/auth/login?redirect=/verify")
-                  }
-                >
-                  Sign in
-                </Button>
-                <Button
-                  variant="outline"
-                  className="bg-white text-slate-900 hover:bg-slate-100 border-white h-10"
-                  onClick={() =>
-                    router.push("/auth/login?tab=signup&redirect=/verify")
-                  }
-                >
-                  Create account
-                </Button>
-              </div>
-            </div>
+            <p className="text-xs text-slate-500 text-center pt-1">
+              Account is free. You only pay when you run a check.
+            </p>
           </div>
         )}
 

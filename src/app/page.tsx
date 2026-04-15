@@ -428,9 +428,9 @@ export default function Home() {
               <Button
                 variant="outline"
                 className="h-12 px-7 text-[15px] font-medium rounded-lg border-slate-300 text-slate-700 hover:bg-white transition-all"
-                render={<Link href="#free-check" />}
+                render={<Link href="#pricing" />}
               >
-                Or try a free check first
+                See pricing
               </Button>
             </div>
           </div>
@@ -503,17 +503,18 @@ export default function Home() {
             Check your next payment
           </h2>
           <p className="mt-4 text-lg text-slate-400">
-            It&apos;s free, takes 30 seconds, and could save you thousands.
+            From &pound;2.50 a check, takes 30 seconds, and could save you
+            thousands.
           </p>
           <Button
             className="mt-8 h-12 px-8 text-[15px] font-semibold rounded-lg bg-coral hover:bg-coral-dark text-white shadow-lg transition-all"
-            render={<Link href="#free-check" />}
+            render={<Link href="/verify" />}
           >
-            Make a check — free
+            Make a check
             <ArrowRight className="size-5 ml-2" />
           </Button>
           <p className="mt-4 text-sm text-slate-500">
-            No account needed. No commitment.
+            No subscription. Credits never expire.
           </p>
         </div>
       </section>
