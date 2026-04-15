@@ -360,17 +360,6 @@ export function Step5Details() {
               </div>
             </div>
 
-            <div className="space-y-1.5">
-              <Label className="text-sm text-slate-700">
-                Account Name <span className="text-slate-400">(name on account)</span>
-              </Label>
-              <Input
-                className="h-10 rounded-lg border-slate-200"
-                value={state.payeeName}
-                onChange={(e) => update({ payeeName: e.target.value })}
-                placeholder="Acme Ltd"
-              />
-            </div>
           </>
         ) : (
           <>
