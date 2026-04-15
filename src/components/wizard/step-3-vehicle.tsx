@@ -75,9 +75,9 @@ export function Step3Vehicle() {
       {!state.dvlaData && (
         <>
           {/* UK number plate input */}
-          <div className="flex items-stretch gap-2 max-w-md">
+          <div className="space-y-3 max-w-md">
             <div
-              className="flex items-center rounded-lg border-2 border-slate-900 bg-[#FFCC00] px-3 flex-1 focus-within:ring-2 focus-within:ring-coral/30"
+              className="flex items-center justify-center rounded-xl border-[3px] border-slate-900 bg-[#FFCC00] px-6 py-5 shadow-md shadow-slate-300/50 focus-within:ring-4 focus-within:ring-coral/30"
               aria-label="UK number plate"
             >
               <input
@@ -92,7 +92,7 @@ export function Step3Vehicle() {
                 }}
                 maxLength={7}
                 placeholder="ENTER REG"
-                className="w-full bg-transparent text-center text-2xl sm:text-3xl font-black tracking-wider text-black uppercase outline-none placeholder:text-black/40 placeholder:font-bold"
+                className="w-full bg-transparent text-center text-4xl sm:text-5xl font-black tracking-[0.15em] text-black uppercase outline-none placeholder:text-black/30 placeholder:font-bold leading-none"
                 style={{ fontFamily: "'Charles Wright', 'Arial Black', sans-serif" }}
               />
             </div>
@@ -100,12 +100,18 @@ export function Step3Vehicle() {
               type="button"
               onClick={lookup}
               disabled={state.dvlaLoading || !reg}
-              className="h-auto px-4 bg-coral hover:bg-coral-dark text-white"
+              className="w-full h-12 bg-coral hover:bg-coral-dark text-white font-semibold rounded-lg text-base shadow-sm"
             >
               {state.dvlaLoading ? (
-                <Loader2 className="h-5 w-5 animate-spin" />
+                <>
+                  <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                  Looking up&hellip;
+                </>
               ) : (
-                <Search className="h-5 w-5" />
+                <>
+                  <Search className="h-5 w-5 mr-2" />
+                  Look up vehicle
+                </>
               )}
             </Button>
           </div>
