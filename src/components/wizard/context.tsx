@@ -134,8 +134,11 @@ export function WizardProvider({
   initialAuth?: { isAuthenticated: boolean; userCredits: number; userEmail: string | null };
   initialPayee?: PayeeType;
 }) {
-  // Try to restore saved state (e.g. after login redirect)
-  const saved = typeof window !== "undefined" ? restoreWizard() : null;
+  // If the URL provided a payee param, the user is explicitly starting a new
+  // flow — skip session-restore so they jump straight to step 2 instead of
+  // landing back wherever they were last time.
+  const saved =
+    typeof window !== "undefined" && !initialPayee ? restoreWizard() : null;
 
   const [full, dispatch] = useReducer(reducer, {
     wizard: {
@@ -145,7 +148,7 @@ export function WizardProvider({
       ...(initialAuth ?? {}),
       ...(initialPayee ? { payeeType: initialPayee } : {}),
     },
-    step: saved?.step ?? ((initialPayee ? 2 : 1) as WizardStep),
+    step: initialPayee ? (2 as WizardStep) : (saved?.step ?? (1 as WizardStep)),
   });
 
   // Init session tracking on mount

@@ -6,7 +6,7 @@ import { Building2, User, HelpCircle, ArrowRight } from "lucide-react";
 const OPTIONS = [
   { label: "A business", icon: Building2, value: "business" },
   { label: "A person", icon: User, value: "person" },
-  { label: "I don't know", icon: HelpCircle, value: "unknown" },
+  { label: "I'm not sure", icon: HelpCircle, value: "unsure" },
 ] as const;
 
 export function LazyWizard() {
