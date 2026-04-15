@@ -173,7 +173,7 @@ export default async function BillingPage() {
           {credits} credit{credits !== 1 ? "s" : ""}
         </div>
         <p className="text-sm text-slate-500 mt-1">
-          Enhanced verification checks available
+          Verification checks available
         </p>
       </div>
 

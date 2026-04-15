@@ -60,7 +60,11 @@ export default function VerifyPage() {
       <div className="py-8 sm:py-12">
         <WizardProvider
           initialAuth={authState}
-          initialPayee={payeeParam && ["business", "person", "unknown"].includes(payeeParam) ? payeeParam : undefined}
+          initialPayee={
+            payeeParam && ["business", "person", "unsure"].includes(payeeParam)
+              ? payeeParam
+              : undefined
+          }
         >
           <WizardShell />
         </WizardProvider>

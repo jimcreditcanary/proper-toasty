@@ -80,7 +80,7 @@ export default function AIStatementPage() {
 
           <h3>2. Online review summarisation</h3>
           <p>
-            As part of enhanced verification checks, we use AI to search for and summarise online reviews and reputation information about a payee. The AI analyses publicly available review data and presents a summary of findings.
+            As part of our verification checks, we use AI to search for and summarise online reviews and reputation information about a payee. The AI analyses publicly available review data and presents a summary of findings.
           </p>
 
           <h3>3. Marketplace valuation</h3>

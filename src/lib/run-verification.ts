@@ -8,6 +8,28 @@ import type { Json } from "@/types/database";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
 
+type DvlaRecord = {
+  registrationNumber?: string;
+  make?: string | null;
+  colour?: string | null;
+  fuelType?: string | null;
+  engineCapacity?: number | null;
+  yearOfManufacture?: number | null;
+  monthOfFirstRegistration?: string | null;
+  taxStatus?: string | null;
+  taxDueDate?: string | null;
+  motStatus?: string | null;
+  motExpiryDate?: string | null;
+  co2Emissions?: number | null;
+  markedForExport?: boolean | null;
+  typeApproval?: string | null;
+  wheelplan?: string | null;
+  revenueWeight?: number | null;
+  euroStatus?: string | null;
+  dateOfLastV5CIssued?: string | null;
+  raw?: Record<string, unknown>;
+};
+
 export async function runVerification(params: {
   formData: FormData;
   userId: string | null;
@@ -15,14 +37,8 @@ export async function runVerification(params: {
 }): Promise<{ id: string }> {
   const { formData, userId, admin } = params;
 
-  // Parse multipart form data
+  // ── Parse multipart form data ─────────────────────────────────────
   const flowType = formData.get("flowType") as string | null;
-  const marketplaceUrl = formData.get("marketplaceUrl") as string | null;
-  const marketplaceItemTitle = formData.get("marketplaceItemTitle") as string | null;
-  const marketplaceListedPrice = formData.get("marketplaceListedPrice") as string | null;
-  const valuationMin = formData.get("valuationMin") as string | null;
-  const valuationMax = formData.get("valuationMax") as string | null;
-  const valuationSummary = formData.get("valuationSummary") as string | null;
   const payeeType = formData.get("payeeType") as string | null;
   const payeeName = formData.get("payeeName") as string | null;
   const companyNameInput = formData.get("companyNameInput") as string | null;
@@ -32,8 +48,42 @@ export async function runVerification(params: {
   const companyNumberInput = formData.get("companyNumberInput") as string | null;
   const invoiceAmount = formData.get("invoiceAmount") as string | null;
   const purchaseCategory = formData.get("purchaseCategory") as string | null;
-  const checkTier = formData.get("checkTier") as string | null;
   const file = formData.get("file") as File | null;
+
+  // Vehicle + DVLA
+  const vehicleReg = formData.get("vehicleReg") as string | null;
+  const dvlaDataRaw = formData.get("dvlaData") as string | null;
+  let dvlaData: DvlaRecord | null = null;
+  if (dvlaDataRaw) {
+    try {
+      dvlaData = JSON.parse(dvlaDataRaw) as DvlaRecord;
+    } catch {
+      dvlaData = null;
+    }
+  }
+
+  // Marketplace
+  const marketplaceSource = formData.get("marketplaceSource") as string | null;
+  const marketplaceOther = formData.get("marketplaceOther") as string | null;
+  const marketplaceScreenshot = formData.get("marketplaceScreenshot") as File | null;
+
+  // Selected checks
+  const selectedChecksRaw = formData.get("selectedChecks") as string | null;
+  let selectedChecks: string[] = [];
+  if (selectedChecksRaw) {
+    try {
+      const parsed = JSON.parse(selectedChecksRaw);
+      if (Array.isArray(parsed)) selectedChecks = parsed.filter((x) => typeof x === "string");
+    } catch {
+      selectedChecks = [];
+    }
+  }
+  // If the client didn't tell us, assume all checks the data supports.
+  const isChecked = (id: string): boolean =>
+    selectedChecks.length === 0 || selectedChecks.includes(id);
+
+  // Track total Anthropic token usage across all calls
+  let totalTokensUsed = 0;
 
   // ── Invoice extraction (if file uploaded) ──────────────────────────
   let extractedData: {
@@ -45,9 +95,6 @@ export async function runVerification(params: {
     invoice_amount?: number | null;
   } | null = null;
   let invoiceFilePath: string | null = null;
-
-  // Track total Anthropic token usage across all calls
-  let totalTokensUsed = 0;
 
   if (file) {
     const fileBuffer = Buffer.from(await file.arrayBuffer());
@@ -63,7 +110,7 @@ export async function runVerification(params: {
     }
     invoiceFilePath = filePath;
 
-    // Extract data via Claude
+    // Extract via Claude
     const fileBase64 = fileBuffer.toString("base64");
     const isPdf = file.type === "application/pdf";
 
@@ -112,8 +159,8 @@ If a field is not found, set its value to null.`;
       ],
     });
 
-    // Track token usage from extraction
-    totalTokensUsed += (message.usage?.input_tokens ?? 0) + (message.usage?.output_tokens ?? 0);
+    totalTokensUsed +=
+      (message.usage?.input_tokens ?? 0) + (message.usage?.output_tokens ?? 0);
 
     const responseText =
       message.content[0].type === "text" ? message.content[0].text : "";
@@ -125,17 +172,34 @@ If a field is not found, set its value to null.`;
     }
   }
 
+  // ── Marketplace screenshot upload ──────────────────────────────────
+  let marketplaceScreenshotUrl: string | null = null;
+  if (marketplaceScreenshot && marketplaceScreenshot instanceof File) {
+    try {
+      const buf = Buffer.from(await marketplaceScreenshot.arrayBuffer());
+      const folderPrefix = userId || "leads";
+      const path = `${folderPrefix}/${Date.now()}-${marketplaceScreenshot.name}`;
+      const { error } = await admin.storage
+        .from("marketplace-screenshots")
+        .upload(path, buf, { contentType: marketplaceScreenshot.type });
+      if (!error) {
+        marketplaceScreenshotUrl = path;
+      } else {
+        console.error("Marketplace screenshot upload error:", error);
+      }
+    } catch (err) {
+      console.error("Marketplace screenshot upload failed:", err);
+    }
+  }
+
   // ── Determine final field values (extracted > manual input) ─────────
   const finalCompanyName =
     extractedData?.company_name || companyNameInput || payeeName || null;
-  const finalVatNumber =
-    extractedData?.vat_number || vatNumberInput || null;
+  const finalVatNumber = extractedData?.vat_number || vatNumberInput || null;
   const finalCompanyNumber =
     extractedData?.company_number || companyNumberInput || null;
-  const finalSortCode =
-    extractedData?.sort_code || sortCode || null;
-  const finalAccountNumber =
-    extractedData?.account_number || accountNumber || null;
+  const finalSortCode = extractedData?.sort_code || sortCode || null;
+  const finalAccountNumber = extractedData?.account_number || accountNumber || null;
   const finalInvoiceAmount =
     extractedData?.invoice_amount ??
     (invoiceAmount ? parseFloat(invoiceAmount) : null);
@@ -146,14 +210,9 @@ If a field is not found, set its value to null.`;
     .insert({
       user_id: userId,
       flow_type: flowType,
-      marketplace_url: marketplaceUrl,
-      marketplace_item_title: marketplaceItemTitle,
-      marketplace_listed_price: marketplaceListedPrice
-        ? parseFloat(marketplaceListedPrice)
-        : null,
-      valuation_min: valuationMin ? parseFloat(valuationMin) : null,
-      valuation_max: valuationMax ? parseFloat(valuationMax) : null,
-      valuation_summary: valuationSummary,
+      marketplace_source: marketplaceSource,
+      marketplace_other: marketplaceOther,
+      marketplace_screenshot_url: marketplaceScreenshotUrl,
       invoice_file_path: invoiceFilePath,
       payee_type: payeeType,
       payee_name: payeeName,
@@ -163,7 +222,10 @@ If a field is not found, set its value to null.`;
       vat_number_input: vatNumberInput,
       invoice_amount: finalInvoiceAmount,
       purchase_category: purchaseCategory,
-      check_tier: checkTier,
+      vehicle_reg: vehicleReg,
+      dvla_data: (dvlaData as unknown as Json) ?? null,
+      selected_checks: selectedChecks.length > 0 ? selectedChecks : null,
+      check_tier: "enhanced",
       extracted_company_name: extractedData?.company_name ?? null,
       extracted_vat_number: extractedData?.vat_number ?? null,
       extracted_invoice_amount: extractedData?.invoice_amount ?? null,
@@ -179,28 +241,82 @@ If a field is not found, set its value to null.`;
     throw new Error("Failed to create verification record");
   }
 
+  // ── Persist DVLA lookup (linked to verification) ───────────────────
+  if (dvlaData && dvlaData.registrationNumber) {
+    admin
+      .from("vehicle_lookups")
+      .insert({
+        verification_id: verification.id,
+        registration_number: dvlaData.registrationNumber,
+        make: dvlaData.make ?? null,
+        colour: dvlaData.colour ?? null,
+        fuel_type: dvlaData.fuelType ?? null,
+        engine_capacity: dvlaData.engineCapacity ?? null,
+        year_of_manufacture: dvlaData.yearOfManufacture ?? null,
+        month_of_first_registration: dvlaData.monthOfFirstRegistration ?? null,
+        tax_status: dvlaData.taxStatus ?? null,
+        tax_due_date: dvlaData.taxDueDate ?? null,
+        mot_status: dvlaData.motStatus ?? null,
+        mot_expiry_date: dvlaData.motExpiryDate ?? null,
+        co2_emissions: dvlaData.co2Emissions ?? null,
+        marked_for_export: dvlaData.markedForExport ?? null,
+        type_approval: dvlaData.typeApproval ?? null,
+        wheelplan: dvlaData.wheelplan ?? null,
+        revenue_weight: dvlaData.revenueWeight ?? null,
+        euro_status: dvlaData.euroStatus ?? null,
+        date_of_last_v5c_issued: dvlaData.dateOfLastV5CIssued ?? null,
+        raw_response: (dvlaData.raw ?? dvlaData) as unknown as Json,
+      })
+      .then(({ error: vlErr }) => {
+        if (vlErr) console.error("vehicle_lookups insert:", vlErr);
+      });
+  }
+
   // ── Run checks in parallel ─────────────────────────────────────────
-  interface CHResult { found: boolean; data?: Record<string, unknown>; error?: string; details?: string }
-  interface VATResult { found: boolean; data?: Record<string, unknown>; error?: string; details?: string }
-  interface BankResult { verified: boolean; data?: Record<string, unknown>; error?: string; details?: string }
+  interface CHResult {
+    found: boolean;
+    data?: Record<string, unknown>;
+    error?: string;
+    details?: string;
+  }
+  interface VATResult {
+    found: boolean;
+    data?: Record<string, unknown>;
+    error?: string;
+    details?: string;
+  }
+  interface BankResult {
+    verified: boolean;
+    data?: Record<string, unknown>;
+    error?: string;
+    details?: string;
+  }
 
   const results: {
     ch: CHResult | null;
     vat: VATResult | null;
     bank: BankResult | null;
-    valuation: { min: number; max: number; confidence: string; summary: string; sources: string[] } | null;
     reviews: { rating: number | null; count: number | null; summary: string } | null;
-  } = { ch: null, vat: null, bank: null, valuation: null, reviews: null };
+    vehicleValuation: {
+      estimatedValueLow: number;
+      estimatedValueMid: number;
+      estimatedValueHigh: number;
+      confidence: string;
+      factors: string[];
+      warnings: string[];
+      summary: string;
+    } | null;
+  } = { ch: null, vat: null, bank: null, reviews: null, vehicleValuation: null };
 
   const promises: Promise<void>[] = [];
 
-  // Determine if enhanced checks should run (default to enhanced for backwards compat)
-  const isEnhanced = checkTier !== "basic";
+  const isBusiness =
+    payeeType === "business" ||
+    !!finalCompanyNumber ||
+    !!finalVatNumber;
 
-  // Google Reviews check — only for businesses + enhanced tier
-  const isBusiness = payeeType === "business" || !!finalCompanyNumber || !!finalVatNumber;
-  console.log("Reviews check:", { isBusiness, payeeType, finalCompanyName, finalCompanyNumber: !!finalCompanyNumber, finalVatNumber: !!finalVatNumber });
-  if (isEnhanced && isBusiness && finalCompanyName) {
+  // Google Reviews — business only, and user opted in
+  if (isChecked("online_reviews") && isBusiness && finalCompanyName) {
     promises.push(
       (async () => {
         try {
@@ -215,37 +331,43 @@ If a field is not found, set its value to null.`;
               model: "claude-sonnet-4-20250514",
               max_tokens: 512,
               tools: [{ type: "web_search_20250305", name: "web_search" }],
-              messages: [{
-                role: "user",
-                content: `Find online reviews for the UK company: "${finalCompanyName}"
+              messages: [
+                {
+                  role: "user",
+                  content: `Find online reviews for the UK company: "${finalCompanyName}"
 
 Search for reviews on ALL of these platforms (try each one separately):
-1. Google Business Profile / Google Maps — search "${finalCompanyName} reviews"
-2. Trustpilot — search "${finalCompanyName} Trustpilot"
-3. Checkatrade — search "${finalCompanyName} Checkatrade"
-4. Yell.com — search "${finalCompanyName} Yell"
-5. Reviews.io — search "${finalCompanyName} Reviews.io"
+1. Google Business Profile / Google Maps
+2. Trustpilot
+3. Checkatrade
+4. Yell.com
+5. Reviews.io
 
-Pick the platform with the MOST reviews or highest visibility. If you find reviews on multiple platforms, pick the one with the best data (star rating + count).
-
-IMPORTANT: Actually perform the web searches. Do not guess or say you cannot find reviews without searching.
+Pick the platform with the MOST reviews or highest visibility.
 
 Return ONLY a JSON object with no markdown formatting:
-{"rating": <number e.g. 4.5 or null if genuinely not found on any platform>, "review_count": <number or null>, "source": "<platform name where you found reviews e.g. Google, Trustpilot, Checkatrade, Yell>", "summary": "<One sentence: rating, count, source, and any key themes. If no reviews found on ANY platform after searching all of them, say 'No online reviews found for this business on Google, Trustpilot, Checkatrade, or Yell.' Plain text only.>"}`,
-              }],
+{"rating": <number or null>, "review_count": <number or null>, "source": "<platform name>", "summary": "<One sentence summary>"}`,
+                },
+              ],
             }),
           });
           if (reviewsRes.ok) {
             const revData = await reviewsRes.json();
-            // Track token usage from reviews check
-            totalTokensUsed += (revData.usage?.input_tokens ?? 0) + (revData.usage?.output_tokens ?? 0);
+            totalTokensUsed +=
+              (revData.usage?.input_tokens ?? 0) + (revData.usage?.output_tokens ?? 0);
             const blocks = revData.content as Array<{ type: string; text?: string }>;
             let revText = "";
             for (let i = blocks.length - 1; i >= 0; i--) {
-              if (blocks[i].type === "text" && blocks[i].text) { revText = blocks[i].text!; break; }
+              if (blocks[i].type === "text" && blocks[i].text) {
+                revText = blocks[i].text!;
+                break;
+              }
             }
             if (revText) {
-              const cleaned = revText.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
+              const cleaned = revText
+                .replace(/```json\s*/gi, "")
+                .replace(/```\s*/g, "")
+                .trim();
               const match = cleaned.match(/\{[\s\S]*\}/);
               const parsed = match ? JSON.parse(match[0]) : null;
               if (parsed) {
@@ -254,7 +376,6 @@ Return ONLY a JSON object with no markdown formatting:
                   count: parsed.review_count != null ? Number(parsed.review_count) : null,
                   summary: parsed.summary ?? "No review data found.",
                 };
-                console.log("Google reviews:", results.reviews);
               }
             }
           }
@@ -265,87 +386,87 @@ Return ONLY a JSON object with no markdown formatting:
     );
   }
 
-  // Marketplace valuation — only run if listed price > £1000
-  const listedPriceNum = marketplaceListedPrice ? parseFloat(marketplaceListedPrice) : 0;
-  if (flowType === "marketplace" && marketplaceItemTitle && listedPriceNum > 1000) {
+  // Vehicle valuation — only when user opted in and we have DVLA data
+  if (isChecked("vehicle_valuation") && dvlaData && dvlaData.registrationNumber) {
     promises.push(
       (async () => {
         try {
-          const valRes = await fetch("https://api.anthropic.com/v1/messages", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "x-api-key": process.env.ANTHROPIC_API_KEY!,
-              "anthropic-version": "2023-06-01",
-            },
-            body: JSON.stringify({
-              model: "claude-sonnet-4-20250514",
-              max_tokens: 2048,
-              tools: [{ type: "web_search_20250305", name: "web_search" }],
-              messages: [{
-                role: "user",
-                content: `You are a marketplace valuation analyst for WhoAmIPaying, a UK payment verification service.
+          const prompt = `You are an expert UK used vehicle valuation analyst. Using the DVLA data provided, estimate a fair UK market price.
 
-A user wants to buy: "${marketplaceItemTitle}"
-${marketplaceListedPrice ? `Listed price: £${marketplaceListedPrice} (private sale, Facebook Marketplace)` : ""}
+DVLA Data:
+- Registration: ${dvlaData!.registrationNumber}
+- Make: ${dvlaData!.make ?? "unknown"}
+- Colour: ${dvlaData!.colour ?? "unknown"}
+- Fuel Type: ${dvlaData!.fuelType ?? "unknown"}
+- Engine Capacity: ${dvlaData!.engineCapacity ?? "unknown"}cc
+- Year of Manufacture: ${dvlaData!.yearOfManufacture ?? "unknown"}
+- First Registered: ${dvlaData!.monthOfFirstRegistration ?? "unknown"}
+- CO2 Emissions: ${dvlaData!.co2Emissions ?? "unknown"} g/km
+- Tax Status: ${dvlaData!.taxStatus ?? "unknown"}
+- MOT Status: ${dvlaData!.motStatus ?? "unknown"}
+- Euro Status: ${dvlaData!.euroStatus ?? "unknown"}
+- Marked for Export: ${dvlaData!.markedForExport === true ? "YES" : "no"}
+- Last V5C Issued: ${dvlaData!.dateOfLastV5CIssued ?? "unknown"}
 
-Research the current UK market value for this item. Search eBay UK, Autotrader UK, Gumtree, specialist UK dealers, and any relevant sources.
-
-CRITICAL RULES FOR estimated_min AND estimated_max:
-- These MUST represent the actual market value range you found from comparable listings and sales
-- Do NOT adjust these numbers down for "private sale discount", condition assumptions, or speculation
-- If you found comparable items listed/sold for £20,000-£30,000, then estimated_min=20000 and estimated_max=30000
-- The numbers in estimated_min and estimated_max MUST be consistent with the prices you describe in valuation_assessment — no contradictions
-- All prices in GBP (£). If converting from EUR/USD, use the current exchange rate and state the rate used
-- Prioritise UK sources. If only European sources are available, convert accurately and note the exchange rate
-
-Return ONLY a JSON object with no markdown fences:
+Respond in JSON only, no markdown, no preamble:
 {
-  "estimated_min": <number - lowest comparable price found in GBP>,
-  "estimated_max": <number - highest comparable price found in GBP>,
-  "confidence": "high" | "medium" | "low",
-  "sources": ["source urls"],
-  "valuation_assessment": "<Plain text, under 150 words. State: what the item is, what comparable listings you found and their actual prices in GBP, whether the listed price represents good/fair/poor value compared to those comparables, and what the buyer should check before purchasing. Be direct and factual. No markdown.>"
-}`,
-              }],
-            }),
+  "estimatedValueLow": <number in GBP>,
+  "estimatedValueMid": <number in GBP>,
+  "estimatedValueHigh": <number in GBP>,
+  "confidence": "<low|medium|high>",
+  "factors": ["<factor>", "<factor>", "<factor>"],
+  "warnings": ["<warning>"],
+  "summary": "<2-3 sentence plain English summary>"
+}
+
+Be conservative. You do NOT have mileage data, so caveat accordingly.`;
+
+          const msg = await anthropic.messages.create({
+            model: "claude-sonnet-4-20250514",
+            max_tokens: 1024,
+            messages: [{ role: "user", content: prompt }],
           });
-          if (valRes.ok) {
-            const valData = await valRes.json();
-            // Track token usage from valuation check
-            totalTokensUsed += (valData.usage?.input_tokens ?? 0) + (valData.usage?.output_tokens ?? 0);
-            const blocks = valData.content as Array<{ type: string; text?: string }>;
-            let valText = "";
-            for (let i = blocks.length - 1; i >= 0; i--) {
-              if (blocks[i].type === "text" && blocks[i].text) { valText = blocks[i].text!; break; }
-            }
-            if (valText) {
-              const cleaned = valText.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
-              const match = cleaned.match(/\{[\s\S]*\}/);
-              const parsed = match ? JSON.parse(match[0]) : null;
-              if (parsed) {
-                results.valuation = {
-                  min: Number(parsed.estimated_min),
-                  max: Number(parsed.estimated_max),
-                  confidence: parsed.confidence ?? "low",
-                  summary: parsed.valuation_assessment ?? parsed.valuation_summary ?? "",
-                  sources: parsed.sources ?? [],
-                };
-                console.log("Marketplace valuation:", results.valuation);
-              }
-            }
+          totalTokensUsed +=
+            (msg.usage?.input_tokens ?? 0) + (msg.usage?.output_tokens ?? 0);
+
+          const text = msg.content[0]?.type === "text" ? msg.content[0].text : "";
+          const match = text.match(/\{[\s\S]*\}/);
+          if (match) {
+            const parsed = JSON.parse(match[0]);
+            results.vehicleValuation = {
+              estimatedValueLow: Number(parsed.estimatedValueLow) || 0,
+              estimatedValueMid: Number(parsed.estimatedValueMid) || 0,
+              estimatedValueHigh: Number(parsed.estimatedValueHigh) || 0,
+              confidence:
+                parsed.confidence === "high"
+                  ? "high"
+                  : parsed.confidence === "medium"
+                    ? "medium"
+                    : "low",
+              factors: Array.isArray(parsed.factors) ? parsed.factors.slice(0, 10) : [],
+              warnings: Array.isArray(parsed.warnings) ? parsed.warnings.slice(0, 10) : [],
+              summary: typeof parsed.summary === "string" ? parsed.summary : "",
+            };
           }
         } catch (err) {
-          console.error("Marketplace valuation error:", err);
+          console.error("Vehicle valuation error:", err);
         }
       })()
     );
   }
 
-  if (isEnhanced && finalCompanyNumber) {
+  // Companies House — business only
+  if (
+    (isChecked("companies_house") ||
+      isChecked("trading_history") ||
+      isChecked("accounts_filed")) &&
+    finalCompanyNumber
+  ) {
     promises.push(
       lookupCompaniesHouse(finalCompanyNumber)
-        .then((r) => { results.ch = r as CHResult; })
+        .then((r) => {
+          results.ch = r as CHResult;
+        })
         .catch((err) => {
           console.error("CH check error:", err);
           results.ch = { found: false, error: String(err) };
@@ -353,10 +474,13 @@ Return ONLY a JSON object with no markdown fences:
     );
   }
 
-  if (isEnhanced && finalVatNumber) {
+  // HMRC VAT
+  if (isChecked("vat") && finalVatNumber) {
     promises.push(
       lookupHmrcVat(finalVatNumber)
-        .then((r) => { results.vat = r as VATResult; })
+        .then((r) => {
+          results.vat = r as VATResult;
+        })
         .catch((err) => {
           console.error("VAT check error:", err);
           results.vat = { found: false, error: String(err) };
@@ -364,7 +488,13 @@ Return ONLY a JSON object with no markdown fences:
     );
   }
 
-  if (finalAccountNumber && finalCompanyName && finalSortCode) {
+  // Bank / CoP
+  if (
+    isChecked("cop") &&
+    finalAccountNumber &&
+    finalCompanyName &&
+    finalSortCode
+  ) {
     promises.push(
       verifyBankAccount(
         finalAccountNumber,
@@ -372,7 +502,9 @@ Return ONLY a JSON object with no markdown fences:
         finalSortCode,
         verification.id
       )
-        .then((r) => { results.bank = r as BankResult; })
+        .then((r) => {
+          results.bank = r as BankResult;
+        })
         .catch((err) => {
           console.error("Bank check error:", err);
           results.bank = { verified: false, error: String(err) };
@@ -389,19 +521,18 @@ Return ONLY a JSON object with no markdown fences:
   // ── Extract structured data from results ───────────────────────────
   const chData = chResult?.found ? (chResult.data ?? null) : null;
   const companiesHouseName = chData
-    ? (chData as Record<string, unknown>).company_name as string | null
+    ? ((chData as Record<string, unknown>).company_name as string | null)
     : null;
   const companiesHouseNumber = chData
-    ? (chData as Record<string, unknown>).company_number as string | null
+    ? ((chData as Record<string, unknown>).company_number as string | null)
     : null;
   const companiesHouseStatus = chData
-    ? (chData as Record<string, unknown>).company_status as string | null
+    ? ((chData as Record<string, unknown>).company_status as string | null)
     : null;
   const incorporatedDate = chData
-    ? (chData as Record<string, unknown>).date_of_creation as string | null
+    ? ((chData as Record<string, unknown>).date_of_creation as string | null)
     : null;
 
-  // Accounts info
   let accountsDate: string | null = null;
   let accountsOverdue = false;
   if (chData) {
@@ -419,7 +550,6 @@ Return ONLY a JSON object with no markdown fences:
     }
   }
 
-  // VAT data
   const vatApiData = vatResult?.found ? (vatResult.data ?? null) : null;
   let vatApiName: string | null = null;
   if (vatApiData) {
@@ -428,16 +558,14 @@ Return ONLY a JSON object with no markdown fences:
       | undefined;
     vatApiName = target
       ? (target.name as string | null)
-      : (vatApiData as Record<string, unknown>).name as string | null;
+      : ((vatApiData as Record<string, unknown>).name as string | null);
   }
 
-  // Bank/CoP data
   let copResult: string | null = null;
   let copReason: string | null = null;
   if (bankResult) {
     if (bankResult.verified && bankResult.data) {
       const bd = bankResult.data as Record<string, unknown>;
-      // Map nameMatchResult from CoP API to our standard values
       const nameMatch = bd.nameMatchResult as string | undefined;
       if (nameMatch === "Full") {
         copResult = "FULL_MATCH";
@@ -446,7 +574,6 @@ Return ONLY a JSON object with no markdown fences:
       } else if (nameMatch === "None" || nameMatch === "No") {
         copResult = "NO_MATCH";
       } else {
-        // Fallback: check the boolean result field
         copResult = bd.result === true ? "FULL_MATCH" : "NO_MATCH";
       }
       copReason = (bd.resultText as string) ?? (bd.reasonCode as string) ?? null;
@@ -456,22 +583,20 @@ Return ONLY a JSON object with no markdown fences:
     }
   }
 
-  // ── Calculate overall risk ─────────────────────────────────────────
+  // ── Overall risk ───────────────────────────────────────────────────
   let riskScore = 0;
   let checksRun = 0;
 
   if (chResult) {
     checksRun++;
     if (!chResult.found) riskScore += 2;
-    else if (companiesHouseStatus && companiesHouseStatus !== "active")
-      riskScore += 1;
+    else if (companiesHouseStatus && companiesHouseStatus !== "active") riskScore += 1;
     if (accountsOverdue) riskScore += 1;
   }
 
   if (vatResult) {
     checksRun++;
     if (!vatResult.found) riskScore += 2;
-    // Name mismatch check
     if (vatApiName && finalCompanyName) {
       const normA = vatApiName.toLowerCase().trim();
       const normB = finalCompanyName.toLowerCase().trim();
@@ -487,16 +612,6 @@ Return ONLY a JSON object with no markdown fences:
     else if (copResult === "PARTIAL_MATCH") riskScore += 1;
   }
 
-  // Marketplace price check
-  if (flowType === "marketplace" && valuationMin && marketplaceListedPrice) {
-    const listed = parseFloat(marketplaceListedPrice);
-    const minVal = parseFloat(valuationMin);
-    const maxVal = valuationMax ? parseFloat(valuationMax) : minVal * 1.5;
-    if (listed < minVal * 0.5) riskScore += 2; // Suspiciously cheap
-    else if (listed < minVal * 0.8) riskScore += 1;
-    else if (listed > maxVal * 1.5) riskScore += 1; // Overpriced
-  }
-
   let overallRisk: string;
   if (checksRun === 0) {
     overallRisk = "UNKNOWN";
@@ -509,17 +624,6 @@ Return ONLY a JSON object with no markdown fences:
   }
 
   // ── Update verification record ─────────────────────────────────────
-  console.log("Updating verification:", verification.id, {
-    companies_house_name: companiesHouseName,
-    companies_house_number: companiesHouseNumber,
-    companies_house_status: companiesHouseStatus,
-    companies_house_incorporated_date: incorporatedDate,
-    vat_api_name: vatApiName,
-    cop_result: copResult,
-    cop_reason: copReason,
-    overall_risk: overallRisk,
-  });
-
   const { error: updateError } = await admin
     .from("verifications")
     .update({
@@ -536,12 +640,11 @@ Return ONLY a JSON object with no markdown fences:
       cop_result: copResult,
       cop_reason: copReason,
       overall_risk: overallRisk,
-      valuation_min: results.valuation?.min ?? null,
-      valuation_max: results.valuation?.max ?? null,
-      valuation_summary: results.valuation?.summary ?? null,
       google_reviews_rating: results.reviews?.rating ?? null,
       google_reviews_count: results.reviews?.count ?? null,
       google_reviews_summary: results.reviews?.summary ?? null,
+      vehicle_valuation:
+        (results.vehicleValuation as unknown as Json) ?? null,
       anthropic_tokens_used: totalTokensUsed > 0 ? totalTokensUsed : null,
       status: "completed",
     })
@@ -549,8 +652,6 @@ Return ONLY a JSON object with no markdown fences:
 
   if (updateError) {
     console.error("Failed to update verification:", updateError);
-  } else {
-    console.log("Verification updated successfully:", verification.id);
   }
 
   return { id: verification.id };

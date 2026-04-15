@@ -2,9 +2,7 @@
 
 import { useState, useCallback, useRef } from "react";
 import {
-  Building2,
   User,
-  HelpCircle,
   FileText,
   Upload,
   ArrowLeft,
@@ -25,11 +23,8 @@ const ACCEPTED_TYPES = [
 ];
 
 function formatCurrency(value: string): string {
-  // Strip everything except digits and decimal point
   const clean = value.replace(/[^0-9.]/g, "");
-  // Split on decimal
   const parts = clean.split(".");
-  // Format integer part with commas
   const intPart = parts[0].replace(/^0+(?=\d)/, "");
   const formatted = (intPart || "0").replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   if (parts.length > 1) {
@@ -49,14 +44,14 @@ function formatSortCode(value: string): string {
   return `${digits.slice(0, 2)}-${digits.slice(2, 4)}-${digits.slice(4)}`;
 }
 
-export function Step1bDetails() {
+export function Step5Details() {
   const { state, update, setStep } = useWizard();
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isBusiness = state.payeeType === "business";
 
-  // Determine minimum required fields
+  // Minimum required fields to continue
   const nameField = isBusiness ? state.companyName : state.payeeName;
   const canContinue =
     nameField.trim().length > 0 &&
@@ -81,7 +76,11 @@ export function Step1bDetails() {
         const formData = new FormData();
         formData.append("file", file);
         formData.append("payeeType", state.payeeType ?? "unknown");
-        try { formData.append("sessionId", getSessionId()); } catch { /* SSR */ }
+        try {
+          formData.append("sessionId", getSessionId());
+        } catch {
+          /* SSR */
+        }
 
         const res = await fetch("/api/extract-wizard", {
           method: "POST",
@@ -99,7 +98,6 @@ export function Step1bDetails() {
         update({
           extractedData: extracted,
           extractionLoading: false,
-          // Pre-fill manual fields from extracted data
           companyName: extracted.company_name ?? state.companyName,
           companyNumber: extracted.company_number ?? state.companyNumber,
           vatNumber: extracted.vat_number ?? state.vatNumber,
@@ -145,6 +143,11 @@ export function Step1bDetails() {
     update({ sortCode: formatSortCode(value) });
   };
 
+  function handleBack() {
+    // Back: either to marketplace (step 4) or directly to step 2/3 if marketplace was skipped
+    setStep(4);
+  }
+
   // Phase 1: Ask about invoice
   if (state.hasInvoice === null) {
     return (
@@ -178,7 +181,7 @@ export function Step1bDetails() {
         </div>
 
         <div className="flex justify-start">
-          <Button variant="ghost" onClick={() => setStep(1)}>
+          <Button variant="ghost" onClick={handleBack}>
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back
           </Button>
@@ -187,13 +190,11 @@ export function Step1bDetails() {
     );
   }
 
-  // Phase 2: Invoice upload (when hasInvoice === true and no extracted data yet)
+  // Phase 2: Invoice upload
   if (state.hasInvoice && !state.extractedData && !state.extractionLoading) {
     return (
       <div className="space-y-6">
-        <h2 className="text-2xl font-semibold text-slate-900">
-          Upload your invoice
-        </h2>
+        <h2 className="text-2xl font-semibold text-slate-900">Upload your invoice</h2>
 
         <div
           onDragOver={(e) => {
@@ -214,9 +215,7 @@ export function Step1bDetails() {
             <p className="text-sm font-medium text-slate-700">
               Drag and drop your invoice here
             </p>
-            <p className="text-xs text-slate-500 mt-1">
-              PDF, JPG, PNG, or WebP
-            </p>
+            <p className="text-xs text-slate-500 mt-1">PDF, JPG, PNG, or WebP</p>
           </div>
           <input
             ref={fileInputRef}
@@ -232,10 +231,7 @@ export function Step1bDetails() {
         )}
 
         <div className="flex justify-between">
-          <Button
-            variant="ghost"
-            onClick={() => update({ hasInvoice: null })}
-          >
+          <Button variant="ghost" onClick={() => update({ hasInvoice: null })}>
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back
           </Button>
@@ -244,25 +240,23 @@ export function Step1bDetails() {
     );
   }
 
-  // Phase 2b: Loading state
+  // Phase 2b: Loading
   if (state.extractionLoading) {
     return (
       <div className="space-y-6">
         <h2 className="text-2xl font-semibold text-slate-900">
-          Extracting invoice details...
+          Extracting invoice details&hellip;
         </h2>
 
         <div className="flex flex-col items-center gap-4 py-12">
           <Loader2 className="h-10 w-10 text-coral animate-spin" />
-          <p className="text-sm text-slate-500">
-            Analysing your invoice with AI
-          </p>
+          <p className="text-sm text-slate-500">Analysing your invoice with AI</p>
         </div>
       </div>
     );
   }
 
-  // Phase 3: Show form (either from extraction or manual entry)
+  // Phase 3: Form
   const showExtractedBanner = state.hasInvoice && state.extractedData;
 
   return (
@@ -301,8 +295,7 @@ export function Step1bDetails() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label className="text-sm text-slate-700">
-                  Company Number{" "}
-                  <span className="text-slate-400">(optional)</span>
+                  Company Number <span className="text-slate-400">(optional)</span>
                 </Label>
                 <Input
                   className="h-10 rounded-lg border-slate-200"
@@ -314,8 +307,7 @@ export function Step1bDetails() {
 
               <div className="space-y-1.5">
                 <Label className="text-sm text-slate-700">
-                  VAT Number{" "}
-                  <span className="text-slate-400">(optional)</span>
+                  VAT Number <span className="text-slate-400">(optional)</span>
                 </Label>
                 <Input
                   className="h-10 rounded-lg border-slate-200"
@@ -325,17 +317,31 @@ export function Step1bDetails() {
                 />
               </div>
             </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-sm text-slate-700">
+                Account Name <span className="text-slate-400">(name on account)</span>
+              </Label>
+              <Input
+                className="h-10 rounded-lg border-slate-200"
+                value={state.payeeName}
+                onChange={(e) => update({ payeeName: e.target.value })}
+                placeholder="Acme Ltd"
+              />
+            </div>
           </>
         ) : (
-          <div className="space-y-1.5">
-            <Label className="text-sm text-slate-700">Payee Full Name</Label>
-            <Input
-              className="h-10 rounded-lg border-slate-200"
-              value={state.payeeName}
-              onChange={(e) => update({ payeeName: e.target.value })}
-              placeholder="John Smith"
-            />
-          </div>
+          <>
+            <div className="space-y-1.5">
+              <Label className="text-sm text-slate-700">Payee Full Name</Label>
+              <Input
+                className="h-10 rounded-lg border-slate-200"
+                value={state.payeeName}
+                onChange={(e) => update({ payeeName: e.target.value })}
+                placeholder="John Smith"
+              />
+            </div>
+          </>
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -367,7 +373,9 @@ export function Step1bDetails() {
         </div>
 
         <div className="space-y-1.5">
-          <Label className="text-sm text-slate-700">Payment Amount</Label>
+          <Label className="text-sm text-slate-700">
+            Payment Amount <span className="text-slate-400">(optional)</span>
+          </Label>
           <div className="relative">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">
               &pound;
@@ -377,7 +385,9 @@ export function Step1bDetails() {
               type="text"
               inputMode="decimal"
               value={formatCurrency(state.paymentAmount)}
-              onChange={(e) => update({ paymentAmount: parseCurrencyToRaw(e.target.value) })}
+              onChange={(e) =>
+                update({ paymentAmount: parseCurrencyToRaw(e.target.value) })
+              }
               placeholder="0.00"
             />
           </div>
@@ -388,9 +398,7 @@ export function Step1bDetails() {
         <Button
           variant="ghost"
           onClick={() => {
-            if (state.hasInvoice && !state.extractedData) {
-              update({ hasInvoice: null });
-            } else if (state.hasInvoice && state.extractedData) {
+            if (state.hasInvoice && state.extractedData) {
               update({ hasInvoice: null, extractedData: null });
             } else {
               update({ hasInvoice: null });
@@ -401,7 +409,11 @@ export function Step1bDetails() {
           Back
         </Button>
 
-        <Button onClick={() => setStep(2)} disabled={!canContinue}>
+        <Button
+          onClick={() => setStep(6)}
+          disabled={!canContinue}
+          className="bg-coral hover:bg-coral-dark text-white font-semibold"
+        >
           Continue
           <ArrowRight className="h-4 w-4 ml-2" />
         </Button>

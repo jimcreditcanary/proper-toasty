@@ -449,22 +449,11 @@ export default async function VerificationResultPage({
       </div>
 
       {/* Context badges */}
-      {(categoryLabel || v.check_tier) && (
+      {categoryLabel && (
         <div className="flex flex-wrap gap-2 mb-4">
-          {categoryLabel && (
-            <span className="inline-flex items-center rounded-full bg-slate-100 border border-slate-200 px-3 py-1 text-xs font-medium text-slate-600">
-              Buying: {categoryLabel}
-            </span>
-          )}
-          {v.check_tier && (
-            <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${
-              v.check_tier === "enhanced"
-                ? "bg-coral/10 border border-coral/20 text-coral"
-                : "bg-slate-100 border border-slate-200 text-slate-600"
-            }`}>
-              {v.check_tier === "enhanced" ? "Enhanced check" : "Basic check"}
-            </span>
-          )}
+          <span className="inline-flex items-center rounded-full bg-slate-100 border border-slate-200 px-3 py-1 text-xs font-medium text-slate-600">
+            Buying: {categoryLabel}
+          </span>
         </div>
       )}
 

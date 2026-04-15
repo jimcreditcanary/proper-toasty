@@ -339,6 +339,13 @@ export interface Database {
           status: string | null;
           anthropic_tokens_used: number | null;
           short_id: string;
+          marketplace_source: string | null;
+          marketplace_other: string | null;
+          marketplace_screenshot_url: string | null;
+          vehicle_reg: string | null;
+          dvla_data: Json | null;
+          vehicle_valuation: Json | null;
+          selected_checks: string[] | null;
         };
         Insert: {
           id?: string;
@@ -385,6 +392,13 @@ export interface Database {
           overall_risk?: string | null;
           status?: string | null;
           anthropic_tokens_used?: number | null;
+          marketplace_source?: string | null;
+          marketplace_other?: string | null;
+          marketplace_screenshot_url?: string | null;
+          vehicle_reg?: string | null;
+          dvla_data?: Json | null;
+          vehicle_valuation?: Json | null;
+          selected_checks?: string[] | null;
         };
         Update: {
           id?: string;
@@ -431,6 +445,13 @@ export interface Database {
           overall_risk?: string | null;
           status?: string | null;
           anthropic_tokens_used?: number | null;
+          marketplace_source?: string | null;
+          marketplace_other?: string | null;
+          marketplace_screenshot_url?: string | null;
+          vehicle_reg?: string | null;
+          dvla_data?: Json | null;
+          vehicle_valuation?: Json | null;
+          selected_checks?: string[] | null;
         };
         Relationships: [
           {
@@ -475,6 +496,81 @@ export interface Database {
           key?: string;
           value?: string;
           updated_at?: string;
+        };
+        Relationships: [];
+      };
+      vehicle_lookups: {
+        Row: {
+          id: string;
+          verification_id: string | null;
+          registration_number: string;
+          make: string | null;
+          colour: string | null;
+          fuel_type: string | null;
+          engine_capacity: number | null;
+          year_of_manufacture: number | null;
+          month_of_first_registration: string | null;
+          tax_status: string | null;
+          tax_due_date: string | null;
+          mot_status: string | null;
+          mot_expiry_date: string | null;
+          co2_emissions: number | null;
+          marked_for_export: boolean | null;
+          type_approval: string | null;
+          wheelplan: string | null;
+          revenue_weight: number | null;
+          euro_status: string | null;
+          date_of_last_v5c_issued: string | null;
+          raw_response: Json;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          verification_id?: string | null;
+          registration_number: string;
+          make?: string | null;
+          colour?: string | null;
+          fuel_type?: string | null;
+          engine_capacity?: number | null;
+          year_of_manufacture?: number | null;
+          month_of_first_registration?: string | null;
+          tax_status?: string | null;
+          tax_due_date?: string | null;
+          mot_status?: string | null;
+          mot_expiry_date?: string | null;
+          co2_emissions?: number | null;
+          marked_for_export?: boolean | null;
+          type_approval?: string | null;
+          wheelplan?: string | null;
+          revenue_weight?: number | null;
+          euro_status?: string | null;
+          date_of_last_v5c_issued?: string | null;
+          raw_response: Json;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          verification_id?: string | null;
+          registration_number?: string;
+          make?: string | null;
+          colour?: string | null;
+          fuel_type?: string | null;
+          engine_capacity?: number | null;
+          year_of_manufacture?: number | null;
+          month_of_first_registration?: string | null;
+          tax_status?: string | null;
+          tax_due_date?: string | null;
+          mot_status?: string | null;
+          mot_expiry_date?: string | null;
+          co2_emissions?: number | null;
+          marked_for_export?: boolean | null;
+          type_approval?: string | null;
+          wheelplan?: string | null;
+          revenue_weight?: number | null;
+          euro_status?: string | null;
+          date_of_last_v5c_issued?: string | null;
+          raw_response?: Json;
+          created_at?: string;
         };
         Relationships: [];
       };

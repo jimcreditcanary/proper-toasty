@@ -10,9 +10,13 @@ const SESSION_KEY = "wap_wizard_session";
 function persistWizard(state: WizardState, step: WizardStep) {
   try {
     // Strip non-serialisable fields (File objects)
-    const { invoiceFile, ...rest } = state;
+    const { invoiceFile, marketplaceScreenshot, ...rest } = state;
+    void invoiceFile;
+    void marketplaceScreenshot;
     sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ wizard: rest, step }));
-  } catch { /* quota or SSR – ignore */ }
+  } catch {
+    /* quota or SSR – ignore */
+  }
 }
 
 /** Restore wizard state from sessionStorage (returns null if nothing saved) */
@@ -21,7 +25,9 @@ function restoreWizard(): { wizard: Partial<WizardState>; step: WizardStep } | n
     const raw = sessionStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
     return JSON.parse(raw);
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
 /** Clear saved wizard state */
@@ -29,7 +35,9 @@ export function clearPersistedWizard() {
   try {
     sessionStorage.removeItem(STORAGE_KEY);
     sessionStorage.removeItem(SESSION_KEY);
-  } catch { /* SSR */ }
+  } catch {
+    /* SSR */
+  }
 }
 
 /** Get or create a wizard session ID for journey tracking */
@@ -61,7 +69,9 @@ function trackStep(step: WizardStep, completed = false, verificationId?: string)
         verificationId,
       }),
     }).catch(() => {});
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 }
 
 export { getSessionId, trackStep };
@@ -77,7 +87,7 @@ type WizardContextValue = {
   update: (partial: Partial<WizardState>) => void;
   setStep: (step: WizardStep) => void;
   reset: () => void;
-  /** Current visual step number (1-5) for progress bar */
+  /** Visible progress-bar step number (1..6) */
   stepNumber: number;
   totalSteps: number;
 };
@@ -99,9 +109,20 @@ function reducer(state: FullState, action: WizardAction): FullState {
   }
 }
 
-function getStepNumber(step: WizardStep): number {
-  const map: Record<string, number> = { "1": 1, "1b": 2, "2": 3, "3": 4, "4": 5, "5": 6 };
-  return map[String(step)] ?? 1;
+/**
+ * Visible step number on the progress bar. Steps 1..6 map directly, but the
+ * vehicle registration step (3) is skipped when `purchaseCategory !== "vehicle"`
+ * so the user doesn't see a "missing step" jump from 2 → 4.
+ */
+function getStepNumber(step: WizardStep, state: WizardState): number {
+  const isVehicle = state.purchaseCategory === "vehicle";
+  if (isVehicle) {
+    // All 6 steps visible
+    return step as number;
+  }
+  // Non-vehicle: 5 visible steps (skip 3)
+  const map: Record<number, number> = { 1: 1, 2: 2, 3: 3, 4: 3, 5: 4, 6: 5 };
+  return map[step as number] ?? 1;
 }
 
 export function WizardProvider({
@@ -124,7 +145,7 @@ export function WizardProvider({
       ...(initialAuth ?? {}),
       ...(initialPayee ? { payeeType: initialPayee } : {}),
     },
-    step: saved?.step ?? ((initialPayee ? "1b" : 1) as WizardStep),
+    step: saved?.step ?? ((initialPayee ? 2 : 1) as WizardStep),
   });
 
   // Init session tracking on mount
@@ -157,16 +178,20 @@ export function WizardProvider({
     dispatch({ type: "RESET" });
   }, []);
 
+  const totalSteps = full.wizard.purchaseCategory === "vehicle" ? 6 : 5;
+
   return (
-    <WizardContext value={{
-      state: full.wizard,
-      step: full.step,
-      update,
-      setStep,
-      reset,
-      stepNumber: getStepNumber(full.step),
-      totalSteps: 6,
-    }}>
+    <WizardContext
+      value={{
+        state: full.wizard,
+        step: full.step,
+        update,
+        setStep,
+        reset,
+        stepNumber: getStepNumber(full.step, full.wizard),
+        totalSteps,
+      }}
+    >
       {children}
     </WizardContext>
   );

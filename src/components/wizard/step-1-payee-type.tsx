@@ -7,7 +7,7 @@ import type { PayeeType } from "./types";
 const options: { type: PayeeType; label: string; icon: React.ElementType }[] = [
   { type: "business", label: "A business", icon: Building2 },
   { type: "person", label: "A person", icon: User },
-  { type: "unknown", label: "I don't know", icon: HelpCircle },
+  { type: "unsure", label: "I'm not sure", icon: HelpCircle },
 ];
 
 export function Step1PayeeType() {
@@ -15,7 +15,7 @@ export function Step1PayeeType() {
 
   function handleSelect(type: PayeeType) {
     update({ payeeType: type });
-    setStep("1b");
+    setStep(2);
   }
 
   return (
@@ -33,15 +33,11 @@ export function Step1PayeeType() {
               type="button"
               onClick={() => handleSelect(type)}
               className={`rounded-xl border-2 p-6 flex flex-col items-center gap-3 transition-colors cursor-pointer hover:border-coral/40 ${
-                selected
-                  ? "border-coral bg-coral/5"
-                  : "border-slate-200"
+                selected ? "border-coral bg-coral/5" : "border-slate-200"
               }`}
             >
               <Icon className="h-8 w-8 text-slate-600" />
-              <span className="text-sm font-medium text-slate-700">
-                {label}
-              </span>
+              <span className="text-sm font-medium text-slate-700">{label}</span>
             </button>
           );
         })}

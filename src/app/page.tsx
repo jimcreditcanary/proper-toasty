@@ -14,7 +14,6 @@ import {
   Quote,
   CheckCircle2,
   Check,
-  X,
   Sparkles,
   Zap,
   Crown,
@@ -207,7 +206,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── Pricing + Basic vs Enhanced ─────────────────────────────── */}
+      {/* ── Pricing + checks included ─────────────────────────────── */}
       <section id="pricing">
         <div className="mx-auto w-full max-w-6xl px-6 py-20 sm:py-24">
           <div className="text-center mb-14">
@@ -216,74 +215,45 @@ export default function Home() {
               Simple, transparent pricing
             </h2>
             <p className="mt-4 text-lg text-slate-600 max-w-2xl mx-auto">
-              Your basic check is always free. Enhanced checks give you the
-              full picture — buy credits when you need them.
+              One check &mdash; every signal we can find on the payee. Buy
+              credits when you need them, no subscription.
             </p>
           </div>
 
-          {/* ── Basic vs Enhanced comparison ── */}
+          {/* ── What's in every check ── */}
           <div className="mx-auto max-w-3xl mb-16">
             <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-lg shadow-slate-200/50">
-              {/* Header row */}
-              <div className="grid grid-cols-[1fr_100px_100px] sm:grid-cols-[1fr_120px_120px] bg-slate-900 text-white">
-                <div className="px-5 py-4 flex items-center">
-                  <span className="text-sm font-semibold">What&apos;s included?</span>
-                </div>
-                <div className="px-3 py-4 text-center border-l border-slate-700">
-                  <p className="text-sm font-semibold">Basic</p>
-                  <p className="text-xs text-slate-400 mt-0.5">Free</p>
-                </div>
-                <div className="px-3 py-4 text-center border-l border-slate-700 bg-coral/20">
-                  <p className="text-sm font-semibold flex items-center justify-center gap-1">
-                    <Sparkles className="size-3.5" />
-                    Enhanced
-                  </p>
-                  <p className="text-xs text-coral-light mt-0.5">From &pound;1.43</p>
-                </div>
+              <div className="bg-slate-900 text-white px-5 py-4">
+                <p className="text-sm font-semibold flex items-center gap-2">
+                  <Sparkles className="size-3.5" />
+                  Every check includes
+                </p>
               </div>
 
-              {/* Feature rows */}
               {[
-                { icon: Landmark, label: "Confirmation of Payee", desc: "Bank account matches payee name", basic: true, enhanced: true },
-                { icon: Building2, label: "Companies House", desc: "Company registered & active", basic: false, enhanced: true },
-                { icon: ShieldCheck, label: "VAT verification", desc: "VAT number valid with HMRC", basic: false, enhanced: true },
-                { icon: CalendarDays, label: "Trading history", desc: "Years trading & activity", basic: false, enhanced: true },
-                { icon: FileText, label: "Accounts filed", desc: "Up to date with Companies House", basic: false, enhanced: true },
-                { icon: Star, label: "Online reviews", desc: "Google, Trustpilot & more", basic: false, enhanced: true },
-                { icon: ShoppingCart, label: "Marketplace valuation", desc: "Fair price analysis", basic: false, enhanced: true },
+                { icon: Landmark, label: "Confirmation of Payee", desc: "Bank account matches payee name" },
+                { icon: Building2, label: "Companies House", desc: "Company registered & active" },
+                { icon: ShieldCheck, label: "VAT verification", desc: "VAT number valid with HMRC" },
+                { icon: CalendarDays, label: "Trading history", desc: "Years trading & activity" },
+                { icon: FileText, label: "Accounts filed", desc: "Up to date with Companies House" },
+                { icon: Star, label: "Online reviews", desc: "Google, Trustpilot & more" },
+                { icon: ShoppingCart, label: "Marketplace valuation", desc: "Fair price analysis" },
               ].map((feature, i) => (
                 <div
                   key={feature.label}
-                  className={`grid grid-cols-[1fr_100px_100px] sm:grid-cols-[1fr_120px_120px] ${
+                  className={`flex items-center gap-3 px-5 py-3.5 border-t border-slate-100 ${
                     i % 2 === 0 ? "bg-white" : "bg-slate-50/50"
-                  } border-t border-slate-100`}
+                  }`}
                 >
-                  <div className="px-5 py-3.5 flex items-center gap-3">
-                    <div className={`flex size-8 shrink-0 items-center justify-center rounded-lg ${
-                      feature.enhanced ? "bg-coral/10 text-coral" : "bg-slate-100 text-slate-400"
-                    }`}>
-                      <feature.icon className="size-4" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-slate-900">{feature.label}</p>
-                      <p className="text-xs text-slate-500 hidden sm:block">{feature.desc}</p>
-                    </div>
+                  <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-coral/10 text-coral">
+                    <feature.icon className="size-4" />
                   </div>
-                  <div className="px-3 py-3.5 flex items-center justify-center border-l border-slate-100">
-                    {feature.basic ? (
-                      <div className="flex size-6 items-center justify-center rounded-full bg-emerald-100">
-                        <Check className="size-3.5 text-emerald-600" strokeWidth={3} />
-                      </div>
-                    ) : (
-                      <div className="flex size-6 items-center justify-center rounded-full bg-slate-100">
-                        <X className="size-3.5 text-slate-300" strokeWidth={3} />
-                      </div>
-                    )}
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-slate-900">{feature.label}</p>
+                    <p className="text-xs text-slate-500">{feature.desc}</p>
                   </div>
-                  <div className="px-3 py-3.5 flex items-center justify-center border-l border-slate-100 bg-coral/[0.02]">
-                    <div className="flex size-6 items-center justify-center rounded-full bg-emerald-100">
-                      <Check className="size-3.5 text-emerald-600" strokeWidth={3} />
-                    </div>
+                  <div className="flex size-6 items-center justify-center rounded-full bg-emerald-100 shrink-0">
+                    <Check className="size-3.5 text-emerald-600" strokeWidth={3} />
                   </div>
                 </div>
               ))}
@@ -293,7 +263,7 @@ export default function Home() {
           {/* ── Credit packs ── */}
           <div className="text-center mb-8">
             <h3 className="text-xl sm:text-2xl font-bold text-slate-900">
-              Buy enhanced check credits
+              Buy check credits
             </h3>
             <p className="mt-2 text-slate-600">
               The more you buy, the more you save. No expiry.

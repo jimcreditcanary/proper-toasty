@@ -152,7 +152,7 @@ export function EnterprisePricingCalculator({ tiers }: { tiers: Tier[] }) {
             <p className="text-sm font-medium text-slate-900 mb-3">Includes:</p>
             <div className="grid sm:grid-cols-2 gap-2">
               {[
-                `${tier.credits} enhanced checks per month`,
+                `${tier.credits} checks per month`,
                 "Unused credits roll over",
                 "Full API access",
                 "Monthly invoices & receipts",

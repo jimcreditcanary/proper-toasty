@@ -3,11 +3,11 @@
 import { useWizard } from "./context";
 import { WizardProgressBar } from "./progress-bar";
 import { Step1PayeeType } from "./step-1-payee-type";
-import { Step1bDetails } from "./step-1b-details";
 import { Step2Category } from "./step-2-category";
-import { Step3Marketplace } from "./step-3-marketplace";
-import { Step4Tier } from "./step-4-tier";
-import { Step5Summary } from "./step-5-summary";
+import { Step3Vehicle } from "./step-3-vehicle";
+import { Step4Marketplace } from "./step-4-marketplace";
+import { Step5Details } from "./step-5-details";
+import { Step6Checks } from "./step-6-checks";
 
 export function WizardShell() {
   const { step } = useWizard();
@@ -18,11 +18,11 @@ export function WizardShell() {
         <WizardProgressBar />
 
         {step === 1 && <Step1PayeeType />}
-        {step === "1b" && <Step1bDetails />}
         {step === 2 && <Step2Category />}
-        {step === 3 && <Step3Marketplace />}
-        {step === 4 && <Step4Tier />}
-        {step === 5 && <Step5Summary />}
+        {step === 3 && <Step3Vehicle />}
+        {step === 4 && <Step4Marketplace />}
+        {step === 5 && <Step5Details />}
+        {step === 6 && <Step6Checks />}
       </div>
     </div>
   );

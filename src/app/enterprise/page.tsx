@@ -146,7 +146,7 @@ export default function EnterprisePage() {
             </h3>
             <div className="space-y-2.5">
               {[
-                "Pay-as-you-go: £2.50 per enhanced check (no commitment)",
+                "Pay-as-you-go: £2.50 per check (no commitment)",
                 "Enterprise 25: £1.80/check — save 28% vs pay-as-you-go",
                 "Enterprise 100: £1.20/check — save 52% vs pay-as-you-go",
                 "Enterprise 500: £0.70/check — save 72% vs pay-as-you-go",

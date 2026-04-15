@@ -78,7 +78,7 @@ export default function TermsPage() {
           <h2>4. Credits and payments</h2>
           <h3>Pay-as-you-go</h3>
           <ul>
-            <li>Enhanced verification checks require credits, purchased through our website.</li>
+            <li>Verification checks require credits, purchased through our website.</li>
             <li>Credits are non-refundable once purchased, except where required by law.</li>
             <li>Credits do not expire.</li>
             <li>Prices are displayed in GBP and inclusive of VAT where applicable.</li>
@@ -93,7 +93,7 @@ export default function TermsPage() {
 
           <h2>5. Free checks</h2>
           <p>
-            We offer a free basic check (Confirmation of Payee) that does not require an account or payment. We reserve the right to modify or discontinue free checks at any time.
+            New users may run one free check before purchasing credits. We reserve the right to modify or discontinue free checks at any time.
           </p>
 
           <h2>6. API access</h2>
