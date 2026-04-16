@@ -126,12 +126,17 @@ export async function verifyBankAccount(
   accountType: CoPAccountType = "Personal"
 ) {
   const apiUrl = process.env.BANK_VERIFY_API_URL || DEFAULT_COP_URL;
+  // PayPoint uses two separate keys:
+  //   - BANK_VERIFY_API_KEY          → x-api-key (backend credential)
+  //   - BANK_VERIFY_SUBSCRIPTION_KEY → Ocp-Apim-Subscription-Key (APIM gate)
   const apiKey = process.env.BANK_VERIFY_API_KEY;
+  const subscriptionKey = process.env.BANK_VERIFY_SUBSCRIPTION_KEY;
 
-  if (!apiKey) {
+  if (!apiKey || !subscriptionKey) {
     return {
       verified: false,
-      error: "BANK_VERIFY_API_KEY is not configured",
+      error:
+        "CoP is not configured — set BANK_VERIFY_API_KEY and BANK_VERIFY_SUBSCRIPTION_KEY",
       details: "",
     };
   }
@@ -152,12 +157,8 @@ export async function verifyBankAccount(
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      // PayPoint's docs say x-api-key, but their Azure API Management
-      // gateway's 401 wording ("missing subscription key") suggests it's
-      // actually configured under the APIM default. Send both — harmless
-      // if one is ignored, fixes the 401 if the doc is stale.
       "x-api-key": apiKey,
-      "Ocp-Apim-Subscription-Key": apiKey,
+      "Ocp-Apim-Subscription-Key": subscriptionKey,
       "x-interaction-id": referenceId,
     },
     body: JSON.stringify({
