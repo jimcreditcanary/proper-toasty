@@ -77,7 +77,7 @@ export function Step3Vehicle() {
           {/* UK number plate input */}
           <div className="space-y-3 max-w-md">
             <div
-              className="flex items-center justify-center rounded-xl border-[3px] border-slate-900 bg-[#FFCC00] px-6 py-5 shadow-md shadow-slate-300/50 focus-within:ring-4 focus-within:ring-coral/30"
+              className="flex items-center justify-center rounded-xl bg-[#FFCC00] px-6 py-5 shadow-md shadow-slate-300/50 focus-within:ring-4 focus-within:ring-coral/30"
               aria-label="UK number plate"
             >
               <input

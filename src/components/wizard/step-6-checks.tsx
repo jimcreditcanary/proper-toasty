@@ -267,7 +267,10 @@ export function Step6Checks() {
     return () => clearInterval(interval);
   }, [submitting]);
 
-  if (submitting) return <LoadingChecks progress={progress} />;
+  if (submitting)
+    return (
+      <LoadingChecks progress={progress} steps={buildLoadingSteps(state)} />
+    );
 
   // ── Auth state branches ────────────────────────────────────────────
   const hasCredits = state.isAuthenticated && state.userCredits > 0;
@@ -501,23 +504,86 @@ function PreviewCard({ id, label }: { id: CheckId; label: string }) {
 }
 
 // ── Loading state during verification ───────────────────────────────
-const CHECK_STEPS = [
-  { icon: Landmark, label: "Verifying bank account\u2026", delay: 0 },
-  { icon: Building2, label: "Checking Companies House\u2026", delay: 1500 },
-  { icon: FileText, label: "Validating VAT with HMRC\u2026", delay: 3000 },
-  { icon: Star, label: "Searching online reviews\u2026", delay: 4500 },
-  { icon: ShieldCheck, label: "Compiling your report\u2026", delay: 6000 },
-];
 
-function LoadingChecks({ progress }: { progress: number }) {
+type LoadingStep = {
+  icon: typeof ShieldCheck;
+  label: string;
+  delay: number;
+};
+
+/**
+ * Build the loading animation steps that actually correspond to the checks
+ * the server will run for this payee. Mirrors the branching in
+ * runVerification.ts so we don't show "Validating VAT…" when no VAT number
+ * was entered, etc.
+ */
+function buildLoadingSteps(state: {
+  payeeType: "business" | "person" | "unsure" | null;
+  purchaseCategory: string | null;
+  companyName: string;
+  companyNumber: string;
+  vatNumber: string;
+  sortCode: string;
+  accountNumber: string;
+  dvlaData: unknown;
+}): LoadingStep[] {
+  const out: LoadingStep[] = [];
+  let delay = 0;
+  const push = (icon: typeof ShieldCheck, label: string) => {
+    out.push({ icon, label, delay });
+    delay += 1500;
+  };
+
+  const isBusiness =
+    state.payeeType === "business" ||
+    state.companyNumber.trim().length > 0 ||
+    state.vatNumber.trim().length > 0;
+
+  const sort = state.sortCode.replace(/\D/g, "");
+  const acc = state.accountNumber.replace(/\D/g, "");
+
+  // CoP — runs whenever bank details are present (nearly always)
+  if (sort.length === 6 && acc.length === 8) {
+    push(Landmark, "Verifying bank account\u2026");
+  }
+
+  // Business-only checks
+  if (isBusiness && state.companyNumber.trim()) {
+    push(Building2, "Checking Companies House\u2026");
+  }
+  if (isBusiness && state.vatNumber.trim()) {
+    push(FileText, "Validating VAT with HMRC\u2026");
+  }
+  if (isBusiness && state.companyName.trim()) {
+    push(Star, "Searching online reviews\u2026");
+  }
+
+  // Vehicle valuation — only when a vehicle lookup actually happened
+  if (state.purchaseCategory === "vehicle" && state.dvlaData) {
+    push(Car, "Valuing the vehicle\u2026");
+  }
+
+  // Final compile step — always last
+  push(ShieldCheck, "Compiling your report\u2026");
+
+  return out;
+}
+
+function LoadingChecks({
+  progress,
+  steps,
+}: {
+  progress: number;
+  steps: LoadingStep[];
+}) {
   const [visibleSteps, setVisibleSteps] = useState(0);
 
   useEffect(() => {
-    const timers = CHECK_STEPS.map((_, i) =>
-      setTimeout(() => setVisibleSteps(i + 1), CHECK_STEPS[i].delay)
+    const timers = steps.map((_, i) =>
+      setTimeout(() => setVisibleSteps(i + 1), steps[i].delay)
     );
     return () => timers.forEach(clearTimeout);
-  }, []);
+  }, [steps]);
 
   return (
     <div className="space-y-6 py-2">
@@ -533,7 +599,7 @@ function LoadingChecks({ progress }: { progress: number }) {
       </div>
 
       <div className="space-y-2.5">
-        {CHECK_STEPS.map((step, i) => {
+        {steps.map((step, i) => {
           const visible = i < visibleSteps;
           const active = i === visibleSteps - 1;
           return (
