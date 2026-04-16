@@ -594,6 +594,13 @@ export interface Database {
         };
         Returns: boolean;
       };
+      deduct_credits: {
+        Args: {
+          p_user_id: string;
+          p_count: number;
+        };
+        Returns: boolean;
+      };
     };
     Enums: {
       [_ in never]: never;

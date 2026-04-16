@@ -408,8 +408,13 @@ Return ONLY a JSON object with no markdown formatting:
     );
   }
 
-  // Marketplace valuation — only when a screenshot was uploaded
-  if (marketplaceScreenshotBase64 && marketplaceScreenshotMediaType) {
+  // Marketplace valuation — only when a screenshot was uploaded AND the
+  // user's tier includes it (tier 2+).
+  if (
+    isChecked("marketplace_valuation") &&
+    marketplaceScreenshotBase64 &&
+    marketplaceScreenshotMediaType
+  ) {
     promises.push(
       (async () => {
         try {

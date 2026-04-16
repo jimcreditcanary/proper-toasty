@@ -16,19 +16,24 @@ export async function POST(request: NextRequest) {
     const userId = user.id;
     const admin = createAdminClient();
 
-    // Deduct credit
-    const { data: hasCredit } = await admin.rpc("deduct_credit", {
+    // Parse multipart form data first so we can tell how many credits
+    // the selected tier costs before deducting.
+    const formData = await request.formData();
+    const creditsRaw = formData.get("creditsToUse");
+    const parsed = parseInt((creditsRaw as string) ?? "1", 10);
+    const creditsToUse = [1, 2, 3].includes(parsed) ? parsed : 1;
+
+    const { data: hasCredits } = await admin.rpc("deduct_credits", {
       p_user_id: userId,
+      p_count: creditsToUse,
     });
-    if (!hasCredit) {
+    if (!hasCredits) {
       return NextResponse.json(
-        { error: "Insufficient credits" },
+        { error: `Insufficient credits — this report costs ${creditsToUse}` },
         { status: 402 }
       );
     }
 
-    // Parse multipart form data and run verification
-    const formData = await request.formData();
     const result = await runVerification({ formData, userId, admin });
 
     return NextResponse.json({ id: result.id });

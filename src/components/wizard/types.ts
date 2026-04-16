@@ -56,7 +56,11 @@ export type CheckId =
   | "online_reviews"
   | "ai_risk_assessment"
   | "vehicle_history"
-  | "vehicle_valuation";
+  | "vehicle_valuation"
+  | "marketplace_valuation";
+
+/** Pricing tier on the final step — each tier unlocks more checks. */
+export type ReportTier = 1 | 2 | 3;
 
 export type WizardState = {
   // Step 1 — payee type
@@ -155,87 +159,114 @@ export const initialWizardState: WizardState = {
   userEmail: null,
 };
 
-/** Which checks should appear for a given payee type + category combo. */
+export type CheckDef = {
+  id: CheckId;
+  label: string;
+  description: string;
+  tier: ReportTier;
+  comingSoon?: boolean;
+};
+
+/**
+ * Which checks are relevant to a given payee + category + marketplace combo.
+ * Each check is tagged with the tier it belongs to:
+ *   tier 1 — API / data checks (CoP, Companies House, VAT, etc.)
+ *   tier 2 — AI valuations (vehicle via DVLA, marketplace via screenshot)
+ *   tier 3 — online reviews (business only)
+ */
 export function availableChecksFor(
   payeeType: PayeeType | null,
-  category: PurchaseCategory | null
-): { id: CheckId; label: string; description: string; defaultOn: boolean; comingSoon?: boolean }[] {
+  category: PurchaseCategory | null,
+  hasDvla: boolean = false,
+  hasMarketplaceScreenshot: boolean = false
+): CheckDef[] {
   const isBusiness = payeeType === "business";
   const isVehicle = category === "vehicle";
 
-  const base: {
-    id: CheckId;
-    label: string;
-    description: string;
-    defaultOn: boolean;
-    comingSoon?: boolean;
-  }[] = [
+  const out: CheckDef[] = [
     {
       id: "cop",
       label: "Confirmation of Payee",
       description: "Bank account matches the name given",
-      defaultOn: true,
+      tier: 1,
     },
     {
       id: "ai_risk_assessment",
       label: "AI Risk Assessment",
       description: "Claude reviews all the data and flags red flags",
-      defaultOn: true,
+      tier: 1,
     },
   ];
 
   if (isBusiness) {
-    base.push(
+    out.push(
       {
         id: "companies_house",
         label: "Companies House check",
         description: "Company is registered and active",
-        defaultOn: true,
+        tier: 1,
       },
       {
         id: "vat",
         label: "VAT verification",
         description: "VAT number is valid with HMRC",
-        defaultOn: true,
+        tier: 1,
       },
       {
         id: "trading_history",
         label: "Trading History",
         description: "How long the company has been trading",
-        defaultOn: true,
+        tier: 1,
       },
       {
         id: "accounts_filed",
         label: "Accounts Filed",
         description: "Accounts up to date with Companies House",
-        defaultOn: true,
-      },
-      {
-        id: "online_reviews",
-        label: "Online Reviews",
-        description: "Reputation across Google, Trustpilot & more",
-        defaultOn: true,
+        tier: 1,
       }
     );
   }
 
   if (isVehicle) {
-    base.push(
-      {
-        id: "vehicle_history",
-        label: "Vehicle History Check",
-        description: "Outstanding finance, stolen, write-off, mileage",
-        defaultOn: true,
-        comingSoon: true,
-      },
-      {
+    out.push({
+      id: "vehicle_history",
+      label: "Vehicle History Check",
+      description: "Outstanding finance, stolen, write-off, mileage",
+      tier: 1,
+      comingSoon: true,
+    });
+    if (hasDvla) {
+      out.push({
         id: "vehicle_valuation",
         label: "AI Vehicle Valuation",
         description: "Fair market value from DVLA data + AI",
-        defaultOn: true,
-      }
-    );
+        tier: 2,
+      });
+    }
   }
 
-  return base;
+  if (hasMarketplaceScreenshot) {
+    out.push({
+      id: "marketplace_valuation",
+      label: "Marketplace Valuation",
+      description: "Fair price from UK comparables via AI + web search",
+      tier: 2,
+    });
+  }
+
+  if (isBusiness) {
+    out.push({
+      id: "online_reviews",
+      label: "Online Reviews",
+      description: "Reputation across Google, Trustpilot & more",
+      tier: 3,
+    });
+  }
+
+  return out;
+}
+
+/** Checks that should run for a given tier. Pass tier 3 to get everything. */
+export function checksForTier(checks: CheckDef[], tier: ReportTier): CheckDef[] {
+  return checks.filter((c) => c.tier <= tier && !c.comingSoon);
 }

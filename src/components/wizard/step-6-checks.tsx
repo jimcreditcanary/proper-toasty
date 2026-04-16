@@ -16,6 +16,7 @@ import {
   CheckCircle2,
   Search,
   Car,
+  ShoppingCart,
   AlertCircle,
 } from "lucide-react";
 import {
@@ -24,7 +25,12 @@ import {
   trackStep,
 } from "./context";
 import { Button } from "@/components/ui/button";
-import { availableChecksFor, type CheckId } from "./types";
+import {
+  availableChecksFor,
+  checksForTier,
+  type CheckId,
+  type ReportTier,
+} from "./types";
 
 /** Pricing tiers — must match /api/wizard-checkout */
 const PRICING = [
@@ -111,6 +117,14 @@ const PREVIEW_CONTENT: Record<
       "Low mileage for year \u2022 Diesel discount applied",
     ],
   },
+  marketplace_valuation: {
+    icon: ShoppingCart,
+    status: "FAIR PRICE",
+    rows: [
+      "Market value: \u00A3450 \u2013 \u00A3600 from UK comparables",
+      "Listed at \u00A3500 \u2022 within expected range",
+    ],
+  },
 };
 
 export function Step6Checks() {
@@ -121,23 +135,55 @@ export function Step6Checks() {
   const [submitting, setSubmitting] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const [selectedPack, setSelectedPack] = useState<1 | 3 | 7>(1);
+  const [selectedPack, setSelectedPack] = useState<1 | 3 | 7>(3);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
 
-  // Determine checks from inputs — user can't change these.
-  const checks = useMemo(
+  // All checks relevant to this payee + context
+  const allChecks = useMemo(
     () =>
-      availableChecksFor(state.payeeType, state.purchaseCategory).filter(
-        (c) => !c.comingSoon
+      availableChecksFor(
+        state.payeeType,
+        state.purchaseCategory,
+        !!state.dvlaData,
+        !!state.marketplaceScreenshot
       ),
-    [state.payeeType, state.purchaseCategory]
+    [
+      state.payeeType,
+      state.purchaseCategory,
+      state.dvlaData,
+      state.marketplaceScreenshot,
+    ]
+  );
+
+  // Which tiers would actually add something to this payee's report?
+  // We always offer tier 1. Higher tiers are only offered if they add new
+  // non-coming-soon checks.
+  const tier1Checks = useMemo(() => checksForTier(allChecks, 1), [allChecks]);
+  const tier2Checks = useMemo(() => checksForTier(allChecks, 2), [allChecks]);
+  const tier3Checks = useMemo(() => checksForTier(allChecks, 3), [allChecks]);
+  const offerTier2 = tier2Checks.length > tier1Checks.length;
+  const offerTier3 = tier3Checks.length > tier2Checks.length;
+
+  const [selectedTier, setSelectedTier] = useState<ReportTier>(1);
+
+  // If a tier becomes unavailable (context changed), clamp down
+  useEffect(() => {
+    if (selectedTier === 3 && !offerTier3) setSelectedTier(offerTier2 ? 2 : 1);
+    if (selectedTier === 2 && !offerTier2) setSelectedTier(1);
+  }, [offerTier2, offerTier3, selectedTier]);
+
+  // Visible preview cards for the currently selected tier
+  const visibleChecks = useMemo(
+    () => checksForTier(allChecks, selectedTier),
+    [allChecks, selectedTier]
   );
 
   const subjectName =
     state.companyName.trim() || state.payeeName.trim() || "this payee";
 
   // ── Auto-run triggers ───────────────────────────────────────────────
-  // Two triggers, both require the user to be signed in with credits:
+  // Two triggers, both require the user to be signed in with enough
+  // credits for the currently selected tier:
   //   1. ?payment=success  — returning from Stripe
   //   2. ?auto=1           — "Continue & run check" from the dashboard
   useEffect(() => {
@@ -146,10 +192,9 @@ export function Step6Checks() {
     const shouldAutoRun =
       (payment === "success" || auto === "1") &&
       state.isAuthenticated &&
-      state.userCredits > 0;
+      state.userCredits >= selectedTier;
 
     if (shouldAutoRun) {
-      // Strip the params so we don't re-trigger
       const url = new URL(window.location.href);
       url.searchParams.delete("payment");
       url.searchParams.delete("auto");
@@ -195,11 +240,12 @@ export function Step6Checks() {
           formData.append("marketplaceScreenshot", state.marketplaceScreenshot);
       }
 
-      // Server still respects this — defaults to "all" if empty
+      // Tier-filtered check list + credit cost
       formData.append(
         "selectedChecks",
-        JSON.stringify(checks.map((c) => c.id))
+        JSON.stringify(visibleChecks.map((c) => c.id))
       );
+      formData.append("creditsToUse", String(selectedTier));
 
       if (state.invoiceFile) formData.append("file", state.invoiceFile);
 
@@ -273,8 +319,10 @@ export function Step6Checks() {
     );
 
   // ── Auth state branches ────────────────────────────────────────────
-  const hasCredits = state.isAuthenticated && state.userCredits > 0;
-  const authedNoCredits = state.isAuthenticated && state.userCredits === 0;
+  const hasEnoughCredits =
+    state.isAuthenticated && state.userCredits >= selectedTier;
+  const authedNoCredits =
+    state.isAuthenticated && state.userCredits < selectedTier;
   const isAnon = !state.isAuthenticated;
 
   return (
@@ -285,10 +333,24 @@ export function Step6Checks() {
           Your verification report
         </h2>
         <p className="text-sm text-slate-500 mt-1">
-          {checks.length} check{checks.length === 1 ? "" : "s"} ready to run on{" "}
+          {visibleChecks.length} check{visibleChecks.length === 1 ? "" : "s"} ready
+          to run on{" "}
           <span className="font-semibold text-slate-900">{subjectName}</span>
         </p>
       </div>
+
+      {/* ── Tier selector ────────────────────────────────────────── */}
+      {(offerTier2 || offerTier3) && (
+        <TierSelector
+          selected={selectedTier}
+          onSelect={setSelectedTier}
+          tier1Count={tier1Checks.length}
+          tier2Count={tier2Checks.length}
+          tier3Count={tier3Checks.length}
+          offerTier2={offerTier2}
+          offerTier3={offerTier3}
+        />
+      )}
 
       {/* ── Paywall hero card ────────────────────────────────────── */}
       <div className="rounded-2xl border-2 border-coral/20 bg-gradient-to-br from-coral/5 to-coral/10 p-5 sm:p-6 space-y-4">
@@ -301,21 +363,23 @@ export function Step6Checks() {
               Unlock your report
             </h3>
             <p className="text-sm text-slate-600">
-              {hasCredits
-                ? `You have ${state.userCredits} credit${state.userCredits === 1 ? "" : "s"} \u2014 use one to run all ${checks.length} checks.`
-                : "Run every check below in one click. Pay once, no subscription."}
+              {hasEnoughCredits
+                ? `You have ${state.userCredits} credit${state.userCredits === 1 ? "" : "s"} \u2014 use ${selectedTier} to run all ${visibleChecks.length} checks.`
+                : state.isAuthenticated
+                  ? `This report costs ${selectedTier} credit${selectedTier === 1 ? "" : "s"}. You have ${state.userCredits}. Top up below.`
+                  : "Pay once, no subscription."}
             </p>
           </div>
         </div>
 
-        {/* State A: signed in with credits */}
-        {hasCredits && (
+        {/* State A: signed in with enough credits */}
+        {hasEnoughCredits && (
           <Button
             onClick={runChecks}
             className="w-full h-12 bg-coral hover:bg-coral-dark text-white font-semibold rounded-lg text-base shadow-sm"
           >
             <Sparkles className="size-4 mr-2" />
-            Use 1 credit to unlock
+            Use {selectedTier} credit{selectedTier === 1 ? "" : "s"} to unlock
           </Button>
         )}
 
@@ -372,7 +436,7 @@ export function Step6Checks() {
         <p className="text-xs uppercase tracking-wide text-slate-400 font-semibold px-1">
           What you&apos;ll see
         </p>
-        {checks.map((check) => (
+        {visibleChecks.map((check) => (
           <PreviewCard key={check.id} id={check.id} label={check.label} />
         ))}
       </div>
@@ -387,6 +451,99 @@ export function Step6Checks() {
           <ArrowLeft className="h-4 w-4" />
           Back
         </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Tier selector ───────────────────────────────────────────────────
+
+function TierSelector({
+  selected,
+  onSelect,
+  tier1Count,
+  tier2Count,
+  tier3Count,
+  offerTier2,
+  offerTier3,
+}: {
+  selected: ReportTier;
+  onSelect: (t: ReportTier) => void;
+  tier1Count: number;
+  tier2Count: number;
+  tier3Count: number;
+  offerTier2: boolean;
+  offerTier3: boolean;
+}) {
+  const tiers: {
+    tier: ReportTier;
+    label: string;
+    description: string;
+    count: number;
+    show: boolean;
+  }[] = [
+    {
+      tier: 1,
+      label: "Essential",
+      description: "API checks",
+      count: tier1Count,
+      show: true,
+    },
+    {
+      tier: 2,
+      label: "+ Valuation",
+      description: "Vehicle / marketplace",
+      count: tier2Count,
+      show: offerTier2,
+    },
+    {
+      tier: 3,
+      label: "+ Reputation",
+      description: "Online reviews",
+      count: tier3Count,
+      show: offerTier3,
+    },
+  ];
+  const visible = tiers.filter((t) => t.show);
+  const gridCols =
+    visible.length === 3
+      ? "grid-cols-3"
+      : visible.length === 2
+        ? "grid-cols-2"
+        : "grid-cols-1";
+
+  return (
+    <div>
+      <p className="text-xs uppercase tracking-wide text-slate-400 font-semibold px-1 mb-2">
+        Choose your report
+      </p>
+      <div className={`grid ${gridCols} gap-2`}>
+        {visible.map((t) => {
+          const active = selected === t.tier;
+          return (
+            <button
+              key={t.tier}
+              type="button"
+              onClick={() => onSelect(t.tier)}
+              className={`rounded-xl border-2 p-3 text-left transition-all cursor-pointer ${
+                active
+                  ? "border-coral bg-coral/5 shadow-sm"
+                  : "border-slate-200 bg-white hover:border-coral/40"
+              }`}
+            >
+              <p className="text-sm font-semibold text-slate-900">{t.label}</p>
+              <p className="text-[11px] text-slate-500">{t.description}</p>
+              <div className="mt-2 flex items-baseline gap-1.5">
+                <span className="text-base font-bold text-coral">
+                  {t.tier} credit{t.tier === 1 ? "" : "s"}
+                </span>
+                <span className="text-[11px] text-slate-400">
+                  {"\u00B7"} {t.count} checks
+                </span>
+              </div>
+            </button>
+          );
+        })}
       </div>
     </div>
   );
