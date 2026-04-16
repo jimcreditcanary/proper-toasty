@@ -381,7 +381,7 @@ export default async function VerificationResultPage({
   if (showAccounts && accountsDetail) allChecks.push({ icon: <FileText className="size-4 text-slate-500" />, title: "Last Accounts Filed", status: accountsStatus, detail: accountsDetail });
   if (isBusiness) allChecks.push({ icon: <ShieldCheck className="size-4 text-slate-500" />, title: "VAT Number", status: vatStatus, detail: vatDetail });
   allChecks.push({ icon: <Landmark className="size-4 text-slate-500" />, title: "Confirmation of Payee", status: copStatus, detail: copDetail });
-  if (showReviews) allChecks.push({ icon: <Star className="size-4 text-slate-500" />, title: "Online Reviews", status: reviewsStatus, detail: reviewsDetail });
+  if (showReviews) allChecks.push({ icon: <Star className="size-4 text-slate-500" />, title: "Seller Reviews Check", status: reviewsStatus, detail: reviewsDetail });
   if (showAdVsInvoice && adVsInvoiceDetail) allChecks.push({ icon: <FileText className="size-4 text-slate-500" />, title: "Ad Price vs Invoice Amount", status: adVsInvoiceStatus, detail: adVsInvoiceDetail });
 
   allChecks.sort((a, b) => {

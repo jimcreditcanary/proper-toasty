@@ -234,7 +234,7 @@ export default function Home() {
                 { icon: Building2, label: "Companies House", desc: "Company registered & active" },
                 { icon: ShieldCheck, label: "VAT verification", desc: "VAT number valid with HMRC" },
                 { icon: Car, label: "DVLA Vehicle Check", desc: "Make, year, tax and MOT status" },
-                { icon: Star, label: "Online reviews", desc: "Google, Trustpilot & more" },
+                { icon: Star, label: "Seller Reviews Check", desc: "Reputation on Google, Trustpilot & more" },
                 { icon: ShoppingCart, label: "AI Valuation", desc: "Fair price for vehicles or marketplace items" },
               ].map((feature, i) => (
                 <div

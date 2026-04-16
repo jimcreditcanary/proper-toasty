@@ -245,7 +245,7 @@ export function availableChecksFor(
   if (isBusiness) {
     out.push({
       id: "online_reviews",
-      label: "Online Reviews",
+      label: "Seller Reviews Check",
       description: "Reputation across Google, Trustpilot & more",
       tier: 3,
     });

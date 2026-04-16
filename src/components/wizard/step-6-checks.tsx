@@ -483,7 +483,7 @@ function TierSelector({
     {
       tier: 3,
       label: "+ Reputation",
-      description: "Online reviews",
+      description: "Seller reviews",
       count: tier3Count,
       show: offerTier3,
     },
@@ -678,7 +678,7 @@ function buildLoadingSteps(state: {
     push(FileText, "Validating VAT with HMRC\u2026");
   }
   if (isBusiness && state.companyName.trim()) {
-    push(Star, "Searching online reviews\u2026");
+    push(Star, "Checking seller reviews\u2026");
   }
 
   // Vehicle info — DVLA data was captured up front, this just represents

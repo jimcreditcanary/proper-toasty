@@ -285,7 +285,7 @@ export default async function PublicResultPage({
           if (showAccounts && accountsDetail) checks.push({ icon: <FileText className="size-4 text-slate-500" />, title: "Last Accounts Filed", status: accountsStatus, detail: accountsDetail });
           if (isBusiness) checks.push({ icon: <ShieldCheck className="size-4 text-slate-500" />, title: "VAT Number", status: vatStatus, detail: vatDetail });
           checks.push({ icon: <Landmark className="size-4 text-slate-500" />, title: "Confirmation of Payee", status: copStatus, detail: copDetail });
-          if (showReviews) checks.push({ icon: <Star className="size-4 text-slate-500" />, title: "Online Reviews", status: reviewsStatus, detail: reviewsDetail });
+          if (showReviews) checks.push({ icon: <Star className="size-4 text-slate-500" />, title: "Seller Reviews Check", status: reviewsStatus, detail: reviewsDetail });
           if (showMarketplace) checks.push({ icon: <ShoppingCart className="size-4 text-slate-500" />, title: "Marketplace Price Check", status: mktStatus, detail: mktDetail });
           checks.sort((a, b) => {
             const so = statusOrder[a.status] - statusOrder[b.status];
