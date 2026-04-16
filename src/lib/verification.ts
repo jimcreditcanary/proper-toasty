@@ -102,53 +102,77 @@ export async function lookupHmrcVat(vatNumber: string) {
   return { found: false, error: `HTTP ${res.status}`, details: errorBody };
 }
 
-// ── Bank Account (CoP Check) ─────────────────────────────────────────
+// ── Bank Account (CoP Check — PayPoint COPSingle) ────────────────────
+//
+// Spec: https://multipay-sandbox.developer.azure-api.net/
+//   POST https://multipay-sandbox.azure-api.net/cop/v1/COPSingle
+//   Headers: x-api-key (required), x-interaction-id (optional tracking)
+//   Body (PascalCase): CustomerName, BankAccount, Sortcode, AccountType
+//                      ("Personal" | "Business"), SecondaryReference,
+//                      ClientReferenceId
+//   Response: { result, resultText, nameMatchResult: "Full Match" |
+//     "Close Match" | "No Match", accountTypeResult, returnedCustomerName,
+//     reasonCode, ClientReferenceId }
+
+const DEFAULT_COP_URL = "https://multipay-sandbox.azure-api.net/cop/v1/COPSingle";
+
+export type CoPAccountType = "Personal" | "Business";
 
 export async function verifyBankAccount(
   accountNumber: string,
   accountName: string,
   sortCode: string,
-  referenceId: string
+  referenceId: string,
+  accountType: CoPAccountType = "Personal"
 ) {
-  const apiUrl = process.env.BANK_VERIFY_API_URL!;
-  const apiKey = process.env.BANK_VERIFY_API_KEY!;
-  const orgName = process.env.BANK_VERIFY_ORG_NAME!;
+  const apiUrl = process.env.BANK_VERIFY_API_URL || DEFAULT_COP_URL;
+  const apiKey = process.env.BANK_VERIFY_API_KEY;
+
+  if (!apiKey) {
+    return {
+      verified: false,
+      error: "BANK_VERIFY_API_KEY is not configured",
+      details: "",
+    };
+  }
 
   const cleanSortCode = sortCode.replace(/[-\s]/g, "");
+  const cleanAccountNumber = accountNumber.replace(/\s/g, "");
 
-  console.log("Bank verify request:", {
+  console.log("CoP request:", {
     url: apiUrl,
     customerName: accountName,
-    bankAccount: accountNumber,
-    sortCode: cleanSortCode,
-    orgName,
+    bankAccount: cleanAccountNumber,
+    sortcode: cleanSortCode,
+    accountType,
+    referenceId,
   });
 
   const res = await fetch(apiUrl, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "Organization-Name": orgName,
-      Authorization: `Bearer ${apiKey}`,
+      "x-api-key": apiKey,
+      "x-interaction-id": referenceId,
     },
     body: JSON.stringify({
-      applicationId: referenceId,
-      customerId: referenceId,
-      customerName: accountName,
-      bankAccount: accountNumber,
-      sortCode: cleanSortCode,
-      accountType: "Business",
+      CustomerName: accountName,
+      BankAccount: cleanAccountNumber,
+      Sortcode: cleanSortCode,
+      AccountType: accountType,
+      SecondaryReference: "",
+      ClientReferenceId: referenceId,
     }),
   });
 
   if (!res.ok) {
     const errorBody = await res.text().catch(() => "");
-    console.error("Bank verify error:", res.status, errorBody);
+    console.error("CoP error:", res.status, errorBody);
     return { verified: false, error: `HTTP ${res.status}`, details: errorBody };
   }
 
   const data = await res.json();
-  console.log("Bank verify success:", JSON.stringify(data));
+  console.log("CoP success:", JSON.stringify(data));
   return { verified: true, data };
 }
 
@@ -166,6 +190,7 @@ export async function runAllChecks(fields: {
   account_number?: string | null;
   sort_code?: string | null;
   company_name?: string | null;
+  account_type?: CoPAccountType;
   reference_id: string;
 }): Promise<VerificationResults> {
   const results: VerificationResults = {};
@@ -206,7 +231,8 @@ export async function runAllChecks(fields: {
           fields.account_number,
           fields.company_name,
           fields.sort_code,
-          fields.reference_id
+          fields.reference_id,
+          fields.account_type ?? "Personal"
         )
           .then((r) => { results.bank_verify = r; })
           .catch((err) => {

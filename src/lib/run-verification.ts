@@ -495,12 +495,18 @@ Be conservative. You do NOT have mileage data, so caveat accordingly.`;
     finalCompanyName &&
     finalSortCode
   ) {
+    // AccountType is required by the PayPoint API. Treat the payee as a
+    // Business if they said so, OR if they filled in any company/VAT ID.
+    const accountType: "Personal" | "Business" = isBusiness
+      ? "Business"
+      : "Personal";
     promises.push(
       verifyBankAccount(
         finalAccountNumber,
         finalCompanyName,
         finalSortCode,
-        verification.id
+        verification.id,
+        accountType
       )
         .then((r) => {
           results.bank = r as BankResult;
@@ -563,20 +569,35 @@ Be conservative. You do NOT have mileage data, so caveat accordingly.`;
 
   let copResult: string | null = null;
   let copReason: string | null = null;
+  let copReturnedName: string | null = null;
+  let copReasonCode: string | null = null;
+  let copAccountTypeMatch: boolean | null = null;
+
   if (bankResult) {
     if (bankResult.verified && bankResult.data) {
       const bd = bankResult.data as Record<string, unknown>;
-      const nameMatch = bd.nameMatchResult as string | undefined;
-      if (nameMatch === "Full") {
+      // PayPoint returns "Full Match" / "Close Match" / "No Match". We keep
+      // the older "Full" / "Partial" / "None" / "No" spellings as fallbacks
+      // so historical records render consistently.
+      const nameMatch = (bd.nameMatchResult as string | undefined)?.trim();
+      if (nameMatch === "Full Match" || nameMatch === "Full") {
         copResult = "FULL_MATCH";
-      } else if (nameMatch === "Partial") {
+      } else if (nameMatch === "Close Match" || nameMatch === "Partial") {
         copResult = "PARTIAL_MATCH";
-      } else if (nameMatch === "None" || nameMatch === "No") {
+      } else if (
+        nameMatch === "No Match" ||
+        nameMatch === "None" ||
+        nameMatch === "No"
+      ) {
         copResult = "NO_MATCH";
       } else {
         copResult = bd.result === true ? "FULL_MATCH" : "NO_MATCH";
       }
       copReason = (bd.resultText as string) ?? (bd.reasonCode as string) ?? null;
+      copReturnedName = (bd.returnedCustomerName as string) ?? null;
+      copReasonCode = (bd.reasonCode as string) ?? null;
+      copAccountTypeMatch =
+        typeof bd.accountTypeResult === "boolean" ? bd.accountTypeResult : null;
     } else {
       copResult = "NO_MATCH";
       copReason = bankResult.error ?? null;
@@ -639,6 +660,9 @@ Be conservative. You do NOT have mileage data, so caveat accordingly.`;
       bank_verify_result: (bankResult as unknown as Json) ?? null,
       cop_result: copResult,
       cop_reason: copReason,
+      cop_returned_name: copReturnedName,
+      cop_reason_code: copReasonCode,
+      cop_account_type_match: copAccountTypeMatch,
       overall_risk: overallRisk,
       google_reviews_rating: results.reviews?.rating ?? null,
       google_reviews_count: results.reviews?.count ?? null,

@@ -346,6 +346,9 @@ export interface Database {
           dvla_data: Json | null;
           vehicle_valuation: Json | null;
           selected_checks: string[] | null;
+          cop_returned_name: string | null;
+          cop_reason_code: string | null;
+          cop_account_type_match: boolean | null;
         };
         Insert: {
           id?: string;
@@ -399,6 +402,9 @@ export interface Database {
           dvla_data?: Json | null;
           vehicle_valuation?: Json | null;
           selected_checks?: string[] | null;
+          cop_returned_name?: string | null;
+          cop_reason_code?: string | null;
+          cop_account_type_match?: boolean | null;
         };
         Update: {
           id?: string;
@@ -452,6 +458,9 @@ export interface Database {
           dvla_data?: Json | null;
           vehicle_valuation?: Json | null;
           selected_checks?: string[] | null;
+          cop_returned_name?: string | null;
+          cop_reason_code?: string | null;
+          cop_account_type_match?: boolean | null;
         };
         Relationships: [
           {
