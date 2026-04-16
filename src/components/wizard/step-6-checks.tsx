@@ -615,47 +615,28 @@ function BuyPanel({
   );
 }
 
-// ── Single blurred preview card ─────────────────────────────────────
+// ── Single preview row — compact, one-line with blurred teaser ────────
 function PreviewCard({ id, label }: { id: CheckId; label: string }) {
   const preview = PREVIEW_CONTENT[id];
   const Icon = preview.icon;
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4 relative overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center gap-3 mb-3">
-        <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-coral/10 text-coral">
-          <Icon className="size-4" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-slate-900">{label}</p>
-        </div>
-        <div className="flex items-center gap-1.5 text-xs text-slate-400">
-          <Lock className="size-3" />
-          <span>Locked</span>
-        </div>
+    <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 flex items-center gap-3">
+      <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-coral/10 text-coral">
+        <Icon className="size-4" />
       </div>
-
-      {/* Blurred mock content */}
-      <div
-        className="rounded-lg bg-slate-50 p-3 select-none pointer-events-none"
-        aria-hidden="true"
-      >
-        <div className="flex items-center gap-2 mb-2">
-          <CheckCircle2 className="size-4 text-emerald-600 shrink-0 opacity-50" />
-          <span className="text-xs font-bold text-emerald-700 uppercase tracking-wide blur-[5px]">
-            {preview.status}
-          </span>
-        </div>
-        {preview.rows.map((row, i) => (
-          <p
-            key={i}
-            className="text-xs text-slate-700 blur-[5px] mb-1 last:mb-0"
-          >
-            {row}
-          </p>
-        ))}
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold text-slate-900 truncate">
+          {label}
+        </p>
+        <p
+          className="text-xs text-slate-500 blur-[3.5px] select-none truncate"
+          aria-hidden="true"
+        >
+          {preview.rows[0]}
+        </p>
       </div>
+      <Lock className="size-3.5 text-slate-400 shrink-0" />
     </div>
   );
 }
