@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
+import { createClient } from "@/lib/supabase/server";
 
 const TIERS: Record<number, { envKey: string; credits: number }> = {
   1: { envKey: "STRIPE_PRICE_1_CHECK", credits: 1 },
@@ -9,8 +10,23 @@ const TIERS: Record<number, { envKey: string; credits: number }> = {
 
 export async function POST(request: NextRequest) {
   try {
+    // Auth is required — the webhook needs a user_id on the Stripe session
+    // metadata so it knows who to credit. If we let anon users through,
+    // the webhook can't tie the payment back to anyone.
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json(
+        { error: "You need to be signed in to buy credits." },
+        { status: 401 }
+      );
+    }
+
     const body = await request.json();
-    const { credits, email } = body;
+    const { credits } = body;
 
     const tier = TIERS[credits as number];
     if (!tier) {
@@ -37,7 +53,7 @@ export async function POST(request: NextRequest) {
 
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
-      ...(email ? { customer_email: email } : {}),
+      customer_email: user.email ?? undefined,
       line_items: [
         {
           price: priceId,
@@ -45,8 +61,8 @@ export async function POST(request: NextRequest) {
         },
       ],
       metadata: {
+        user_id: user.id,
         credits: tier.credits.toString(),
-        // User ID will be set after they create an account / sign in
         source: "wizard",
       },
       success_url: `${appUrl}/verify?payment=success`,
