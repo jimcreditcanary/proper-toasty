@@ -2,8 +2,6 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { isOBConnectEnabled } from "@/lib/obconnect";
-import { PaymentButton } from "@/components/payment-section";
 import { Button } from "@/components/ui/button";
 import {
   ArrowLeft,
@@ -392,16 +390,6 @@ export default async function VerificationResultPage({
     return a.title.localeCompare(b.title);
   });
 
-  const paymentData = {
-    verificationId: v.id,
-    amount: amount != null ? Number(amount) : null,
-    payeeName: accountName,
-    sortCode: v.extracted_sort_code ?? v.sort_code ?? "",
-    accountNumber: v.extracted_account_number ?? v.account_number ?? "",
-    reference: `WAP-${v.id.slice(0, 8).toUpperCase()}`,
-    overallRisk: v.overall_risk,
-    sandboxMode: !isOBConnectEnabled(),
-  };
 
   const hasMarketplaceValuation = isMarketplace && v.marketplace_item_title;
 
@@ -426,9 +414,9 @@ export default async function VerificationResultPage({
         Dashboard
       </Button>
 
-      {/* Hero: "You are paying" + Pay button */}
+      {/* Hero: "You are paying …" */}
       <div className={`${rc.bg} ${rc.border} border rounded-2xl p-5 sm:p-6 mb-6`}>
-        <div className="flex items-start gap-3 mb-4">
+        <div className="flex items-start gap-3">
           <div className="shrink-0 mt-0.5">{rc.icon}</div>
           <div className="min-w-0">
             <h1 className="text-lg sm:text-xl font-semibold text-slate-900 break-words">
@@ -445,7 +433,6 @@ export default async function VerificationResultPage({
             </p>
           </div>
         </div>
-        <PaymentButton data={paymentData} />
       </div>
 
       {/* Context badges */}

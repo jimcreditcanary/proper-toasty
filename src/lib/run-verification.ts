@@ -173,7 +173,12 @@ If a field is not found, set its value to null.`;
   }
 
   // ── Marketplace screenshot upload ──────────────────────────────────
+  // We also cache the bytes so the AI valuation step can reuse them
+  // without re-fetching from storage.
   let marketplaceScreenshotUrl: string | null = null;
+  let marketplaceScreenshotBase64: string | null = null;
+  let marketplaceScreenshotMediaType: string | null = null;
+
   if (marketplaceScreenshot && marketplaceScreenshot instanceof File) {
     try {
       const buf = Buffer.from(await marketplaceScreenshot.arrayBuffer());
@@ -184,6 +189,8 @@ If a field is not found, set its value to null.`;
         .upload(path, buf, { contentType: marketplaceScreenshot.type });
       if (!error) {
         marketplaceScreenshotUrl = path;
+        marketplaceScreenshotBase64 = buf.toString("base64");
+        marketplaceScreenshotMediaType = marketplaceScreenshot.type || "image/png";
       } else {
         console.error("Marketplace screenshot upload error:", error);
       }
@@ -306,7 +313,22 @@ If a field is not found, set its value to null.`;
       warnings: string[];
       summary: string;
     } | null;
-  } = { ch: null, vat: null, bank: null, reviews: null, vehicleValuation: null };
+    marketplaceValuation: {
+      itemTitle: string | null;
+      listedPrice: number | null;
+      valuationMin: number;
+      valuationMax: number;
+      valuationSummary: string;
+      confidence: string;
+    } | null;
+  } = {
+    ch: null,
+    vat: null,
+    bank: null,
+    reviews: null,
+    vehicleValuation: null,
+    marketplaceValuation: null,
+  };
 
   const promises: Promise<void>[] = [];
 
@@ -381,6 +403,164 @@ Return ONLY a JSON object with no markdown formatting:
           }
         } catch (err) {
           console.error("Google reviews check error:", err);
+        }
+      })()
+    );
+  }
+
+  // Marketplace valuation — only when a screenshot was uploaded
+  if (marketplaceScreenshotBase64 && marketplaceScreenshotMediaType) {
+    promises.push(
+      (async () => {
+        try {
+          // Step 1: vision — extract title + listed price
+          const extractRes = await fetch("https://api.anthropic.com/v1/messages", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-api-key": process.env.ANTHROPIC_API_KEY!,
+              "anthropic-version": "2023-06-01",
+            },
+            body: JSON.stringify({
+              model: "claude-sonnet-4-20250514",
+              max_tokens: 1024,
+              messages: [
+                {
+                  role: "user",
+                  content: [
+                    {
+                      type: "image",
+                      source: {
+                        type: "base64",
+                        media_type: marketplaceScreenshotMediaType,
+                        data: marketplaceScreenshotBase64,
+                      },
+                    },
+                    {
+                      type: "text",
+                      text: `This is a screenshot of a marketplace listing (Facebook Marketplace, Gumtree, eBay, etc.). Extract:
+1. The item title/name (the main heading)
+2. The listed price (in GBP \u00A3)
+3. A brief description (make/model/year/condition if visible)
+
+Return ONLY a JSON object with no markdown fences:
+{"item_title": "the item name", "listed_price": 1234.00, "description": "brief description"}
+
+listed_price must be a number, not a string. If the price shows as "Free" use 0. If the price isn't visible, use null.`,
+                    },
+                  ],
+                },
+              ],
+            }),
+          });
+          if (!extractRes.ok) return;
+          const extractData = await extractRes.json();
+          totalTokensUsed +=
+            (extractData.usage?.input_tokens ?? 0) +
+            (extractData.usage?.output_tokens ?? 0);
+
+          const extractBlocks = extractData.content as Array<{
+            type: string;
+            text?: string;
+          }>;
+          let extractText = "";
+          for (const b of extractBlocks) {
+            if (b.type === "text" && b.text) {
+              extractText = b.text;
+              break;
+            }
+          }
+          const extractMatch = extractText
+            .replace(/```json\s*/gi, "")
+            .replace(/```\s*/g, "")
+            .trim()
+            .match(/\{[\s\S]*\}/);
+          if (!extractMatch) return;
+          const parsedExtract = JSON.parse(extractMatch[0]);
+          const itemTitle: string | null = parsedExtract.item_title ?? null;
+          const listedPrice: number | null =
+            parsedExtract.listed_price != null
+              ? Number(parsedExtract.listed_price)
+              : null;
+          const itemDescription: string | null =
+            parsedExtract.description ?? null;
+          if (!itemTitle) return;
+
+          // Step 2: web search valuation
+          const valueRes = await fetch("https://api.anthropic.com/v1/messages", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-api-key": process.env.ANTHROPIC_API_KEY!,
+              "anthropic-version": "2023-06-01",
+            },
+            body: JSON.stringify({
+              model: "claude-sonnet-4-20250514",
+              max_tokens: 2048,
+              tools: [{ type: "web_search_20250305", name: "web_search" }],
+              messages: [
+                {
+                  role: "user",
+                  content: `You are a marketplace item valuation assistant for WhoAmIPaying, a UK payment verification service.
+
+A user wants to buy: "${itemTitle}"
+${listedPrice != null ? `Listed price: \u00A3${listedPrice}` : "Listed price: not visible"}
+${itemDescription ? `Description: ${itemDescription}` : ""}
+
+Search UK comparables (eBay UK, Autotrader UK for vehicles, Gumtree, specialist dealers) and return a valuation range.
+
+CRITICAL RULES:
+- valuationMin and valuationMax MUST represent the actual market value range from comparables
+- Do NOT adjust for "private sale discount"
+- All prices in GBP (\u00A3). Convert from EUR/USD if needed.
+- Prioritise UK sources
+
+Return ONLY a JSON object, no markdown:
+{
+  "valuationMin": <number>,
+  "valuationMax": <number>,
+  "valuationSummary": "<plain text under 150 words: what the item is, comparables found, whether the listed price is good/fair/poor value, what to check before buying. No markdown.>",
+  "confidence": "high" | "medium" | "low"
+}`,
+                },
+              ],
+            }),
+          });
+          if (!valueRes.ok) return;
+          const valueData = await valueRes.json();
+          totalTokensUsed +=
+            (valueData.usage?.input_tokens ?? 0) +
+            (valueData.usage?.output_tokens ?? 0);
+
+          const valueBlocks = valueData.content as Array<{
+            type: string;
+            text?: string;
+          }>;
+          let valueText = "";
+          for (let i = valueBlocks.length - 1; i >= 0; i--) {
+            if (valueBlocks[i].type === "text" && valueBlocks[i].text) {
+              valueText = valueBlocks[i].text!;
+              break;
+            }
+          }
+          const valueMatch = valueText
+            .replace(/```json\s*/gi, "")
+            .replace(/```\s*/g, "")
+            .trim()
+            .match(/\{[\s\S]*\}/);
+          if (!valueMatch) return;
+          const parsedValue = JSON.parse(valueMatch[0]);
+
+          results.marketplaceValuation = {
+            itemTitle,
+            listedPrice,
+            valuationMin: Number(parsedValue.valuationMin) || 0,
+            valuationMax: Number(parsedValue.valuationMax) || 0,
+            valuationSummary: parsedValue.valuationSummary ?? "",
+            confidence: parsedValue.confidence ?? "low",
+          };
+        } catch (err) {
+          console.error("Marketplace valuation error:", err);
         }
       })()
     );
@@ -669,6 +849,12 @@ Be conservative. You do NOT have mileage data, so caveat accordingly.`;
       google_reviews_summary: results.reviews?.summary ?? null,
       vehicle_valuation:
         (results.vehicleValuation as unknown as Json) ?? null,
+      marketplace_item_title: results.marketplaceValuation?.itemTitle ?? null,
+      marketplace_listed_price:
+        results.marketplaceValuation?.listedPrice ?? null,
+      valuation_min: results.marketplaceValuation?.valuationMin ?? null,
+      valuation_max: results.marketplaceValuation?.valuationMax ?? null,
+      valuation_summary: results.marketplaceValuation?.valuationSummary ?? null,
       anthropic_tokens_used: totalTokensUsed > 0 ? totalTokensUsed : null,
       status: "completed",
     })

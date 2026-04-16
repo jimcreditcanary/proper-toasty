@@ -526,6 +526,7 @@ function buildLoadingSteps(state: {
   sortCode: string;
   accountNumber: string;
   dvlaData: unknown;
+  marketplaceScreenshot: unknown;
 }): LoadingStep[] {
   const out: LoadingStep[] = [];
   let delay = 0;
@@ -558,9 +559,18 @@ function buildLoadingSteps(state: {
     push(Star, "Searching online reviews\u2026");
   }
 
-  // Vehicle valuation — only when a vehicle lookup actually happened
-  if (state.purchaseCategory === "vehicle" && state.dvlaData) {
-    push(Car, "Valuing the vehicle\u2026");
+  // Vehicle info — DVLA data was captured up front, this just represents
+  // it being folded into the final report
+  const hasVehicle = state.purchaseCategory === "vehicle" && state.dvlaData;
+  if (hasVehicle) {
+    push(Car, "Checking vehicle information\u2026");
+  }
+
+  // AI valuation — covers vehicle (DVLA → Claude) and/or marketplace
+  // (screenshot → Claude vision + web search)
+  const hasMarketplace = !!state.marketplaceScreenshot;
+  if (hasVehicle || hasMarketplace) {
+    push(Sparkles, "Compiling AI valuation\u2026");
   }
 
   // Final compile step — always last
