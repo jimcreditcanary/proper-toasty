@@ -641,12 +641,7 @@ Be conservative. You do NOT have mileage data, so caveat accordingly.`;
   }
 
   // Companies House — business only
-  if (
-    (isChecked("companies_house") ||
-      isChecked("trading_history") ||
-      isChecked("accounts_filed")) &&
-    finalCompanyNumber
-  ) {
+  if (isChecked("companies_house") && finalCompanyNumber) {
     promises.push(
       lookupCompaniesHouse(finalCompanyNumber)
         .then((r) => {

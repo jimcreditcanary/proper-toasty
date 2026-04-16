@@ -8,8 +8,7 @@ import {
   Landmark,
   Star,
   ShoppingCart,
-  CalendarDays,
-  FileText,
+  Car,
   ArrowRight,
   Quote,
   CheckCircle2,
@@ -234,10 +233,9 @@ export default function Home() {
                 { icon: Landmark, label: "Confirmation of Payee", desc: "Bank account matches payee name" },
                 { icon: Building2, label: "Companies House", desc: "Company registered & active" },
                 { icon: ShieldCheck, label: "VAT verification", desc: "VAT number valid with HMRC" },
-                { icon: CalendarDays, label: "Trading history", desc: "Years trading & activity" },
-                { icon: FileText, label: "Accounts filed", desc: "Up to date with Companies House" },
+                { icon: Car, label: "DVLA Vehicle Check", desc: "Make, year, tax and MOT status" },
                 { icon: Star, label: "Online reviews", desc: "Google, Trustpilot & more" },
-                { icon: ShoppingCart, label: "Marketplace valuation", desc: "Fair price analysis" },
+                { icon: ShoppingCart, label: "AI Valuation", desc: "Fair price for vehicles or marketplace items" },
               ].map((feature, i) => (
                 <div
                   key={feature.label}
@@ -391,7 +389,7 @@ export default function Home() {
               },
               {
                 step: "2",
-                title: "We run 6 checks in seconds",
+                title: "We run every relevant check in seconds",
                 description: "We cross-reference Companies House, HMRC, bank records, online reviews, and market data.",
               },
               {

@@ -46,15 +46,13 @@ export type VehicleValuation = {
   summary: string;
 };
 
-/** Individual available check — the user toggles these on the final step */
+/** Individual available check */
 export type CheckId =
   | "cop"
   | "companies_house"
   | "vat"
-  | "trading_history"
-  | "accounts_filed"
   | "online_reviews"
-  | "ai_risk_assessment"
+  | "dvla_vehicle_check"
   | "vehicle_history"
   | "vehicle_valuation"
   | "marketplace_valuation";
@@ -190,12 +188,6 @@ export function availableChecksFor(
       description: "Bank account matches the name given",
       tier: 1,
     },
-    {
-      id: "ai_risk_assessment",
-      label: "AI Risk Assessment",
-      description: "Claude reviews all the data and flags red flags",
-      tier: 1,
-    },
   ];
 
   if (isBusiness) {
@@ -211,23 +203,19 @@ export function availableChecksFor(
         label: "VAT verification",
         description: "VAT number is valid with HMRC",
         tier: 1,
-      },
-      {
-        id: "trading_history",
-        label: "Trading History",
-        description: "How long the company has been trading",
-        tier: 1,
-      },
-      {
-        id: "accounts_filed",
-        label: "Accounts Filed",
-        description: "Accounts up to date with Companies House",
-        tier: 1,
       }
     );
   }
 
   if (isVehicle) {
+    if (hasDvla) {
+      out.push({
+        id: "dvla_vehicle_check",
+        label: "DVLA Vehicle Check",
+        description: "Make, year, fuel, tax and MOT status",
+        tier: 1,
+      });
+    }
     out.push({
       id: "vehicle_history",
       label: "Vehicle History Check",
@@ -238,7 +226,7 @@ export function availableChecksFor(
     if (hasDvla) {
       out.push({
         id: "vehicle_valuation",
-        label: "AI Vehicle Valuation",
+        label: "AI Valuation Check",
         description: "Fair market value from DVLA data + AI",
         tier: 2,
       });
@@ -248,7 +236,7 @@ export function availableChecksFor(
   if (hasMarketplaceScreenshot) {
     out.push({
       id: "marketplace_valuation",
-      label: "Marketplace Valuation",
+      label: "AI Valuation Check",
       description: "Fair price from UK comparables via AI + web search",
       tier: 2,
     });

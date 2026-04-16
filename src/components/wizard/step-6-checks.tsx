@@ -69,22 +69,6 @@ const PREVIEW_CONTENT: Record<
       "VAT registered since 2019 \u2022 Active",
     ],
   },
-  trading_history: {
-    icon: Calendar,
-    status: "7 YEARS",
-    rows: [
-      "Trading since March 2018 \u2022 Established",
-      "Stable filing history \u2022 No name changes",
-    ],
-  },
-  accounts_filed: {
-    icon: FileText,
-    status: "UP TO DATE",
-    rows: [
-      "Last accounts filed 30 June 2024",
-      "Next accounts due 31 March 2026 \u2022 Not overdue",
-    ],
-  },
   online_reviews: {
     icon: Star,
     status: "4.7 \u2605 (228)",
@@ -93,12 +77,12 @@ const PREVIEW_CONTENT: Record<
       "Mostly positive \u2022 Quick service mentioned often",
     ],
   },
-  ai_risk_assessment: {
-    icon: Sparkles,
-    status: "LOW RISK",
+  dvla_vehicle_check: {
+    icon: Car,
+    status: "VERIFIED",
     rows: [
-      "All identity checks consistent \u2022 No red flags",
-      "Established business with verified bank account",
+      "2019 Ford Focus \u2022 Petrol \u2022 1.0L",
+      "Taxed \u2022 MOT valid until 2025",
     ],
   },
   vehicle_history: {
