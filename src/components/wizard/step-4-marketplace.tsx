@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -61,29 +61,62 @@ export function Step4Marketplace() {
     setStep(5);
   }
 
-  async function handleFile(file: File | null | undefined) {
-    if (!file) return;
-    if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) {
-      update({ marketplaceError: "Please upload a PNG, JPG, or WebP image." });
-      return;
-    }
-    update({
-      marketplaceScreenshot: file,
-      marketplaceScreenshotUrl: null,
-      marketplaceUploading: true,
-      marketplaceError: null,
-    });
-
-    // Upload via a small edge route — we defer until submission to keep this
-    // step simple, just hold the File in memory. runVerification will upload.
-    update({ marketplaceUploading: false });
-  }
+  const handleFile = useCallback(
+    (file: File | null | undefined) => {
+      if (!file) return;
+      if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) {
+        update({ marketplaceError: "Please upload a PNG, JPG, or WebP image." });
+        return;
+      }
+      update({
+        marketplaceScreenshot: file,
+        marketplaceScreenshotUrl: null,
+        marketplaceUploading: false,
+        marketplaceError: null,
+      });
+    },
+    [update]
+  );
 
   function handleDrop(e: React.DragEvent) {
     e.preventDefault();
     setDragOver(false);
     handleFile(e.dataTransfer.files[0]);
   }
+
+  // Paste-from-clipboard handler, active whenever the user is on the
+  // upload zone (source picked, screenshot not yet chosen).
+  const screenshot = state.marketplaceScreenshot;
+  const canPaste = !!source && !screenshot;
+  useEffect(() => {
+    if (!canPaste) return;
+
+    function handlePaste(e: ClipboardEvent) {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      // Don't hijack paste inside the "Other marketplace" text input
+      const target = e.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === "INPUT" || target.tagName === "TEXTAREA")
+      ) {
+        return;
+      }
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.startsWith("image/")) {
+          const file = items[i].getAsFile();
+          if (file) {
+            e.preventDefault();
+            handleFile(file);
+          }
+          break;
+        }
+      }
+    }
+
+    document.addEventListener("paste", handlePaste);
+    return () => document.removeEventListener("paste", handlePaste);
+  }, [canPaste, handleFile]);
 
   function clearScreenshot() {
     update({
