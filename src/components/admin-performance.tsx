@@ -165,14 +165,7 @@ export function AdminPerformance({
         countMonthsInRange(selectedMonth) * settings.monthly_hosting_cost;
     }
 
-    // OB transaction cost
-    const filteredObPayments = obPayments.filter((op) =>
-      isInMonth(op.created_at, selectedMonth)
-    );
-    const obCount = filteredObPayments.length;
-    const obCost = obCount * settings.ob_cost_per_transaction;
-
-    const totalCost = copCost + anthropicCost + hostingCost + obCost;
+    const totalCost = copCost + anthropicCost + hostingCost;
 
     // 5. Profit
     const profit = revenueRealised - totalCost;
@@ -246,8 +239,6 @@ export function AdminPerformance({
       totalTokens,
       anthropicCost,
       hostingCost,
-      obCount,
-      obCost,
       totalCost,
       profit,
       wizardStarts,
@@ -344,10 +335,6 @@ export function AdminPerformance({
             {
               label: `Anthropic tokens (${metrics.totalTokens.toLocaleString()})`,
               value: formatGBP(metrics.anthropicCost),
-            },
-            {
-              label: `OB transactions (${metrics.obCount})`,
-              value: formatGBP(metrics.obCost),
             },
             {
               label: "Hosting (fixed)",
