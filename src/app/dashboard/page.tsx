@@ -119,6 +119,11 @@ export default async function DashboardPage() {
   const totalCount = history.length;
   const completedCount = history.filter((h) => h.status === "completed").length;
 
+  // Only show finished checks in the table — in-progress / failed runs
+  // don't belong in the history view (they're already counted in the stats
+  // above, which splits "completed" vs "total").
+  const visibleHistory = history.filter((h) => h.status === "completed");
+
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
       {/* Header */}
@@ -199,7 +204,7 @@ export default async function DashboardPage() {
           <h2 className="font-semibold text-slate-900">Verification history</h2>
           <p className="text-sm text-slate-400 mt-0.5">Your recent verification checks</p>
         </div>
-        {history.length === 0 ? (
+        {visibleHistory.length === 0 ? (
           <div className="p-6">
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <FileCheck className="mb-3 size-10 text-slate-400/50" />
@@ -228,7 +233,7 @@ export default async function DashboardPage() {
             </div>
           </div>
         ) : (
-          <VerificationHistoryTable history={history} />
+          <VerificationHistoryTable history={visibleHistory} />
         )}
       </div>
     </div>

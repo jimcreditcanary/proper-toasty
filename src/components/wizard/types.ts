@@ -222,7 +222,8 @@ export function availableChecksFor(
     {
       id: "cop",
       label: "Confirmation of Payee",
-      description: "Bank account matches the name given",
+      description:
+        "Bank account matches the name given — works for businesses and individuals",
       tier: 1,
     },
   ];

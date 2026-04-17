@@ -346,10 +346,7 @@ export default async function VerificationResultPage({
 
   // Companies House name match — always show a row when a company number
   // was supplied. Lack of a result means the check didn't run.
-  const companyNumber =
-    v.companies_house_number ||
-    (v.extracted_company_number as string | null | undefined) ||
-    null;
+  const companyNumber = v.companies_house_number || null;
   if (isBusiness && v.companies_house_result) {
     if (v.companies_house_name) {
       const match = compareNames(inputName, v.companies_house_name);
