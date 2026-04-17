@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 /**
@@ -26,18 +25,10 @@ function normalisePostcode(input: string): string {
 
 export async function POST(request: NextRequest) {
   try {
-    // Require an authenticated user — this is a paid upstream API,
-    // don't let anonymous traffic hit it.
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) {
-      return NextResponse.json(
-        { error: "You need to be signed in to look up an address." },
-        { status: 401 }
-      );
-    }
+    // Address lookup is available to anon users mid-wizard so they can
+    // confirm the property before being asked to pay. The Postcoder unit
+    // cost is tracked per wizard session via propertyLookupCost, and the
+    // postcode format check + UK regex keeps abuse noise down.
 
     const apiKey = process.env.POSTCODER_API_KEY;
     if (!apiKey) {

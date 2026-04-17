@@ -2,18 +2,23 @@
 
 import { useWizard } from "./context";
 
-const STEP_LABELS: Record<number, string> = {
-  1: "Who",
-  2: "Buying",
-  3: "Vehicle",
-  4: "Marketplace",
-  5: "Details",
-  6: "Checks",
-};
-
 export function WizardProgressBar() {
-  const { stepNumber, totalSteps, step } = useWizard();
+  const { stepNumber, totalSteps, step, state } = useWizard();
   const pct = Math.round((stepNumber / totalSteps) * 100);
+
+  // Step 3 is shared between vehicle-reg and property-address lookups —
+  // label it based on what the user is buying.
+  const step3Label =
+    state.purchaseCategory === "property" ? "Property" : "Vehicle";
+
+  const labels: Record<number, string> = {
+    1: "Who",
+    2: "Buying",
+    3: step3Label,
+    4: "Marketplace",
+    5: "Details",
+    6: "Checks",
+  };
 
   return (
     <div className="mb-6">
@@ -22,7 +27,7 @@ export function WizardProgressBar() {
           Step {stepNumber} of {totalSteps}
           <span className="hidden sm:inline text-slate-400">
             {" \u2014 "}
-            {STEP_LABELS[step as number] ?? ""}
+            {labels[step as number] ?? ""}
           </span>
         </span>
       </div>
