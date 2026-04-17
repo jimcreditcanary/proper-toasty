@@ -532,6 +532,105 @@ export default async function VerificationResultPage({
     }
   }
 
+  // ── DVLA-derived checks (vehicle only) ──────────────────────────
+  // These turn the raw DVLA payload into concrete pass/warn/fail rows
+  // so a personal vehicle purchase isn't a one-row report.
+  type DvlaForChecks = {
+    motStatus?: string;
+    motExpiryDate?: string;
+    taxStatus?: string;
+    taxDueDate?: string;
+    markedForExport?: boolean;
+    yearOfManufacture?: number;
+    make?: string;
+    registrationNumber?: string;
+  };
+  const dvlaForChecks =
+    (v.dvla_data as unknown as DvlaForChecks | null) ?? null;
+
+  if (isVehicle && dvlaForChecks) {
+    // Vehicle exists on DVLA
+    if (dvlaForChecks.registrationNumber) {
+      const makeYear = [
+        dvlaForChecks.make,
+        dvlaForChecks.yearOfManufacture,
+      ]
+        .filter(Boolean)
+        .join(" ");
+      checklist.push({
+        status: "PASS",
+        title: "Vehicle exists on the DVLA register",
+        detail: `${dvlaForChecks.registrationNumber}${makeYear ? ` — ${makeYear}` : ""}. A real, registered UK vehicle.`,
+      });
+    }
+
+    // MOT status
+    const mot = (dvlaForChecks.motStatus ?? "").toLowerCase();
+    if (mot) {
+      if (mot.includes("valid")) {
+        checklist.push({
+          status: "PASS",
+          title: "MOT is valid",
+          detail: dvlaForChecks.motExpiryDate
+            ? `MOT expires ${dvlaForChecks.motExpiryDate}. The car is road-legal right now.`
+            : "MOT is currently valid.",
+        });
+      } else if (mot.includes("no")) {
+        // "No details held" or "No MOT"
+        checklist.push({
+          status: "WARN",
+          title: "No MOT details held",
+          detail:
+            "The DVLA has no MOT record. For vehicles over 3 years old this is a flag — the car may not be road-legal. Check in person.",
+        });
+      } else {
+        checklist.push({
+          status: "FAIL",
+          title: "MOT is not valid",
+          detail: `DVLA reports MOT as "${dvlaForChecks.motStatus}". Do not drive this car away without a valid MOT.`,
+        });
+      }
+    }
+
+    // Tax status
+    const tax = (dvlaForChecks.taxStatus ?? "").toLowerCase();
+    if (tax) {
+      if (tax.includes("taxed")) {
+        checklist.push({
+          status: "PASS",
+          title: "Vehicle is currently taxed",
+          detail: dvlaForChecks.taxDueDate
+            ? `Tax due ${dvlaForChecks.taxDueDate}.`
+            : "Road tax is up to date.",
+        });
+      } else if (tax.includes("sorn")) {
+        checklist.push({
+          status: "WARN",
+          title: "Vehicle is declared off-road (SORN)",
+          detail:
+            "The car is currently SORNed — legal to keep but not to drive on public roads. You'll need to tax it before driving.",
+        });
+      } else if (tax.includes("untaxed")) {
+        checklist.push({
+          status: "WARN",
+          title: "Vehicle is not taxed",
+          detail:
+            "No active road tax. Not necessarily suspicious (the seller may have let it lapse), but you'll need to tax it before driving.",
+        });
+      }
+    }
+
+    // Export marker
+    if (dvlaForChecks.markedForExport === true) {
+      checklist.push({
+        status: "FAIL",
+        title: "Vehicle is marked for export",
+        detail:
+          "The DVLA has this car flagged as being exported out of the UK. This is a serious red flag — the V5C may be invalid.",
+      });
+    }
+  }
+
   // Plate match — vehicle + marketplace flows only. This catches the
   // classic fraud where the seller sends a stolen listing photo for a
   // different car.
