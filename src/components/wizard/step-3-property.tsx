@@ -125,20 +125,13 @@ export function Step3Property() {
               </div>
             </div>
 
-            <div className="rounded-lg bg-slate-50 border border-slate-100 p-4 space-y-1">
+            <div className="rounded-lg bg-slate-50 border border-slate-100 p-4">
               <p className="text-sm font-medium text-slate-900">
                 {selected.summaryline ||
                   [selected.addressline1, selected.addressline2]
                     .filter(Boolean)
                     .join(", ")}
               </p>
-              {selected.posttown && (
-                <p className="text-xs text-slate-500">
-                  {selected.posttown}
-                  {selected.county ? ` \u2022 ${selected.county}` : ""}
-                </p>
-              )}
-              <p className="text-xs text-slate-500">{selected.postcode}</p>
             </div>
           </div>
 
