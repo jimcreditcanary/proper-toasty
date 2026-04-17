@@ -816,12 +816,26 @@ Return ONLY JSON, no markdown:
   }
 
   // Bank / CoP
-  if (
-    isChecked("cop") &&
-    finalAccountNumber &&
-    finalCompanyName &&
-    finalSortCode
-  ) {
+  const copGate = {
+    cop_checked: isChecked("cop"),
+    has_account_number: !!finalAccountNumber,
+    has_company_name: !!finalCompanyName,
+    has_sort_code: !!finalSortCode,
+    selected_checks: selectedChecks,
+    final_company_name: finalCompanyName,
+    final_sort_code: finalSortCode,
+    final_account_number_last4: finalAccountNumber
+      ? finalAccountNumber.slice(-4)
+      : null,
+  };
+  const copWillRun =
+    copGate.cop_checked &&
+    copGate.has_account_number &&
+    copGate.has_company_name &&
+    copGate.has_sort_code;
+  console.log("CoP gate:", { ...copGate, willRun: copWillRun });
+
+  if (copWillRun) {
     // AccountType is required by the PayPoint API. Treat the payee as a
     // Business if they said so, OR if they filled in any company/VAT ID.
     const accountType: "Personal" | "Business" = isBusiness

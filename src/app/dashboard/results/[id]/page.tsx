@@ -23,6 +23,7 @@ import {
   Info,
   Lightbulb,
   Eye,
+  Sparkles,
 } from "lucide-react";
 
 // ── Types & helpers ────────────────────────────────────────────────
@@ -298,6 +299,17 @@ export default async function VerificationResultPage({
   type VehicleTips = { tips?: string[] };
   const vehicleTips =
     (v.vehicle_tips as unknown as VehicleTips | null) ?? null;
+
+  // Detect whether the AI tier was included. Inferred from
+  // selected_checks — if vehicle_valuation / marketplace_valuation /
+  // online_reviews were in the list, tier 2+ was picked.
+  const selectedChecksList = Array.isArray(v.selected_checks)
+    ? (v.selected_checks as string[])
+    : [];
+  const aiIncluded =
+    selectedChecksList.includes("vehicle_valuation") ||
+    selectedChecksList.includes("marketplace_valuation") ||
+    selectedChecksList.includes("online_reviews");
 
   // ── Build checklist items ─────────────────────────────────────
 
@@ -994,6 +1006,29 @@ export default async function VerificationResultPage({
           </div>
         )}
       </section>
+
+      {/* ── Upsell when user chose Essential and is missing AI ─── */}
+      {!aiIncluded && (isVehicle || isMarketplace) && (
+        <section>
+          <div className="rounded-2xl border border-coral/20 bg-coral/5 p-5 sm:p-6">
+            <div className="flex items-start gap-4">
+              <div className="size-10 rounded-xl bg-coral text-white flex items-center justify-center shrink-0">
+                <Sparkles className="size-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-slate-900">
+                  You picked the Essential check
+                </p>
+                <p className="text-sm text-slate-600 mt-1 leading-relaxed">
+                  {isVehicle
+                    ? "That covered the DVLA + bank verification. For an AI valuation (fair market price range) and make/model specific buying tips, pick \u201C+ Valuation\u201D (2 credits) next time."
+                    : "That covered the bank verification. For an AI valuation of the listing against UK comparables, pick \u201C+ Valuation\u201D (2 credits) next time."}
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* ── Valuation: vehicle ───────────────────────────────── */}
       {isVehicle && hasVehicleValuation && vehicleVal && (
