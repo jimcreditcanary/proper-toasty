@@ -8,7 +8,9 @@ export default async function AdminAllSearchesPage() {
   // Fetch all verifications with user email
   const { data: verifications } = await supabase
     .from("verifications")
-    .select("id, short_id, created_at, user_id, flow_type, payee_name, company_name_input, extracted_company_name, marketplace_item_title, overall_risk, status")
+    .select(
+      "id, short_id, created_at, user_id, flow_type, payee_name, company_name_input, extracted_company_name, marketplace_item_title, overall_risk, status, credits_used, anthropic_tokens_used, purchase_category"
+    )
     .order("created_at", { ascending: false });
 
   // Fetch all users for email lookup
@@ -23,16 +25,18 @@ export default async function AdminAllSearchesPage() {
     .eq("status", "completed")
     .order("created_at", { ascending: false });
 
-  // Fetch admin settings for cop_cost_per_check
-  const { data: adminSettings } = await supabase
+  // Fetch admin settings — need CoP, Anthropic, and address lookup unit
+  // prices to compute true cost per search.
+  const { data: settingsRows } = await supabase
     .from("admin_settings")
-    .select("value")
-    .eq("key", "cop_cost_per_check")
-    .single();
-
-  const copCostPerCheck = adminSettings?.value
-    ? Number(adminSettings.value)
-    : 0;
+    .select("key, value");
+  const setting = (key: string): number => {
+    const row = settingsRows?.find((r) => r.key === key);
+    return row?.value ? Number(row.value) : 0;
+  };
+  const copCostPerCheck = setting("cop_cost_per_check");
+  const anthropicCostPer1k = setting("anthropic_cost_per_1k_tokens");
+  const addressLookupCost = setting("address_lookup_cost");
 
   // Build user email lookup
   const userEmailMap = new Map<string, string>();
@@ -46,9 +50,7 @@ export default async function AdminAllSearchesPage() {
   const userPriceMap = new Map<string, number>();
   if (payments) {
     for (const p of payments) {
-      // Only take the first (most recent) payment per user
       if (!userPriceMap.has(p.user_id) && p.credits_purchased > 0) {
-        // amount is in pence, convert to pounds per credit
         userPriceMap.set(p.user_id, p.amount / 100 / p.credits_purchased);
       }
     }
@@ -69,6 +71,16 @@ export default async function AdminAllSearchesPage() {
       const userType: "Lead" | "User" | "API" =
         v.user_id == null ? "Lead" : v.flow_type === "api" ? "API" : "User";
 
+      const creditsUsed = Number(v.credits_used ?? 1) || 1;
+      const pricePerCredit = userPriceMap.get(userId) ?? 0;
+      const revenue = pricePerCredit * creditsUsed;
+
+      const tokensUsed = Number(v.anthropic_tokens_used ?? 0) || 0;
+      const aiCost = (tokensUsed / 1000) * anthropicCostPer1k;
+      const addressCost =
+        v.purchase_category === "property" ? addressLookupCost : 0;
+      const cost = copCostPerCheck + aiCost + addressCost;
+
       rows.push({
         id: v.id,
         short_id: v.short_id,
@@ -79,16 +91,17 @@ export default async function AdminAllSearchesPage() {
         account_name: accountName,
         overall_risk: v.overall_risk,
         status: v.status,
-        price_per_credit: userPriceMap.get(userId) ?? 0,
-        cop_cost_per_check: copCostPerCheck,
+        credits_used: creditsUsed,
+        revenue,
+        cost,
       });
     }
   }
 
   // Compute stats
   const totalSearches = rows.length;
-  const totalRevenue = rows.reduce((sum, r) => sum + r.price_per_credit, 0);
-  const totalCost = rows.reduce((sum, r) => sum + r.cop_cost_per_check, 0);
+  const totalRevenue = rows.reduce((sum, r) => sum + r.revenue, 0);
+  const totalCost = rows.reduce((sum, r) => sum + r.cost, 0);
   const totalProfit = totalRevenue - totalCost;
 
   function formatCurrency(amount: number) {

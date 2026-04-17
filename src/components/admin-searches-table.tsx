@@ -14,8 +14,9 @@ export type AdminSearchRow = {
   account_name: string | null;
   overall_risk: string | null;
   status: string | null;
-  price_per_credit: number;
-  cop_cost_per_check: number;
+  credits_used: number;
+  revenue: number;
+  cost: number;
 };
 
 const RISK_BADGE: Record<string, { label: string; className: string }> = {
@@ -244,7 +245,8 @@ export function AdminSearchesTable({ rows }: { rows: AdminSearchRow[] }) {
                   <th className="text-left py-3 px-2 text-xs font-medium text-slate-400 uppercase tracking-wider">Type</th>
                   <th className="text-left py-3 px-2 text-xs font-medium text-slate-400 uppercase tracking-wider">Account Name</th>
                   <th className="text-right py-3 px-2 text-xs font-medium text-slate-400 uppercase tracking-wider">Risk Level</th>
-                  <th className="text-right py-3 px-2 text-xs font-medium text-slate-400 uppercase tracking-wider">Price</th>
+                  <th className="text-right py-3 px-2 text-xs font-medium text-slate-400 uppercase tracking-wider">Credits</th>
+                  <th className="text-right py-3 px-2 text-xs font-medium text-slate-400 uppercase tracking-wider">Revenue</th>
                   <th className="text-right py-3 px-2 text-xs font-medium text-slate-400 uppercase tracking-wider">Cost</th>
                   <th className="text-right py-3 px-2 text-xs font-medium text-slate-400 uppercase tracking-wider">Profit</th>
                 </tr>
@@ -252,7 +254,7 @@ export function AdminSearchesTable({ rows }: { rows: AdminSearchRow[] }) {
               <tbody>
                 {filtered.map((row) => {
                   const riskInfo = row.overall_risk ? RISK_BADGE[row.overall_risk] ?? RISK_BADGE.UNKNOWN : null;
-                  const profit = row.price_per_credit - row.cop_cost_per_check;
+                  const profit = row.revenue - row.cost;
                   return (
                     <tr
                       key={row.id}
@@ -295,10 +297,13 @@ export function AdminSearchesTable({ rows }: { rows: AdminSearchRow[] }) {
                         )}
                       </td>
                       <td className="py-3 px-2 text-right font-mono text-slate-500">
-                        {formatCurrency(row.price_per_credit)}
+                        {row.credits_used}
                       </td>
                       <td className="py-3 px-2 text-right font-mono text-slate-500">
-                        {formatCurrency(row.cop_cost_per_check)}
+                        {formatCurrency(row.revenue)}
+                      </td>
+                      <td className="py-3 px-2 text-right font-mono text-slate-500">
+                        {formatCurrency(row.cost)}
                       </td>
                       <td className={`py-3 px-2 text-right font-mono ${profit > 0 ? "text-emerald-600" : profit < 0 ? "text-red-600" : "text-slate-500"}`}>
                         {profit >= 0 ? "+" : ""}{formatCurrency(profit)}
