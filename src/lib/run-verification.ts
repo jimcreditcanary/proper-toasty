@@ -835,7 +835,14 @@ Return ONLY JSON, no markdown:
     copGate.has_sort_code;
   console.log("CoP gate:", { ...copGate, willRun: copWillRun });
 
-  if (copWillRun) {
+  // Re-check inline so TS narrows finalAccountNumber / finalCompanyName
+  // / finalSortCode from `string | null` down to `string`.
+  if (
+    copWillRun &&
+    finalAccountNumber &&
+    finalCompanyName &&
+    finalSortCode
+  ) {
     // AccountType is required by the PayPoint API. Treat the payee as a
     // Business if they said so, OR if they filled in any company/VAT ID.
     const accountType: "Personal" | "Business" = isBusiness
