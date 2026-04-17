@@ -125,18 +125,18 @@ export default function Home() {
 
               <h1 className="text-4xl sm:text-5xl lg:text-[3.5rem] font-bold tracking-tight leading-[1.1]">
                 Know{" "}
-                <span className="relative inline-block">
+                <span className="relative inline-block text-[#2563eb]">
                   exactly
                   <svg
                     aria-hidden="true"
-                    className="absolute left-0 -bottom-2 w-full"
-                    viewBox="0 0 200 12"
+                    className="absolute left-0 -bottom-3 w-full"
+                    viewBox="0 0 200 16"
                     preserveAspectRatio="none"
                   >
                     <path
-                      d="M3 8 Q 50 2, 100 6 T 197 5"
+                      d="M2 10 C 40 2, 80 14, 120 7 S 180 2, 198 8"
                       stroke="#2563eb"
-                      strokeWidth="4"
+                      strokeWidth="7"
                       strokeLinecap="round"
                       fill="none"
                     />
@@ -144,8 +144,7 @@ export default function Home() {
                 </span>{" "}
                 who
                 <br />
-                you&apos;re{" "}
-                <span className="text-coral">paying</span>
+                you&apos;re paying
               </h1>
 
               <p className="mt-6 text-lg text-slate-600 max-w-lg leading-relaxed">
