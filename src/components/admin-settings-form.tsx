@@ -9,7 +9,6 @@ const SETTING_LABELS: Record<string, string> = {
   address_lookup_cost: "Address Lookup Cost (Postcoder)",
   monthly_hosting_cost: "Monthly Hosting Cost",
   anthropic_cost_per_1k_tokens: "Anthropic Cost per 1K Tokens",
-  ob_cost_per_transaction: "OB Cost per Transaction",
 };
 
 const SETTING_ORDER = [
@@ -17,7 +16,6 @@ const SETTING_ORDER = [
   "address_lookup_cost",
   "monthly_hosting_cost",
   "anthropic_cost_per_1k_tokens",
-  "ob_cost_per_transaction",
 ];
 
 function formatTimestamp(ts: string | null): string {
