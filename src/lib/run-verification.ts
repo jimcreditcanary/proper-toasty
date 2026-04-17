@@ -50,6 +50,14 @@ export async function runVerification(params: {
   const purchaseCategory = formData.get("purchaseCategory") as string | null;
   const file = formData.get("file") as File | null;
 
+  // How many credits this search cost (1 = Essential, 2 = + Valuation,
+  // 3 = + Reputation). Needed for audit + profitability calcs.
+  const creditsUsedRaw = formData.get("creditsToUse") as string | null;
+  const creditsUsed = (() => {
+    const n = parseInt(creditsUsedRaw ?? "1", 10);
+    return [1, 2, 3].includes(n) ? n : 1;
+  })();
+
   // Vehicle + DVLA
   const vehicleReg = formData.get("vehicleReg") as string | null;
   const dvlaDataRaw = formData.get("dvlaData") as string | null;
@@ -263,6 +271,7 @@ If a field is not found, set its value to null.`;
       property_data: (propertyData as unknown as Json) ?? null,
       selected_checks: selectedChecks.length > 0 ? selectedChecks : null,
       check_tier: "enhanced",
+      credits_used: creditsUsed,
       extracted_company_name: extractedData?.company_name ?? null,
       extracted_vat_number: extractedData?.vat_number ?? null,
       extracted_invoice_amount: extractedData?.invoice_amount ?? null,

@@ -115,8 +115,10 @@ export type WizardState = {
   accountNumber: string;
   paymentAmount: string;
 
-  // Step 6 — check selection
+  // Step 6 — check selection + chosen tier (persisted so a Stripe
+  // round-trip doesn't drop the user's tier choice).
   selectedChecks: CheckId[];
+  selectedTier: ReportTier;
 
   // Lead capture (unauthenticated flow)
   email: string;
@@ -172,6 +174,8 @@ export const initialWizardState: WizardState = {
   marketplaceScreenshotUrl: null,
   marketplaceUploading: false,
   marketplaceError: null,
+
+  selectedTier: 1,
 
   hasInvoice: null,
   invoiceFile: null,

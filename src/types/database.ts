@@ -357,6 +357,7 @@ export interface Database {
           vehicle_tips: Json | null;
           marketplace_plate_match: Json | null;
           vehicle_mileage: number | null;
+          credits_used: number | null;
         };
         Insert: {
           id?: string;
@@ -421,6 +422,7 @@ export interface Database {
           vehicle_tips?: Json | null;
           marketplace_plate_match?: Json | null;
           vehicle_mileage?: number | null;
+          credits_used?: number | null;
         };
         Update: {
           id?: string;
@@ -485,6 +487,7 @@ export interface Database {
           vehicle_tips?: Json | null;
           marketplace_plate_match?: Json | null;
           vehicle_mileage?: number | null;
+          credits_used?: number | null;
         };
         Relationships: [
           {

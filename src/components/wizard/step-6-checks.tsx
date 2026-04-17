@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useCallback, useState, useEffect, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   ShieldCheck,
@@ -112,7 +112,7 @@ const PREVIEW_CONTENT: Record<
 };
 
 export function Step6Checks() {
-  const { state, setStep } = useWizard();
+  const { state, setStep, update } = useWizard();
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -121,6 +121,15 @@ export function Step6Checks() {
   const [error, setError] = useState<string | null>(null);
   const [selectedPack, setSelectedPack] = useState<1 | 3 | 7>(3);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
+
+  // Tier choice lives in wizard state so it survives the Stripe round-trip
+  // (otherwise a buyer picks Tier 2, pays, returns, and the auto-run fires
+  // at Tier 1 — deducting the wrong number of credits).
+  const selectedTier = state.selectedTier ?? 1;
+  const setSelectedTier = useCallback(
+    (t: ReportTier) => update({ selectedTier: t }),
+    [update]
+  );
 
   // All checks relevant to this payee + context
   const allChecks = useMemo(
@@ -147,8 +156,6 @@ export function Step6Checks() {
   const tier3Checks = useMemo(() => checksForTier(allChecks, 3), [allChecks]);
   const offerTier2 = tier2Checks.length > tier1Checks.length;
   const offerTier3 = tier3Checks.length > tier2Checks.length;
-
-  const [selectedTier, setSelectedTier] = useState<ReportTier>(1);
 
   // If a tier becomes unavailable (context changed), clamp down
   useEffect(() => {
