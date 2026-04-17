@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { Button } from "@/components/ui/button";
@@ -16,54 +17,28 @@ import {
   AlertTriangle,
   Minus,
   Star,
+  Car,
+  Home,
+  Globe,
+  Info,
+  Lightbulb,
+  Eye,
 } from "lucide-react";
+
+// ── Types & helpers ────────────────────────────────────────────────
 
 type CheckStatus = "PASS" | "WARN" | "FAIL" | "UNVERIFIED";
 
-function StatusBadge({ status }: { status: CheckStatus }) {
-  const styles: Record<CheckStatus, string> = {
-    PASS: "text-emerald-600",
-    WARN: "text-warn",
-    FAIL: "text-red-600",
-    UNVERIFIED: "text-slate-400",
-  };
-  return (
-    <span className={`text-xs font-bold uppercase tracking-wider ${styles[status]}`}>
-      {status}
-    </span>
-  );
+function fmt(amount: number | null | undefined): string {
+  if (amount == null) return "";
+  return `\u00A3${Number(amount).toLocaleString("en-GB", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
 }
 
-function dotClass(s: CheckStatus): string {
-  return s === "PASS" ? "dot-pass" : s === "WARN" ? "dot-warn" : s === "FAIL" ? "dot-fail" : "";
-}
-
-function rowStyle(s: CheckStatus): string {
-  if (s === "PASS") return "bg-emerald-50 border border-emerald-200";
-  if (s === "WARN") return "bg-warn/[0.08] border border-warn/20";
-  if (s === "FAIL") return "bg-red-50 border border-red-200";
-  return "bg-slate-50 border border-slate-200";
-}
-
-function CheckRow({
-  icon, title, status, detail,
-}: {
-  icon: React.ReactNode; title: string; status: CheckStatus; detail: string;
-}) {
-  return (
-    <div className={`flex items-start gap-3 rounded-xl p-3 sm:p-4 ${rowStyle(status)}`}>
-      {status !== "UNVERIFIED" && <div className={`mt-1.5 ${dotClass(status)}`} />}
-      {status === "UNVERIFIED" && <div className="mt-1.5 w-2.5 h-2.5 rounded-full bg-brand-muted/40 shrink-0" />}
-      <div className="shrink-0 mt-0.5">{icon}</div>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center justify-between gap-2 mb-0.5">
-          <span className="text-sm font-semibold text-slate-900">{title}</span>
-          <StatusBadge status={status} />
-        </div>
-        <p className="text-xs text-slate-500">{detail}</p>
-      </div>
-    </div>
-  );
+function fmtRange(lo: number, hi: number): string {
+  return `${fmt(lo)} \u2013 ${fmt(hi)}`;
 }
 
 /** Strip common suffixes and normalise for comparison */
@@ -76,7 +51,6 @@ function normaliseName(s: string): string {
     .trim();
 }
 
-/** Simple word-overlap similarity (Jaccard-ish) */
 function wordSimilarity(a: string, b: string): number {
   const wa = new Set(a.split(" ").filter(Boolean));
   const wb = new Set(b.split(" ").filter(Boolean));
@@ -86,55 +60,120 @@ function wordSimilarity(a: string, b: string): number {
   return overlap / Math.max(wa.size, wb.size);
 }
 
-/** Check if one normalised name contains the other when spaces removed */
-function compactMatch(a: string, b: string): boolean {
-  const ca = a.replace(/\s/g, "");
-  const cb = b.replace(/\s/g, "");
-  return ca === cb || ca.includes(cb) || cb.includes(ca);
-}
-
-type NameMatchResult = "exact" | "fuzzy" | "none";
-
-function compareNames(a: string | null, b: string | null): NameMatchResult {
+function compareNames(
+  a: string | null,
+  b: string | null
+): "exact" | "fuzzy" | "none" {
   if (!a || !b) return "none";
   const rawA = a.toLowerCase().trim();
   const rawB = b.toLowerCase().trim();
-
-  // Direct substring match on raw names → exact
   if (rawA === rawB || rawA.includes(rawB) || rawB.includes(rawA)) return "exact";
-
   const na = normaliseName(a);
   const nb = normaliseName(b);
-
-  // Normalised exact or substring → exact
   if (na === nb || na.includes(nb) || nb.includes(na)) return "exact";
-
-  // Compact match (e.g. "style commerce" vs "stylecommerce") → fuzzy
-  if (compactMatch(na, nb)) return "fuzzy";
-
-  // Word overlap ≥ 50% → fuzzy
+  const ca = na.replace(/\s/g, "");
+  const cb = nb.replace(/\s/g, "");
+  if (ca === cb || ca.includes(cb) || cb.includes(ca)) return "fuzzy";
   if (wordSimilarity(na, nb) >= 0.5) return "fuzzy";
-
   return "none";
-}
-
-// Keep simple boolean for trading/accounts visibility
-function namesMatch(a: string | null, b: string | null): boolean {
-  return compareNames(a, b) !== "none";
 }
 
 function monthsSince(dateStr: string | null): number | null {
   if (!dateStr) return null;
   const d = new Date(dateStr);
   if (isNaN(d.getTime())) return null;
-  const now = new Date();
-  return Math.floor((now.getTime() - d.getTime()) / (30.44 * 24 * 60 * 60 * 1000));
+  return Math.floor(
+    (new Date().getTime() - d.getTime()) / (30.44 * 24 * 60 * 60 * 1000)
+  );
 }
 
-function fmt(amount: number | null | undefined): string {
-  if (amount == null) return "";
-  return `\u00A3${Number(amount).toLocaleString("en-GB", { minimumFractionDigits: 2 })}`;
+function tradingSummary(dateStr: string | null): string {
+  const months = monthsSince(dateStr);
+  if (months === null) return "Unknown";
+  if (months < 12) return `${months} month${months === 1 ? "" : "s"}`;
+  const years = Math.floor(months / 12);
+  const remMonths = months - years * 12;
+  if (years < 3 && remMonths > 0) {
+    return `${years} year${years === 1 ? "" : "s"}, ${remMonths} month${remMonths === 1 ? "" : "s"}`;
+  }
+  return `${years} year${years === 1 ? "" : "s"}`;
 }
+
+// ── Checklist item — consistent visual for each rule row ──────────
+
+function ChecklistItem({
+  status,
+  title,
+  detail,
+}: {
+  status: CheckStatus;
+  title: string;
+  detail: string;
+}) {
+  const styles: Record<
+    CheckStatus,
+    { bg: string; icon: React.ReactNode; titleColor: string }
+  > = {
+    PASS: {
+      bg: "bg-emerald-50 border-emerald-200",
+      icon: <CheckCircle2 className="size-5 text-emerald-600" />,
+      titleColor: "text-slate-900",
+    },
+    WARN: {
+      bg: "bg-amber-50 border-amber-200",
+      icon: <AlertTriangle className="size-5 text-amber-600" />,
+      titleColor: "text-slate-900",
+    },
+    FAIL: {
+      bg: "bg-red-50 border-red-200",
+      icon: <XCircle className="size-5 text-red-600" />,
+      titleColor: "text-slate-900",
+    },
+    UNVERIFIED: {
+      bg: "bg-slate-50 border-slate-200",
+      icon: <Minus className="size-5 text-slate-400" />,
+      titleColor: "text-slate-500",
+    },
+  };
+  const s = styles[status];
+  return (
+    <div className={`rounded-xl border p-4 ${s.bg}`}>
+      <div className="flex items-start gap-3">
+        <div className="shrink-0 mt-0.5">{s.icon}</div>
+        <div className="min-w-0 flex-1">
+          <p className={`text-sm font-semibold ${s.titleColor}`}>{title}</p>
+          <p className="text-sm text-slate-600 mt-0.5 leading-relaxed">
+            {detail}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SectionHeader({
+  eyebrow,
+  title,
+  sub,
+}: {
+  eyebrow: string;
+  title: string;
+  sub?: string;
+}) {
+  return (
+    <div className="mb-4">
+      <span className="text-[11px] uppercase tracking-[0.14em] text-coral font-bold">
+        {eyebrow}
+      </span>
+      <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mt-1 tracking-tight">
+        {title}
+      </h2>
+      {sub && <p className="text-sm text-slate-500 mt-1">{sub}</p>}
+    </div>
+  );
+}
+
+// ── Page ──────────────────────────────────────────────────────────
 
 export default async function VerificationResultPage({
   params,
@@ -143,10 +182,11 @@ export default async function VerificationResultPage({
 }) {
   const { id } = await params;
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) notFound();
 
-  // Check if user is admin
   const admin = createAdminClient();
   const { data: userData } = await admin
     .from("users")
@@ -155,372 +195,824 @@ export default async function VerificationResultPage({
     .single();
   const isAdmin = userData?.role === "admin";
 
-  // Admins can view any verification; regular users only their own
-  let query = admin
-    .from("verifications")
-    .select("*")
-    .eq("id", id);
-
-  if (!isAdmin) {
-    query = query.eq("user_id", user.id);
-  }
-
+  let query = admin.from("verifications").select("*").eq("id", id);
+  if (!isAdmin) query = query.eq("user_id", user.id);
   const { data: v } = await query.single();
-
   if (!v) notFound();
 
-  const accountName = v.companies_house_name || v.extracted_company_name || v.company_name_input || v.payee_name || "Unknown";
-  const amount = v.extracted_invoice_amount ?? v.invoice_amount ?? v.marketplace_listed_price ?? null;
-  const description = v.marketplace_item_title || (v.invoice_file_path ? v.invoice_file_path.split("/").pop()?.replace(/^\d+-/, "") : null) || "this payment";
-  const isBusiness = v.payee_type === "business" || !!v.companies_house_name || !!v.companies_house_number || !!v.vat_number_input || !!v.extracted_vat_number;
-  const isMarketplace = v.flow_type === "marketplace";
-  const inputName = v.extracted_company_name || v.company_name_input || v.payee_name;
+  // ── Derived headline fields ────────────────────────────────────
+  const accountName =
+    v.companies_house_name ||
+    v.extracted_company_name ||
+    v.company_name_input ||
+    v.payee_name ||
+    "them";
+  const amount =
+    v.extracted_invoice_amount ??
+    v.invoice_amount ??
+    v.marketplace_listed_price ??
+    null;
+  const inputName =
+    v.extracted_company_name || v.company_name_input || v.payee_name;
 
+  const isBusiness =
+    v.payee_type === "business" ||
+    !!v.companies_house_name ||
+    !!v.companies_house_number ||
+    !!v.vat_number_input ||
+    !!v.extracted_vat_number;
+  const isVehicle = v.purchase_category === "vehicle";
+  const isProperty = v.purchase_category === "property";
+  const isMarketplace = v.flow_type === "marketplace";
+  const isTradesperson = v.purchase_category === "tradesperson";
+
+  const categoryLabel: Record<string, string> = {
+    vehicle: "a vehicle",
+    property: "a property",
+    tradesperson: "a tradesperson",
+    service: "a service",
+    something_else: "this purchase",
+    other: "this purchase",
+  };
+  const reasonText = v.purchase_category
+    ? categoryLabel[v.purchase_category] ?? "this payment"
+    : "this payment";
+
+  // ── Overall risk copy ─────────────────────────────────────────
   const risk = v.overall_risk ?? "UNKNOWN";
-  const riskConfig: Record<string, { bg: string; text: string; border: string; icon: React.ReactNode; message: string }> = {
+  const heroConfig: Record<
+    string,
+    {
+      bg: string;
+      border: string;
+      iconBg: string;
+      icon: React.ReactNode;
+      heading: string;
+      body: string;
+    }
+  > = {
     LOW: {
-      bg: "bg-emerald-50",
-      text: "text-emerald-600",
+      bg: "bg-emerald-50/60",
       border: "border-emerald-200",
-      icon: <CheckCircle2 className="size-6 text-emerald-600" />,
-      message: "Our checks look good. It\u2019s ok, move ahead!",
+      iconBg: "bg-emerald-500",
+      icon: <CheckCircle2 className="size-6 text-white" />,
+      heading: "All checks look good \u2014 you're OK to proceed.",
+      body: "Nothing flagged. You can pay with reasonable confidence.",
     },
     MEDIUM: {
-      bg: "bg-warn/[0.08]",
-      text: "text-warn",
-      border: "border-warn/20",
-      icon: <AlertTriangle className="size-6 text-warn" />,
-      message: "Some checks returned warnings. Proceed with caution.",
+      bg: "bg-amber-50/60",
+      border: "border-amber-200",
+      iconBg: "bg-amber-500",
+      icon: <AlertTriangle className="size-6 text-white" />,
+      heading: "Worth a second look before you pay.",
+      body: "A couple of checks returned warnings. Have a read through the detail below and decide how you want to proceed.",
     },
     HIGH: {
-      bg: "bg-red-50",
-      text: "text-red-600",
+      bg: "bg-red-50/60",
       border: "border-red-200",
-      icon: <XCircle className="size-6 text-red-600" />,
-      message: "One or more checks have failed. We recommend you do not proceed.",
+      iconBg: "bg-red-500",
+      icon: <XCircle className="size-6 text-white" />,
+      heading: "We'd hold off on paying.",
+      body: "One or more serious issues came up in the checks. Read through the detail — you may want to walk away.",
     },
     UNKNOWN: {
       bg: "bg-slate-50",
-      text: "text-slate-400",
       border: "border-slate-200",
-      icon: <Minus className="size-6 text-slate-400" />,
-      message: "We could not determine the risk level for this payment.",
+      iconBg: "bg-slate-400",
+      icon: <Minus className="size-6 text-white" />,
+      heading: "We couldn't confidently call this one.",
+      body: "Not enough signal to give a verdict. Have a look through the detail below.",
     },
   };
-  const rc = riskConfig[risk] ?? riskConfig.UNKNOWN;
+  const hero = heroConfig[risk] ?? heroConfig.UNKNOWN;
 
-  // ── Check statuses ─────────────────────────────────────────────────
-  let chStatus: CheckStatus = "UNVERIFIED";
-  let chDetail = "Companies House was not checked.";
-  if (v.companies_house_result) {
+  // ── Build checklist items ─────────────────────────────────────
+
+  const checklist: { status: CheckStatus; title: string; detail: string }[] = [];
+
+  // CoP
+  if (v.cop_result) {
+    const cop = v.cop_result;
+    if (cop === "FULL_MATCH") {
+      checklist.push({
+        status: "PASS",
+        title: "Bank account matches the name given",
+        detail: `The bank confirmed a full name match for account \u2022\u2022\u2022\u2022${(v.extracted_account_number ?? v.account_number ?? "").slice(-4) || "\u2022\u2022\u2022\u2022"}.`,
+      });
+    } else if (cop === "PARTIAL_MATCH") {
+      const returned = v.cop_returned_name
+        ? ` The bank has it as "${v.cop_returned_name}".`
+        : "";
+      checklist.push({
+        status: "WARN",
+        title: "Bank account is a close match \u2014 not exact",
+        detail: `Not a perfect match on the name.${returned} Worth double-checking with the payee before sending money.`,
+      });
+    } else {
+      checklist.push({
+        status: "FAIL",
+        title: "Bank account name doesn't match",
+        detail:
+          v.cop_reason ??
+          "The bank could not confirm the name on the account. Do not proceed without verifying directly.",
+      });
+    }
+  }
+
+  // Companies House name match
+  if (isBusiness && v.companies_house_result) {
     if (v.companies_house_name) {
       const match = compareNames(inputName, v.companies_house_name);
       if (match === "exact") {
-        chStatus = "PASS";
-        chDetail = `Registered name: ${v.companies_house_name}`;
+        checklist.push({
+          status: "PASS",
+          title: "Company name matches Companies House",
+          detail: `Registered as "${v.companies_house_name}" (company no. ${v.companies_house_number ?? "unknown"}).`,
+        });
       } else if (match === "fuzzy") {
-        chStatus = "WARN";
-        chDetail = `Close match: "${inputName}" vs registered "${v.companies_house_name}"`;
+        checklist.push({
+          status: "WARN",
+          title: "Company name is a close match",
+          detail: `"${inputName}" is close but not identical to the registered name "${v.companies_house_name}".`,
+        });
       } else {
-        chStatus = "FAIL";
-        chDetail = `Name mismatch: "${inputName}" vs registered "${v.companies_house_name}"`;
+        checklist.push({
+          status: "FAIL",
+          title: "Company name doesn't match Companies House",
+          detail: `"${inputName}" vs registered "${v.companies_house_name}". This is a serious mismatch.`,
+        });
       }
     } else {
-      chStatus = "FAIL";
-      chDetail = "Company not found on Companies House register.";
+      checklist.push({
+        status: "FAIL",
+        title: "Company number not found on Companies House",
+        detail:
+          "We couldn't match this company number to any active company on the UK register.",
+      });
     }
   }
 
-  let vatStatus: CheckStatus = "UNVERIFIED";
-  let vatDetail = "HMRC VAT check was not run.";
+  // VAT name match
   const vatNumber = v.vat_number_input || v.extracted_vat_number;
-  if (v.hmrc_vat_result) {
+  if (isBusiness && v.hmrc_vat_result) {
     if (v.vat_api_name) {
       const match = compareNames(inputName, v.vat_api_name);
       if (match === "exact") {
-        vatStatus = "PASS";
-        vatDetail = `VAT registered name: ${v.vat_api_name}`;
+        checklist.push({
+          status: "PASS",
+          title: "VAT number is registered to this company",
+          detail: `HMRC has ${vatNumber ?? "the VAT number"} registered to "${v.vat_api_name}".`,
+        });
       } else if (match === "fuzzy") {
-        vatStatus = "WARN";
-        vatDetail = `VAT number${vatNumber ? ` ${vatNumber}` : ""} is registered to "${v.vat_api_name}" \u2014 close match to "${inputName}".`;
+        checklist.push({
+          status: "WARN",
+          title: "VAT registration is a close match",
+          detail: `HMRC has ${vatNumber ?? "this VAT number"} as "${v.vat_api_name}" \u2014 not an exact match to "${inputName}".`,
+        });
       } else {
-        vatStatus = "FAIL";
-        vatDetail = `VAT number${vatNumber ? ` ${vatNumber}` : ""} is registered to "${v.vat_api_name}" \u2014 this does not match the payee name "${inputName}".`;
+        checklist.push({
+          status: "FAIL",
+          title: "VAT number is registered to a different company",
+          detail: `HMRC has ${vatNumber ?? "this VAT number"} as "${v.vat_api_name}", which doesn't match "${inputName}".`,
+        });
       }
     } else {
-      vatStatus = "FAIL";
-      vatDetail = `VAT number${vatNumber ? ` ${vatNumber}` : ""} not found on HMRC register.`;
+      checklist.push({
+        status: "FAIL",
+        title: "VAT number not found on HMRC",
+        detail: `${vatNumber ?? "This VAT number"} isn't on the HMRC register. Could be a typo or the company isn't VAT-registered.`,
+      });
     }
   }
 
-  let copStatus: CheckStatus = "UNVERIFIED";
-  let copDetail = "Bank verification was not run.";
-  if (v.cop_result) {
-    if (v.cop_result === "FULL_MATCH") {
-      copStatus = "PASS";
-      copDetail = "Full match confirmed by the bank.";
-    } else if (v.cop_result === "PARTIAL_MATCH") {
-      copStatus = "WARN";
-      copDetail = `Partial match. ${v.cop_reason ?? "Close but not exact."}`;
-    } else {
-      copStatus = "FAIL";
-      copDetail = `No match. ${v.cop_reason ?? "Account name does not match."}`;
-    }
-  }
-
-  let tradingStatus: CheckStatus = "UNVERIFIED";
-  let tradingDetail = "";
-  const chNameMatches = !!v.companies_house_name && namesMatch(inputName, v.companies_house_name);
-  const showTrading = !!v.companies_house_result && chNameMatches;
-  if (showTrading && v.companies_house_incorporated_date) {
+  // Trading history
+  const chNameMatches =
+    !!v.companies_house_name && compareNames(inputName, v.companies_house_name) !== "none";
+  if (chNameMatches && v.companies_house_incorporated_date) {
     const months = monthsSince(v.companies_house_incorporated_date);
     if (months !== null) {
       if (months < 3) {
-        tradingStatus = "WARN";
-        tradingDetail = `Incorporated less than 3 months ago (${v.companies_house_incorporated_date}). Very new company.`;
+        checklist.push({
+          status: "WARN",
+          title: "This company is brand new",
+          detail: `Incorporated only ${months} month${months === 1 ? "" : "s"} ago. Be more cautious with new companies \u2014 they have no track record yet.`,
+        });
+      } else if (months < 12) {
+        checklist.push({
+          status: "WARN",
+          title: `Trading for less than a year`,
+          detail: `Incorporated ${months} months ago. Not alarming, but a short track record.`,
+        });
       } else {
-        tradingStatus = "PASS";
-        const years = Math.floor(months / 12);
-        tradingDetail = years >= 1
-          ? `Incorporated ${years} year${years === 1 ? "" : "s"} ago (${v.companies_house_incorporated_date}).`
-          : `Incorporated ${months} months ago (${v.companies_house_incorporated_date}).`;
+        checklist.push({
+          status: "PASS",
+          title: `Established \u2014 trading for ${tradingSummary(v.companies_house_incorporated_date)}`,
+          detail: `Incorporated ${v.companies_house_incorporated_date}. A long trading history makes this company more credible.`,
+        });
       }
     }
   }
 
-  let accountsStatus: CheckStatus = "UNVERIFIED";
-  let accountsDetail = "";
-  const showAccounts = !!v.companies_house_result && chNameMatches;
-  if (showAccounts) {
-    if (v.companies_house_accounts_date) {
-      if (v.companies_house_accounts_overdue) {
-        accountsStatus = "FAIL";
-        accountsDetail = `Last accounts: ${v.companies_house_accounts_date}. Accounts are OVERDUE.`;
-      } else {
-        accountsStatus = "PASS";
-        accountsDetail = `Last accounts: ${v.companies_house_accounts_date}. Up to date.`;
-      }
-    } else {
-      accountsStatus = "WARN";
-      accountsDetail = "No accounts filing information found.";
+  // Accounts filed
+  if (chNameMatches) {
+    if (v.companies_house_accounts_overdue) {
+      checklist.push({
+        status: "FAIL",
+        title: "Accounts are overdue at Companies House",
+        detail: `Last filed ${v.companies_house_accounts_date ?? "unknown"}. Overdue accounts are a red flag \u2014 could indicate financial or governance problems.`,
+      });
+    } else if (v.companies_house_accounts_date) {
+      checklist.push({
+        status: "PASS",
+        title: "Accounts are up to date",
+        detail: `Last filed at Companies House on ${v.companies_house_accounts_date}.`,
+      });
     }
   }
 
-  let marketplaceStatus: CheckStatus = "UNVERIFIED";
-  let marketplaceDetail = "";
-  const showMarketplaceValuation = isMarketplace && v.valuation_min != null && v.valuation_max != null && v.marketplace_listed_price != null;
-  if (showMarketplaceValuation) {
+  // Marketplace pricing
+  const hasMarketplaceValuation =
+    isMarketplace &&
+    v.valuation_min != null &&
+    v.valuation_max != null &&
+    v.marketplace_listed_price != null;
+  if (hasMarketplaceValuation) {
     const listed = Number(v.marketplace_listed_price);
-    const minVal = Number(v.valuation_min);
-    const maxVal = Number(v.valuation_max);
-    if (listed >= minVal * 0.8 && listed <= maxVal * 1.2) {
-      marketplaceStatus = "PASS";
-      marketplaceDetail = `Listed at ${fmt(listed)}, within market range of ${fmt(minVal)}\u2013${fmt(maxVal)}.`;
-    } else if (listed < minVal * 0.5) {
-      marketplaceStatus = "FAIL";
-      marketplaceDetail = `Listed at ${fmt(listed)}, significantly below range ${fmt(minVal)}\u2013${fmt(maxVal)}. Could indicate a scam.`;
+    const minV = Number(v.valuation_min);
+    const maxV = Number(v.valuation_max);
+    if (listed >= minV * 0.8 && listed <= maxV * 1.2) {
+      checklist.push({
+        status: "PASS",
+        title: "Listed price looks fair",
+        detail: `${fmt(listed)} sits within the expected range of ${fmtRange(minV, maxV)} based on UK comparables.`,
+      });
+    } else if (listed < minV * 0.5) {
+      checklist.push({
+        status: "FAIL",
+        title: "Listed price is suspiciously low",
+        detail: `${fmt(listed)} is well below the market range of ${fmtRange(minV, maxV)}. Too-good-to-be-true prices are a classic scam indicator.`,
+      });
+    } else if (listed < minV) {
+      checklist.push({
+        status: "WARN",
+        title: "Listed price is below market",
+        detail: `${fmt(listed)} vs expected ${fmtRange(minV, maxV)}. A small bargain is normal private-sale territory, but ask why.`,
+      });
     } else {
-      marketplaceStatus = "WARN";
-      marketplaceDetail = `Listed at ${fmt(listed)}, outside range ${fmt(minVal)}\u2013${fmt(maxVal)}.`;
+      checklist.push({
+        status: "WARN",
+        title: "Listed price is above market",
+        detail: `${fmt(listed)} is above the expected range of ${fmtRange(minV, maxV)}. You may be paying a premium.`,
+      });
     }
   }
 
-  let adVsInvoiceStatus: CheckStatus = "UNVERIFIED";
-  let adVsInvoiceDetail = "";
-  const showAdVsInvoice = isMarketplace && v.marketplace_listed_price != null;
-  if (showAdVsInvoice) {
-    const adPrice = Number(v.marketplace_listed_price);
-    const invoiceAmt = v.extracted_invoice_amount ?? v.invoice_amount;
-    if (invoiceAmt != null) {
-      const inv = Number(invoiceAmt);
-      const diff = inv - adPrice;
-      if (Math.abs(diff) < 1) {
-        adVsInvoiceStatus = "PASS";
-        adVsInvoiceDetail = `Invoice (${fmt(inv)}) matches ad price (${fmt(adPrice)}).`;
-      } else if (diff > 0) {
-        adVsInvoiceStatus = "WARN";
-        adVsInvoiceDetail = `Invoice (${fmt(inv)}) is ${fmt(diff)} more than ad price (${fmt(adPrice)}).`;
-      } else {
-        adVsInvoiceStatus = Math.abs(diff) > adPrice * 0.2 ? "WARN" : "PASS";
-        adVsInvoiceDetail = `Invoice (${fmt(inv)}) is ${fmt(Math.abs(diff))} less than ad price (${fmt(adPrice)}).`;
-      }
-    } else {
-      adVsInvoiceDetail = "No invoice amount available to compare.";
+  // Ad price vs invoice
+  if (
+    isMarketplace &&
+    v.marketplace_listed_price != null &&
+    (v.extracted_invoice_amount != null || v.invoice_amount != null)
+  ) {
+    const listed = Number(v.marketplace_listed_price);
+    const inv = Number(v.extracted_invoice_amount ?? v.invoice_amount);
+    const diff = inv - listed;
+    if (Math.abs(diff) < 1) {
+      checklist.push({
+        status: "PASS",
+        title: "Invoice amount matches the ad",
+        detail: `The invoice (${fmt(inv)}) matches the listing price. Consistent, which is a good sign.`,
+      });
+    } else if (diff > listed * 0.2) {
+      checklist.push({
+        status: "WARN",
+        title: "Invoice is notably higher than the ad",
+        detail: `The invoice is ${fmt(diff)} more than the ad price (${fmt(listed)}). Make sure you understand the extras.`,
+      });
     }
   }
 
-  let reviewsStatus: CheckStatus = "UNVERIFIED";
-  let reviewsDetail = "";
-  let showReviews = isBusiness && (v.google_reviews_rating != null || v.google_reviews_count != null || v.google_reviews_summary != null);
-  if (showReviews) {
-    const rating = v.google_reviews_rating != null ? Number(v.google_reviews_rating) : null;
-    const count = v.google_reviews_count != null ? Number(v.google_reviews_count) : null;
-    if (rating != null) {
-      if (rating >= 4.0) reviewsStatus = "PASS";
-      else if (rating >= 3.0) reviewsStatus = "WARN";
-      else reviewsStatus = "FAIL";
-      reviewsDetail = `${rating.toFixed(1)}\u2605${count != null ? ` (${count} reviews)` : ""}. ${v.google_reviews_summary ?? ""}`.trim();
-    } else if (count != null && count > 0) {
-      reviewsStatus = "PASS";
-      reviewsDetail = v.google_reviews_summary ?? `${count} reviews found online.`;
-    } else if (v.google_reviews_summary && !v.google_reviews_summary.toLowerCase().includes("no reviews found") && !v.google_reviews_summary.toLowerCase().includes("no online reviews")) {
-      reviewsStatus = "PASS";
-      reviewsDetail = v.google_reviews_summary;
-    } else {
-      // No reviews found — hide the tile entirely
-      showReviews = false;
-    }
-  }
-
-  // ── Sort: FAIL > WARN > PASS > UNVERIFIED, then A-Z ──────────────
-  const statusOrder: Record<CheckStatus, number> = { FAIL: 0, WARN: 1, PASS: 2, UNVERIFIED: 3 };
-  const allChecks: Array<{ icon: React.ReactNode; title: string; status: CheckStatus; detail: string }> = [];
-
-  if (isBusiness) allChecks.push({ icon: <Building2 className="size-4 text-slate-500" />, title: "Companies House", status: chStatus, detail: chDetail });
-  if (showTrading && tradingDetail) allChecks.push({ icon: <CalendarDays className="size-4 text-slate-500" />, title: "Business Trading History", status: tradingStatus, detail: tradingDetail });
-  if (showAccounts && accountsDetail) allChecks.push({ icon: <FileText className="size-4 text-slate-500" />, title: "Last Accounts Filed", status: accountsStatus, detail: accountsDetail });
-  if (isBusiness) allChecks.push({ icon: <ShieldCheck className="size-4 text-slate-500" />, title: "VAT Number", status: vatStatus, detail: vatDetail });
-  allChecks.push({ icon: <Landmark className="size-4 text-slate-500" />, title: "Confirmation of Payee", status: copStatus, detail: copDetail });
-  if (showReviews) allChecks.push({ icon: <Star className="size-4 text-slate-500" />, title: "Seller Reviews Check", status: reviewsStatus, detail: reviewsDetail });
-  if (showAdVsInvoice && adVsInvoiceDetail) allChecks.push({ icon: <FileText className="size-4 text-slate-500" />, title: "Ad Price vs Invoice Amount", status: adVsInvoiceStatus, detail: adVsInvoiceDetail });
-
-  allChecks.sort((a, b) => {
-    const so = statusOrder[a.status] - statusOrder[b.status];
-    if (so !== 0) return so;
-    return a.title.localeCompare(b.title);
-  });
-
-
-  const hasMarketplaceValuation = isMarketplace && v.marketplace_item_title;
-
-  const categoryLabels: Record<string, string> = {
-    vehicle: "Vehicle",
-    property: "Property",
-    investment: "Investment",
-    building_work: "Building work",
-    services: "Paying for services",
-    other: "Something else",
+  // Sort checklist: FAIL > WARN > PASS
+  const order: Record<CheckStatus, number> = {
+    FAIL: 0,
+    WARN: 1,
+    PASS: 2,
+    UNVERIFIED: 3,
   };
-  const categoryLabel = v.purchase_category ? categoryLabels[v.purchase_category] ?? v.purchase_category : null;
+  checklist.sort((a, b) => order[a.status] - order[b.status]);
+
+  // ── Vehicle valuation block ──────────────────────────────────
+  type VehicleVal = {
+    estimatedValueLow?: number;
+    estimatedValueMid?: number;
+    estimatedValueHigh?: number;
+    confidence?: string;
+    factors?: string[];
+    warnings?: string[];
+    summary?: string;
+  };
+  const vehicleVal = (v.vehicle_valuation as unknown as VehicleVal | null) ?? null;
+  const hasVehicleValuation =
+    !!vehicleVal &&
+    typeof vehicleVal.estimatedValueLow === "number" &&
+    typeof vehicleVal.estimatedValueHigh === "number";
+
+  // ── DVLA data (context card) ─────────────────────────────────
+  type DvlaData = {
+    registrationNumber?: string;
+    make?: string;
+    colour?: string;
+    fuelType?: string;
+    yearOfManufacture?: number;
+    engineCapacity?: number;
+    taxStatus?: string;
+    motStatus?: string;
+  };
+  const dvla = (v.dvla_data as unknown as DvlaData | null) ?? null;
+
+  // ── Property data (context card) ─────────────────────────────
+  type PropertyData = {
+    summaryline?: string;
+    addressline1?: string;
+    addressline2?: string;
+    postcode?: string;
+  };
+  const property = (v.property_data as unknown as PropertyData | null) ?? null;
+
+  // ── Reviews ──────────────────────────────────────────────────
+  const hasReviews =
+    isBusiness &&
+    (v.google_reviews_rating != null ||
+      v.google_reviews_count != null ||
+      (v.google_reviews_summary &&
+        !v.google_reviews_summary.toLowerCase().includes("no reviews found")));
+  const reviewsRating =
+    v.google_reviews_rating != null ? Number(v.google_reviews_rating) : null;
+
+  // ── "Things to consider" tips ────────────────────────────────
+  const tips: { icon: React.ReactNode; title: string; body: string }[] = [];
+  if (isMarketplace) {
+    tips.push({
+      icon: <Eye className="size-5 text-coral" />,
+      title: "Check the seller's profile",
+      body: "How long have they been on the platform? Do they have genuine-looking friends and posts? Do they have reviews or ratings from other buyers? A brand-new account with no history is a warning sign.",
+    });
+    tips.push({
+      icon: <ShieldCheck className="size-5 text-coral" />,
+      title: "Ask for proof they have the item",
+      body: "Request a photo of the item alongside a handwritten note showing today's date. This confirms they actually have it in their possession right now \u2014 scammers rarely comply.",
+    });
+    tips.push({
+      icon: <Landmark className="size-5 text-coral" />,
+      title: "Get contact details you can independently verify",
+      body: "A landline number or a business email address (not gmail.com) gives you something to check. Look it up separately from what they've told you.",
+    });
+  }
+  if (isVehicle && vehicleVal?.warnings && vehicleVal.warnings.length > 0) {
+    for (const w of vehicleVal.warnings) {
+      tips.push({
+        icon: <AlertTriangle className="size-5 text-coral" />,
+        title: "Vehicle warning",
+        body: w,
+      });
+    }
+  }
+  if (isVehicle) {
+    const makeModel = dvla?.make
+      ? `${dvla.make}${dvla.yearOfManufacture ? ` (${dvla.yearOfManufacture})` : ""}`
+      : "this vehicle";
+    tips.push({
+      icon: <Car className="size-5 text-coral" />,
+      title: "Before you hand money over",
+      body: `See the V5C logbook in person and check the VIN on the car matches it. Take ${makeModel} for a test drive. Confirm the seller's name on the V5C matches the bank account name you're paying.`,
+    });
+  }
+  if (isProperty) {
+    tips.push({
+      icon: <Home className="size-5 text-coral" />,
+      title: "Property payment safety",
+      body: "For a deposit or completion payment, always verify the solicitor's bank details by phoning them on a number from their official website \u2014 never a number from the email that sent the details. Email fraud on property payments is common and the sums are large.",
+    });
+  }
+
+  // ── Render ───────────────────────────────────────────────────
 
   return (
-    <div className={`mx-auto px-4 py-8 sm:px-6 ${hasMarketplaceValuation ? "max-w-5xl" : "max-w-[625px]"}`}>
+    <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6 sm:py-10 space-y-8">
       <Button
-        className="mb-4 h-11 px-5 text-[15px] text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-xl"
+        className="h-10 px-4 text-sm text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-xl"
         variant="ghost"
         render={<Link href="/dashboard" />}
       >
         <ArrowLeft className="size-4 mr-1.5" />
-        Dashboard
+        Back to dashboard
       </Button>
 
-      {/* Hero: "You are paying …" */}
-      <div className={`${rc.bg} ${rc.border} border rounded-2xl p-5 sm:p-6 mb-6`}>
-        <div className="flex items-start gap-3">
-          <div className="shrink-0 mt-0.5">{rc.icon}</div>
-          <div className="min-w-0">
-            <h1 className="text-lg sm:text-xl font-semibold text-slate-900 break-words">
-              You are paying {accountName}
+      {/* ── Hero ──────────────────────────────────────────────── */}
+      <section
+        className={`rounded-3xl border ${hero.border} ${hero.bg} p-6 sm:p-8`}
+      >
+        <div className="flex flex-col sm:flex-row sm:items-start gap-5">
+          <div
+            className={`shrink-0 size-12 rounded-2xl ${hero.iconBg} flex items-center justify-center shadow-sm`}
+          >
+            {hero.icon}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm text-slate-500 mb-1">You&apos;re paying</p>
+            <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight break-words">
+              {accountName}
             </h1>
-            {amount != null && (
-              <p className="text-2xl font-bold font-mono text-slate-900 mt-1">{fmt(amount)}</p>
-            )}
-            <p className="text-sm text-slate-500 mt-1">
-              for {description}
+            <p className="text-base text-slate-600 mt-1">
+              {amount != null ? (
+                <>
+                  <span className="font-mono font-semibold text-slate-900">
+                    {fmt(amount)}
+                  </span>{" "}
+                  for {reasonText}
+                </>
+              ) : (
+                <>for {reasonText}</>
+              )}
             </p>
-            <p className={`text-sm font-semibold mt-2 ${rc.text}`}>
-              {rc.message}
-            </p>
+            <div className="mt-5 border-t border-slate-900/5 pt-5">
+              <p className="text-base font-semibold text-slate-900">
+                {hero.heading}
+              </p>
+              <p className="text-sm text-slate-600 mt-1 leading-relaxed">
+                {hero.body}
+              </p>
+            </div>
           </div>
         </div>
-      </div>
+      </section>
 
-      {/* Context badges */}
-      {categoryLabel && (
-        <div className="flex flex-wrap gap-2 mb-4">
-          <span className="inline-flex items-center rounded-full bg-slate-100 border border-slate-200 px-3 py-1 text-xs font-medium text-slate-600">
-            Buying: {categoryLabel}
-          </span>
-        </div>
+      {/* ── Vehicle context card ─────────────────────────────── */}
+      {isVehicle && dvla && (
+        <section>
+          <SectionHeader
+            eyebrow="The vehicle"
+            title="Here's what the DVLA has on file"
+          />
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
+            {/* Plate */}
+            {dvla.registrationNumber && (
+              <div className="inline-flex items-center rounded-md bg-[#FFCC00] px-4 py-2 shadow-sm mb-5">
+                <span
+                  className="text-xl sm:text-2xl font-black tracking-wider text-black uppercase"
+                  style={{
+                    fontFamily: "'Charles Wright', 'Arial Black', sans-serif",
+                  }}
+                >
+                  {dvla.registrationNumber}
+                </span>
+              </div>
+            )}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
+              {dvla.make && (
+                <div>
+                  <p className="text-xs text-slate-400">Make</p>
+                  <p className="font-medium text-slate-900">{dvla.make}</p>
+                </div>
+              )}
+              {dvla.yearOfManufacture && (
+                <div>
+                  <p className="text-xs text-slate-400">Year</p>
+                  <p className="font-medium text-slate-900">
+                    {dvla.yearOfManufacture}
+                  </p>
+                </div>
+              )}
+              {dvla.fuelType && (
+                <div>
+                  <p className="text-xs text-slate-400">Fuel</p>
+                  <p className="font-medium text-slate-900">{dvla.fuelType}</p>
+                </div>
+              )}
+              {dvla.colour && (
+                <div>
+                  <p className="text-xs text-slate-400">Colour</p>
+                  <p className="font-medium text-slate-900">{dvla.colour}</p>
+                </div>
+              )}
+              {dvla.engineCapacity && (
+                <div>
+                  <p className="text-xs text-slate-400">Engine</p>
+                  <p className="font-medium text-slate-900">
+                    {dvla.engineCapacity}cc
+                  </p>
+                </div>
+              )}
+              {dvla.taxStatus && (
+                <div>
+                  <p className="text-xs text-slate-400">Tax</p>
+                  <p className="font-medium text-slate-900">{dvla.taxStatus}</p>
+                </div>
+              )}
+              {dvla.motStatus && (
+                <div>
+                  <p className="text-xs text-slate-400">MOT</p>
+                  <p className="font-medium text-slate-900">{dvla.motStatus}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
       )}
 
-      {/* Main content: marketplace = 2 col, otherwise single col */}
-      {hasMarketplaceValuation ? (
-        <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
-          {/* Left: Checks */}
-          <div>
-            <span className="eyebrow block mb-3">Checks completed</span>
-            <div className="space-y-2">
-              {allChecks.map((check) => (
-                <CheckRow
-                  key={check.title}
-                  icon={check.icon}
-                  title={check.title}
-                  status={check.status}
-                  detail={check.detail}
-                />
-              ))}
-            </div>
-          </div>
-
-          {/* Right: Marketplace valuation */}
-          <div>
-            <span className="eyebrow block mb-3">Marketplace valuation</span>
-            <div className="rounded-2xl bg-white border border-slate-200 p-5 space-y-4 sticky top-8">
-              <div className="flex items-center gap-2 mb-2">
-                <ShoppingCart className="size-5 text-slate-500" />
-                <span className="text-sm font-semibold text-slate-900">{v.marketplace_item_title}</span>
+      {/* ── Property context card ────────────────────────────── */}
+      {isProperty && property && (
+        <section>
+          <SectionHeader
+            eyebrow="The property"
+            title="Here's the address you're paying for"
+          />
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
+            <div className="flex items-start gap-3">
+              <div className="size-10 rounded-xl bg-coral/10 text-coral flex items-center justify-center shrink-0">
+                <Home className="size-5" />
               </div>
-
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                {v.marketplace_listed_price != null && (
-                  <div className="rounded-xl bg-slate-50 p-3">
-                    <span className="text-xs text-slate-400 block mb-0.5">Listed price</span>
-                    <span className="font-mono font-semibold text-base text-slate-900">{fmt(Number(v.marketplace_listed_price))}</span>
-                  </div>
-                )}
-                {v.valuation_min != null && v.valuation_max != null && (
-                  <div className="rounded-xl bg-slate-50 p-3">
-                    <span className="text-xs text-slate-400 block mb-0.5">Est. market value</span>
-                    <span className="font-mono font-semibold text-base text-slate-900">
-                      {fmt(Number(v.valuation_min))} &ndash; {fmt(Number(v.valuation_max))}
-                    </span>
-                  </div>
+              <div>
+                <p className="text-base font-semibold text-slate-900">
+                  {property.summaryline ||
+                    [property.addressline1, property.addressline2]
+                      .filter(Boolean)
+                      .join(", ")}
+                </p>
+                {property.postcode && (
+                  <p className="text-sm text-slate-500 mt-0.5">
+                    Postcode verified via Royal Mail / Postcoder
+                  </p>
                 )}
               </div>
-
-              {showMarketplaceValuation && (
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-slate-400">Price assessment:</span>
-                  <StatusBadge status={marketplaceStatus} />
-                </div>
-              )}
-
-              {v.valuation_summary && (
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-sm leading-relaxed whitespace-pre-line text-slate-500">{v.valuation_summary}</p>
-                </div>
-              )}
             </div>
           </div>
-        </div>
-      ) : (
-        /* Non-marketplace: centered single column */
-        <div>
-          <span className="eyebrow block mb-3">Checks completed</span>
-          <div className="space-y-2">
-            {allChecks.map((check) => (
-              <CheckRow
-                key={check.title}
-                icon={check.icon}
-                title={check.title}
-                status={check.status}
-                detail={check.detail}
-              />
+        </section>
+      )}
+
+      {/* ── Marketplace listing card ─────────────────────────── */}
+      {isMarketplace && v.marketplace_item_title && (
+        <section>
+          <SectionHeader
+            eyebrow="The listing"
+            title="Here's what they're selling"
+          />
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
+            <div className="flex items-start gap-4">
+              <div className="size-10 rounded-xl bg-coral/10 text-coral flex items-center justify-center shrink-0">
+                <ShoppingCart className="size-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-base font-semibold text-slate-900 break-words">
+                  {v.marketplace_item_title}
+                </p>
+                <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
+                  {v.marketplace_listed_price != null && (
+                    <div>
+                      <p className="text-xs text-slate-400">Listed at</p>
+                      <p className="font-mono font-semibold text-slate-900">
+                        {fmt(Number(v.marketplace_listed_price))}
+                      </p>
+                    </div>
+                  )}
+                  {v.marketplace_source && (
+                    <div>
+                      <p className="text-xs text-slate-400">Platform</p>
+                      <p className="font-medium text-slate-900 capitalize">
+                        {v.marketplace_source.replace(/_/g, " ")}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ── Checklist ────────────────────────────────────────── */}
+      {checklist.length > 0 && (
+        <section>
+          <SectionHeader
+            eyebrow="The checks"
+            title="Let's go through what we found"
+            sub="The important stuff \u2014 here's how this payee stacks up on the checks we ran."
+          />
+          <div className="space-y-2.5">
+            {checklist.map((c, i) => (
+              <ChecklistItem key={i} {...c} />
             ))}
           </div>
-        </div>
+        </section>
       )}
+
+      {/* ── Valuation: vehicle ───────────────────────────────── */}
+      {isVehicle && hasVehicleValuation && vehicleVal && (
+        <section>
+          <SectionHeader
+            eyebrow="The price"
+            title="What this vehicle is worth"
+            sub="Our AI estimate based on the DVLA data and UK market comparables."
+          />
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
+            <div className="flex items-baseline gap-3 flex-wrap">
+              <p className="text-3xl sm:text-4xl font-bold text-slate-900 font-mono">
+                {fmtRange(
+                  vehicleVal.estimatedValueLow!,
+                  vehicleVal.estimatedValueHigh!
+                )}
+              </p>
+              {vehicleVal.confidence && (
+                <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600 capitalize">
+                  {vehicleVal.confidence} confidence
+                </span>
+              )}
+            </div>
+            {vehicleVal.summary && (
+              <p className="text-sm text-slate-600 mt-4 leading-relaxed whitespace-pre-line">
+                {vehicleVal.summary}
+              </p>
+            )}
+            {vehicleVal.factors && vehicleVal.factors.length > 0 && (
+              <div className="mt-5 pt-5 border-t border-slate-100">
+                <p className="text-xs uppercase tracking-wide text-slate-400 font-bold mb-2">
+                  What drove the estimate
+                </p>
+                <ul className="space-y-1.5">
+                  {vehicleVal.factors.map((f, i) => (
+                    <li
+                      key={i}
+                      className="text-sm text-slate-600 flex items-start gap-2"
+                    >
+                      <span className="text-coral mt-1">{"\u2022"}</span>
+                      <span>{f}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* ── Valuation: marketplace ───────────────────────────── */}
+      {isMarketplace &&
+        v.valuation_min != null &&
+        v.valuation_max != null && (
+          <section>
+            <SectionHeader
+              eyebrow="The price"
+              title="What this item is worth"
+              sub="Based on UK comparables found via web search."
+            />
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
+              <div className="grid sm:grid-cols-2 gap-4 mb-4">
+                {v.marketplace_listed_price != null && (
+                  <div className="rounded-xl bg-slate-50 p-4">
+                    <p className="text-xs text-slate-400 mb-1">
+                      They're asking
+                    </p>
+                    <p className="text-2xl font-bold font-mono text-slate-900">
+                      {fmt(Number(v.marketplace_listed_price))}
+                    </p>
+                  </div>
+                )}
+                <div className="rounded-xl bg-coral/5 border border-coral/10 p-4">
+                  <p className="text-xs text-coral font-semibold mb-1 uppercase tracking-wide">
+                    Market range
+                  </p>
+                  <p className="text-2xl font-bold font-mono text-slate-900">
+                    {fmtRange(
+                      Number(v.valuation_min),
+                      Number(v.valuation_max)
+                    )}
+                  </p>
+                </div>
+              </div>
+              {v.valuation_summary && (
+                <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-line">
+                  {v.valuation_summary}
+                </p>
+              )}
+            </div>
+          </section>
+        )}
+
+      {/* ── Reputation ───────────────────────────────────────── */}
+      {isBusiness && (hasReviews || v.google_reviews_summary) && (
+        <section>
+          <SectionHeader
+            eyebrow="Reputation"
+            title="What other people say"
+            sub="Public reviews and mentions found online."
+          />
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
+            <div className="flex items-start gap-4">
+              <div className="size-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+                <Star className="size-5 fill-amber-500 text-amber-500" />
+              </div>
+              <div className="min-w-0 flex-1">
+                {reviewsRating != null && (
+                  <div className="flex items-baseline gap-2 mb-1">
+                    <p className="text-2xl font-bold text-slate-900">
+                      {reviewsRating.toFixed(1)}
+                      <span className="text-base font-normal text-slate-400">
+                        /5
+                      </span>
+                    </p>
+                    {v.google_reviews_count != null && (
+                      <span className="text-sm text-slate-500">
+                        from {Number(v.google_reviews_count).toLocaleString()}{" "}
+                        review
+                        {Number(v.google_reviews_count) === 1 ? "" : "s"}
+                      </span>
+                    )}
+                  </div>
+                )}
+                {v.google_reviews_summary && (
+                  <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-line">
+                    {v.google_reviews_summary}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Coming-soon tiles for Trustpilot / Checkatrade */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+            <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/50 p-4 flex items-center gap-3">
+              <Globe className="size-5 text-slate-400 shrink-0" />
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-slate-700">Trustpilot</p>
+                <p className="text-xs text-slate-400">
+                  Coming soon &mdash; we&rsquo;ll cross-check reviews on Trustpilot
+                </p>
+              </div>
+            </div>
+            {isTradesperson && (
+              <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/50 p-4 flex items-center gap-3">
+                <Building2 className="size-5 text-slate-400 shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-slate-700">
+                    Checkatrade
+                  </p>
+                  <p className="text-xs text-slate-400">
+                    Coming soon &mdash; verified-tradesperson listings
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* ── Things to consider ───────────────────────────────── */}
+      {tips.length > 0 && (
+        <section>
+          <SectionHeader
+            eyebrow="Before you pay"
+            title="Things worth thinking about"
+            sub="Not deal-breakers \u2014 just common-sense steps for this kind of payment."
+          />
+          <div className="space-y-3">
+            {tips.map((t, i) => (
+              <div
+                key={i}
+                className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="size-9 rounded-lg bg-coral/10 flex items-center justify-center shrink-0">
+                    {t.icon}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-slate-900 mb-1">
+                      {t.title}
+                    </p>
+                    <p className="text-sm text-slate-600 leading-relaxed">
+                      {t.body}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* ── Footer ───────────────────────────────────────────── */}
+      <div className="pt-4 pb-2 text-center">
+        <p className="text-xs text-slate-400">
+          WhoAmIPaying checks data from Companies House, HMRC, DVLA, Confirmation
+          of Payee, and public sources. Always make your own judgement before
+          paying.
+        </p>
+      </div>
     </div>
   );
 }
+
+// Silence unused-import warnings
+void Image;
+void FileText;
+void Lightbulb;
+void CalendarDays;
+void Info;
