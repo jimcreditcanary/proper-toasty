@@ -34,13 +34,42 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const result = await runVerification({ formData, userId, admin });
-
-    return NextResponse.json({ id: result.id });
+    // Credits are debited — if anything downstream fails we put them
+    // back so the user isn't charged for a broken run.
+    try {
+      const result = await runVerification({ formData, userId, admin });
+      return NextResponse.json({ id: result.id });
+    } catch (err) {
+      console.error(
+        `Verify-full failed after deducting ${creditsToUse} credit(s) for user ${userId}, refunding:`,
+        err
+      );
+      try {
+        const { data: userRow } = await admin
+          .from("users")
+          .select("credits")
+          .eq("id", userId)
+          .single();
+        const currentBalance = Number(userRow?.credits ?? 0);
+        const { error: refundErr } = await admin
+          .from("users")
+          .update({
+            credits: currentBalance + creditsToUse,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", userId);
+        if (refundErr) {
+          console.error("Credit refund UPDATE failed:", refundErr);
+        }
+      } catch (refundThrown) {
+        console.error("Credit refund error:", refundThrown);
+      }
+      throw err;
+    }
   } catch (error) {
     console.error("Verify-full error:", error);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: "Internal server error — no credits were charged" },
       { status: 500 }
     );
   }
