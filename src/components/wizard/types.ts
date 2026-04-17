@@ -74,6 +74,14 @@ export type WizardState = {
   dvlaError: string | null;
   vehicleConfirmed: boolean;
 
+  // Step 3 — property address lookup (only when purchaseCategory === "property")
+  propertyPostcode: string;
+  propertyAddresses: PostcoderAddress[] | null;
+  selectedProperty: PostcoderAddress | null;
+  propertyLoading: boolean;
+  propertyError: string | null;
+  propertyConfirmed: boolean;
+
   // Step 4 — marketplace
   marketplaceSource: MarketplaceSource | null;
   marketplaceOther: string;
@@ -117,6 +125,25 @@ export type WizardState = {
   userEmail: string | null;
 };
 
+export type PostcoderAddress = {
+  summaryline: string;
+  addressline1: string;
+  addressline2: string;
+  organisation: string;
+  buildingname: string;
+  subbuildingname: string;
+  premise: string;
+  street: string;
+  dependentlocality: string;
+  posttown: string;
+  county: string;
+  postcode: string;
+  uprn: string;
+  udprn: string;
+  latitude: string;
+  longitude: string;
+};
+
 export type WizardStep = 1 | 2 | 3 | 4 | 5 | 6;
 
 export const initialWizardState: WizardState = {
@@ -128,6 +155,13 @@ export const initialWizardState: WizardState = {
   dvlaLoading: false,
   dvlaError: null,
   vehicleConfirmed: false,
+
+  propertyPostcode: "",
+  propertyAddresses: null,
+  selectedProperty: null,
+  propertyLoading: false,
+  propertyError: null,
+  propertyConfirmed: false,
 
   marketplaceSource: null,
   marketplaceOther: "",

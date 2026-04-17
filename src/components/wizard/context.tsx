@@ -138,11 +138,13 @@ function reducer(state: FullState, action: WizardAction): FullState {
  */
 function visibleSteps(state: WizardState): WizardStep[] {
   const cat = state.purchaseCategory;
-  const showVehicle = cat === "vehicle";
+  // Step 3 is used for both the vehicle-reg lookup and the property-address
+  // lookup — same slot, different component picked in wizard-shell.
+  const showStep3 = cat === "vehicle" || cat === "property";
   const showMarketplace = cat === "vehicle" || cat === "something_else";
 
   const out: WizardStep[] = [1, 2];
-  if (showVehicle) out.push(3);
+  if (showStep3) out.push(3);
   if (showMarketplace) out.push(4);
   out.push(5, 6);
   return out;

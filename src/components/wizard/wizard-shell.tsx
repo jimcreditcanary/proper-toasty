@@ -5,12 +5,17 @@ import { WizardProgressBar } from "./progress-bar";
 import { Step1PayeeType } from "./step-1-payee-type";
 import { Step2Category } from "./step-2-category";
 import { Step3Vehicle } from "./step-3-vehicle";
+import { Step3Property } from "./step-3-property";
 import { Step4Marketplace } from "./step-4-marketplace";
 import { Step5Details } from "./step-5-details";
 import { Step6Checks } from "./step-6-checks";
 
 export function WizardShell() {
-  const { step } = useWizard();
+  const { step, state } = useWizard();
+
+  // Step 3 is used for both the vehicle-reg lookup and the property-address
+  // lookup — pick the right component based on what the user's buying.
+  const isProperty = state.purchaseCategory === "property";
 
   return (
     <div className="mx-auto w-full max-w-2xl px-4 sm:px-6">
@@ -19,7 +24,7 @@ export function WizardShell() {
 
         {step === 1 && <Step1PayeeType />}
         {step === 2 && <Step2Category />}
-        {step === 3 && <Step3Vehicle />}
+        {step === 3 && (isProperty ? <Step3Property /> : <Step3Vehicle />)}
         {step === 4 && <Step4Marketplace />}
         {step === 5 && <Step5Details />}
         {step === 6 && <Step6Checks />}

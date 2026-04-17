@@ -40,11 +40,13 @@ export async function POST(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   try {
     const body = await request.json();
-    const { sessionId, extractionCost, marketplaceCost } = body as {
-      sessionId?: string;
-      extractionCost?: number;
-      marketplaceCost?: number;
-    };
+    const { sessionId, extractionCost, marketplaceCost, propertyLookupCost } =
+      body as {
+        sessionId?: string;
+        extractionCost?: number;
+        marketplaceCost?: number;
+        propertyLookupCost?: number;
+      };
 
     if (!sessionId) {
       return NextResponse.json({ error: "Missing sessionId" }, { status: 400 });
@@ -67,6 +69,10 @@ export async function PATCH(request: NextRequest) {
     }
     if (marketplaceCost != null) {
       updates.marketplace_cost = (Number(cur?.marketplace_cost) || 0) + marketplaceCost;
+    }
+    if (propertyLookupCost != null) {
+      updates.property_lookup_cost =
+        (Number(cur?.property_lookup_cost) || 0) + propertyLookupCost;
     }
 
     await admin

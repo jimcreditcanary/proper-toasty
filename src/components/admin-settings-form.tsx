@@ -6,6 +6,7 @@ import type { AdminSettingRow } from "@/app/dashboard/admin/settings/page";
 
 const SETTING_LABELS: Record<string, string> = {
   cop_cost_per_check: "CoP Cost per Check",
+  address_lookup_cost: "Address Lookup Cost (Postcoder)",
   monthly_hosting_cost: "Monthly Hosting Cost",
   anthropic_cost_per_1k_tokens: "Anthropic Cost per 1K Tokens",
   ob_cost_per_transaction: "OB Cost per Transaction",
@@ -13,6 +14,7 @@ const SETTING_LABELS: Record<string, string> = {
 
 const SETTING_ORDER = [
   "cop_cost_per_check",
+  "address_lookup_cost",
   "monthly_hosting_cost",
   "anthropic_cost_per_1k_tokens",
   "ob_cost_per_transaction",

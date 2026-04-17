@@ -67,6 +67,20 @@ export async function runVerification(params: {
   const marketplaceOther = formData.get("marketplaceOther") as string | null;
   const marketplaceScreenshot = formData.get("marketplaceScreenshot") as File | null;
 
+  // Property (Postcoder address lookup)
+  const propertyDataRaw = formData.get("propertyData") as string | null;
+  let propertyData: Record<string, unknown> | null = null;
+  if (propertyDataRaw) {
+    try {
+      const parsed = JSON.parse(propertyDataRaw);
+      if (parsed && typeof parsed === "object") {
+        propertyData = parsed as Record<string, unknown>;
+      }
+    } catch {
+      propertyData = null;
+    }
+  }
+
   // Selected checks
   const selectedChecksRaw = formData.get("selectedChecks") as string | null;
   let selectedChecks: string[] = [];
@@ -231,6 +245,13 @@ If a field is not found, set its value to null.`;
       purchase_category: purchaseCategory,
       vehicle_reg: vehicleReg,
       dvla_data: (dvlaData as unknown as Json) ?? null,
+      property_postcode:
+        (propertyData?.postcode as string | undefined) ?? null,
+      property_address:
+        (propertyData?.summaryline as string | undefined) ?? null,
+      property_uprn: (propertyData?.uprn as string | undefined) ?? null,
+      property_udprn: (propertyData?.udprn as string | undefined) ?? null,
+      property_data: (propertyData as unknown as Json) ?? null,
       selected_checks: selectedChecks.length > 0 ? selectedChecks : null,
       check_tier: "enhanced",
       extracted_company_name: extractedData?.company_name ?? null,
@@ -246,6 +267,24 @@ If a field is not found, set its value to null.`;
   if (insertError || !verification) {
     console.error("Insert verification error:", insertError);
     throw new Error("Failed to create verification record");
+  }
+
+  // ── Persist property lookup (linked to verification) ───────────────
+  if (propertyData && typeof propertyData.postcode === "string") {
+    admin
+      .from("property_lookups")
+      .insert({
+        verification_id: verification.id,
+        postcode: String(propertyData.postcode),
+        address_summary:
+          (propertyData.summaryline as string | undefined) ?? null,
+        uprn: (propertyData.uprn as string | undefined) ?? null,
+        udprn: (propertyData.udprn as string | undefined) ?? null,
+        raw_response: propertyData as unknown as Json,
+      })
+      .then(({ error: plErr }) => {
+        if (plErr) console.error("property_lookups insert:", plErr);
+      });
   }
 
   // ── Persist DVLA lookup (linked to verification) ───────────────────

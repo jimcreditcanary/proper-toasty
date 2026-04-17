@@ -216,6 +216,13 @@ export function Step6Checks() {
       if (state.dvlaData)
         formData.append("dvlaData", JSON.stringify(state.dvlaData));
 
+      if (state.selectedProperty) {
+        formData.append(
+          "propertyData",
+          JSON.stringify(state.selectedProperty)
+        );
+      }
+
       if (state.marketplaceSource) {
         formData.append("marketplaceSource", state.marketplaceSource);
         if (state.marketplaceSource === "other" && state.marketplaceOther)

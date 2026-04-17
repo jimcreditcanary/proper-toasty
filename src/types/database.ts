@@ -349,6 +349,11 @@ export interface Database {
           cop_returned_name: string | null;
           cop_reason_code: string | null;
           cop_account_type_match: boolean | null;
+          property_postcode: string | null;
+          property_address: string | null;
+          property_uprn: string | null;
+          property_udprn: string | null;
+          property_data: Json | null;
         };
         Insert: {
           id?: string;
@@ -405,6 +410,11 @@ export interface Database {
           cop_returned_name?: string | null;
           cop_reason_code?: string | null;
           cop_account_type_match?: boolean | null;
+          property_postcode?: string | null;
+          property_address?: string | null;
+          property_uprn?: string | null;
+          property_udprn?: string | null;
+          property_data?: Json | null;
         };
         Update: {
           id?: string;
@@ -461,6 +471,11 @@ export interface Database {
           cop_returned_name?: string | null;
           cop_reason_code?: string | null;
           cop_account_type_match?: boolean | null;
+          property_postcode?: string | null;
+          property_address?: string | null;
+          property_uprn?: string | null;
+          property_udprn?: string | null;
+          property_data?: Json | null;
         };
         Relationships: [
           {
@@ -578,6 +593,39 @@ export interface Database {
           revenue_weight?: number | null;
           euro_status?: string | null;
           date_of_last_v5c_issued?: string | null;
+          raw_response?: Json;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      property_lookups: {
+        Row: {
+          id: string;
+          verification_id: string | null;
+          postcode: string;
+          address_summary: string | null;
+          uprn: string | null;
+          udprn: string | null;
+          raw_response: Json;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          verification_id?: string | null;
+          postcode: string;
+          address_summary?: string | null;
+          uprn?: string | null;
+          udprn?: string | null;
+          raw_response: Json;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          verification_id?: string | null;
+          postcode?: string;
+          address_summary?: string | null;
+          uprn?: string | null;
+          udprn?: string | null;
           raw_response?: Json;
           created_at?: string;
         };

@@ -20,16 +20,45 @@ export function Step2Category() {
 
     if (type === "vehicle") {
       // Vehicle reg → marketplace → details
+      update({
+        propertyPostcode: "",
+        propertyAddresses: null,
+        selectedProperty: null,
+        propertyError: null,
+        propertyConfirmed: false,
+      });
       setStep(3);
       return;
     }
 
-    // No vehicle reg for non-vehicle categories
+    if (type === "property") {
+      // Property address lookup → details (marketplace skipped)
+      update({
+        vehicleReg: "",
+        dvlaData: null,
+        dvlaError: null,
+        vehicleConfirmed: false,
+        marketplaceSource: null,
+        marketplaceOther: "",
+        marketplaceScreenshot: null,
+        marketplaceScreenshotUrl: null,
+        marketplaceError: null,
+      });
+      setStep(3);
+      return;
+    }
+
+    // No vehicle reg / no property lookup for other categories
     update({
       vehicleReg: "",
       dvlaData: null,
       dvlaError: null,
       vehicleConfirmed: false,
+      propertyPostcode: "",
+      propertyAddresses: null,
+      selectedProperty: null,
+      propertyError: null,
+      propertyConfirmed: false,
     });
 
     if (type === "something_else") {
@@ -38,7 +67,7 @@ export function Step2Category() {
       return;
     }
 
-    // Tradesperson / property / service — skip marketplace too
+    // Tradesperson / service — skip marketplace too
     update({
       marketplaceSource: null,
       marketplaceOther: "",

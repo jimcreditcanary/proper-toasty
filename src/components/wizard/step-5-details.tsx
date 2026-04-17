@@ -160,8 +160,11 @@ export function Step5Details() {
     if (cat === "vehicle" || cat === "something_else") {
       // Marketplace step was shown
       setStep(4);
+    } else if (cat === "property") {
+      // Property address lookup was shown (step 3, no marketplace)
+      setStep(3);
     } else {
-      // Marketplace was skipped — go straight back to category selection
+      // Tradesperson / service — straight back to category selection
       setStep(2);
     }
   }
