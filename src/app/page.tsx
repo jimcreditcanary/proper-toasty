@@ -124,7 +124,25 @@ export default function Home() {
               </div>
 
               <h1 className="text-4xl sm:text-5xl lg:text-[3.5rem] font-bold tracking-tight leading-[1.1]">
-                Know exactly who
+                Know{" "}
+                <span className="relative inline-block">
+                  exactly
+                  <svg
+                    aria-hidden="true"
+                    className="absolute left-0 -bottom-2 w-full"
+                    viewBox="0 0 200 12"
+                    preserveAspectRatio="none"
+                  >
+                    <path
+                      d="M3 8 Q 50 2, 100 6 T 197 5"
+                      stroke="#2563eb"
+                      strokeWidth="4"
+                      strokeLinecap="round"
+                      fill="none"
+                    />
+                  </svg>
+                </span>{" "}
+                who
                 <br />
                 you&apos;re{" "}
                 <span className="text-coral">paying</span>
