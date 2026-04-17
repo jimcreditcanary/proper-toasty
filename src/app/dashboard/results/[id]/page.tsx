@@ -31,14 +31,14 @@ type CheckStatus = "PASS" | "WARN" | "FAIL" | "UNVERIFIED";
 
 function fmt(amount: number | null | undefined): string {
   if (amount == null) return "";
-  return `\u00A3${Number(amount).toLocaleString("en-GB", {
+  return `£${Number(amount).toLocaleString("en-GB", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;
 }
 
 function fmtRange(lo: number, hi: number): string {
-  return `${fmt(lo)} \u2013 ${fmt(hi)}`;
+  return `${fmt(lo)} – ${fmt(hi)}`;
 }
 
 /** Strip common suffixes and normalise for comparison */
@@ -256,7 +256,7 @@ export default async function VerificationResultPage({
       border: "border-emerald-200",
       iconBg: "bg-emerald-500",
       icon: <CheckCircle2 className="size-6 text-white" />,
-      heading: "All checks look good \u2014 you're OK to proceed.",
+      heading: "All checks look good — you're OK to proceed.",
       body: "Nothing flagged. You can pay with reasonable confidence.",
     },
     MEDIUM: {
@@ -286,6 +286,19 @@ export default async function VerificationResultPage({
   };
   const hero = heroConfig[risk] ?? heroConfig.UNKNOWN;
 
+  // ── Pre-derive JSON blobs we need for both checklist + render ──
+  type PlateMatch = {
+    visiblePlate?: string | null;
+    expectedPlate?: string;
+    matches?: boolean | null;
+  };
+  const plateMatch =
+    (v.marketplace_plate_match as unknown as PlateMatch | null) ?? null;
+
+  type VehicleTips = { tips?: string[] };
+  const vehicleTips =
+    (v.vehicle_tips as unknown as VehicleTips | null) ?? null;
+
   // ── Build checklist items ─────────────────────────────────────
 
   const checklist: { status: CheckStatus; title: string; detail: string }[] = [];
@@ -297,7 +310,7 @@ export default async function VerificationResultPage({
       checklist.push({
         status: "PASS",
         title: "Bank account matches the name given",
-        detail: `The bank confirmed a full name match for account \u2022\u2022\u2022\u2022${(v.extracted_account_number ?? v.account_number ?? "").slice(-4) || "\u2022\u2022\u2022\u2022"}.`,
+        detail: `The bank confirmed a full name match for account ••••${(v.extracted_account_number ?? v.account_number ?? "").slice(-4) || "••••"}.`,
       });
     } else if (cop === "PARTIAL_MATCH") {
       const returned = v.cop_returned_name
@@ -305,7 +318,7 @@ export default async function VerificationResultPage({
         : "";
       checklist.push({
         status: "WARN",
-        title: "Bank account is a close match \u2014 not exact",
+        title: "Bank account is a close match — not exact",
         detail: `Not a perfect match on the name.${returned} Worth double-checking with the payee before sending money.`,
       });
     } else {
@@ -367,7 +380,7 @@ export default async function VerificationResultPage({
         checklist.push({
           status: "WARN",
           title: "VAT registration is a close match",
-          detail: `HMRC has ${vatNumber ?? "this VAT number"} as "${v.vat_api_name}" \u2014 not an exact match to "${inputName}".`,
+          detail: `HMRC has ${vatNumber ?? "this VAT number"} as "${v.vat_api_name}" — not an exact match to "${inputName}".`,
         });
       } else {
         checklist.push({
@@ -395,7 +408,7 @@ export default async function VerificationResultPage({
         checklist.push({
           status: "WARN",
           title: "This company is brand new",
-          detail: `Incorporated only ${months} month${months === 1 ? "" : "s"} ago. Be more cautious with new companies \u2014 they have no track record yet.`,
+          detail: `Incorporated only ${months} month${months === 1 ? "" : "s"} ago. Be more cautious with new companies — they have no track record yet.`,
         });
       } else if (months < 12) {
         checklist.push({
@@ -406,7 +419,7 @@ export default async function VerificationResultPage({
       } else {
         checklist.push({
           status: "PASS",
-          title: `Established \u2014 trading for ${tradingSummary(v.companies_house_incorporated_date)}`,
+          title: `Established — trading for ${tradingSummary(v.companies_house_incorporated_date)}`,
           detail: `Incorporated ${v.companies_house_incorporated_date}. A long trading history makes this company more credible.`,
         });
       }
@@ -419,7 +432,7 @@ export default async function VerificationResultPage({
       checklist.push({
         status: "FAIL",
         title: "Accounts are overdue at Companies House",
-        detail: `Last filed ${v.companies_house_accounts_date ?? "unknown"}. Overdue accounts are a red flag \u2014 could indicate financial or governance problems.`,
+        detail: `Last filed ${v.companies_house_accounts_date ?? "unknown"}. Overdue accounts are a red flag — could indicate financial or governance problems.`,
       });
     } else if (v.companies_house_accounts_date) {
       checklist.push({
@@ -491,6 +504,32 @@ export default async function VerificationResultPage({
     }
   }
 
+  // Plate match — vehicle + marketplace flows only. This catches the
+  // classic fraud where the seller sends a stolen listing photo for a
+  // different car.
+  if (isVehicle && isMarketplace && plateMatch && plateMatch.expectedPlate) {
+    if (plateMatch.matches === true) {
+      checklist.push({
+        status: "PASS",
+        title: "The plate in the photo matches the reg you entered",
+        detail: `We spotted ${plateMatch.visiblePlate} in the listing photo — same as what you entered. Consistent, which is a good sign.`,
+      });
+    } else if (plateMatch.matches === false) {
+      checklist.push({
+        status: "FAIL",
+        title: "The plate in the photo doesn't match the vehicle reg",
+        detail: `You said you're buying ${plateMatch.expectedPlate}, but the listing photo shows ${plateMatch.visiblePlate}. This is a serious red flag — the seller may be using someone else's photos. Do not proceed without seeing the actual car in person.`,
+      });
+    } else {
+      // visible plate wasn't readable
+      checklist.push({
+        status: "WARN",
+        title: "Couldn't confirm the plate in the photo",
+        detail: `We couldn't read a number plate in the listing photo. Ask the seller to send a fresh photo with ${plateMatch.expectedPlate} clearly visible, alongside today's newspaper or a handwritten note with today's date.`,
+      });
+    }
+  }
+
   // Sort checklist: FAIL > WARN > PASS
   const order: Record<CheckStatus, number> = {
     FAIL: 0,
@@ -516,6 +555,8 @@ export default async function VerificationResultPage({
     typeof vehicleVal.estimatedValueLow === "number" &&
     typeof vehicleVal.estimatedValueHigh === "number";
 
+  const dvla = (v.dvla_data as unknown as DvlaData | null) ?? null;
+
   // ── DVLA data (context card) ─────────────────────────────────
   type DvlaData = {
     registrationNumber?: string;
@@ -527,7 +568,6 @@ export default async function VerificationResultPage({
     taxStatus?: string;
     motStatus?: string;
   };
-  const dvla = (v.dvla_data as unknown as DvlaData | null) ?? null;
 
   // ── Property data (context card) ─────────────────────────────
   type PropertyData = {
@@ -559,7 +599,7 @@ export default async function VerificationResultPage({
     tips.push({
       icon: <ShieldCheck className="size-5 text-coral" />,
       title: "Ask for proof they have the item",
-      body: "Request a photo of the item alongside a handwritten note showing today's date. This confirms they actually have it in their possession right now \u2014 scammers rarely comply.",
+      body: "Request a photo of the item alongside a handwritten note showing today's date. This confirms they actually have it in their possession right now — scammers rarely comply.",
     });
     tips.push({
       icon: <Landmark className="size-5 text-coral" />,
@@ -585,12 +625,23 @@ export default async function VerificationResultPage({
       title: "Before you hand money over",
       body: `See the V5C logbook in person and check the VIN on the car matches it. Take ${makeModel} for a test drive. Confirm the seller's name on the V5C matches the bank account name you're paying.`,
     });
+
+    // AI-generated make/model specific tips
+    if (vehicleTips?.tips && vehicleTips.tips.length > 0) {
+      for (const tip of vehicleTips.tips) {
+        tips.push({
+          icon: <Lightbulb className="size-5 text-coral" />,
+          title: `Check this on a ${dvla?.make ?? "vehicle"} like this`,
+          body: tip,
+        });
+      }
+    }
   }
   if (isProperty) {
     tips.push({
       icon: <Home className="size-5 text-coral" />,
       title: "Property payment safety",
-      body: "For a deposit or completion payment, always verify the solicitor's bank details by phoning them on a number from their official website \u2014 never a number from the email that sent the details. Email fraud on property payments is common and the sums are large.",
+      body: "For a deposit or completion payment, always verify the solicitor's bank details by phoning them on a number from their official website — never a number from the email that sent the details. Email fraud on property payments is common and the sums are large.",
     });
   }
 
@@ -795,7 +846,7 @@ export default async function VerificationResultPage({
           <SectionHeader
             eyebrow="The checks"
             title="Let's go through what we found"
-            sub="The important stuff \u2014 here's how this payee stacks up on the checks we ran."
+            sub="The important stuff — here's how this payee stacks up on the checks we ran."
           />
           <div className="space-y-2.5">
             {checklist.map((c, i) => (
@@ -843,7 +894,7 @@ export default async function VerificationResultPage({
                       key={i}
                       className="text-sm text-slate-600 flex items-start gap-2"
                     >
-                      <span className="text-coral mt-1">{"\u2022"}</span>
+                      <span className="text-coral mt-1">{"•"}</span>
                       <span>{f}</span>
                     </li>
                   ))}
@@ -971,7 +1022,7 @@ export default async function VerificationResultPage({
           <SectionHeader
             eyebrow="Before you pay"
             title="Things worth thinking about"
-            sub="Not deal-breakers \u2014 just common-sense steps for this kind of payment."
+            sub="Not deal-breakers — just common-sense steps for this kind of payment."
           />
           <div className="space-y-3">
             {tips.map((t, i) => (
@@ -1013,6 +1064,5 @@ export default async function VerificationResultPage({
 // Silence unused-import warnings
 void Image;
 void FileText;
-void Lightbulb;
 void CalendarDays;
 void Info;

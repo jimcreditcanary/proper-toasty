@@ -117,7 +117,7 @@ function monthsSince(dateStr: string | null): number | null {
 
 function fmt(amount: number | null | undefined): string {
   if (amount == null) return "";
-  return `\u00A3${Number(amount).toLocaleString("en-GB", { minimumFractionDigits: 2 })}`;
+  return `£${Number(amount).toLocaleString("en-GB", { minimumFractionDigits: 2 })}`;
 }
 
 export default async function PublicResultPage({
@@ -149,7 +149,7 @@ export default async function PublicResultPage({
   const risk = v.overall_risk ?? "UNKNOWN";
 
   const riskConfig: Record<string, { bg: string; text: string; border: string; icon: React.ReactNode; message: string }> = {
-    LOW: { bg: "bg-emerald-50", text: "text-emerald-600", border: "border-emerald-200", icon: <CheckCircle2 className="size-6 text-emerald-600" />, message: "Our checks look good. It\u2019s ok, move ahead!" },
+    LOW: { bg: "bg-emerald-50", text: "text-emerald-600", border: "border-emerald-200", icon: <CheckCircle2 className="size-6 text-emerald-600" />, message: "Our checks look good. It’s ok, move ahead!" },
     MEDIUM: { bg: "bg-warn/[0.08]", text: "text-warn", border: "border-warn/20", icon: <AlertTriangle className="size-6 text-warn" />, message: "Some checks returned warnings. Proceed with caution." },
     HIGH: { bg: "bg-red-50", text: "text-red-600", border: "border-red-200", icon: <XCircle className="size-6 text-red-600" />, message: "One or more checks have failed. We recommend you do not proceed." },
     UNKNOWN: { bg: "bg-slate-50", text: "text-slate-400", border: "border-slate-200", icon: <Minus className="size-6 text-slate-400" />, message: "We could not determine the risk level." },
@@ -186,10 +186,10 @@ export default async function PublicResultPage({
         vatDetail = `VAT registered name: ${v.vat_api_name}`;
       } else if (match === "fuzzy") {
         vatStatus = "WARN";
-        vatDetail = `VAT number${vatNumber ? ` ${vatNumber}` : ""} is registered to "${v.vat_api_name}" \u2014 close match to "${inputName}".`;
+        vatDetail = `VAT number${vatNumber ? ` ${vatNumber}` : ""} is registered to "${v.vat_api_name}" — close match to "${inputName}".`;
       } else {
         vatStatus = "FAIL";
-        vatDetail = `VAT number${vatNumber ? ` ${vatNumber}` : ""} is registered to "${v.vat_api_name}" \u2014 this does not match the payee name "${inputName}".`;
+        vatDetail = `VAT number${vatNumber ? ` ${vatNumber}` : ""} is registered to "${v.vat_api_name}" — this does not match the payee name "${inputName}".`;
       }
     } else { vatStatus = "FAIL"; vatDetail = `VAT number${vatNumber ? ` ${vatNumber}` : ""} not found on HMRC register.`; }
   }
@@ -248,9 +248,9 @@ export default async function PublicResultPage({
     const listed = Number(v.marketplace_listed_price);
     const min = Number(v.valuation_min);
     const max = Number(v.valuation_max);
-    if (listed >= min * 0.8 && listed <= max * 1.2) { mktStatus = "PASS"; mktDetail = `${fmt(listed)} within range ${fmt(min)}\u2013${fmt(max)}.`; }
+    if (listed >= min * 0.8 && listed <= max * 1.2) { mktStatus = "PASS"; mktDetail = `${fmt(listed)} within range ${fmt(min)}–${fmt(max)}.`; }
     else if (listed < min * 0.5) { mktStatus = "FAIL"; mktDetail = `${fmt(listed)} far below range.`; }
-    else { mktStatus = "WARN"; mktDetail = `${fmt(listed)} outside range ${fmt(min)}\u2013${fmt(max)}.`; }
+    else { mktStatus = "WARN"; mktDetail = `${fmt(listed)} outside range ${fmt(min)}–${fmt(max)}.`; }
   }
 
   return (

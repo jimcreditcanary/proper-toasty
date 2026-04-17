@@ -159,6 +159,44 @@ export function Step3Vehicle() {
             Is this the vehicle you&apos;re looking to buy?
           </h3>
 
+          {/* Optional mileage — improves valuation confidence */}
+          <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <label
+                htmlFor="vehicle-mileage"
+                className="text-sm font-medium text-slate-700"
+              >
+                Mileage{" "}
+                <span className="text-slate-400 font-normal">(optional)</span>
+              </label>
+              <span className="text-[11px] text-coral font-semibold uppercase tracking-wide">
+                Sharper valuation
+              </span>
+            </div>
+            <div className="relative">
+              <input
+                id="vehicle-mileage"
+                type="text"
+                inputMode="numeric"
+                value={state.vehicleMileage}
+                onChange={(e) =>
+                  update({
+                    vehicleMileage: e.target.value.replace(/[^\d]/g, "").slice(0, 7),
+                  })
+                }
+                placeholder="e.g. 54,000"
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 pr-14 text-sm text-slate-900 placeholder:text-slate-300 focus:border-coral focus:ring-2 focus:ring-coral/20 outline-none transition"
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">
+                miles
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              Knowing the mileage lets our AI give you a tighter price range
+              with higher confidence. Leave blank if you&apos;re not sure.
+            </p>
+          </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Button
               onClick={confirmAndContinue}

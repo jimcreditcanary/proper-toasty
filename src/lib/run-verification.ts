@@ -61,6 +61,15 @@ export async function runVerification(params: {
       dvlaData = null;
     }
   }
+  // Optional buyer-reported mileage. Used to tighten the AI valuation.
+  const vehicleMileageRaw = formData.get("vehicleMileage") as string | null;
+  const vehicleMileage = (() => {
+    if (!vehicleMileageRaw) return null;
+    const digits = vehicleMileageRaw.replace(/[^\d]/g, "");
+    if (!digits) return null;
+    const n = parseInt(digits, 10);
+    return Number.isFinite(n) && n > 0 && n < 1_000_000 ? n : null;
+  })();
 
   // Marketplace
   const marketplaceSource = formData.get("marketplaceSource") as string | null;
@@ -360,6 +369,12 @@ If a field is not found, set its value to null.`;
       valuationSummary: string;
       confidence: string;
     } | null;
+    vehicleTips: { tips: string[] } | null;
+    plateMatch: {
+      visiblePlate: string | null;
+      expectedPlate: string;
+      matches: boolean | null;
+    } | null;
   } = {
     ch: null,
     vat: null,
@@ -367,6 +382,8 @@ If a field is not found, set its value to null.`;
     reviews: null,
     vehicleValuation: null,
     marketplaceValuation: null,
+    vehicleTips: null,
+    plateMatch: null,
   };
 
   const promises: Promise<void>[] = [];
@@ -486,11 +503,12 @@ Return ONLY a JSON object with no markdown formatting:
 1. The item title/name (the main heading)
 2. The listed price (in GBP \u00A3)
 3. A brief description (make/model/year/condition if visible)
+4. If this is a vehicle listing, look for any UK number plate visible in the photos or text. Return it uppercase with no spaces, or null if none is visible.
 
 Return ONLY a JSON object with no markdown fences:
-{"item_title": "the item name", "listed_price": 1234.00, "description": "brief description"}
+{"item_title": "the item name", "listed_price": 1234.00, "description": "brief description", "visible_plate": "AB12CDE" or null}
 
-listed_price must be a number, not a string. If the price shows as "Free" use 0. If the price isn't visible, use null.`,
+listed_price must be a number, not a string. If the price shows as "Free" use 0. If the price isn't visible, use null. For visible_plate, only include it if you're genuinely confident it's a UK number plate (2 letters + 2 digits + 3 letters, or older formats) — otherwise null.`,
                     },
                   ],
                 },
@@ -528,6 +546,35 @@ listed_price must be a number, not a string. If the price shows as "Free" use 0.
               : null;
           const itemDescription: string | null =
             parsedExtract.description ?? null;
+
+          // Plate-match fraud check: compare any plate visible in the
+          // screenshot against the plate the buyer said they're buying.
+          // Mismatch = buyer is probably being shown a stolen listing photo.
+          const visiblePlateRaw =
+            typeof parsedExtract.visible_plate === "string"
+              ? parsedExtract.visible_plate
+              : null;
+          const visiblePlate = visiblePlateRaw
+            ? visiblePlateRaw.replace(/\s+/g, "").toUpperCase()
+            : null;
+          const expectedPlate = vehicleReg
+            ? vehicleReg.replace(/\s+/g, "").toUpperCase()
+            : null;
+          if (visiblePlate && expectedPlate) {
+            results.plateMatch = {
+              visiblePlate,
+              expectedPlate,
+              matches: visiblePlate === expectedPlate,
+            };
+          } else if (expectedPlate) {
+            // Vehicle + marketplace but no plate visible in the pic
+            results.plateMatch = {
+              visiblePlate: null,
+              expectedPlate,
+              matches: null,
+            };
+          }
+
           if (!itemTitle) return;
 
           // Step 2: web search valuation
@@ -615,7 +662,17 @@ Return ONLY a JSON object, no markdown:
     promises.push(
       (async () => {
         try {
-          const prompt = `You are an expert UK used vehicle valuation analyst. Using the DVLA data provided, estimate a fair UK market price.
+          const mileageLine =
+            vehicleMileage != null
+              ? `- Mileage: ${vehicleMileage.toLocaleString("en-GB")} miles (buyer-reported)`
+              : "- Mileage: NOT PROVIDED";
+
+          const mileageGuidance =
+            vehicleMileage != null
+              ? `You have buyer-reported mileage (${vehicleMileage.toLocaleString("en-GB")} miles). Weight this heavily — it's the single biggest price driver after age. Benchmark against the typical UK average of ~8,000 miles/year for this vehicle's age: low mileage for age should push the price UP and narrow your range; high mileage should push DOWN. Because you have this data point, you can give a TIGHTER range (closer to ±10% around the mid) and use "high" or "medium" confidence.`
+              : `You do NOT have mileage data. Caveat your estimate accordingly, give a WIDER range (closer to ±20% around the mid) and use "medium" or "low" confidence. Mention in the summary that a confirmed mileage would tighten this.`;
+
+          const prompt = `You are an expert UK used vehicle valuation analyst. Using the DVLA data and (where provided) the buyer-reported mileage, estimate a fair UK market price.
 
 DVLA Data:
 - Registration: ${dvlaData!.registrationNumber}
@@ -631,6 +688,9 @@ DVLA Data:
 - Euro Status: ${dvlaData!.euroStatus ?? "unknown"}
 - Marked for Export: ${dvlaData!.markedForExport === true ? "YES" : "no"}
 - Last V5C Issued: ${dvlaData!.dateOfLastV5CIssued ?? "unknown"}
+${mileageLine}
+
+${mileageGuidance}
 
 Respond in JSON only, no markdown, no preamble:
 {
@@ -643,7 +703,7 @@ Respond in JSON only, no markdown, no preamble:
   "summary": "<2-3 sentence plain English summary>"
 }
 
-Be conservative. You do NOT have mileage data, so caveat accordingly.`;
+Be conservative.`;
 
           const msg = await anthropic.messages.create({
             model: "claude-sonnet-4-20250514",
@@ -674,6 +734,54 @@ Be conservative. You do NOT have mileage data, so caveat accordingly.`;
           }
         } catch (err) {
           console.error("Vehicle valuation error:", err);
+        }
+      })()
+    );
+  }
+
+  // Vehicle make/model buyer tips — same gate as vehicle valuation.
+  // Produces 3-5 specific "things to check on this particular car" so
+  // the results page can show concrete, model-aware advice instead of
+  // a generic checklist.
+  if (isChecked("vehicle_valuation") && dvlaData && dvlaData.make) {
+    promises.push(
+      (async () => {
+        try {
+          const prompt = `You are helping a UK buyer verify a used vehicle they're about to buy. Give 3-5 CONCRETE things to check on this exact make/model/year before handing money over — known faults, common issues, what dodgy sellers hide, what costs a fortune to fix.
+
+Vehicle:
+- Make: ${dvlaData!.make}
+- Year: ${dvlaData!.yearOfManufacture ?? "unknown"}
+- Fuel: ${dvlaData!.fuelType ?? "unknown"}
+- Engine: ${dvlaData!.engineCapacity ?? "unknown"}cc
+
+Tone: direct, practical, like a friend with mechanic knowledge. Each tip is ONE sentence, 15-25 words. No generic "check the bodywork" filler — be specific to this car.
+
+Return ONLY JSON, no markdown:
+{"tips": ["specific tip 1", "specific tip 2", "specific tip 3"]}`;
+
+          const msg = await anthropic.messages.create({
+            model: "claude-sonnet-4-20250514",
+            max_tokens: 512,
+            messages: [{ role: "user", content: prompt }],
+          });
+          totalTokensUsed +=
+            (msg.usage?.input_tokens ?? 0) + (msg.usage?.output_tokens ?? 0);
+
+          const text = msg.content[0]?.type === "text" ? msg.content[0].text : "";
+          const match = text.match(/\{[\s\S]*\}/);
+          if (match) {
+            const parsed = JSON.parse(match[0]);
+            if (Array.isArray(parsed.tips)) {
+              results.vehicleTips = {
+                tips: parsed.tips
+                  .filter((t: unknown) => typeof t === "string")
+                  .slice(0, 5),
+              };
+            }
+          }
+        } catch (err) {
+          console.error("Vehicle tips error:", err);
         }
       })()
     );
@@ -888,6 +996,10 @@ Be conservative. You do NOT have mileage data, so caveat accordingly.`;
       google_reviews_summary: results.reviews?.summary ?? null,
       vehicle_valuation:
         (results.vehicleValuation as unknown as Json) ?? null,
+      vehicle_tips: (results.vehicleTips as unknown as Json) ?? null,
+      vehicle_mileage: vehicleMileage,
+      marketplace_plate_match:
+        (results.plateMatch as unknown as Json) ?? null,
       marketplace_item_title: results.marketplaceValuation?.itemTitle ?? null,
       marketplace_listed_price:
         results.marketplaceValuation?.listedPrice ?? null,

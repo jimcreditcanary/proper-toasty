@@ -215,6 +215,8 @@ export function Step6Checks() {
       if (state.vehicleReg) formData.append("vehicleReg", state.vehicleReg);
       if (state.dvlaData)
         formData.append("dvlaData", JSON.stringify(state.dvlaData));
+      if (state.vehicleMileage && state.vehicleMileage.trim())
+        formData.append("vehicleMileage", state.vehicleMileage.trim());
 
       if (state.selectedProperty) {
         formData.append(

@@ -354,6 +354,9 @@ export interface Database {
           property_uprn: string | null;
           property_udprn: string | null;
           property_data: Json | null;
+          vehicle_tips: Json | null;
+          marketplace_plate_match: Json | null;
+          vehicle_mileage: number | null;
         };
         Insert: {
           id?: string;
@@ -415,6 +418,9 @@ export interface Database {
           property_uprn?: string | null;
           property_udprn?: string | null;
           property_data?: Json | null;
+          vehicle_tips?: Json | null;
+          marketplace_plate_match?: Json | null;
+          vehicle_mileage?: number | null;
         };
         Update: {
           id?: string;
@@ -476,6 +482,9 @@ export interface Database {
           property_uprn?: string | null;
           property_udprn?: string | null;
           property_data?: Json | null;
+          vehicle_tips?: Json | null;
+          marketplace_plate_match?: Json | null;
+          vehicle_mileage?: number | null;
         };
         Relationships: [
           {

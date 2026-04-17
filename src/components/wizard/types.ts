@@ -73,6 +73,8 @@ export type WizardState = {
   dvlaLoading: boolean;
   dvlaError: string | null;
   vehicleConfirmed: boolean;
+  // Optional buyer-reported mileage — improves AI valuation confidence
+  vehicleMileage: string;
 
   // Step 3 — property address lookup (only when purchaseCategory === "property")
   propertyPostcode: string;
@@ -155,6 +157,7 @@ export const initialWizardState: WizardState = {
   dvlaLoading: false,
   dvlaError: null,
   vehicleConfirmed: false,
+  vehicleMileage: "",
 
   propertyPostcode: "",
   propertyAddresses: null,
