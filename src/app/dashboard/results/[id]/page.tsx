@@ -303,7 +303,12 @@ export default async function VerificationResultPage({
 
   const checklist: { status: CheckStatus; title: string; detail: string }[] = [];
 
-  // CoP
+  // CoP — always show a row when bank details were provided. If the check
+  // didn't return a result (upstream failure, etc.) surface it as
+  // UNVERIFIED rather than hiding the row entirely.
+  const hasBankDetails =
+    !!(v.sort_code || v.extracted_sort_code) &&
+    !!(v.account_number || v.extracted_account_number);
   if (v.cop_result) {
     const cop = v.cop_result;
     if (cop === "FULL_MATCH") {
@@ -330,9 +335,21 @@ export default async function VerificationResultPage({
           "The bank could not confirm the name on the account. Do not proceed without verifying directly.",
       });
     }
+  } else if (hasBankDetails) {
+    checklist.push({
+      status: "UNVERIFIED",
+      title: "Bank account check couldn't be completed",
+      detail:
+        "The Confirmation of Payee check didn't return a result for this verification. Your bank details were captured but not verified — get in touch if you'd like us to re-run it.",
+    });
   }
 
-  // Companies House name match
+  // Companies House name match — always show a row when a company number
+  // was supplied. Lack of a result means the check didn't run.
+  const companyNumber =
+    v.companies_house_number ||
+    (v.extracted_company_number as string | null | undefined) ||
+    null;
   if (isBusiness && v.companies_house_result) {
     if (v.companies_house_name) {
       const match = compareNames(inputName, v.companies_house_name);
@@ -363,10 +380,24 @@ export default async function VerificationResultPage({
           "We couldn't match this company number to any active company on the UK register.",
       });
     }
+  } else if (isBusiness && companyNumber) {
+    checklist.push({
+      status: "UNVERIFIED",
+      title: "Companies House check couldn't be completed",
+      detail: `We captured company number ${companyNumber} but didn't receive a response from the Companies House API for this run.`,
+    });
   }
 
-  // VAT name match
+  // VAT name match — UNVERIFIED row if a VAT number was supplied but no
+  // result came back.
   const vatNumber = v.vat_number_input || v.extracted_vat_number;
+  if (isBusiness && !v.hmrc_vat_result && vatNumber) {
+    checklist.push({
+      status: "UNVERIFIED",
+      title: "HMRC VAT check couldn't be completed",
+      detail: `We captured VAT number ${vatNumber} but didn't receive a response from HMRC for this run.`,
+    });
+  }
   if (isBusiness && v.hmrc_vat_result) {
     if (v.vat_api_name) {
       const match = compareNames(inputName, v.vat_api_name);
@@ -841,20 +872,32 @@ export default async function VerificationResultPage({
       )}
 
       {/* ── Checklist ────────────────────────────────────────── */}
-      {checklist.length > 0 && (
-        <section>
-          <SectionHeader
-            eyebrow="The checks"
-            title="Let's go through what we found"
-            sub="The important stuff — here's how this payee stacks up on the checks we ran."
-          />
+      <section>
+        <SectionHeader
+          eyebrow="The checks"
+          title="Let's go through what we found"
+          sub="The important stuff — here's how this payee stacks up on the checks we ran."
+        />
+        {checklist.length > 0 ? (
           <div className="space-y-2.5">
             {checklist.map((c, i) => (
               <ChecklistItem key={i} {...c} />
             ))}
           </div>
-        </section>
-      )}
+        ) : (
+          <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/60 p-6 text-center">
+            <Minus className="size-6 text-slate-300 mx-auto mb-2" />
+            <p className="text-sm font-medium text-slate-700">
+              No checks completed for this verification
+            </p>
+            <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
+              This can happen if the verification was interrupted, or the
+              payee data we had to work with was too sparse. Get in touch if
+              you&apos;d like us to look into it.
+            </p>
+          </div>
+        )}
+      </section>
 
       {/* ── Valuation: vehicle ───────────────────────────────── */}
       {isVehicle && hasVehicleValuation && vehicleVal && (
