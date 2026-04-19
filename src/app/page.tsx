@@ -129,14 +129,14 @@ export default function Home() {
                   exactly
                   <svg
                     aria-hidden="true"
-                    className="absolute left-0 -bottom-3 w-full"
-                    viewBox="0 0 200 16"
+                    className="absolute -left-[4%] -bottom-2 w-[108%]"
+                    viewBox="0 0 220 14"
                     preserveAspectRatio="none"
                   >
                     <path
-                      d="M2 10 C 40 2, 80 14, 120 7 S 180 2, 198 8"
+                      d="M 4 11 C 70 8, 140 5, 216 3"
                       stroke="#2563eb"
-                      strokeWidth="7"
+                      strokeWidth="6"
                       strokeLinecap="round"
                       fill="none"
                     />
