@@ -9,6 +9,6 @@ export default function robots(): MetadataRoute.Robots {
         disallow: ["/api/", "/auth/callback", "/dashboard/"],
       },
     ],
-    sitemap: "https://www.whoamipaying.co.uk/sitemap.xml",
+    sitemap: "https://www.propertoasty.com/sitemap.xml",
   };
 }

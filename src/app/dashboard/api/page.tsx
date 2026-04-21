@@ -22,7 +22,7 @@ export default async function ApiPage() {
 
   const credits = profileResult.data?.credits ?? 0;
   const apiKey = profileResult.data?.api_key ?? null;
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.whoamipaying.co.uk";
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.propertoasty.com";
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">

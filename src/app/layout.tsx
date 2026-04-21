@@ -5,41 +5,42 @@ import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://www.whoamipaying.co.uk"),
+  metadataBase: new URL("https://www.propertoasty.com"),
   title: {
-    default: "whoamipaying? — Know exactly who you're paying",
-    template: "%s | whoamipaying?",
+    default: "Propertoasty — Is your home ready for a heat pump or solar?",
+    template: "%s | Propertoasty",
   },
   description:
-    "Verify invoices before you pay. Check company details against Companies House, HMRC VAT, bank records, and online reviews — in seconds.",
+    "Check your UK home's eligibility for the Boiler Upgrade Scheme and solar PV in minutes. Get a pre-survey report an MCS installer can quote from — no site visit needed.",
   keywords: [
-    "invoice verification",
-    "payment fraud",
-    "APP fraud",
-    "Companies House check",
-    "VAT validation",
-    "confirmation of payee",
-    "UK payment safety",
-    "Facebook Marketplace scam check",
+    "heat pump eligibility",
+    "Boiler Upgrade Scheme",
+    "BUS grant",
+    "solar PV suitability",
+    "MCS installer",
+    "UK home energy",
+    "air source heat pump",
+    "EPC check",
+    "rooftop solar",
   ],
   robots: { index: true, follow: true },
   openGraph: {
     type: "website",
     locale: "en_GB",
-    url: "https://www.whoamipaying.co.uk",
-    siteName: "whoamipaying?",
-    title: "whoamipaying? — Know exactly who you're paying",
+    url: "https://www.propertoasty.com",
+    siteName: "Propertoasty",
+    title: "Propertoasty — Is your home ready for a heat pump or solar?",
     description:
-      "Over £1.2bn was stolen by fraudsters in 2025. Verify who you're paying against 6 official UK data sources before you send money.",
+      "Pre-survey eligibility and suitability checks for UK heat pump and solar PV upgrades. Report-ready for your MCS installer.",
   },
   twitter: {
     card: "summary_large_image",
-    title: "whoamipaying? — Know exactly who you're paying",
+    title: "Propertoasty — Is your home ready for a heat pump or solar?",
     description:
-      "Verify invoices and payments against Companies House, HMRC, bank records, and more.",
+      "Check heat pump grant eligibility and solar suitability for your UK home in minutes.",
   },
   alternates: {
-    canonical: "https://www.whoamipaying.co.uk",
+    canonical: "https://www.propertoasty.com",
   },
 };
 

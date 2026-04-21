@@ -67,7 +67,7 @@ export default function AIStatementPage() {
           </div>
 
           <p>
-            WhoAmIPaying (a trading name of <strong>Ebanking Integration Limited</strong>, company no. 06596920) uses artificial intelligence in specific parts of our service. We believe in being transparent about where AI is used, what it does, and its limitations.
+            Propertoasty (a trading name of <strong>Ebanking Integration Limited</strong>, company no. 06596920) uses artificial intelligence in specific parts of our service. We believe in being transparent about where AI is used, what it does, and its limitations.
           </p>
 
           <h2>Where we use AI</h2>
@@ -134,11 +134,11 @@ export default function AIStatementPage() {
           </p>
           <p>
             <strong>Ebanking Integration Limited</strong><br />
-            Trading as WhoAmIPaying<br />
+            Trading as Propertoasty<br />
             Chapel Meadows, Sugar Lane<br />
             Adlington, Macclesfield<br />
             England, SK10 5SQ<br />
-            Email: <strong>hello@whoamipaying.co.uk</strong>
+            Email: <strong>hello@propertoasty.com</strong>
           </p>
         </div>
       </article>
@@ -157,7 +157,7 @@ export default function AIStatementPage() {
           </div>
           <div className="mt-6 pt-6 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-center sm:text-left">
             <p className="text-xs text-slate-400">
-              &copy; {new Date().getFullYear()} WhoAmIPaying is a trading name of Ebanking Integration Limited (company no. 06596920). All rights reserved.
+              &copy; {new Date().getFullYear()} Propertoasty is a trading name of Ebanking Integration Limited (company no. 06596920). All rights reserved.
             </p>
             <nav className="flex flex-wrap justify-center sm:justify-end gap-x-6 gap-y-1 text-xs text-slate-400">
               <Link href="/privacy" className="hover:text-slate-600 transition-colors">Privacy Policy</Link>

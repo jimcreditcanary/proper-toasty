@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
     // Check credits
     if (user.credits < 1) {
       return NextResponse.json(
-        { error: "Insufficient credits. Purchase more at https://www.whoamipaying.co.uk/dashboard" },
+        { error: "Insufficient credits. Purchase more at https://www.propertoasty.com/dashboard" },
         { status: 402 }
       );
     }

@@ -31,14 +31,14 @@ export function Logo({
           className={`font-[var(--font-heading)] font-bold ${s.text} leading-none tracking-[-0.03em] ${wordColor}`}
           style={{ fontFamily: "var(--font-heading), system-ui, sans-serif" }}
         >
-          whoamipaying<span className="text-coral">?</span>
+          propertoasty
         </span>
         {showTagline && (
           <span
             className={`text-[11px] font-light mt-0.5 ${tagColor}`}
             style={{ fontFamily: "var(--font-body), system-ui, sans-serif" }}
           >
-            verify before you pay
+            heat pump & solar ready?
           </span>
         )}
       </div>
@@ -57,14 +57,14 @@ export function Logo({
               className={`font-bold ${s.text} leading-none tracking-[-0.03em] text-white`}
               style={{ fontFamily: "var(--font-heading), system-ui, sans-serif" }}
             >
-              whoamipaying<span className="text-white/70">?</span>
+              propertoasty
             </span>
             {showTagline && (
               <span
                 className="text-[11px] font-light mt-0.5 text-white/70"
                 style={{ fontFamily: "var(--font-body), system-ui, sans-serif" }}
               >
-                verify before you pay
+                heat pump & solar ready?
               </span>
             )}
           </div>
@@ -97,7 +97,7 @@ export function LogoIcon({
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       className={className}
-      aria-label="WhoAmIPaying logo mark"
+      aria-label="Propertoasty logo mark"
       style={
         pill
           ? undefined
