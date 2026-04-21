@@ -53,7 +53,7 @@ const EMPTY_EDITOR: EditorState = {
   excerpt: "",
   content: "",
   category: "Guides",
-  author: "WhoAmIPaying",
+  author: "Propertoasty",
   published: false,
 };
 

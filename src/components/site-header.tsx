@@ -39,7 +39,7 @@ export function SiteHeader({
         {!email && (
           <nav className="hidden sm:flex items-center gap-6">
             <Link href="/enterprise" className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors">
-              Enterprise
+              For installers
             </Link>
             <Link href="/blog" className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors">
               Blog
@@ -48,61 +48,51 @@ export function SiteHeader({
         )}
         <nav className="flex items-center gap-3">
           {email ? (
-            <>
-              <DropdownMenu>
-                <DropdownMenuTrigger
-                  render={
-                    <button
-                      className="flex items-center gap-2 rounded-xl px-2.5 py-1.5 text-sm transition-colors outline-none text-slate-600 hover:text-slate-900 hover:bg-slate-100"
-                    />
-                  }
-                >
-                  <Avatar className="size-7 bg-slate-100 border border-slate-200">
-                    <AvatarFallback className="text-xs text-coral bg-slate-100">
-                      {email[0].toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <span className="hidden sm:inline">{email}</span>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56 bg-white border-slate-200 text-slate-900">
-                  <div className="px-2 py-1.5 text-xs text-slate-500">
-                    {email}
-                  </div>
-                  <DropdownMenuSeparator className="bg-slate-200" />
-                  <DropdownMenuItem render={<Link href="/dashboard" />} className="text-slate-500 hover:text-slate-900 focus:text-slate-900 focus:bg-slate-100">
-                    Dashboard
-                  </DropdownMenuItem>
-                  <DropdownMenuItem render={<Link href="/dashboard/api" />} className="text-slate-500 hover:text-slate-900 focus:text-slate-900 focus:bg-slate-100">
-                    API
-                  </DropdownMenuItem>
-                  <DropdownMenuItem render={<Link href="/dashboard/billing" />} className="text-slate-500 hover:text-slate-900 focus:text-slate-900 focus:bg-slate-100">
-                    Billing
-                  </DropdownMenuItem>
-                  {role === "admin" && (
-                    <>
-                      <DropdownMenuSeparator className="bg-slate-200" />
-                      <DropdownMenuItem render={<Link href="/log" />} className="text-coral hover:text-coral focus:text-coral focus:bg-slate-100 font-medium">
-                        Admin Log
-                      </DropdownMenuItem>
-                      <DropdownMenuItem render={<Link href="/dashboard/admin/blog" />} className="text-coral hover:text-coral focus:text-coral focus:bg-slate-100 font-medium">
-                        Blog Manager
-                      </DropdownMenuItem>
-                    </>
-                  )}
-                  <DropdownMenuSeparator className="bg-slate-200" />
-                  <DropdownMenuItem onClick={handleSignOut} className="text-slate-500 hover:text-slate-900 focus:text-slate-900 focus:bg-slate-100">
-                    Sign out
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </>
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <button
+                    className="flex items-center gap-2 rounded-xl px-2.5 py-1.5 text-sm transition-colors outline-none text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                  />
+                }
+              >
+                <Avatar className="size-7 bg-slate-100 border border-slate-200">
+                  <AvatarFallback className="text-xs text-coral bg-slate-100">
+                    {email[0].toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <span className="hidden sm:inline">{email}</span>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56 bg-white border-slate-200 text-slate-900">
+                <div className="px-2 py-1.5 text-xs text-slate-500">{email}</div>
+                <DropdownMenuSeparator className="bg-slate-200" />
+                <DropdownMenuItem render={<Link href="/dashboard" />} className="text-slate-500 hover:text-slate-900 focus:text-slate-900 focus:bg-slate-100">
+                  Dashboard
+                </DropdownMenuItem>
+                <DropdownMenuItem render={<Link href="/check" />} className="text-slate-500 hover:text-slate-900 focus:text-slate-900 focus:bg-slate-100">
+                  New check
+                </DropdownMenuItem>
+                {role === "admin" && (
+                  <>
+                    <DropdownMenuSeparator className="bg-slate-200" />
+                    <DropdownMenuItem render={<Link href="/dashboard/admin/blog" />} className="text-coral hover:text-coral focus:text-coral focus:bg-slate-100 font-medium">
+                      Blog Manager
+                    </DropdownMenuItem>
+                  </>
+                )}
+                <DropdownMenuSeparator className="bg-slate-200" />
+                <DropdownMenuItem onClick={handleSignOut} className="text-slate-500 hover:text-slate-900 focus:text-slate-900 focus:bg-slate-100">
+                  Sign out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           ) : (
             <>
               <Button
                 className="h-10 bg-coral hover:bg-coral-dark text-white font-semibold text-sm px-5 rounded-lg shadow-sm hover:shadow-md transition-all"
-                render={<Link href="/verify" />}
+                render={<Link href="/check" />}
               >
-                Make a check
+                Start a check
               </Button>
               <Button
                 variant="ghost"

@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { SiteHeader } from "@/components/site-header";
 
 export default async function DashboardLayout({
@@ -13,21 +12,13 @@ export default async function DashboardLayout({
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) {
-    redirect("/auth/login");
-  }
+  if (!user) redirect("/auth/login");
 
-  // Use admin client to bypass RLS for role check
-  const admin = createAdminClient();
-  const { data: userData } = await admin
-    .from("users")
-    .select("role")
-    .eq("id", user.id)
-    .single();
-
+  // The public.users wrapper (credits, role, api_key) gets reintroduced in
+  // Phase 3 — for now there's no role-based UI to gate.
   return (
     <div className="flex min-h-screen flex-col bg-slate-50 text-slate-900">
-      <SiteHeader email={user.email} role={userData?.role} />
+      <SiteHeader email={user.email} />
       <main className="flex-1">{children}</main>
     </div>
   );
