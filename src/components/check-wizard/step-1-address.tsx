@@ -52,8 +52,32 @@ export function Step1Address() {
   }, [postcode]);
 
   const pick = useCallback(
-    (a: AddressLookupResponse["addresses"][number]) => {
+    async (a: AddressLookupResponse["addresses"][number]) => {
       setPhase("resolving");
+      setError(null);
+
+      // Every address at a given postcode from Postcoder can share the same
+      // centroid lat/lng (when the plan doesn't carry per-property
+      // addtags). Geocode the specific address Google-side so the satellite
+      // tile + Solar API call centre on the actual property.
+      let lat = a.latitude;
+      let lng = a.longitude;
+      try {
+        const res = await fetch("/api/address/geocode", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ line1: a.addressLine1, postcode: a.postcode }),
+        });
+        if (res.ok) {
+          const g = (await res.json()) as { latitude: number; longitude: number };
+          lat = g.latitude;
+          lng = g.longitude;
+        }
+        // Non-fatal: if geocoding fails we fall back to the postcode centroid.
+      } catch {
+        // fall through with existing lat/lng
+      }
+
       update({
         address: {
           uprn: a.uprn,
@@ -62,8 +86,8 @@ export function Step1Address() {
           line2: a.addressLine2,
           postcode: a.postcode,
           postTown: a.postTown,
-          latitude: a.latitude,
-          longitude: a.longitude,
+          latitude: lat,
+          longitude: lng,
         },
         country,
       });
