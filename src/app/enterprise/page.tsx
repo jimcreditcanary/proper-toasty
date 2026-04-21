@@ -68,8 +68,16 @@ export default function EnterprisePage() {
       <footer className="border-t border-slate-200 bg-white">
         <div className="mx-auto max-w-6xl px-4 sm:px-6 py-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-slate-500">
           <span>
-            &copy; {new Date().getFullYear()} Propertoasty is a trading name of Ebanking Integration
-            Limited (company no. 06596920). All rights reserved.
+            &copy; {new Date().getFullYear()} Propertoasty is a trading name of{" "}
+            <a
+              href="https://find-and-update.company-information.service.gov.uk/company/11591983"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-navy underline-offset-2 hover:underline"
+            >
+              Braemar, Brook &amp; New Limited
+            </a>
+            {" "}(company no. 11591983). All rights reserved.
           </span>
           <nav className="flex items-center gap-5">
             <Link href="/privacy" className="hover:text-slate-900">Privacy</Link>

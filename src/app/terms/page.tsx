@@ -51,7 +51,7 @@ export default function TermsPage() {
         <div className="prose prose-slate prose-lg max-w-none prose-headings:font-bold prose-headings:tracking-tight prose-h2:text-xl prose-h2:mt-14 prose-h2:mb-6 prose-h3:text-lg prose-h3:mt-10 prose-h3:mb-4 prose-p:leading-[1.8] prose-p:text-slate-600 prose-p:mb-7 prose-li:text-slate-600 prose-li:my-2 prose-li:leading-[1.8] prose-ul:my-7 prose-ol:my-7 prose-a:text-coral prose-a:font-semibold prose-a:no-underline hover:prose-a:underline">
 
           <p>
-            These Terms of Service (&ldquo;Terms&rdquo;) govern your use of the Propertoasty website and services at propertoasty.com (&ldquo;the Service&rdquo;). Propertoasty is a trading name of <strong>Ebanking Integration Limited</strong> (company number 06596920), registered at Chapel Meadows, Sugar Lane, Adlington, Macclesfield, England, SK10 5SQ (&ldquo;we&rdquo;, &ldquo;us&rdquo;, &ldquo;our&rdquo;).
+            These Terms of Service (&ldquo;Terms&rdquo;) govern your use of the Propertoasty website and services at propertoasty.com (&ldquo;the Service&rdquo;). Propertoasty is a trading name of <strong><a href="https://find-and-update.company-information.service.gov.uk/company/11591983" target="_blank" rel="noopener noreferrer">Braemar, Brook &amp; New Limited</a></strong> (company number 11591983), a company registered in England &amp; Wales (&ldquo;we&rdquo;, &ldquo;us&rdquo;, &ldquo;our&rdquo;). Our registered office is on Companies House.
           </p>
           <p>
             By using our Service, you agree to be bound by these Terms. If you do not agree, please do not use our Service.
@@ -126,7 +126,7 @@ export default function TermsPage() {
 
           <h2>8. Intellectual property</h2>
           <p>
-            All content, branding, software, and design on our website are owned by Ebanking Integration Limited or our licensors and are protected by copyright, trademark, and other intellectual property laws. You may not copy, modify, distribute, or create derivative works without our written consent.
+            All content, branding, software, and design on our website are owned by Braemar, Brook &amp; New Limited or our licensors and are protected by copyright, trademark, and other intellectual property laws. You may not copy, modify, distribute, or create derivative works without our written consent.
           </p>
 
           <h2>9. Limitation of liability</h2>
@@ -143,7 +143,7 @@ export default function TermsPage() {
 
           <h2>10. Indemnification</h2>
           <p>
-            You agree to indemnify and hold harmless Ebanking Integration Limited, its directors, employees, and agents from any claims, losses, damages, or expenses (including legal fees) arising from your use of the Service or breach of these Terms.
+            You agree to indemnify and hold harmless Braemar, Brook &amp; New Limited, its directors, employees, and agents from any claims, losses, damages, or expenses (including legal fees) arising from your use of the Service or breach of these Terms.
           </p>
 
           <h2>11. Termination</h2>
@@ -168,11 +168,9 @@ export default function TermsPage() {
             If you have questions about these Terms, please contact:
           </p>
           <p>
-            <strong>Ebanking Integration Limited</strong><br />
+            <strong><a href="https://find-and-update.company-information.service.gov.uk/company/11591983" target="_blank" rel="noopener noreferrer">Braemar, Brook &amp; New Limited</a></strong><br />
             Trading as Propertoasty<br />
-            Chapel Meadows, Sugar Lane<br />
-            Adlington, Macclesfield<br />
-            England, SK10 5SQ<br />
+            Company no. 11591983 (registered office on Companies House)<br />
             Email: <strong>hello@propertoasty.com</strong>
           </p>
         </div>
@@ -192,7 +190,7 @@ export default function TermsPage() {
           </div>
           <div className="mt-6 pt-6 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-center sm:text-left">
             <p className="text-xs text-slate-400">
-              &copy; {new Date().getFullYear()} Propertoasty is a trading name of Ebanking Integration Limited (company no. 06596920). All rights reserved.
+              &copy; {new Date().getFullYear()} Propertoasty is a trading name of <a href="https://find-and-update.company-information.service.gov.uk/company/11591983" target="_blank" rel="noopener noreferrer">Braemar, Brook &amp; New Limited</a> (company no. 11591983). All rights reserved.
             </p>
             <nav className="flex flex-wrap justify-center sm:justify-end gap-x-6 gap-y-1 text-xs text-slate-400">
               <Link href="/privacy" className="hover:text-slate-600 transition-colors">Privacy Policy</Link>

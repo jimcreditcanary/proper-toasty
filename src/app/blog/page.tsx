@@ -149,8 +149,16 @@ export default async function BlogPage() {
       <footer className="border-t border-[var(--border)] bg-cream-deep">
         <div className="mx-auto max-w-6xl px-6 py-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-[var(--muted-brand)]">
           <span>
-            &copy; {new Date().getFullYear()} Propertoasty · a trading name of Ebanking Integration
-            Limited
+            &copy; {new Date().getFullYear()} Propertoasty · a trading name of{" "}
+            <a
+              href="https://find-and-update.company-information.service.gov.uk/company/11591983"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-navy underline-offset-2 hover:underline"
+            >
+              Braemar, Brook &amp; New Limited
+            </a>
+            {" "}(company no. 11591983)
           </span>
           <nav className="flex items-center gap-5">
             <Link href="/privacy" className="hover:text-navy">Privacy</Link>

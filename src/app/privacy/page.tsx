@@ -51,7 +51,7 @@ export default function PrivacyPage() {
         <div className="prose prose-slate prose-lg max-w-none prose-headings:font-bold prose-headings:tracking-tight prose-h2:text-xl prose-h2:mt-14 prose-h2:mb-6 prose-h3:text-lg prose-h3:mt-10 prose-h3:mb-4 prose-p:leading-[1.8] prose-p:text-slate-600 prose-p:mb-7 prose-li:text-slate-600 prose-li:my-2 prose-li:leading-[1.8] prose-ul:my-7 prose-ol:my-7 prose-a:text-coral prose-a:font-semibold prose-a:no-underline hover:prose-a:underline">
 
           <p>
-            Propertoasty is a trading name of <strong>Ebanking Integration Limited</strong> (company number 06596920), registered at Chapel Meadows, Sugar Lane, Adlington, Macclesfield, England, SK10 5SQ.
+            Propertoasty is a trading name of <strong><a href="https://find-and-update.company-information.service.gov.uk/company/11591983" target="_blank" rel="noopener noreferrer">Braemar, Brook &amp; New Limited</a></strong> (company number 11591983). See Companies House for our registered office and filing history.
           </p>
           <p>
             We are committed to protecting your privacy and handling your personal data in accordance with the UK General Data Protection Regulation (UK GDPR) and the Data Protection Act 2018.
@@ -170,11 +170,9 @@ export default function PrivacyPage() {
             If you have questions about this privacy policy or wish to exercise your data rights, please contact:
           </p>
           <p>
-            <strong>Ebanking Integration Limited</strong><br />
+            <strong><a href="https://find-and-update.company-information.service.gov.uk/company/11591983" target="_blank" rel="noopener noreferrer">Braemar, Brook &amp; New Limited</a></strong><br />
             Trading as Propertoasty<br />
-            Chapel Meadows, Sugar Lane<br />
-            Adlington, Macclesfield<br />
-            England, SK10 5SQ<br />
+            Company no. 11591983 (registered office on Companies House)<br />
             Email: <strong>privacy@propertoasty.com</strong>
           </p>
           <p>
@@ -197,7 +195,7 @@ export default function PrivacyPage() {
           </div>
           <div className="mt-6 pt-6 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-center sm:text-left">
             <p className="text-xs text-slate-400">
-              &copy; {new Date().getFullYear()} Propertoasty is a trading name of Ebanking Integration Limited (company no. 06596920). All rights reserved.
+              &copy; {new Date().getFullYear()} Propertoasty is a trading name of <a href="https://find-and-update.company-information.service.gov.uk/company/11591983" target="_blank" rel="noopener noreferrer">Braemar, Brook &amp; New Limited</a> (company no. 11591983). All rights reserved.
             </p>
             <nav className="flex flex-wrap justify-center sm:justify-end gap-x-6 gap-y-1 text-xs text-slate-400">
               <Link href="/privacy" className="hover:text-slate-600 transition-colors">Privacy Policy</Link>

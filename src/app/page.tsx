@@ -72,7 +72,18 @@ function LandingFooter() {
       </div>
       <div className="border-t border-[var(--border)] bg-cream">
         <div className="mx-auto max-w-6xl px-4 sm:px-6 py-5 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-[var(--muted-brand)]">
-          <span>© {year} Propertoasty · a trading name of Ebanking Integration Limited</span>
+          <span>
+            © {year} Propertoasty · a trading name of{" "}
+            <a
+              href="https://find-and-update.company-information.service.gov.uk/company/11591983"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-navy underline-offset-2 hover:underline"
+            >
+              Braemar, Brook &amp; New Limited
+            </a>
+            {" "}(company no. 11591983)
+          </span>
           <span>Pre-survey indications only — not an engineering assessment.</span>
         </div>
       </div>

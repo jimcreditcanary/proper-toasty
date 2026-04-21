@@ -16,6 +16,17 @@ const WORDMARK_STYLE = {
   letterSpacing: "-0.02em",
 };
 
+// "Toasty" gets the warm gradient to visually answer the question the word
+// asks — if the home is toasty, the letters should glow like embers.
+const TOASTY_GRADIENT_STYLE = {
+  backgroundImage:
+    "linear-gradient(135deg, #A43B2E 0%, #D9813C 35%, #E8B647 70%, #F8D97A 100%)",
+  WebkitBackgroundClip: "text",
+  backgroundClip: "text",
+  WebkitTextFillColor: "transparent",
+  color: "transparent",
+};
+
 export function Logo({
   size = "md",
   variant = "dark",
@@ -36,10 +47,12 @@ export function Logo({
       <LogoIcon size={size} />
       <div className="flex flex-col">
         <span
-          className={`${s.text} leading-none ${wordColor}`}
+          className={`${s.text} leading-none ${wordColor} whitespace-nowrap`}
           style={WORDMARK_STYLE}
+          aria-label="Proper Toasty"
         >
-          Propertoasty
+          <span>Proper&nbsp;</span>
+          <span style={TOASTY_GRADIENT_STYLE}>Toasty</span>
         </span>
         {showTagline && (
           <span
@@ -55,9 +68,10 @@ export function Logo({
 }
 
 /**
- * Single-leaf mark, filled with a "toasty" gradient — terracotta through
- * amber to a warm peach — to suggest the warmth of a well-heated home
- * without literally drawing toast. Minimal vein for definition.
+ * A small cluster of stylised leaves that read as flames — one central
+ * tall "flame-leaf" flanked by two smaller ones, each tip tapered like a
+ * flame tongue. The gradient runs from autumnal russet at the base
+ * (where the fuel sits) to a bright toasty yellow at the tips.
  */
 export function LogoIcon({
   size = "md",
@@ -82,28 +96,39 @@ export function LogoIcon({
       aria-label="Propertoasty"
     >
       <defs>
-        <linearGradient id={gradId} x1="12%" y1="15%" x2="85%" y2="88%">
-          <stop offset="0%" stopColor="#C4533E" />
-          <stop offset="45%" stopColor="#D9813C" />
-          <stop offset="80%" stopColor="#E8B647" />
-          <stop offset="100%" stopColor="#F4CC6E" />
+        <linearGradient id={gradId} x1="50%" y1="100%" x2="50%" y2="0%">
+          <stop offset="0%" stopColor="#A43B2E" />
+          <stop offset="35%" stopColor="#D9813C" />
+          <stop offset="70%" stopColor="#E8B647" />
+          <stop offset="100%" stopColor="#F8D97A" />
         </linearGradient>
       </defs>
 
-      {/* Leaf silhouette — asymmetric teardrop, tilted like the 🍃 emoji */}
+      {/* Left leaf-flame — shortest, tilts outward. */}
       <path
-        d="M10 38 C 10 22, 20 10, 38 10 C 40 26, 32 38, 14 42 L10 42 Z"
+        d="M12 42
+           C 8 34, 9 25, 14 18
+           C 17 22, 18 28, 17 35
+           C 16 39, 14 41, 12 42 Z"
         fill={`url(#${gradId})`}
       />
 
-      {/* Midrib vein, subtle */}
+      {/* Right leaf-flame — medium height, mirrors the left with asymmetry. */}
       <path
-        d="M12 40 Q 24 28, 36 12"
-        stroke="#FAF7F2"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        fill="none"
-        opacity="0.55"
+        d="M36 42
+           C 40 33, 38 24, 33 16
+           C 31 21, 30 28, 31 34
+           C 32 38, 34 41, 36 42 Z"
+        fill={`url(#${gradId})`}
+      />
+
+      {/* Centre leaf-flame — tallest, rises between the other two. */}
+      <path
+        d="M24 44
+           C 18 35, 18 22, 23 8
+           C 25 11, 28 20, 29 28
+           C 30 35, 28 40, 24 44 Z"
+        fill={`url(#${gradId})`}
       />
     </svg>
   );
