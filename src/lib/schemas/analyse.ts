@@ -11,13 +11,14 @@ import { EligibilitySchema, FinanceSchema } from "@/lib/schemas/eligibility";
 
 export const AnalyseRequestSchema = z.object({
   address: z.object({
+    uprn: z.string().min(1),
     formattedAddress: z.string(),
     line1: z.string(),
-    postcode: z.string().nullable(),
+    line2: z.string().nullable().optional(),
+    postcode: z.string(),
+    postTown: z.string().optional(),
     latitude: z.number(),
     longitude: z.number(),
-    placeId: z.string(),
-    uprn: z.string().optional(),
   }),
   country: z.enum(["England", "Wales", "Scotland", "Northern Ireland"]).nullable(),
   questionnaire: z.object({

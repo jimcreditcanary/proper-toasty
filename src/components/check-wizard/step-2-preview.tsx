@@ -47,12 +47,16 @@ export function Step2Preview() {
         setSolar({ status: "error", data: null, error: e.message ?? "Solar lookup failed" });
       });
 
-    if (address.postcode && address.line1) {
+    if (address.uprn || (address.postcode && address.line1)) {
       setEpc({ status: "loading", data: null, error: null });
       fetch("/api/epc/by-address", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ postcode: address.postcode, addressLine1: address.line1 }),
+        body: JSON.stringify({
+          uprn: address.uprn,
+          postcode: address.postcode,
+          addressLine1: address.line1,
+        }),
       })
         .then(async (r) => {
           if (!r.ok) throw new Error(`HTTP ${r.status}`);

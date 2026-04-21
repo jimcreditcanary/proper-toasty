@@ -1,5 +1,4 @@
 import type { UkCountry } from "@/lib/postcode/region";
-import type { PlaceDetails } from "@/lib/schemas/places";
 import type { AnalyseResponse } from "@/lib/schemas/analyse";
 
 export type CheckStep =
@@ -31,9 +30,24 @@ export type HeatingFuel =
 export type YesNoUnsure = "yes" | "no" | "unsure";
 export type HybridPreference = "replace" | "hybrid" | "undecided";
 
+/**
+ * Canonical selected-address shape used across the wizard. Populated from
+ * Postcoder (UPRN, address lines, lat/lng) + Postcodes.io (country).
+ */
+export interface SelectedAddress {
+  uprn: string;
+  formattedAddress: string;
+  line1: string;
+  line2: string | null;
+  postcode: string;
+  postTown: string;
+  latitude: number;
+  longitude: number;
+}
+
 export interface CheckWizardState {
   // Step 1 — address
-  address: PlaceDetails | null;
+  address: SelectedAddress | null;
   country: UkCountry | null;
 
   // Step 3 — questions

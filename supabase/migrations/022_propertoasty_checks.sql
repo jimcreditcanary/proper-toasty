@@ -19,14 +19,17 @@ create table public.checks (
   updated_at timestamptz not null default now(),
   status public.check_status not null default 'draft',
 
-  -- address
+  -- address (sourced from Postcoder — UPRN is the key we match EPC against)
+  uprn text,
+  udprn text,
   address_formatted text,
   address_line1 text,
+  address_line2 text,
+  post_town text,
   postcode text,
   latitude numeric(10, 7),
   longitude numeric(10, 7),
   country public.check_country,
-  google_place_id text,
 
   -- user-provided context (step 3)
   tenure public.check_tenure,
@@ -50,6 +53,7 @@ create table public.checks (
 create index checks_user_id_idx on public.checks(user_id);
 create index checks_status_idx on public.checks(status);
 create index checks_share_token_idx on public.checks(share_token) where share_token is not null;
+create index checks_uprn_idx on public.checks(uprn) where uprn is not null;
 
 alter table public.checks enable row level security;
 
