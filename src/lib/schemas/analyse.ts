@@ -22,10 +22,18 @@ export const AnalyseRequestSchema = z.object({
   }),
   country: z.enum(["England", "Wales", "Scotland", "Northern Ireland"]).nullable(),
   questionnaire: z.object({
+    interest: z.enum(["heat_pump", "solar_battery", "not_sure"]),
     tenure: z.enum(["owner", "landlord", "tenant", "social"]),
-    outdoorSpaceForAshp: z.enum(["yes", "no", "unsure"]),
-    hotWaterTankPresent: z.enum(["yes", "no", "unsure"]),
-    hybridPreference: z.enum(["replace", "hybrid", "undecided"]),
+    currentHeatingFuel: z.enum(["gas", "electric", "other"]),
+    // Heat-pump-specific questions are optional because the "solar_battery"
+    // interest path skips them.
+    hasExistingBoiler: z.enum(["yes", "no", "unsure"]).optional(),
+    needNewRadiators: z.enum(["yes", "no", "unsure"]).optional(),
+    hotWaterTankPresent: z.enum(["yes", "no", "unsure"]).optional(),
+    spaceBesideOutsideWall: z.enum(["yes", "unsure"]).nullable().optional(),
+    priorHeatPumpFunding: z.enum(["yes", "no", "unsure"]).optional(),
+    annualGasKWh: z.number().nullable().optional(),
+    annualElectricityKWh: z.number().nullable().optional(),
   }),
   floorplanObjectKey: z.string(),
 });

@@ -19,21 +19,11 @@ export const STEP_ORDER: CheckStep[] = [
 ];
 
 export type Tenure = "owner" | "landlord" | "tenant" | "social";
-export type HeatingFuel =
-  | "gas"
-  | "oil"
-  | "lpg"
-  | "electric"
-  | "heat_pump"
-  | "biomass"
-  | "other";
+export type Interest = "heat_pump" | "solar_battery" | "not_sure";
+export type HeatingFuel = "gas" | "electric" | "other";
 export type YesNoUnsure = "yes" | "no" | "unsure";
-export type HybridPreference = "replace" | "hybrid" | "undecided";
+export type YesOrUnsure = "yes" | "unsure";
 
-/**
- * Canonical selected-address shape used across the wizard. Populated from
- * Postcoder (UPRN, address lines, lat/lng) + Postcodes.io (country).
- */
 export interface SelectedAddress {
   uprn: string;
   formattedAddress: string;
@@ -51,11 +41,16 @@ export interface CheckWizardState {
   country: UkCountry | null;
 
   // Step 3 — questions
+  interest: Interest | null;
   tenure: Tenure | null;
   currentHeatingFuel: HeatingFuel | null;
+  hasExistingBoiler: YesNoUnsure | null;
+  needNewRadiators: YesNoUnsure | null;
   hotWaterTankPresent: YesNoUnsure | null;
-  outdoorSpaceForAshp: YesNoUnsure | null;
-  hybridPreference: HybridPreference | null;
+  spaceBesideOutsideWall: YesOrUnsure | null; // only asked if no/unsure tank
+  priorHeatPumpFunding: YesNoUnsure | null; // Ofgem BUS: no double funding
+  annualGasKWh: number | null;
+  annualElectricityKWh: number | null;
 
   // Step 4 — floorplan
   floorplanObjectKey: string | null;
@@ -67,11 +62,16 @@ export interface CheckWizardState {
 export const INITIAL_STATE: CheckWizardState = {
   address: null,
   country: null,
+  interest: null,
   tenure: null,
   currentHeatingFuel: null,
+  hasExistingBoiler: null,
+  needNewRadiators: null,
   hotWaterTankPresent: null,
-  outdoorSpaceForAshp: null,
-  hybridPreference: null,
+  spaceBesideOutsideWall: null,
+  priorHeatPumpFunding: null,
+  annualGasKWh: null,
+  annualElectricityKWh: null,
   floorplanObjectKey: null,
   analysis: null,
 };

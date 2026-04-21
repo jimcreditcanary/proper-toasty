@@ -5,10 +5,26 @@
  * diffed cleanly against updated Ofgem guidance. Inputs come from the
  * orchestrator; no IO here.
  *
- * Rule citations refer to the Ofgem "Boiler Upgrade Scheme: installer and
- * applicant guidance" document (verify against the current published version
- * before launch — the version at time of writing was v5, April 2026). Dates
- * in comments are when the rule was last confirmed accurate.
+ * Cross-referenced against Ofgem BUS guidance as of April 2026. Summary of
+ * the rules we implement:
+ *
+ *   - England & Wales only. Max capacity 45 kWth (homes + small/medium
+ *     non-domestic). Shared ground-loop cap: 300 kWth (out of our scope —
+ *     we're residential).
+ *   - Valid EPC required. (Voucher paperwork needs it; we warn if missing
+ *     or ≥10 years old since an EPC itself is only valid for 10 years.)
+ *   - Must be fully replacing a fossil-fuel (gas/oil) or electric heating
+ *     system. Replacement of existing low-carbon heating is excluded.
+ *   - Biomass grant only for rural + off-gas homes. Heat pumps: no such
+ *     restriction.
+ *   - No double funding: can't apply if already had a government grant for
+ *     a heat pump or biomass boiler. Separate funding for insulation,
+ *     windows, or doors is fine.
+ *   - New-build and social housing excluded. Self-build allowed.
+ *
+ * Not enforced here (post-install paperwork concerns):
+ *   - 120-day commissioning-to-voucher window: the installer handles this
+ *     after MCS commissioning; not our job at pre-survey.
  */
 
 import type { BuildingInsightsResponse } from "@/lib/schemas/solar";
@@ -68,7 +84,10 @@ export function heatPumpExtraKWh(floorAreaM2: number | null): number {
 export interface HeatPumpInput {
   country: AnalyseRequest["country"];
   tenure: AnalyseRequest["questionnaire"]["tenure"];
-  hybridPreference: AnalyseRequest["questionnaire"]["hybridPreference"];
+  interest: AnalyseRequest["questionnaire"]["interest"];
+  currentHeatingFuel: AnalyseRequest["questionnaire"]["currentHeatingFuel"];
+  needNewRadiators: AnalyseRequest["questionnaire"]["needNewRadiators"];
+  priorHeatPumpFunding: AnalyseRequest["questionnaire"]["priorHeatPumpFunding"];
   epc: EpcByAddressResponse;
   floorAreaM2: number | null;
 }
@@ -78,64 +97,86 @@ export function heatPumpEligibility(input: HeatPumpInput): Eligibility["heatPump
   const warnings: string[] = [];
   const notes: string[] = [];
 
-  // Rule: region. BUS is England & Wales only. (BUS guidance §1.4.)
+  // Rule: England & Wales only.
   if (input.country === "Scotland" || input.country === "Northern Ireland") {
     blockers.push("Boiler Upgrade Scheme is England & Wales only.");
   }
 
-  // Rule: tenure. Tenants & social renters can't apply. (§4.2 — "eligible property owner".)
+  // Rule: tenure. Tenants and social housing residents can't apply — only
+  // property owners (owner-occupiers + landlords) can.
   if (input.tenure === "tenant" || input.tenure === "social") {
     blockers.push("Tenants and social housing residents aren't eligible — the property owner needs to apply.");
   }
 
-  // Rule: hybrid intent. BUS funds full replacements only. (§3.3.)
-  if (input.hybridPreference === "hybrid") {
-    blockers.push("Keeping the existing fossil-fuel boiler (hybrid) isn't eligible for the Boiler Upgrade Scheme.");
+  // Rule: no double funding. BUS won't pay out if the property already
+  // received a government grant for a heat pump or biomass boiler.
+  // Separate funding for insulation, windows, or doors is fine.
+  if (input.priorHeatPumpFunding === "yes") {
+    blockers.push(
+      "This property has already received government funding for a heat pump or biomass boiler. BUS can't pay again on the same property."
+    );
+  } else if (input.priorHeatPumpFunding === "unsure") {
+    warnings.push(
+      "Not sure whether this property has had a heat pump / biomass grant before? Check with Ofgem before applying — BUS only pays once per property."
+    );
   }
 
-  // Rule: valid EPC in last 10 years. (§4.3.)
+  // Radiator readiness — not a BUS rule, but a cost signal worth flagging.
+  if (input.needNewRadiators === "yes") {
+    notes.push(
+      "You've flagged that some radiators may need upsizing. Your installer will size these room-by-room on survey; budget £150–£400 per radiator swap on top of the headline install cost."
+    );
+  }
+
+  // Rule: valid EPC required. EPCs themselves are valid for 10 years, so an
+  // EPC older than that won't be accepted when the voucher is submitted.
   if (!input.epc.found) {
-    warnings.push("No EPC on record — one (lodged within the last 10 years) is required to apply for the BUS grant. Typical cost £60–£120.");
+    warnings.push("No EPC on record — a valid one is required to apply for the BUS grant. Typical cost £60–£120.");
   } else {
     const age = lodgementAgeYears(input.epc.registrationDate);
     if (age != null && age > 10) {
-      warnings.push(`Your EPC is ${Math.floor(age)} years old — BUS requires one lodged in the last 10 years. You'll need a new one before applying.`);
+      warnings.push(`Your EPC is ${Math.floor(age)} years old — EPCs are valid for 10 years, so you'll need a fresh one before applying.`);
     }
   }
 
-  // Rule: outstanding insulation recs. The new EPC API (GOV.UK, 2026) does not
-  // expose domestic recommendations — so we surface a "confirm with installer"
-  // note rather than silently blocking. (§4.4 was relaxed in March 2024, so
-  // the check was a warning not a blocker anyway.)
+  // Soft note on insulation. The March 2024 relaxation dropped the outstanding
+  // loft / cavity wall recs as a BUS blocker; the new GOV.UK EPC API doesn't
+  // expose domestic recommendations in any case. Keep it as installer guidance.
   if (input.epc.found) {
     notes.push(
       "Insulation improvements listed on your EPC — if any — should be addressed before a heat pump install for best performance. Your installer will advise."
     );
   }
 
-  // Rule: fuel. BUS funds replacement of fossil-fuel or electric. (§3.2.)
+  // Rule: fully replacing a fossil-fuel or electric heating system.
+  // Replacement of existing low-carbon heat (heat pump, biomass) is excluded.
+  // User's Step 3 answer is the source of truth; fall back to EPC main fuel.
   let estimatedGrantGBP = num("BUS_ASHP_GRANT_GBP", 7500);
-  if (input.epc.found && input.epc.certificate.mainFuel) {
-    const fuel = classifyFuel(input.epc.certificate.mainFuel);
-    if (fuel === "heat_pump" || fuel === "biomass") {
-      blockers.push(
-        "Property already has low-carbon heating (per the EPC). BUS funds replacement of fossil-fuel or electric systems only."
-      );
-    }
-    if (fuel === "biomass") estimatedGrantGBP = num("BUS_BIOMASS_GRANT_GBP", 5000);
+  const userFuel = input.currentHeatingFuel;
+  const epcFuel = input.epc.found ? classifyFuel(input.epc.certificate.mainFuel) : "other";
+  const combinedFuel =
+    userFuel === "gas" || userFuel === "electric" ? userFuel : epcFuel;
+  if (combinedFuel === "heat_pump" || combinedFuel === "biomass") {
+    blockers.push(
+      "Property already has low-carbon heating (per the EPC). BUS funds replacement of fossil-fuel or electric systems only."
+    );
   }
+  if (epcFuel === "biomass") estimatedGrantGBP = num("BUS_BIOMASS_GRANT_GBP", 5000);
 
-  // Rule: new build. (§4.6.) Standard new builds excluded; self-builds eligible.
+  // Rule: new-build and social housing excluded; self-builds allowed.
+  // We already block social-housing tenure above. For new-builds, we soft-note
+  // only — the EPC transaction type is a hint, not proof, and we can't
+  // distinguish a self-build from a developer-built new home without asking.
   if (input.epc.found && input.epc.certificate.transactionType) {
     const tx = input.epc.certificate.transactionType.toLowerCase();
     const age = lodgementAgeYears(input.epc.registrationDate);
     if (tx.includes("new dwelling") && age != null && age < 2 && input.tenure === "owner") {
-      notes.push("If this is a standard new build (less than 2 years old) it may be excluded, but self-builds are eligible — check with your installer.");
+      notes.push("This EPC was lodged as a new dwelling — a standard new build would be excluded from BUS, but self-builds are eligible. Flag it with your installer.");
     }
   }
 
   // Heat-loss planning estimate — 50 W/m² is a crude rule of thumb. Real heat
-  // loss needs a room-by-room survey. Cap at 45 kW (BUS upper limit).
+  // loss needs a room-by-room survey. Capped at the 45 kWth BUS upper limit.
   let recommendedSystemKW: number | null = null;
   let heatLossPlanningW: number | null = null;
   if (input.floorAreaM2) {
@@ -324,7 +365,10 @@ export function buildEligibility(input: BuildEligibilityInput): {
   const heatPump = heatPumpEligibility({
     country: input.request.country,
     tenure: input.request.questionnaire.tenure,
-    hybridPreference: input.request.questionnaire.hybridPreference,
+    interest: input.request.questionnaire.interest,
+    currentHeatingFuel: input.request.questionnaire.currentHeatingFuel,
+    needNewRadiators: input.request.questionnaire.needNewRadiators,
+    priorHeatPumpFunding: input.request.questionnaire.priorHeatPumpFunding,
     epc: input.epc,
     floorAreaM2,
   });

@@ -27,10 +27,9 @@ export function Step5Analysis() {
     if (
       !state.address ||
       !state.floorplanObjectKey ||
+      !state.interest ||
       !state.tenure ||
-      !state.outdoorSpaceForAshp ||
-      !state.hotWaterTankPresent ||
-      !state.hybridPreference
+      !state.currentHeatingFuel
     ) {
       return;
     }
@@ -44,10 +43,16 @@ export function Step5Analysis() {
         address: state.address,
         country: state.country,
         questionnaire: {
+          interest: state.interest,
           tenure: state.tenure,
-          outdoorSpaceForAshp: state.outdoorSpaceForAshp,
-          hotWaterTankPresent: state.hotWaterTankPresent,
-          hybridPreference: state.hybridPreference,
+          currentHeatingFuel: state.currentHeatingFuel,
+          hasExistingBoiler: state.hasExistingBoiler ?? undefined,
+          needNewRadiators: state.needNewRadiators ?? undefined,
+          hotWaterTankPresent: state.hotWaterTankPresent ?? undefined,
+          spaceBesideOutsideWall: state.spaceBesideOutsideWall ?? undefined,
+          priorHeatPumpFunding: state.priorHeatPumpFunding ?? undefined,
+          annualGasKWh: state.annualGasKWh ?? undefined,
+          annualElectricityKWh: state.annualElectricityKWh ?? undefined,
         },
         floorplanObjectKey: state.floorplanObjectKey,
       }),
@@ -73,10 +78,16 @@ export function Step5Analysis() {
     state.address,
     state.country,
     state.floorplanObjectKey,
+    state.interest,
     state.tenure,
-    state.outdoorSpaceForAshp,
+    state.currentHeatingFuel,
+    state.hasExistingBoiler,
+    state.needNewRadiators,
     state.hotWaterTankPresent,
-    state.hybridPreference,
+    state.spaceBesideOutsideWall,
+    state.priorHeatPumpFunding,
+    state.annualGasKWh,
+    state.annualElectricityKWh,
     update,
     next,
   ]);
