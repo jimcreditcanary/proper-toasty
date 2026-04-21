@@ -1,13 +1,13 @@
 "use client";
 
 import { CheckWizardProvider, useCheckWizard } from "./context";
-import { STEP_ORDER, type CheckStep } from "./types";
+import { STEP_ORDER } from "./types";
 import { Step1Address } from "./step-1-address";
 import { Step2Preview } from "./step-2-preview";
 import { Step3Questions } from "./step-3-questions";
 import { Step4Floorplan } from "./step-4-floorplan";
 import { Step5Analysis } from "./step-5-analysis";
-import { StepStub } from "./step-stubs";
+import { Step6Report } from "./step-6-report";
 import { CountryGate } from "./country-gate";
 import { isV1SupportedCountry } from "@/lib/postcode/region";
 
@@ -50,7 +50,7 @@ function CurrentStep() {
     case "analysis":
       return <Step5Analysis />;
     case "report":
-      return <StepStub step={step as CheckStep} />;
+      return <Step6Report />;
   }
 }
 

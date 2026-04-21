@@ -3,6 +3,10 @@ import { getBuildingInsights } from "@/lib/services/solar";
 import { getEpcByAddress } from "@/lib/services/epc";
 import { getPvgisYield } from "@/lib/services/pvgis";
 import { analyseFloorplan } from "@/lib/services/claude-floorplan";
+import { getFloodWarnings } from "@/lib/services/enrichment/flood";
+import { getListedBuildings } from "@/lib/services/enrichment/listed";
+import { getPlanningFlags } from "@/lib/services/enrichment/planning";
+import { buildEligibility } from "@/lib/services/eligibility";
 import { AnalyseRequestSchema, type AnalyseResponse } from "@/lib/schemas/analyse";
 import type { BuildingInsightsResponse, RoofSegment } from "@/lib/schemas/solar";
 import type { EpcByAddressResponse } from "@/lib/schemas/epc";
@@ -12,7 +16,6 @@ export const maxDuration = 60;
 
 function pickBestRoofSegment(segments: RoofSegment[]): RoofSegment | null {
   if (!segments.length) return null;
-  // Prefer largest area; tie-break by pitch nearest to 35° (optimal-ish in UK).
   const scored = segments
     .map((s) => ({
       s,
@@ -47,38 +50,41 @@ export async function POST(req: Request) {
       { status: 400 }
     );
   }
-  const { address, floorplanObjectKey } = parsed.data;
+  const request = parsed.data;
+  const { address, floorplanObjectKey } = request;
 
-  // Kick off the two lookups that don't depend on each other immediately.
-  const solarPromise: Promise<BuildingInsightsResponse> = getBuildingInsights(
-    address.latitude,
-    address.longitude
-  );
-  const epcPromise: Promise<EpcByAddressResponse> = address.postcode
-    ? getEpcByAddress(address.postcode, address.line1).catch((err) => {
-        console.warn("EPC failed during analyse:", err);
-        return { found: false, reason: "EPC lookup failed." } as EpcByAddressResponse;
-      })
-    : Promise.resolve<EpcByAddressResponse>({ found: false, reason: "No postcode." });
-
-  // Settle both so we can feed EPC context into Claude.
-  const [solar, epc] = await Promise.all([
-    solarPromise.catch((err) => {
+  // Fan out solar, EPC, and the three enrichments immediately — none depend on
+  // each other, and the enrichments are free public APIs.
+  const [solar, epc, flood, listed, planning] = await Promise.all([
+    getBuildingInsights(address.latitude, address.longitude).catch((err) => {
       console.warn("Solar failed during analyse:", err);
-      return {
-        coverage: false as const,
-        reason: "Solar lookup failed.",
-      } satisfies BuildingInsightsResponse;
+      return { coverage: false as const, reason: "Solar lookup failed." } satisfies BuildingInsightsResponse;
     }),
-    epcPromise,
+    address.postcode
+      ? getEpcByAddress(address.postcode, address.line1).catch((err) => {
+          console.warn("EPC failed during analyse:", err);
+          return { found: false, reason: "EPC lookup failed." } as EpcByAddressResponse;
+        })
+      : Promise.resolve<EpcByAddressResponse>({ found: false, reason: "No postcode." }),
+    getFloodWarnings(address.latitude, address.longitude).catch((err) => {
+      console.warn("Flood enrichment failed:", err);
+      return null;
+    }),
+    getListedBuildings(address.latitude, address.longitude).catch((err) => {
+      console.warn("Listed enrichment failed:", err);
+      return null;
+    }),
+    getPlanningFlags(address.latitude, address.longitude).catch((err) => {
+      console.warn("Planning enrichment failed:", err);
+      return null;
+    }),
   ]);
 
-  const epcFloorAreaM2 =
-    epc.found ? parseFloorAreaM2(epc.certificate["total-floor-area"]) : null;
+  // Claude needs EPC context; PVGIS needs Solar's best segment. Run in parallel.
+  const epcFloorAreaM2 = epc.found ? parseFloorAreaM2(epc.certificate["total-floor-area"]) : null;
   const epcPropertyType = epc.found ? epc.certificate["property-type"] || null : null;
   const epcAgeBand = epc.found ? epc.certificate["construction-age-band"] || null : null;
 
-  // Now fan out Claude + PVGIS in parallel. Neither depends on the other.
   const floorplanPromise = analyseFloorplan({
     objectKey: floorplanObjectKey,
     context: { epcFloorAreaM2, epcPropertyType, epcAgeBand },
@@ -92,14 +98,15 @@ export async function POST(req: Request) {
   });
 
   let pvgisPromise: Promise<AnalyseResponse["pvgis"]> = Promise.resolve(null);
+  let pvgisPeakKwp: number | null = null;
   if (solar.coverage) {
     const segments = solar.data.solarPotential.roofSegmentStats ?? [];
     const best = pickBestRoofSegment(segments);
     const configs = solar.data.solarPotential.solarPanelConfigs ?? [];
-    // Use the largest config (max panels that fit) for a v1 sizing estimate.
     const maxConfig = configs.length ? configs[configs.length - 1] : null;
     if (best && maxConfig && typeof best.pitchDegrees === "number" && typeof best.azimuthDegrees === "number") {
       const peakPowerKwp = (maxConfig.panelsCount * 400) / 1000;
+      pvgisPeakKwp = peakPowerKwp;
       pvgisPromise = getPvgisYield({
         lat: address.latitude,
         lng: address.longitude,
@@ -115,6 +122,22 @@ export async function POST(req: Request) {
 
   const [floorplan, pvgis] = await Promise.all([floorplanPromise, pvgisPromise]);
 
-  const out: AnalyseResponse = { solar, epc, pvgis, floorplan };
+  const { eligibility, finance } = buildEligibility({
+    request,
+    solar,
+    epc,
+    pvgisAnnualKwh: pvgis?.annualKwh ?? null,
+    pvgisPeakKwp,
+  });
+
+  const out: AnalyseResponse = {
+    solar,
+    epc,
+    pvgis,
+    floorplan,
+    enrichments: { flood, listed, planning },
+    eligibility,
+    finance,
+  };
   return NextResponse.json(out);
 }

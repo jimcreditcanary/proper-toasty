@@ -2,6 +2,12 @@ import { z } from "zod";
 import { BuildingInsightsResponseSchema } from "@/lib/schemas/solar";
 import { EpcByAddressResponseSchema } from "@/lib/schemas/epc";
 import { FloorplanAnalysisSchema } from "@/lib/schemas/floorplan";
+import {
+  FloodResponseSchema,
+  ListedResponseSchema,
+  PlanningResponseSchema,
+} from "@/lib/schemas/enrichments";
+import { EligibilitySchema, FinanceSchema } from "@/lib/schemas/eligibility";
 
 export const AnalyseRequestSchema = z.object({
   address: z.object({
@@ -45,6 +51,13 @@ export const AnalyseResponseSchema = z.object({
     reason: z.string().optional(),
     analysis: FloorplanAnalysisSchema.nullable(),
   }),
+  enrichments: z.object({
+    flood: FloodResponseSchema.nullable(),
+    listed: ListedResponseSchema.nullable(),
+    planning: PlanningResponseSchema.nullable(),
+  }),
+  eligibility: EligibilitySchema,
+  finance: FinanceSchema,
 });
 
 export type AnalyseResponse = z.infer<typeof AnalyseResponseSchema>;
