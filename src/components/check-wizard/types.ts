@@ -1,5 +1,6 @@
 import type { UkCountry } from "@/lib/postcode/region";
 import type { PlaceDetails } from "@/lib/schemas/places";
+import type { AnalyseResponse } from "@/lib/schemas/analyse";
 
 export type CheckStep =
   | "address"
@@ -44,6 +45,9 @@ export interface CheckWizardState {
 
   // Step 4 — floorplan
   floorplanObjectKey: string | null;
+
+  // Step 5 — analysis output (stitched)
+  analysis: AnalyseResponse | null;
 }
 
 export const INITIAL_STATE: CheckWizardState = {
@@ -55,6 +59,7 @@ export const INITIAL_STATE: CheckWizardState = {
   outdoorSpaceForAshp: null,
   hybridPreference: null,
   floorplanObjectKey: null,
+  analysis: null,
 };
 
 export type CheckWizardAction =
