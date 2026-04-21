@@ -1,8 +1,8 @@
 const SIZES = {
-  sm: { mark: 30, text: "text-base", gap: "gap-2" },
-  md: { mark: 42, text: "text-xl", gap: "gap-2.5" },
-  lg: { mark: 54, text: "text-2xl", gap: "gap-3" },
-  xl: { mark: 68, text: "text-3xl", gap: "gap-3.5" },
+  sm: { mark: 39, text: "text-xl", gap: "gap-2.5" },
+  md: { mark: 55, text: "text-2xl", gap: "gap-3" },
+  lg: { mark: 70, text: "text-3xl", gap: "gap-3.5" },
+  xl: { mark: 88, text: "text-4xl", gap: "gap-4" },
 } as const;
 
 type LogoSize = keyof typeof SIZES;
@@ -16,8 +16,9 @@ const WORDMARK_STYLE = {
   letterSpacing: "-0.02em",
 };
 
-// "Toasty" gets the warm gradient to visually answer the question the word
-// asks — if the home is toasty, the letters should glow like embers.
+// "Toasty" gets the warm gradient + a heavier weight so the word glows and
+// leans forward in the wordmark — visually answering the question the word
+// asks: if the home is toasty, the letters should glow like embers.
 const TOASTY_GRADIENT_STYLE = {
   backgroundImage:
     "linear-gradient(135deg, #A43B2E 0%, #D9813C 35%, #E8B647 70%, #F8D97A 100%)",
@@ -25,6 +26,7 @@ const TOASTY_GRADIENT_STYLE = {
   backgroundClip: "text",
   WebkitTextFillColor: "transparent",
   color: "transparent",
+  fontWeight: 800,
 };
 
 export function Logo({
