@@ -3,6 +3,7 @@
 import { CheckWizardProvider, useCheckWizard } from "./context";
 import { STEP_ORDER, type CheckStep } from "./types";
 import { Step1Address } from "./step-1-address";
+import { Step2Preview } from "./step-2-preview";
 import { StepStub } from "./step-stubs";
 import { CountryGate } from "./country-gate";
 import { isV1SupportedCountry } from "@/lib/postcode/region";
@@ -38,6 +39,7 @@ function CurrentStep() {
     case "address":
       return <Step1Address />;
     case "preview":
+      return <Step2Preview />;
     case "questions":
     case "floorplan":
     case "analysis":
