@@ -11,7 +11,10 @@ create type public.hybrid_preference as enum ('replace', 'hybrid', 'undecided');
 
 create table public.checks (
   id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references public.users(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  -- Note: FK is on auth.users because this Supabase project does not carry
+  -- the whoamipaying base schema's public.users wrapper. When we wire credits
+  -- (Phase 3) we'll add a minimal public.users table + a matching FK swap.
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   status public.check_status not null default 'draft',
