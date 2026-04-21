@@ -1,12 +1,20 @@
 const SIZES = {
-  sm: { mark: 32, text: "text-base", gap: "gap-2" },
-  md: { mark: 44, text: "text-xl", gap: "gap-2.5" },
-  lg: { mark: 56, text: "text-2xl", gap: "gap-3" },
-  xl: { mark: 72, text: "text-3xl", gap: "gap-3.5" },
+  sm: { mark: 30, text: "text-base", gap: "gap-2" },
+  md: { mark: 42, text: "text-xl", gap: "gap-2.5" },
+  lg: { mark: 54, text: "text-2xl", gap: "gap-3" },
+  xl: { mark: 68, text: "text-3xl", gap: "gap-3.5" },
 } as const;
 
 type LogoSize = keyof typeof SIZES;
 type LogoVariant = "dark" | "light" | "pill";
+
+const WORDMARK_STYLE = {
+  fontFamily: "var(--font-fraunces), Georgia, serif",
+  fontWeight: 600,
+  fontVariationSettings: '"SOFT" 100, "WONK" 0',
+  fontOpticalSizing: "auto" as const,
+  letterSpacing: "-0.02em",
+};
 
 export function Logo({
   size = "md",
@@ -23,13 +31,13 @@ export function Logo({
   const wordColor = variant === "light" ? "text-navy" : "text-white";
   const tagColor = variant === "light" ? "text-[var(--muted-brand)]" : "text-[var(--muted-light)]";
 
-  const inner = (
-    <div className={`flex items-center ${s.gap}`}>
+  return (
+    <div className={`flex items-center ${s.gap} ${className}`}>
       <LogoIcon size={size} />
       <div className="flex flex-col">
         <span
-          className={`font-semibold ${s.text} leading-none tracking-[-0.02em] ${wordColor}`}
-          style={{ fontFamily: "var(--font-fraunces), Georgia, serif" }}
+          className={`${s.text} leading-none ${wordColor}`}
+          style={WORDMARK_STYLE}
         >
           Propertoasty
         </span>
@@ -44,31 +52,15 @@ export function Logo({
       </div>
     </div>
   );
-
-  if (variant === "pill") {
-    return (
-      <div
-        className={`inline-flex items-center bg-coral rounded-full px-4 py-2 ${className}`}
-      >
-        <div className={`flex items-center ${s.gap}`}>
-          <LogoIcon size={size} pill />
-          <span
-            className={`font-semibold ${s.text} leading-none tracking-[-0.02em] text-white`}
-            style={{ fontFamily: "var(--font-fraunces), Georgia, serif" }}
-          >
-            Propertoasty
-          </span>
-        </div>
-      </div>
-    );
-  }
-
-  return <div className={className}>{inner}</div>;
 }
 
+/**
+ * Single-leaf mark, filled with a "toasty" gradient — terracotta through
+ * amber to a warm peach — to suggest the warmth of a well-heated home
+ * without literally drawing toast. Minimal vein for definition.
+ */
 export function LogoIcon({
   size = "md",
-  pill = false,
   className = "",
 }: {
   size?: LogoSize;
@@ -77,53 +69,42 @@ export function LogoIcon({
 }) {
   const s = SIZES[size];
   const markPx = s.mark;
+  const gradId = `toasty-${size}`;
 
   return (
     <svg
       width={markPx}
       height={markPx}
-      viewBox="0 0 64 64"
+      viewBox="0 0 48 48"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       className={className}
       aria-label="Propertoasty"
     >
-      {/* Soft rounded square — forest green on light, white on pill */}
-      <rect
-        x="2"
-        y="2"
-        width="60"
-        height="60"
-        rx="18"
-        fill={pill ? "rgba(255,255,255,0.14)" : "#2C5E4A"}
+      <defs>
+        <linearGradient id={gradId} x1="12%" y1="15%" x2="85%" y2="88%">
+          <stop offset="0%" stopColor="#C4533E" />
+          <stop offset="45%" stopColor="#D9813C" />
+          <stop offset="80%" stopColor="#E8B647" />
+          <stop offset="100%" stopColor="#F4CC6E" />
+        </linearGradient>
+      </defs>
+
+      {/* Leaf silhouette — asymmetric teardrop, tilted like the 🍃 emoji */}
+      <path
+        d="M10 38 C 10 22, 20 10, 38 10 C 40 26, 32 38, 14 42 L10 42 Z"
+        fill={`url(#${gradId})`}
       />
 
-      {/* Stylised house + leaf mark */}
-      {/* Leaf curl (suggests greener living) */}
+      {/* Midrib vein, subtle */}
       <path
-        d="M18 40 C 18 28, 28 22, 40 22 C 40 34, 32 42, 22 44 Z"
-        fill={pill ? "#FAF7F2" : "#FAF7F2"}
-        opacity="0.18"
-      />
-      {/* House silhouette */}
-      <path
-        d="M20 46 L20 32 L32 22 L44 32 L44 46 Z"
+        d="M12 40 Q 24 28, 36 12"
+        stroke="#FAF7F2"
+        strokeWidth="1.8"
+        strokeLinecap="round"
         fill="none"
-        stroke={pill ? "#FAF7F2" : "#FAF7F2"}
-        strokeWidth="2.5"
-        strokeLinejoin="round"
+        opacity="0.55"
       />
-      {/* Chimney of warmth — small terracotta stroke */}
-      <rect
-        x="37"
-        y="26"
-        width="4"
-        height="5"
-        rx="1"
-        fill="#D9813C"
-      />
-      {/* Window as a warm dot */}
-      <circle cx="32" cy="40" r="2.5" fill="#E8B647" />
     </svg>
   );
 }

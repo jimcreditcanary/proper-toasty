@@ -159,7 +159,7 @@ h1, h2, h3 {
   letter-spacing: -0.02em;
   line-height: 1.1;
   font-optical-sizing: auto;
-  font-variation-settings: "SOFT" 70, "WONK" 0;
+  font-variation-settings: "SOFT" 100, "WONK" 0;
 }
 
 /* Status dot glows */
