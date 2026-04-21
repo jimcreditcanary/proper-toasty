@@ -30,6 +30,12 @@ export async function POST(req: Request) {
     return NextResponse.json(result);
   } catch (err) {
     console.error("solar building error", err);
-    return NextResponse.json({ error: "Solar lookup failed" }, { status: 502 });
+    return NextResponse.json(
+      {
+        error: "Solar lookup failed",
+        detail: err instanceof Error ? err.message : String(err),
+      },
+      { status: 502 }
+    );
   }
 }
