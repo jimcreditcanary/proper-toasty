@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getBuildingInsights } from "@/lib/services/solar";
-import { getEpcByAddress } from "@/lib/services/epc";
+import { getEpc } from "@/lib/services/epc";
 import { getPvgisYield } from "@/lib/services/pvgis";
 import { analyseFloorplan } from "@/lib/services/claude-floorplan";
 import { getFloodWarnings } from "@/lib/services/enrichment/flood";
@@ -29,12 +29,6 @@ function pickBestRoofSegment(segments: RoofSegment[]): RoofSegment | null {
   return scored[0]?.s ?? null;
 }
 
-function parseFloorAreaM2(raw: string | undefined): number | null {
-  if (!raw) return null;
-  const n = Number(raw.replace(/[^\d.]/g, ""));
-  return Number.isFinite(n) && n > 0 ? n : null;
-}
-
 export async function POST(req: Request) {
   let body: unknown;
   try {
@@ -60,12 +54,16 @@ export async function POST(req: Request) {
       console.warn("Solar failed during analyse:", err);
       return { coverage: false as const, reason: "Solar lookup failed." } satisfies BuildingInsightsResponse;
     }),
-    address.postcode
-      ? getEpcByAddress(address.postcode, address.line1).catch((err) => {
+    address.uprn || (address.postcode && address.line1)
+      ? getEpc({
+          uprn: address.uprn,
+          postcode: address.postcode ?? undefined,
+          addressLine1: address.line1,
+        }).catch((err) => {
           console.warn("EPC failed during analyse:", err);
           return { found: false, reason: "EPC lookup failed." } as EpcByAddressResponse;
         })
-      : Promise.resolve<EpcByAddressResponse>({ found: false, reason: "No postcode." }),
+      : Promise.resolve<EpcByAddressResponse>({ found: false, reason: "No identifier for EPC lookup." }),
     getFloodWarnings(address.latitude, address.longitude).catch((err) => {
       console.warn("Flood enrichment failed:", err);
       return null;
@@ -81,9 +79,9 @@ export async function POST(req: Request) {
   ]);
 
   // Claude needs EPC context; PVGIS needs Solar's best segment. Run in parallel.
-  const epcFloorAreaM2 = epc.found ? parseFloorAreaM2(epc.certificate["total-floor-area"]) : null;
-  const epcPropertyType = epc.found ? epc.certificate["property-type"] || null : null;
-  const epcAgeBand = epc.found ? epc.certificate["construction-age-band"] || null : null;
+  const epcFloorAreaM2 = epc.found ? epc.certificate.totalFloorAreaM2 : null;
+  const epcPropertyType = epc.found ? epc.certificate.propertyType : null;
+  const epcAgeBand = epc.found ? epc.certificate.constructionAgeBand : null;
 
   const floorplanPromise = analyseFloorplan({
     objectKey: floorplanObjectKey,

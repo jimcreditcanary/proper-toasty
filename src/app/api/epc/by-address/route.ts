@@ -1,13 +1,18 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getEpcByAddress } from "@/lib/services/epc";
+import { getEpc } from "@/lib/services/epc";
 
 export const runtime = "nodejs";
 
-const RequestSchema = z.object({
-  postcode: z.string().min(2).max(10),
-  addressLine1: z.string().min(1).max(200),
-});
+const RequestSchema = z
+  .object({
+    uprn: z.string().min(1).max(12).optional(),
+    postcode: z.string().min(2).max(10).optional(),
+    addressLine1: z.string().min(1).max(200).optional(),
+  })
+  .refine((v) => v.uprn || (v.postcode && v.addressLine1), {
+    message: "Provide uprn, or both postcode and addressLine1",
+  });
 
 export async function POST(req: Request) {
   let body: unknown;
@@ -26,7 +31,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    const result = await getEpcByAddress(parsed.data.postcode, parsed.data.addressLine1);
+    const result = await getEpc(parsed.data);
     return NextResponse.json(result);
   } catch (err) {
     console.error("epc by-address error", err);

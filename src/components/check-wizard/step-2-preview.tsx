@@ -300,42 +300,47 @@ function EpcCard({ state }: { state: Loadable<EpcByAddressResponse> }) {
       <dl className="space-y-1.5 text-sm">
         <Row label="Current rating">
           <span className="font-medium text-navy">
-            {c["current-energy-rating"] || "—"}{c["current-energy-efficiency"] ? ` · ${c["current-energy-efficiency"]}` : ""}
+            {c.currentEnergyBand || "—"}
+            {c.currentEnergyRating != null ? ` · ${c.currentEnergyRating}` : ""}
           </span>
         </Row>
-        {c["potential-energy-rating"] && (
+        {c.potentialEnergyBand && (
           <Row label="Potential">
-            <span className="font-medium text-navy">{c["potential-energy-rating"]}</span>
+            <span className="font-medium text-navy">{c.potentialEnergyBand}</span>
           </Row>
         )}
-        {c["property-type"] && (
+        {c.propertyType && (
           <Row label="Type">
             <span className="font-medium text-navy">
-              {c["property-type"]}{c["built-form"] ? ` · ${c["built-form"]}` : ""}
+              {c.propertyType}
+              {c.builtForm ? ` · ${c.builtForm}` : ""}
             </span>
           </Row>
         )}
-        {c["construction-age-band"] && (
+        {c.constructionAgeBand && (
           <Row label="Age band">
-            <span className="font-medium text-navy">{c["construction-age-band"]}</span>
+            <span className="font-medium text-navy">{c.constructionAgeBand}</span>
           </Row>
         )}
-        {c["total-floor-area"] && (
+        {c.totalFloorAreaM2 != null && (
           <Row label="Floor area">
-            <span className="font-medium text-navy">{c["total-floor-area"]} m²</span>
+            <span className="font-medium text-navy">{Math.round(c.totalFloorAreaM2)} m²</span>
           </Row>
         )}
-        {c["main-fuel"] && (
+        {c.mainFuel && (
           <Row label="Main fuel">
             <span className="font-medium text-navy inline-flex items-center gap-1">
               <Flame className="w-3.5 h-3.5 text-coral" />
-              {c["main-fuel"]}
+              {c.mainFuel}
             </span>
           </Row>
         )}
       </dl>
+      <p className="mt-3 text-[11px] text-slate-500">
+        Matched by {state.data.matchMethod === "uprn" ? "UPRN (exact)" : "postcode + address"}.
+      </p>
       {stale && (
-        <p className="mt-3 text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded px-3 py-2">
+        <p className="mt-2 text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded px-3 py-2">
           This EPC is over 10 years old — you&rsquo;ll need a new one for a BUS application.
         </p>
       )}

@@ -184,37 +184,37 @@ function PropertyCard({
                 <div>
                   <dt className="text-slate-500">EPC rating</dt>
                   <dd className="font-medium text-navy">
-                    {epc.certificate["current-energy-rating"] || "—"}
-                    {epc.certificate["potential-energy-rating"]
-                      ? ` → ${epc.certificate["potential-energy-rating"]}`
+                    {epc.certificate.currentEnergyBand || "—"}
+                    {epc.certificate.potentialEnergyBand
+                      ? ` → ${epc.certificate.potentialEnergyBand}`
                       : ""}
                   </dd>
                 </div>
-                {epc.certificate["property-type"] && (
+                {epc.certificate.propertyType && (
                   <div>
                     <dt className="text-slate-500">Property</dt>
                     <dd className="font-medium text-navy">
-                      {epc.certificate["property-type"]}
-                      {epc.certificate["built-form"] ? ` · ${epc.certificate["built-form"]}` : ""}
+                      {epc.certificate.propertyType}
+                      {epc.certificate.builtForm ? ` · ${epc.certificate.builtForm}` : ""}
                     </dd>
                   </div>
                 )}
-                {epc.certificate["construction-age-band"] && (
+                {epc.certificate.constructionAgeBand && (
                   <div>
                     <dt className="text-slate-500">Age band</dt>
-                    <dd className="font-medium text-navy">{epc.certificate["construction-age-band"]}</dd>
+                    <dd className="font-medium text-navy">{epc.certificate.constructionAgeBand}</dd>
                   </div>
                 )}
-                {epc.certificate["total-floor-area"] && (
+                {epc.certificate.totalFloorAreaM2 != null && (
                   <div>
                     <dt className="text-slate-500">Floor area</dt>
-                    <dd className="font-medium text-navy">{epc.certificate["total-floor-area"]} m²</dd>
+                    <dd className="font-medium text-navy">{Math.round(epc.certificate.totalFloorAreaM2)} m²</dd>
                   </div>
                 )}
-                {epc.certificate["main-fuel"] && (
+                {epc.certificate.mainFuel && (
                   <div>
                     <dt className="text-slate-500">Main fuel</dt>
-                    <dd className="font-medium text-navy">{epc.certificate["main-fuel"]}</dd>
+                    <dd className="font-medium text-navy">{epc.certificate.mainFuel}</dd>
                   </div>
                 )}
               </>

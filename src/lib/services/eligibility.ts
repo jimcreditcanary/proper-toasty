@@ -18,13 +18,7 @@ import type { Eligibility, Finance } from "@/lib/schemas/eligibility";
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
-function parseFloorAreaM2(raw: string | undefined): number | null {
-  if (!raw) return null;
-  const n = Number(raw.replace(/[^\d.]/g, ""));
-  return Number.isFinite(n) && n > 0 ? n : null;
-}
-
-function lodgementAgeYears(iso: string | undefined): number | null {
+function lodgementAgeYears(iso: string | null | undefined): number | null {
   if (!iso) return null;
   const d = new Date(iso);
   if (isNaN(d.getTime())) return null;
@@ -38,7 +32,7 @@ function num(env: string, fallback: number): number {
 
 // Fuel classification. Maps EPC main-fuel free-text to one of our enums.
 function classifyFuel(
-  raw: string | undefined
+  raw: string | null | undefined
 ): "fossil" | "electric" | "heat_pump" | "biomass" | "other" {
   if (!raw) return "other";
   const s = raw.toLowerCase();
@@ -47,20 +41,6 @@ function classifyFuel(
   if (s.includes("mains gas") || s.includes("natural gas") || s.includes("lpg") || s.includes("oil") || s.includes("coal") || s.includes("solid fuel")) return "fossil";
   if (s.includes("electric")) return "electric";
   return "other";
-}
-
-function hasOutstandingInsulationRec(epc: EpcByAddressResponse): {
-  flagged: boolean;
-  labels: string[];
-} {
-  if (!epc.found) return { flagged: false, labels: [] };
-  const labels: string[] = [];
-  for (const r of epc.recommendations) {
-    const s = (r["improvement-summary-text"] || r["improvement-descr-text"] || "").toLowerCase();
-    if (s.includes("loft") && s.includes("insulation")) labels.push("loft insulation");
-    else if (s.includes("cavity") && s.includes("wall")) labels.push("cavity wall insulation");
-  }
-  return { flagged: labels.length > 0, labels: Array.from(new Set(labels)) };
 }
 
 // ─── household demand ────────────────────────────────────────────────────────
@@ -117,28 +97,26 @@ export function heatPumpEligibility(input: HeatPumpInput): Eligibility["heatPump
   if (!input.epc.found) {
     warnings.push("No EPC on record — one (lodged within the last 10 years) is required to apply for the BUS grant. Typical cost £60–£120.");
   } else {
-    const age = lodgementAgeYears(input.epc.lodgementDate);
+    const age = lodgementAgeYears(input.epc.registrationDate);
     if (age != null && age > 10) {
       warnings.push(`Your EPC is ${Math.floor(age)} years old — BUS requires one lodged in the last 10 years. You'll need a new one before applying.`);
     }
   }
 
-  // Rule: outstanding insulation recs.
-  // Was a hard block before March 2024; now typically a "confirm with installer"
-  // warning. We keep it as a warning. (§4.4 — confirm against current version.)
+  // Rule: outstanding insulation recs. The new EPC API (GOV.UK, 2026) does not
+  // expose domestic recommendations — so we surface a "confirm with installer"
+  // note rather than silently blocking. (§4.4 was relaxed in March 2024, so
+  // the check was a warning not a blocker anyway.)
   if (input.epc.found) {
-    const ins = hasOutstandingInsulationRec(input.epc);
-    if (ins.flagged) {
-      warnings.push(
-        `Your EPC has outstanding recommendation${ins.labels.length > 1 ? "s" : ""}: ${ins.labels.join(", ")}. Your installer will advise whether this needs addressing first.`
-      );
-    }
+    notes.push(
+      "Insulation improvements listed on your EPC — if any — should be addressed before a heat pump install for best performance. Your installer will advise."
+    );
   }
 
   // Rule: fuel. BUS funds replacement of fossil-fuel or electric. (§3.2.)
   let estimatedGrantGBP = num("BUS_ASHP_GRANT_GBP", 7500);
-  if (input.epc.found) {
-    const fuel = classifyFuel(input.epc.certificate["main-fuel"]);
+  if (input.epc.found && input.epc.certificate.mainFuel) {
+    const fuel = classifyFuel(input.epc.certificate.mainFuel);
     if (fuel === "heat_pump" || fuel === "biomass") {
       blockers.push(
         "Property already has low-carbon heating (per the EPC). BUS funds replacement of fossil-fuel or electric systems only."
@@ -148,9 +126,9 @@ export function heatPumpEligibility(input: HeatPumpInput): Eligibility["heatPump
   }
 
   // Rule: new build. (§4.6.) Standard new builds excluded; self-builds eligible.
-  if (input.epc.found) {
-    const tx = input.epc.certificate["transaction-type"]?.toLowerCase() ?? "";
-    const age = lodgementAgeYears(input.epc.lodgementDate);
+  if (input.epc.found && input.epc.certificate.transactionType) {
+    const tx = input.epc.certificate.transactionType.toLowerCase();
+    const age = lodgementAgeYears(input.epc.registrationDate);
     if (tx.includes("new dwelling") && age != null && age < 2 && input.tenure === "owner") {
       notes.push("If this is a standard new build (less than 2 years old) it may be excluded, but self-builds are eligible — check with your installer.");
     }
@@ -341,9 +319,7 @@ export function buildEligibility(input: BuildEligibilityInput): {
   eligibility: Eligibility;
   finance: Finance;
 } {
-  const floorAreaM2 = input.epc.found
-    ? parseFloorAreaM2(input.epc.certificate["total-floor-area"])
-    : null;
+  const floorAreaM2 = input.epc.found ? input.epc.certificate.totalFloorAreaM2 : null;
 
   const heatPump = heatPumpEligibility({
     country: input.request.country,

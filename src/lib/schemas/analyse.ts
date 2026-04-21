@@ -17,6 +17,7 @@ export const AnalyseRequestSchema = z.object({
     latitude: z.number(),
     longitude: z.number(),
     placeId: z.string(),
+    uprn: z.string().optional(),
   }),
   country: z.enum(["England", "Wales", "Scotland", "Northern Ireland"]).nullable(),
   questionnaire: z.object({
