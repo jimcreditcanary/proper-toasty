@@ -45,6 +45,21 @@ src/
 │       └── floorplan-analysis.ts — Claude system + user prompt
 ```
 
+## External API reference
+
+- **Google Solar API** — full field-by-field schema + what we surface vs. what's
+  still available in `src/lib/schemas/solar.ts`. Any Google response field (incl.
+  finance blocks, per-panel placements, carbon factor, imagery dates) is
+  captured via `.passthrough()` — we just don't render it all yet.
+- **EPC (GOV.UK)** — `src/lib/services/epc.ts`. UPRN-first search against
+  `api.get-energy-performance-data.communities.gov.uk`, bearer auth.
+- **Postcoder** — `src/lib/services/postcoder.ts`. Postcode → address list with
+  UPRN + lat/lng (Royal Mail PAF data).
+- **Postcodes.io** — postcode → country (for England/Wales gate) + centroid
+  lat/lng fallback when Postcoder addtags are absent.
+- **PVGIS v5.3** — annual kWh yield from a given kWp / pitch / azimuth.
+- **Claude Opus 4.7** — floorplan vision analysis; strict JSON via zod.
+
 ## Key patterns
 
 - **Everything server-side.** Never ship API keys to the browser. All third-party calls go through `app/api/*` route handlers.
