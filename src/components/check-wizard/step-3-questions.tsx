@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -11,9 +11,14 @@ import {
   Thermometer,
   Gauge,
   Receipt,
+  Upload,
+  Loader2,
+  Sparkles,
 } from "lucide-react";
 import { useCheckWizard } from "./context";
 import type { HeatingFuel, Interest, Tenure, YesNoUnsure } from "./types";
+import { resizeImage } from "@/lib/client/image-resize";
+import type { BillParseResponse } from "@/lib/schemas/bill";
 
 const INTEREST_OPTIONS: Array<{
   value: Interest;
@@ -304,6 +309,57 @@ function EnergyUsageCard({
   const [expanded, setExpanded] = useState(
     annualGasKWh != null || annualElectricityKWh != null
   );
+  const [uploadState, setUploadState] = useState<
+    | { kind: "idle" }
+    | { kind: "processing" }
+    | { kind: "done"; confidence: string; supplier: string | null; notes: string }
+    | { kind: "error"; message: string }
+  >({ kind: "idle" });
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const handleFile = async (file: File) => {
+    if (!["image/jpeg", "image/png"].includes(file.type)) {
+      setUploadState({
+        kind: "error",
+        message: "Upload a JPG or PNG — screenshot the bill page if it's a PDF.",
+      });
+      return;
+    }
+    setUploadState({ kind: "processing" });
+    try {
+      const { blob } = await resizeImage(file, { maxLongEdge: 1600, quality: 0.9 });
+      const form = new FormData();
+      form.append("file", new File([blob], "bill.jpg", { type: "image/jpeg" }));
+      const res = await fetch("/api/bill/parse", { method: "POST", body: form });
+      if (!res.ok) {
+        const j = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(j.error ?? `Upload failed (${res.status})`);
+      }
+      const data = (await res.json()) as BillParseResponse;
+      if (!data.ok) {
+        setUploadState({
+          kind: "error",
+          message: data.reason ?? "We couldn't read the bill reliably.",
+        });
+        return;
+      }
+      onChange({
+        annualGasKWh: data.analysis.annualGasKWh ?? null,
+        annualElectricityKWh: data.analysis.annualElectricityKWh ?? null,
+      });
+      setUploadState({
+        kind: "done",
+        confidence: data.analysis.confidence,
+        supplier: data.analysis.supplier,
+        notes: data.analysis.notes,
+      });
+    } catch (e) {
+      setUploadState({
+        kind: "error",
+        message: e instanceof Error ? e.message : "Upload failed",
+      });
+    }
+  };
 
   return (
     <div className="rounded-2xl border border-[var(--border)] bg-white p-5 sm:p-6 shadow-sm">
@@ -321,34 +377,84 @@ function EnergyUsageCard({
             <span className="text-[var(--muted-brand)] font-normal">(optional)</span>
           </span>
           <span className="block mt-1 text-xs text-slate-500 leading-relaxed">
-            Have a recent bill handy? Paste the annual kWh totals and we&rsquo;ll size
-            the heat pump / battery against your real usage instead of a floor-area
-            estimate.
+            Have a recent bill handy? Upload it and we&rsquo;ll pull the annual kWh
+            figures out for you, or type them in yourself.
           </span>
         </span>
         <span className="text-xs text-coral font-medium">{expanded ? "Hide" : "Add"}</span>
       </button>
 
       {expanded && (
-        <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <NumberField
-            label="Annual gas use"
-            unit="kWh"
-            value={annualGasKWh}
-            onChange={(v) => onChange({ annualGasKWh: v })}
-            placeholder="e.g. 12000"
-          />
-          <NumberField
-            label="Annual electricity use"
-            unit="kWh"
-            value={annualElectricityKWh}
-            onChange={(v) => onChange({ annualElectricityKWh: v })}
-            placeholder="e.g. 3200"
-          />
-          <p className="sm:col-span-2 text-[11px] text-slate-500">
-            On a British Gas / Octopus / EDF bill, look for &ldquo;Energy used in the
-            last 12 months&rdquo; or &ldquo;Annual usage&rdquo;. Gas is usually the big
-            one — 8–20k kWh for most UK homes.
+        <div className="mt-5 space-y-4">
+          <div>
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              disabled={uploadState.kind === "processing"}
+              className="w-full flex items-center justify-center gap-2 h-11 px-4 rounded-lg border-2 border-dashed border-coral/40 bg-coral-pale/40 hover:bg-coral-pale hover:border-coral text-coral-dark font-medium text-sm transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {uploadState.kind === "processing" ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Reading your bill…
+                </>
+              ) : (
+                <>
+                  <Upload className="w-4 h-4" />
+                  Upload a bill to autofill
+                </>
+              )}
+            </button>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/jpeg,image/png"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) void handleFile(f);
+                e.target.value = "";
+              }}
+            />
+
+            {uploadState.kind === "done" && (
+              <p className="mt-3 text-xs text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2 flex items-start gap-2">
+                <Sparkles className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>
+                  Pulled your figures from
+                  {uploadState.supplier ? ` your ${uploadState.supplier} bill` : " the bill"}
+                  {" "}(confidence: {uploadState.confidence}). Check they look right — edit
+                  below if not.
+                </span>
+              </p>
+            )}
+            {uploadState.kind === "error" && (
+              <p className="mt-3 text-xs text-red-700 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
+                {uploadState.message}
+              </p>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <NumberField
+              label="Annual gas use"
+              unit="kWh"
+              value={annualGasKWh}
+              onChange={(v) => onChange({ annualGasKWh: v })}
+              placeholder="e.g. 12000"
+            />
+            <NumberField
+              label="Annual electricity use"
+              unit="kWh"
+              value={annualElectricityKWh}
+              onChange={(v) => onChange({ annualElectricityKWh: v })}
+              placeholder="e.g. 3200"
+            />
+          </div>
+
+          <p className="text-[11px] text-slate-500">
+            We don&rsquo;t save your bill — it goes straight to our vision model and the
+            image is discarded after the numbers are extracted.
           </p>
         </div>
       )}
