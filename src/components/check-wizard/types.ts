@@ -19,10 +19,9 @@ export const STEP_ORDER: CheckStep[] = [
 ];
 
 export type Tenure = "owner" | "landlord" | "tenant" | "social";
-export type Interest = "heat_pump" | "solar_battery" | "not_sure";
+export type Interest = "heat_pump" | "solar_battery";
 export type HeatingFuel = "gas" | "electric" | "other";
 export type YesNoUnsure = "yes" | "no" | "unsure";
-export type YesOrUnsure = "yes" | "unsure";
 
 export interface SelectedAddress {
   uprn: string;
@@ -40,14 +39,17 @@ export interface CheckWizardState {
   address: SelectedAddress | null;
   country: UkCountry | null;
 
-  // Step 3 — questions
-  interest: Interest | null;
+  // Step 3 — questions.
+  // Kept deliberately minimal: we only ask what we CAN'T infer from EPC,
+  // Postcoder, satellite imagery, or the Claude floorplan analysis.
+  //   - existing boiler? → EPC.mainFuel + floorplan.boilerLocation
+  //   - need new radiators? → EPC age band + floorplan.radiatorsVisible
+  //   - hot water tank? → floorplan.hotWaterCylinderSpace
+  //   - 1m² outdoor space? → floorplan.outdoorSpace + heatPumpInstallationConcerns
+  // All of those are surfaced in Step 6 directly from the floorplan analysis.
+  interests: Interest[]; // multi-select: heat_pump, solar_battery, or both
   tenure: Tenure | null;
-  currentHeatingFuel: HeatingFuel | null;
-  hasExistingBoiler: YesNoUnsure | null;
-  needNewRadiators: YesNoUnsure | null;
-  hotWaterTankPresent: YesNoUnsure | null;
-  spaceBesideOutsideWall: YesOrUnsure | null; // only asked if no/unsure tank
+  currentHeatingFuel: HeatingFuel | null; // future: pre-fill from EPC main fuel
   priorHeatPumpFunding: YesNoUnsure | null; // Ofgem BUS: no double funding
   annualGasKWh: number | null;
   annualElectricityKWh: number | null;
@@ -62,13 +64,9 @@ export interface CheckWizardState {
 export const INITIAL_STATE: CheckWizardState = {
   address: null,
   country: null,
-  interest: null,
+  interests: [],
   tenure: null,
   currentHeatingFuel: null,
-  hasExistingBoiler: null,
-  needNewRadiators: null,
-  hotWaterTankPresent: null,
-  spaceBesideOutsideWall: null,
   priorHeatPumpFunding: null,
   annualGasKWh: null,
   annualElectricityKWh: null,

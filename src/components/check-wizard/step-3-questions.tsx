@@ -4,26 +4,16 @@ import { useMemo, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
-  Info,
   Flame,
   Sun,
-  HelpCircle,
+  Check,
   Home as HomeIcon,
   Thermometer,
-  Droplet,
-  Radio,
-  MoveHorizontal,
   Gauge,
   Receipt,
 } from "lucide-react";
 import { useCheckWizard } from "./context";
-import type {
-  HeatingFuel,
-  Interest,
-  Tenure,
-  YesNoUnsure,
-  YesOrUnsure,
-} from "./types";
+import type { HeatingFuel, Interest, Tenure, YesNoUnsure } from "./types";
 
 const INTEREST_OPTIONS: Array<{
   value: Interest;
@@ -42,12 +32,6 @@ const INTEREST_OPTIONS: Array<{
     title: "Solar & battery",
     body: "Generate my own electricity and store it for later.",
     icon: <Sun className="w-5 h-5" />,
-  },
-  {
-    value: "not_sure",
-    title: "Not sure yet",
-    body: "Show me what makes sense — I'm open to all of it.",
-    icon: <HelpCircle className="w-5 h-5" />,
   },
 ];
 
@@ -70,44 +54,27 @@ const YNU_OPTIONS: Array<{ value: YesNoUnsure; title: string }> = [
   { value: "unsure", title: "Not sure" },
 ];
 
-const SPACE_OPTIONS: Array<{ value: YesOrUnsure; title: string; body?: string }> = [
-  { value: "yes", title: "Yes, there's space" },
-  { value: "unsure", title: "Not sure" },
-];
-
 export function Step3Questions() {
   const { state, update, next, back } = useCheckWizard();
-  const showHeatPumpQuestions =
-    state.interest === "heat_pump" || state.interest === "not_sure";
-  const showCylinderSpace =
-    showHeatPumpQuestions &&
-    (state.hotWaterTankPresent === "no" || state.hotWaterTankPresent === "unsure");
+  const showHeatPumpSpecific = state.interests.includes("heat_pump");
+
+  const toggleInterest = (v: Interest) => {
+    const has = state.interests.includes(v);
+    const next = has ? state.interests.filter((i) => i !== v) : [...state.interests, v];
+    update({ interests: next });
+  };
 
   const ready = useMemo(() => {
-    if (!state.interest || !state.tenure || !state.currentHeatingFuel) return false;
-    if (showHeatPumpQuestions) {
-      if (
-        !state.hasExistingBoiler ||
-        !state.needNewRadiators ||
-        !state.hotWaterTankPresent ||
-        !state.priorHeatPumpFunding
-      ) {
-        return false;
-      }
-      if (showCylinderSpace && !state.spaceBesideOutsideWall) return false;
-    }
+    if (state.interests.length === 0) return false;
+    if (!state.tenure || !state.currentHeatingFuel) return false;
+    if (showHeatPumpSpecific && !state.priorHeatPumpFunding) return false;
     return true;
   }, [
-    state.interest,
+    state.interests,
     state.tenure,
     state.currentHeatingFuel,
-    state.hasExistingBoiler,
-    state.needNewRadiators,
-    state.hotWaterTankPresent,
-    state.spaceBesideOutsideWall,
     state.priorHeatPumpFunding,
-    showHeatPumpQuestions,
-    showCylinderSpace,
+    showHeatPumpSpecific,
   ]);
 
   return (
@@ -118,21 +85,63 @@ export function Step3Questions() {
         </p>
         <h2 className="text-3xl sm:text-4xl text-navy">A few quick questions</h2>
         <p className="mt-3 text-slate-600">
-          Things the data can&rsquo;t tell us. Takes about a minute.
+          Takes about 30 seconds. We&rsquo;ll read the rest off your EPC, your floorplan,
+          and satellite data.
         </p>
       </div>
 
       <div className="space-y-6">
         <Question
           icon={<Gauge className="w-4 h-4" />}
-          title="What are you most interested in?"
-          sub="We'll tune the report to the upgrade path that fits you best."
+          title="What are you interested in?"
+          sub="Pick one or both — we'll tune the report to what you want to explore."
         >
-          <Tiles
-            options={INTEREST_OPTIONS}
-            value={state.interest}
-            onChange={(v) => update({ interest: v })}
-          />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {INTEREST_OPTIONS.map((opt) => {
+              const selected = state.interests.includes(opt.value);
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  role="checkbox"
+                  aria-checked={selected}
+                  onClick={() => toggleInterest(opt.value)}
+                  className={`text-left rounded-lg border px-4 py-3 transition-colors ${
+                    selected
+                      ? "border-coral bg-coral-pale"
+                      : "border-[var(--border)] bg-white hover:border-slate-300"
+                  }`}
+                >
+                  <span
+                    className={`flex items-center justify-between gap-2 text-sm font-medium ${
+                      selected ? "text-coral-dark" : "text-navy"
+                    }`}
+                  >
+                    <span className="inline-flex items-center gap-1.5">
+                      {opt.icon}
+                      {opt.title}
+                    </span>
+                    <span
+                      className={`inline-flex items-center justify-center w-5 h-5 rounded border shrink-0 transition-colors ${
+                        selected
+                          ? "bg-coral border-coral text-cream"
+                          : "border-slate-300 bg-white"
+                      }`}
+                      aria-hidden
+                    >
+                      {selected && <Check className="w-3.5 h-3.5" />}
+                    </span>
+                  </span>
+                  <span className="block text-xs text-slate-500 mt-1">{opt.body}</span>
+                </button>
+              );
+            })}
+          </div>
+          {state.interests.length === 0 && (
+            <p className="mt-3 text-xs text-[var(--muted-brand)]">
+              Tick at least one to carry on.
+            </p>
+          )}
         </Question>
 
         <Question
@@ -150,7 +159,7 @@ export function Step3Questions() {
         <Question
           icon={<Thermometer className="w-4 h-4" />}
           title="What fuel does your home currently use for heating?"
-          sub="If your EPC already tells us this, we'll cross-check against what you say."
+          sub="We cross-check this against your EPC — whichever says 'low-carbon already' would rule you out of the BUS grant."
         >
           <Tiles
             options={FUEL_OPTIONS}
@@ -160,76 +169,19 @@ export function Step3Questions() {
           />
         </Question>
 
-        {showHeatPumpQuestions && (
-          <>
-            <Question
-              icon={<Flame className="w-4 h-4" />}
-              title="Do you have an existing boiler?"
-              sub="A heat pump usually replaces it — knowing what's there helps the installer scope pipe runs."
-            >
-              <Tiles
-                options={YNU_OPTIONS}
-                value={state.hasExistingBoiler}
-                onChange={(v) => update({ hasExistingBoiler: v })}
-                columns={3}
-              />
-            </Question>
-
-            <Question
-              icon={<Radio className="w-4 h-4" />}
-              title="Will you need new radiators?"
-              sub="Heat pumps run at ~45°C (vs ~65°C for a gas boiler), so some existing radiators aren't big enough to deliver the same warmth. The installer works this out room-by-room on survey — this is just to flag it early."
-              tooltip="Bigger surface area compensates for the lower flow temperature. Most homes need 1–3 radiators upsized rather than a full replacement."
-            >
-              <Tiles
-                options={YNU_OPTIONS}
-                value={state.needNewRadiators}
-                onChange={(v) => update({ needNewRadiators: v })}
-                columns={3}
-              />
-            </Question>
-
-            <Question
-              icon={<Droplet className="w-4 h-4" />}
-              title="Is there a hot water tank in the house today?"
-              sub="Heat pumps usually need a cylinder. If one's already there, the job is simpler."
-            >
-              <Tiles
-                options={YNU_OPTIONS}
-                value={state.hotWaterTankPresent}
-                onChange={(v) => update({ hotWaterTankPresent: v })}
-                columns={3}
-              />
-            </Question>
-
-            {showCylinderSpace && (
-              <Question
-                icon={<MoveHorizontal className="w-4 h-4" />}
-                title="Is there at least 1 m² of clear space beside an outside wall?"
-                sub="Enough to fit an outdoor heat pump unit and a new cylinder nearby — typically in a utility room, side return, or against an external wall with a cupboard close by."
-              >
-                <Tiles
-                  options={SPACE_OPTIONS}
-                  value={state.spaceBesideOutsideWall}
-                  onChange={(v) => update({ spaceBesideOutsideWall: v })}
-                  columns={2}
-                />
-              </Question>
-            )}
-
-            <Question
-              icon={<Receipt className="w-4 h-4" />}
-              title="Have you already received government funding for a heat pump or biomass boiler?"
-              sub="Ofgem's Boiler Upgrade Scheme only pays out once per property. A 'yes' here would rule out the grant — but unrelated support (insulation, windows, doors) is fine."
-            >
-              <Tiles
-                options={YNU_OPTIONS}
-                value={state.priorHeatPumpFunding}
-                onChange={(v) => update({ priorHeatPumpFunding: v })}
-                columns={3}
-              />
-            </Question>
-          </>
+        {showHeatPumpSpecific && (
+          <Question
+            icon={<Receipt className="w-4 h-4" />}
+            title="Have you already had government funding for a heat pump or biomass boiler?"
+            sub="Ofgem's Boiler Upgrade Scheme only pays out once per property. Separate funding for insulation, windows, or doors is fine."
+          >
+            <Tiles
+              options={YNU_OPTIONS}
+              value={state.priorHeatPumpFunding}
+              onChange={(v) => update({ priorHeatPumpFunding: v })}
+              columns={3}
+            />
+          </Question>
         )}
 
         <EnergyUsageCard
@@ -237,9 +189,15 @@ export function Step3Questions() {
           annualElectricityKWh={state.annualElectricityKWh}
           onChange={(patch) => update(patch)}
         />
+
+        <p className="text-xs text-[var(--muted-brand)] leading-relaxed px-1">
+          Existing boiler, radiators, hot water tank, outdoor space — we&rsquo;ll read
+          those off your floorplan and EPC in the next steps, so you don&rsquo;t need
+          to answer them here.
+        </p>
       </div>
 
-      <div className="mt-12 flex items-center justify-between">
+      <div className="mt-10 flex items-center justify-between">
         <button
           type="button"
           onClick={back}
@@ -266,13 +224,11 @@ function Question({
   icon,
   title,
   sub,
-  tooltip,
   children,
 }: {
   icon: React.ReactNode;
   title: string;
   sub: string;
-  tooltip?: string;
   children: React.ReactNode;
 }) {
   return (
@@ -282,14 +238,6 @@ function Question({
           {icon}
         </span>
         <span className="text-sm font-semibold text-navy">{title}</span>
-        {tooltip && (
-          <span className="relative group inline-flex">
-            <Info className="w-3.5 h-3.5 text-slate-400 hover:text-slate-700 cursor-help" />
-            <span className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-2 w-64 rounded-lg bg-navy text-cream text-xs p-3 leading-snug opacity-0 group-hover:opacity-100 transition-opacity z-10 shadow-lg">
-              {tooltip}
-            </span>
-          </span>
-        )}
       </legend>
       <p className="mt-2 text-xs text-slate-500 leading-relaxed">{sub}</p>
       <div className="mt-4">{children}</div>
@@ -303,7 +251,7 @@ function Tiles<T extends string>({
   onChange,
   columns = 2,
 }: {
-  options: Array<{ value: T; title: string; body?: string; icon?: React.ReactNode }>;
+  options: Array<{ value: T; title: string; body?: string }>;
   value: T | null;
   onChange: (v: T) => void;
   columns?: 2 | 3;
@@ -329,14 +277,7 @@ function Tiles<T extends string>({
                 selected ? "text-coral-dark" : "text-navy"
               }`}
             >
-              {opt.icon ? (
-                <span className="inline-flex items-center gap-1.5">
-                  {opt.icon}
-                  {opt.title}
-                </span>
-              ) : (
-                opt.title
-              )}
+              {opt.title}
             </span>
             {opt.body && (
               <span className="block text-xs text-slate-500 mt-0.5">{opt.body}</span>
@@ -380,7 +321,7 @@ function EnergyUsageCard({
             <span className="text-[var(--muted-brand)] font-normal">(optional)</span>
           </span>
           <span className="block mt-1 text-xs text-slate-500 leading-relaxed">
-            Have your last bill handy? Paste the annual kWh totals and we&rsquo;ll size
+            Have a recent bill handy? Paste the annual kWh totals and we&rsquo;ll size
             the heat pump / battery against your real usage instead of a floor-area
             estimate.
           </span>

@@ -21,16 +21,14 @@ export const AnalyseRequestSchema = z.object({
     longitude: z.number(),
   }),
   country: z.enum(["England", "Wales", "Scotland", "Northern Ireland"]).nullable(),
+  // We deliberately ask the user as little as possible. Anything we can
+  // answer from the EPC, the floorplan AI analysis, Postcoder, or the Solar
+  // API is inferred instead of surveyed. Only questions that can't be
+  // resolved from public data live here.
   questionnaire: z.object({
-    interest: z.enum(["heat_pump", "solar_battery", "not_sure"]),
+    interests: z.array(z.enum(["heat_pump", "solar_battery"])).min(1),
     tenure: z.enum(["owner", "landlord", "tenant", "social"]),
     currentHeatingFuel: z.enum(["gas", "electric", "other"]),
-    // Heat-pump-specific questions are optional because the "solar_battery"
-    // interest path skips them.
-    hasExistingBoiler: z.enum(["yes", "no", "unsure"]).optional(),
-    needNewRadiators: z.enum(["yes", "no", "unsure"]).optional(),
-    hotWaterTankPresent: z.enum(["yes", "no", "unsure"]).optional(),
-    spaceBesideOutsideWall: z.enum(["yes", "unsure"]).nullable().optional(),
     priorHeatPumpFunding: z.enum(["yes", "no", "unsure"]).optional(),
     annualGasKWh: z.number().nullable().optional(),
     annualElectricityKWh: z.number().nullable().optional(),

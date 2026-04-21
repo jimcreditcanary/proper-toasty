@@ -27,7 +27,7 @@ export function Step5Analysis() {
     if (
       !state.address ||
       !state.floorplanObjectKey ||
-      !state.interest ||
+      state.interests.length === 0 ||
       !state.tenure ||
       !state.currentHeatingFuel
     ) {
@@ -43,13 +43,9 @@ export function Step5Analysis() {
         address: state.address,
         country: state.country,
         questionnaire: {
-          interest: state.interest,
+          interests: state.interests,
           tenure: state.tenure,
           currentHeatingFuel: state.currentHeatingFuel,
-          hasExistingBoiler: state.hasExistingBoiler ?? undefined,
-          needNewRadiators: state.needNewRadiators ?? undefined,
-          hotWaterTankPresent: state.hotWaterTankPresent ?? undefined,
-          spaceBesideOutsideWall: state.spaceBesideOutsideWall ?? undefined,
           priorHeatPumpFunding: state.priorHeatPumpFunding ?? undefined,
           annualGasKWh: state.annualGasKWh ?? undefined,
           annualElectricityKWh: state.annualElectricityKWh ?? undefined,
@@ -78,13 +74,9 @@ export function Step5Analysis() {
     state.address,
     state.country,
     state.floorplanObjectKey,
-    state.interest,
+    state.interests,
     state.tenure,
     state.currentHeatingFuel,
-    state.hasExistingBoiler,
-    state.needNewRadiators,
-    state.hotWaterTankPresent,
-    state.spaceBesideOutsideWall,
     state.priorHeatPumpFunding,
     state.annualGasKWh,
     state.annualElectricityKWh,

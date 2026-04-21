@@ -84,9 +84,8 @@ export function heatPumpExtraKWh(floorAreaM2: number | null): number {
 export interface HeatPumpInput {
   country: AnalyseRequest["country"];
   tenure: AnalyseRequest["questionnaire"]["tenure"];
-  interest: AnalyseRequest["questionnaire"]["interest"];
+  interests: AnalyseRequest["questionnaire"]["interests"];
   currentHeatingFuel: AnalyseRequest["questionnaire"]["currentHeatingFuel"];
-  needNewRadiators: AnalyseRequest["questionnaire"]["needNewRadiators"];
   priorHeatPumpFunding: AnalyseRequest["questionnaire"]["priorHeatPumpFunding"];
   epc: EpcByAddressResponse;
   floorAreaM2: number | null;
@@ -121,12 +120,9 @@ export function heatPumpEligibility(input: HeatPumpInput): Eligibility["heatPump
     );
   }
 
-  // Radiator readiness — not a BUS rule, but a cost signal worth flagging.
-  if (input.needNewRadiators === "yes") {
-    notes.push(
-      "You've flagged that some radiators may need upsizing. Your installer will size these room-by-room on survey; budget £150–£400 per radiator swap on top of the headline install cost."
-    );
-  }
+  // Radiator upsizing is a likely cost driver for any heat-pump install — but
+  // we don't ask up front; the floorplan analysis flags it (visible radiator
+  // count + EPC age band) and the report surfaces it as an installer question.
 
   // Rule: valid EPC required. EPCs themselves are valid for 10 years, so an
   // EPC older than that won't be accepted when the voucher is submitted.
@@ -365,9 +361,8 @@ export function buildEligibility(input: BuildEligibilityInput): {
   const heatPump = heatPumpEligibility({
     country: input.request.country,
     tenure: input.request.questionnaire.tenure,
-    interest: input.request.questionnaire.interest,
+    interests: input.request.questionnaire.interests,
     currentHeatingFuel: input.request.questionnaire.currentHeatingFuel,
-    needNewRadiators: input.request.questionnaire.needNewRadiators,
     priorHeatPumpFunding: input.request.questionnaire.priorHeatPumpFunding,
     epc: input.epc,
     floorAreaM2,
