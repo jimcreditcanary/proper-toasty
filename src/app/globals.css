@@ -10,9 +10,9 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-  --font-display: var(--font-geist-sans);
+  --font-display: var(--font-fraunces, Georgia, serif);
   --font-body: var(--font-geist-sans);
-  --font-heading: var(--font-geist-sans);
+  --font-heading: var(--font-fraunces, Georgia, serif);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -50,22 +50,29 @@
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
 
-  /* Extended brand colours */
-  --color-coral: #0072DA;
-  --color-coral-light: #338FE3;
-  --color-coral-dark: #005BB0;
-  --color-coral-pale: #EBF3FC;
-  --color-navy: #0B0F1A;
-  --color-navy-mid: #161C2D;
-  --color-navy-card: #1E2537;
-  --color-yellow: #FFCC00;
-  --color-off-white: #F5F3F0;
-  --color-pass: #16A34A;
-  --color-pass-green: #16A34A;
-  --color-warn: #EAB308;
-  --color-fail: #DC2626;
-  --color-brand-muted: #64748B;
-  --color-brand-muted-light: #94A3B8;
+  /* Extended brand colours — warm, approachable palette (Spruce / Snugg inspired).
+     Legacy names (coral/navy) kept intact to avoid churning every className; values
+     remapped to forest green + warm charcoal. New semantic vars for cream + terracotta. */
+  --color-coral: #2C5E4A;        /* primary forest green */
+  --color-coral-light: #3F7D63;
+  --color-coral-dark: #1F4734;
+  --color-coral-pale: #E8F0EA;   /* very pale sage surface */
+  --color-navy: #2A2922;         /* warm charcoal text */
+  --color-navy-mid: #3B3A31;
+  --color-navy-card: #4A4939;
+  --color-yellow: #E8B647;       /* softened amber */
+  --color-off-white: #FAF7F2;    /* warm cream */
+  --color-cream: #FAF7F2;
+  --color-cream-deep: #F4EDE4;
+  --color-terracotta: #D9813C;   /* warm accent */
+  --color-terracotta-pale: #F9E7D6;
+  --color-sage: #A8BCA1;
+  --color-pass: #2C5E4A;
+  --color-pass-green: #2C5E4A;
+  --color-warn: #D9813C;
+  --color-fail: #C4533E;
+  --color-brand-muted: #6B7266;
+  --color-brand-muted-light: #9AA096;
   --color-slate-50: #F8FAFC;
   --color-slate-100: #F1F5F9;
   --color-slate-200: #E2E8F0;
@@ -76,98 +83,59 @@
 /* ── Light-first design system (public pages) ── */
 :root {
   /* Brand tokens */
-  --coral:        #0072DA;
-  --coral-light:  #338FE3;
-  --coral-dark:   #005BB0;
-  --coral-pale:   #EBF3FC;
-  --navy:         #0B0F1A;
-  --navy-mid:     #161C2D;
-  --navy-card:    #1E2537;
-  --yellow:       #FFCC00;
-  --off-white:    #F5F3F0;
-  --status-pass:  #16A34A;
-  --status-warn:  #EAB308;
-  --status-fail:  #DC2626;
-  --muted-brand:  #64748B;
-  --muted-light:  #94A3B8;
+  --coral:        #2C5E4A;
+  --coral-light:  #3F7D63;
+  --coral-dark:   #1F4734;
+  --coral-pale:   #E8F0EA;
+  --navy:         #2A2922;
+  --navy-mid:     #3B3A31;
+  --navy-card:    #4A4939;
+  --yellow:       #E8B647;
+  --off-white:    #FAF7F2;
+  --cream:        #FAF7F2;
+  --cream-deep:   #F4EDE4;
+  --terracotta:   #D9813C;
+  --sage:         #A8BCA1;
+  --status-pass:  #2C5E4A;
+  --status-warn:  #D9813C;
+  --status-fail:  #C4533E;
+  --muted-brand:  #6B7266;
+  --muted-light:  #9AA096;
 
   /* Light design system (default for public pages) */
   --background: #FFFFFF;
-  --foreground: #0F172A;
+  --foreground: #2A2922;
   --card: #FFFFFF;
-  --card-foreground: #0F172A;
+  --card-foreground: #2A2922;
   --popover: #FFFFFF;
-  --popover-foreground: #0F172A;
-  --primary: #0072DA;
-  --primary-foreground: #FFFFFF;
-  --secondary: #F1F5F9;
-  --secondary-foreground: #0F172A;
-  --muted: #F1F5F9;
-  --muted-foreground: #64748B;
-  --accent: #F1F5F9;
-  --accent-foreground: #0F172A;
-  --destructive: #DC2626;
-  --border: #E2E8F0;
-  --input: #E2E8F0;
-  --ring: #0072DA;
-  --chart-1: #0072DA;
-  --chart-2: #16A34A;
-  --chart-3: #EAB308;
-  --chart-4: #DC2626;
-  --chart-5: #94A3B8;
-  --radius: 0.75rem;
-  --sidebar: #FFFFFF;
-  --sidebar-foreground: #0F172A;
-  --sidebar-primary: #0072DA;
-  --sidebar-primary-foreground: #FFFFFF;
-  --sidebar-accent: #F1F5F9;
-  --sidebar-accent-foreground: #0F172A;
-  --sidebar-border: #E2E8F0;
-  --sidebar-ring: #0072DA;
+  --popover-foreground: #2A2922;
+  --primary: #2C5E4A;
+  --primary-foreground: #FAF7F2;
+  --secondary: #F4EDE4;
+  --secondary-foreground: #2A2922;
+  --muted: #F4EDE4;
+  --muted-foreground: #6B7266;
+  --accent: #E8F0EA;
+  --accent-foreground: #1F4734;
+  --destructive: #C4533E;
+  --border: #E8E2D6;
+  --input: #E8E2D6;
+  --ring: #2C5E4A;
+  --chart-1: #2C5E4A;
+  --chart-2: #D9813C;
+  --chart-3: #E8B647;
+  --chart-4: #C4533E;
+  --chart-5: #A8BCA1;
+  --radius: 0.875rem;
+  --sidebar: #FAF7F2;
+  --sidebar-foreground: #2A2922;
+  --sidebar-primary: #2C5E4A;
+  --sidebar-primary-foreground: #FAF7F2;
+  --sidebar-accent: #E8F0EA;
+  --sidebar-accent-foreground: #1F4734;
+  --sidebar-border: #E8E2D6;
+  --sidebar-ring: #2C5E4A;
 }
-
-/* ── Dark mode (dashboard, admin, verify) ── */
-.dark {
-  --background: #0B0F1A;
-  --foreground: #FFFFFF;
-  --card: #1E2537;
-  --card-foreground: #FFFFFF;
-  --popover: #1E2537;
-  --popover-foreground: #FFFFFF;
-  --primary: #0072DA;
-  --primary-foreground: #FFFFFF;
-  --secondary: rgba(255,255,255,0.07);
-  --secondary-foreground: #B0B7CC;
-  --muted: #161C2D;
-  --muted-foreground: #7A8099;
-  --accent: rgba(255,255,255,0.07);
-  --accent-foreground: #FFFFFF;
-  --destructive: #FF3860;
-  --border: rgba(255,255,255,0.06);
-  --input: rgba(255,255,255,0.1);
-  --ring: #0072DA;
-  --chart-1: #0072DA;
-  --chart-2: #00D896;
-  --chart-3: #FFCC00;
-  --chart-4: #FF3860;
-  --chart-5: #B0B7CC;
-  --sidebar: #161C2D;
-  --sidebar-foreground: #FFFFFF;
-  --sidebar-primary: #0072DA;
-  --sidebar-primary-foreground: #FFFFFF;
-  --sidebar-accent: rgba(255,255,255,0.07);
-  --sidebar-accent-foreground: #FFFFFF;
-  --sidebar-border: rgba(255,255,255,0.06);
-  --sidebar-ring: #0072DA;
-
-  /* Override brand-muted for dark */
-  --muted-brand: #7A8099;
-  --muted-light: #B0B7CC;
-}
-
-/* Dark mode brand-muted overrides */
-.dark .text-brand-muted { color: #7A8099; }
-.dark .text-brand-muted-light { color: #B0B7CC; }
 
 @layer base {
   * {
@@ -179,18 +147,19 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
-
-  h1, h2, h3 {
-    font-family: var(--font-geist-sans), system-ui, sans-serif;
-    font-weight: 700;
-    letter-spacing: -0.025em;
-    line-height: 1.1;
-  }
 }
 
-/* Coral glow helper */
-.glow-coral {
-  box-shadow: 0 0 24px rgba(0,114,218,0.25);
+/* Serif display headings. !important forced because Tailwind v4's preflight
+   resets font-family via a rule at the same specificity; without !important
+   whichever rule comes second in the cascade wins, and the minifier can
+   reorder. This guarantees serif headings everywhere. */
+h1, h2, h3 {
+  font-family: var(--font-fraunces), Georgia, serif !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  font-optical-sizing: auto;
+  font-variation-settings: "SOFT" 70, "WONK" 0;
 }
 
 /* Status dot glows */
@@ -198,32 +167,32 @@
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: #16A34A;
-  box-shadow: 0 0 8px rgba(22,163,74,0.6);
+  background: var(--status-pass);
+  box-shadow: 0 0 8px rgba(44, 94, 74, 0.4);
   flex-shrink: 0;
 }
 .dot-warn {
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: #EAB308;
-  box-shadow: 0 0 8px rgba(234,179,8,0.5);
+  background: var(--status-warn);
+  box-shadow: 0 0 8px rgba(217, 129, 60, 0.5);
   flex-shrink: 0;
 }
 .dot-fail {
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: #DC2626;
-  box-shadow: 0 0 8px rgba(220,38,38,0.5);
+  background: var(--status-fail);
+  box-shadow: 0 0 8px rgba(196, 83, 62, 0.5);
   flex-shrink: 0;
 }
 
 /* Eyebrow label */
 .eyebrow {
   font-weight: 600;
-  font-size: 13px;
-  letter-spacing: 0.05em;
+  font-size: 12px;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--coral);
 }

@@ -15,17 +15,17 @@ export default function CheckPage() {
 
   return (
     <>
-      <header className="bg-white/80 backdrop-blur-md border-b border-slate-200 sticky top-0 z-50">
+      <header className="bg-cream/80 backdrop-blur-md border-b border-[var(--border)] sticky top-0 z-50">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
           <Link href="/" className="flex items-center">
             <Logo size="sm" variant="light" />
           </Link>
-          <span className="text-xs font-medium uppercase tracking-wider text-slate-500">
+          <span className="text-xs font-medium uppercase tracking-wider text-[var(--muted-brand)]">
             Heat pump &amp; solar check
           </span>
         </div>
       </header>
-      <main className="flex-1 bg-gradient-to-b from-coral-pale to-white">
+      <main className="flex-1 bg-gradient-to-b from-cream-deep to-cream">
         <CheckWizard />
       </main>
     </>

@@ -1,8 +1,16 @@
 import type { Metadata } from "next";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
+import { Fraunces } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
+
+const fraunces = Fraunces({
+  subsets: ["latin"],
+  variable: "--font-fraunces",
+  display: "swap",
+  axes: ["SOFT", "WONK"],
+});
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://www.propertoasty.com"),
@@ -52,7 +60,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${GeistSans.variable} ${GeistMono.variable} h-full`}
+      className={`${GeistSans.variable} ${GeistMono.variable} ${fraunces.variable} h-full`}
     >
       <head>
         <link rel="dns-prefetch" href="https://va.vercel-scripts.com" />

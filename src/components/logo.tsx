@@ -1,8 +1,8 @@
 const SIZES = {
   sm: { mark: 32, text: "text-base", gap: "gap-2" },
-  md: { mark: 48, text: "text-xl", gap: "gap-2.5" },
-  lg: { mark: 60, text: "text-2xl", gap: "gap-3" },
-  xl: { mark: 80, text: "text-3xl", gap: "gap-3.5" },
+  md: { mark: 44, text: "text-xl", gap: "gap-2.5" },
+  lg: { mark: 56, text: "text-2xl", gap: "gap-3" },
+  xl: { mark: 72, text: "text-3xl", gap: "gap-3.5" },
 } as const;
 
 type LogoSize = keyof typeof SIZES;
@@ -28,17 +28,17 @@ export function Logo({
       <LogoIcon size={size} />
       <div className="flex flex-col">
         <span
-          className={`font-[var(--font-heading)] font-bold ${s.text} leading-none tracking-[-0.03em] ${wordColor}`}
-          style={{ fontFamily: "var(--font-heading), system-ui, sans-serif" }}
+          className={`font-semibold ${s.text} leading-none tracking-[-0.02em] ${wordColor}`}
+          style={{ fontFamily: "var(--font-fraunces), Georgia, serif" }}
         >
-          propertoasty
+          Propertoasty
         </span>
         {showTagline && (
           <span
-            className={`text-[11px] font-light mt-0.5 ${tagColor}`}
+            className={`text-[11px] font-light mt-1 ${tagColor}`}
             style={{ fontFamily: "var(--font-body), system-ui, sans-serif" }}
           >
-            heat pump & solar ready?
+            a warmer home, made simple
           </span>
         )}
       </div>
@@ -48,26 +48,16 @@ export function Logo({
   if (variant === "pill") {
     return (
       <div
-        className={`inline-flex items-center bg-coral rounded-[100px] px-4 py-2 ${className}`}
+        className={`inline-flex items-center bg-coral rounded-full px-4 py-2 ${className}`}
       >
         <div className={`flex items-center ${s.gap}`}>
           <LogoIcon size={size} pill />
-          <div className="flex flex-col">
-            <span
-              className={`font-bold ${s.text} leading-none tracking-[-0.03em] text-white`}
-              style={{ fontFamily: "var(--font-heading), system-ui, sans-serif" }}
-            >
-              propertoasty
-            </span>
-            {showTagline && (
-              <span
-                className="text-[11px] font-light mt-0.5 text-white/70"
-                style={{ fontFamily: "var(--font-body), system-ui, sans-serif" }}
-              >
-                heat pump & solar ready?
-              </span>
-            )}
-          </div>
+          <span
+            className={`font-semibold ${s.text} leading-none tracking-[-0.02em] text-white`}
+            style={{ fontFamily: "var(--font-fraunces), Georgia, serif" }}
+          >
+            Propertoasty
+          </span>
         </div>
       </div>
     );
@@ -87,66 +77,53 @@ export function LogoIcon({
 }) {
   const s = SIZES[size];
   const markPx = s.mark;
-  const radius = Math.round(markPx * 0.3);
 
   return (
     <svg
       width={markPx}
       height={markPx}
-      viewBox="0 0 80 80"
+      viewBox="0 0 64 64"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       className={className}
-      aria-label="Propertoasty logo mark"
-      style={
-        pill
-          ? undefined
-          : { filter: "drop-shadow(0 8px 24px rgba(0,114,218,0.4))" }
-      }
+      aria-label="Propertoasty"
     >
-      {/* Coral rounded square */}
+      {/* Soft rounded square — forest green on light, white on pill */}
       <rect
-        width="80"
-        height="80"
-        rx={radius}
-        fill={pill ? "transparent" : "#0072DA"}
+        x="2"
+        y="2"
+        width="60"
+        height="60"
+        rx="18"
+        fill={pill ? "rgba(255,255,255,0.14)" : "#2C5E4A"}
       />
 
-      {/* Person head */}
-      <circle cx="40" cy="24" r="7" fill="white" />
-
-      {/* Shoulders arc */}
+      {/* Stylised house + leaf mark */}
+      {/* Leaf curl (suggests greener living) */}
       <path
-        d="M24 46 C24 36, 56 36, 56 46"
-        stroke="white"
-        strokeWidth="4"
-        strokeLinecap="round"
+        d="M18 40 C 18 28, 28 22, 40 22 C 40 34, 32 42, 22 44 Z"
+        fill={pill ? "#FAF7F2" : "#FAF7F2"}
+        opacity="0.18"
+      />
+      {/* House silhouette */}
+      <path
+        d="M20 46 L20 32 L32 22 L44 32 L44 46 Z"
         fill="none"
+        stroke={pill ? "#FAF7F2" : "#FAF7F2"}
+        strokeWidth="2.5"
+        strokeLinejoin="round"
       />
-
-      {/* Magnifying glass lens */}
-      <circle
-        cx="40"
-        cy="38"
-        r="18"
-        stroke="white"
-        strokeWidth="3.5"
-        fill="none"
+      {/* Chimney of warmth — small terracotta stroke */}
+      <rect
+        x="37"
+        y="26"
+        width="4"
+        height="5"
+        rx="1"
+        fill="#D9813C"
       />
-
-      {/* Handle — extending bottom-right at 45deg */}
-      <line
-        x1="53"
-        y1="51"
-        x2="66"
-        y2="64"
-        stroke="white"
-        strokeWidth="4"
-        strokeLinecap="round"
-      />
-
-      {/* Yellow dot at handle tip */}
-      <circle cx="66" cy="64" r="4" fill="#FFCC00" />
+      {/* Window as a warm dot */}
+      <circle cx="32" cy="40" r="2.5" fill="#E8B647" />
     </svg>
   );
 }

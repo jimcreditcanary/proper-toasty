@@ -1,43 +1,6 @@
 import Link from "next/link";
 import { Logo } from "@/components/logo";
-import { Button } from "@/components/ui/button";
-import { createAdminClient } from "@/lib/supabase/admin";
-import { ShieldCheck, ArrowRight, Calendar } from "lucide-react";
-
-function BlogHeader() {
-  return (
-    <header className="bg-white/80 backdrop-blur-md border-b border-slate-200 sticky top-0 z-50">
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
-        <Link href="/" className="flex items-center">
-          <Logo size="sm" variant="light" />
-        </Link>
-        <nav className="hidden sm:flex items-center gap-6">
-          <Link href="/enterprise" className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors">
-            Enterprise
-          </Link>
-          <Link href="/blog" className="text-sm font-semibold text-slate-900 transition-colors">
-            Blog
-          </Link>
-        </nav>
-        <nav className="flex items-center gap-3">
-          <Button
-            className="h-10 bg-coral hover:bg-coral-dark text-white font-semibold text-sm px-5 rounded-lg shadow-sm hover:shadow-md transition-all"
-            render={<Link href="/verify" />}
-          >
-            Make a check
-          </Button>
-          <Button
-            variant="ghost"
-            className="h-10 text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg"
-            render={<Link href="/auth/login" />}
-          >
-            Sign in
-          </Button>
-        </nav>
-      </div>
-    </header>
-  );
-}
+import { Leaf, ArrowRight, Calendar, Mail } from "lucide-react";
 
 type BlogPost = {
   slug: string;
@@ -57,90 +20,121 @@ function formatDate(iso: string): string {
 }
 
 const CATEGORY_COLORS: Record<string, string> = {
-  "Fraud Prevention": "bg-red-50 text-red-700 border-red-200",
-  Guides: "bg-blue-50 text-blue-700 border-blue-200",
-  News: "bg-amber-50 text-amber-700 border-amber-200",
-  Safety: "bg-emerald-50 text-emerald-700 border-emerald-200",
-  Business: "bg-purple-50 text-purple-700 border-purple-200",
+  Guides: "bg-coral-pale text-coral-dark border-[color:var(--coral)]/20",
+  Stories: "bg-[color:var(--terracotta-pale)] text-[color:var(--terracotta)] border-[color:var(--terracotta)]/20",
+  News: "bg-[color:var(--coral-pale)] text-coral border-[color:var(--coral)]/20",
 };
 
 function CategoryBadge({ category }: { category: string }) {
-  const colors = CATEGORY_COLORS[category] ?? "bg-slate-50 text-slate-700 border-slate-200";
+  const colors =
+    CATEGORY_COLORS[category] ?? "bg-cream-deep text-[var(--muted-brand)] border-[var(--border)]";
   return (
-    <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${colors}`}>
+    <span
+      className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${colors}`}
+    >
       {category}
     </span>
   );
 }
 
+function BlogHeader() {
+  return (
+    <header className="bg-cream/80 backdrop-blur-md border-b border-[var(--border)] sticky top-0 z-50">
+      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
+        <Link href="/" className="flex items-center">
+          <Logo size="sm" variant="light" />
+        </Link>
+        <nav className="hidden sm:flex items-center gap-7 text-sm">
+          <Link href="/enterprise" className="text-[var(--muted-brand)] hover:text-navy transition-colors">
+            For installers
+          </Link>
+          <Link href="/blog" className="text-navy font-semibold">
+            Journal
+          </Link>
+        </nav>
+        <Link
+          href="/check"
+          className="inline-flex items-center gap-1.5 h-10 px-5 rounded-full bg-coral hover:bg-coral-dark text-cream font-medium text-sm transition-colors"
+        >
+          Check my home
+          <ArrowRight className="w-4 h-4" />
+        </Link>
+      </div>
+    </header>
+  );
+}
+
+async function fetchPosts(): Promise<BlogPost[]> {
+  try {
+    // Dynamically import so a missing Supabase connection / missing table on
+    // a fresh project doesn't take the whole page down.
+    const { createAdminClient } = await import("@/lib/supabase/admin");
+    const admin = createAdminClient();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (admin as any)
+      .from("blog_posts")
+      .select("slug, title, excerpt, category, author, published_at")
+      .eq("published", true)
+      .order("published_at", { ascending: false });
+    if (error) return [];
+    return (data ?? []).map((p: Record<string, unknown>) => ({
+      slug: p.slug as string,
+      title: p.title as string,
+      excerpt: p.excerpt as string,
+      category: p.category as string,
+      author: p.author as string,
+      published_at: p.published_at as string,
+    }));
+  } catch {
+    return [];
+  }
+}
+
 export default async function BlogPage() {
-  const admin = createAdminClient();
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data } = await (admin as any)
-    .from("blog_posts")
-    .select("slug, title, excerpt, category, author, published_at")
-    .eq("published", true)
-    .order("published_at", { ascending: false });
-
-  const posts: BlogPost[] = (data ?? []).map((p: Record<string, unknown>) => ({
-    slug: p.slug as string,
-    title: p.title as string,
-    excerpt: p.excerpt as string,
-    category: p.category as string,
-    author: p.author as string,
-    published_at: p.published_at as string,
-  }));
+  const posts = await fetchPosts();
 
   return (
-    <div className="flex min-h-screen flex-col bg-white text-slate-900">
+    <div className="flex min-h-screen flex-col bg-cream text-navy">
       <BlogHeader />
 
       {/* Hero */}
-      <section className="border-b border-slate-200 bg-slate-50">
-        <div className="mx-auto max-w-3xl px-6 py-16 sm:py-20 text-center">
-          <div className="inline-flex items-center gap-2 rounded-full bg-coral/10 border border-coral/20 px-3 py-1.5 mb-6">
-            <ShieldCheck className="size-4 text-coral" />
-            <span className="text-sm font-semibold text-coral">Blog</span>
+      <section className="border-b border-[var(--border)]">
+        <div className="mx-auto max-w-3xl px-6 py-16 sm:py-24 text-center">
+          <div className="inline-flex items-center gap-2 rounded-full bg-white border border-[var(--border)] px-3 py-1 text-xs text-coral shadow-sm">
+            <Leaf className="w-3.5 h-3.5" />
+            Journal
           </div>
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight">
-            Insights to keep you safe
+          <h1 className="mt-6 text-4xl sm:text-5xl lg:text-6xl text-navy leading-[1.05]">
+            Living greener at home.
           </h1>
-          <p className="mt-4 text-lg text-slate-600 max-w-xl mx-auto">
-            Fraud prevention tips, payment safety guides, and the latest
-            scam trends in the UK.
+          <p className="mt-6 text-lg text-[var(--muted-brand)] max-w-xl mx-auto leading-relaxed">
+            Practical notes on heat pumps, rooftop solar, retrofit, and the small decisions that
+            add up to a warmer, lower-carbon UK home.
           </p>
         </div>
       </section>
 
       {/* Posts */}
-      <section className="mx-auto w-full max-w-3xl px-6 py-12 sm:py-16">
+      <section className="mx-auto w-full max-w-3xl px-6 py-14 sm:py-20 flex-1">
         {posts.length === 0 ? (
-          <div className="text-center py-20">
-            <p className="text-slate-500">No posts yet. Check back soon.</p>
-          </div>
+          <EmptyState />
         ) : (
-          <div className="divide-y divide-slate-100">
+          <div className="divide-y divide-[var(--border)]">
             {posts.map((post) => (
-              <article key={post.slug} className="py-8 first:pt-0 last:pb-0">
-                <Link
-                  href={`/blog/${post.slug}`}
-                  className="group block"
-                >
+              <article key={post.slug} className="py-10 first:pt-0 last:pb-0">
+                <Link href={`/blog/${post.slug}`} className="group block">
                   <div className="flex items-center gap-3 mb-3">
                     <CategoryBadge category={post.category} />
-                    <span className="flex items-center gap-1.5 text-xs text-slate-400">
+                    <span className="flex items-center gap-1.5 text-xs text-[var(--muted-brand)]">
                       <Calendar className="size-3" />
                       {formatDate(post.published_at)}
                     </span>
                   </div>
-                  <h2 className="text-xl sm:text-2xl font-bold text-slate-900 group-hover:text-coral transition-colors">
+                  <h2 className="text-2xl sm:text-3xl text-navy group-hover:text-coral transition-colors">
                     {post.title}
                   </h2>
-                  <p className="mt-2 text-slate-600 leading-relaxed">
-                    {post.excerpt}
-                  </p>
-                  <span className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-coral">
+                  <p className="mt-3 text-[var(--muted-brand)] leading-relaxed">{post.excerpt}</p>
+                  <span className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-coral">
                     Read more
                     <ArrowRight className="size-3.5" />
                   </span>
@@ -151,51 +145,44 @@ export default async function BlogPage() {
         )}
       </section>
 
-      {/* CTA */}
-      <section className="bg-slate-900 relative overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-coral/20 via-transparent to-transparent pointer-events-none" />
-        <div className="relative mx-auto max-w-3xl px-6 py-16 text-center">
-          <h2 className="text-2xl sm:text-3xl text-white font-bold tracking-tight">
-            Check before you pay
-          </h2>
-          <p className="mt-3 text-slate-400">
-            Run a free verification check in under 30 seconds.
-          </p>
-          <Button
-            className="mt-6 h-12 px-8 text-[15px] font-semibold rounded-lg bg-coral hover:bg-coral-dark text-white shadow-lg transition-all"
-            render={<Link href="/verify" />}
-          >
-            Make a check — free
-            <ArrowRight className="size-5 ml-2" />
-          </Button>
-        </div>
-      </section>
-
       {/* Footer */}
-      <footer className="bg-white border-t border-slate-200 py-10">
-        <div className="mx-auto max-w-6xl px-6">
-          <div className="flex flex-col items-center gap-6 sm:flex-row sm:justify-between">
-            <Logo size="sm" variant="light" showTagline />
-            <nav className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm text-slate-500">
-              <Link href="/#how-it-works" className="hover:text-slate-900 transition-colors">How it works</Link>
-              <Link href="/enterprise" className="hover:text-slate-900 transition-colors">Enterprise</Link>
-              <Link href="/blog" className="hover:text-slate-900 transition-colors">Blog</Link>
-              <Link href="/verify" className="hover:text-slate-900 transition-colors">Make a check</Link>
-              <Link href="/auth/login" className="hover:text-slate-900 transition-colors">Sign in</Link>
-            </nav>
-          </div>
-          <div className="mt-6 pt-6 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-center sm:text-left">
-            <p className="text-xs text-slate-400">
-              &copy; {new Date().getFullYear()} Propertoasty is a trading name of Ebanking Integration Limited (company no. 06596920). All rights reserved.
-            </p>
-            <nav className="flex flex-wrap justify-center sm:justify-end gap-x-6 gap-y-1 text-xs text-slate-400">
-              <Link href="/privacy" className="hover:text-slate-600 transition-colors">Privacy Policy</Link>
-              <Link href="/terms" className="hover:text-slate-600 transition-colors">Terms of Service</Link>
-              <Link href="/ai-statement" className="hover:text-slate-600 transition-colors">AI Statement</Link>
-            </nav>
-          </div>
+      <footer className="border-t border-[var(--border)] bg-cream-deep">
+        <div className="mx-auto max-w-6xl px-6 py-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-[var(--muted-brand)]">
+          <span>
+            &copy; {new Date().getFullYear()} Propertoasty · a trading name of Ebanking Integration
+            Limited
+          </span>
+          <nav className="flex items-center gap-5">
+            <Link href="/privacy" className="hover:text-navy">Privacy</Link>
+            <Link href="/terms" className="hover:text-navy">Terms</Link>
+            <Link href="/ai-statement" className="hover:text-navy">AI use</Link>
+          </nav>
         </div>
       </footer>
+    </div>
+  );
+}
+
+function EmptyState() {
+  return (
+    <div className="rounded-3xl border border-[var(--border)] bg-white p-10 sm:p-14 text-center">
+      <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-coral-pale text-coral mb-6">
+        <Leaf className="w-6 h-6" />
+      </div>
+      <h2 className="text-2xl sm:text-3xl text-navy">
+        New stories are on the way.
+      </h2>
+      <p className="mt-4 text-[var(--muted-brand)] max-w-md mx-auto leading-relaxed">
+        We&rsquo;re writing up what we learn from real UK homes — heat pump myths, solar-sizing shortcuts,
+        and what installers actually need. First posts land shortly.
+      </p>
+      <Link
+        href="mailto:hello@propertoasty.com?subject=Notify%20me%20when%20the%20journal%20launches"
+        className="mt-7 inline-flex items-center gap-2 h-11 px-5 rounded-full bg-coral hover:bg-coral-dark text-cream font-medium text-sm transition-colors"
+      >
+        <Mail className="w-4 h-4" />
+        Email me when posts go live
+      </Link>
     </div>
   );
 }

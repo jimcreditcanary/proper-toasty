@@ -11,7 +11,7 @@ export const metadata = {
 
 export default function EnterprisePage() {
   return (
-    <div className="flex min-h-screen flex-col bg-slate-50 text-slate-900">
+    <div className="flex min-h-screen flex-col bg-cream text-navy">
       <SiteHeader />
       <main className="flex-1">
         <section className="mx-auto max-w-3xl px-4 sm:px-6 py-20 sm:py-28 text-center">
