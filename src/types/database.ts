@@ -643,6 +643,108 @@ export interface Database {
         };
         Relationships: [];
       };
+      checks: {
+        Row: {
+          id: string;
+          user_id: string;
+          created_at: string;
+          updated_at: string;
+          status: "draft" | "running" | "complete" | "failed";
+          address_formatted: string | null;
+          address_line1: string | null;
+          postcode: string | null;
+          latitude: number | null;
+          longitude: number | null;
+          country: "England" | "Wales" | "Scotland" | "Northern Ireland" | null;
+          google_place_id: string | null;
+          tenure: "owner" | "landlord" | "tenant" | "social" | null;
+          current_heating_fuel: "gas" | "oil" | "lpg" | "electric" | "heat_pump" | "biomass" | "other" | null;
+          hot_water_tank_present: "yes" | "no" | "unsure" | null;
+          outdoor_space_for_ashp: "yes" | "no" | "unsure" | null;
+          hybrid_preference: "replace" | "hybrid" | "undecided" | null;
+          floorplan_object_key: string | null;
+          floorplan_uploaded_at: string | null;
+          share_token: string | null;
+          share_expires_at: string | null;
+          credits_spent: number;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          created_at?: string;
+          updated_at?: string;
+          status?: "draft" | "running" | "complete" | "failed";
+          address_formatted?: string | null;
+          address_line1?: string | null;
+          postcode?: string | null;
+          latitude?: number | null;
+          longitude?: number | null;
+          country?: "England" | "Wales" | "Scotland" | "Northern Ireland" | null;
+          google_place_id?: string | null;
+          tenure?: "owner" | "landlord" | "tenant" | "social" | null;
+          current_heating_fuel?: "gas" | "oil" | "lpg" | "electric" | "heat_pump" | "biomass" | "other" | null;
+          hot_water_tank_present?: "yes" | "no" | "unsure" | null;
+          outdoor_space_for_ashp?: "yes" | "no" | "unsure" | null;
+          hybrid_preference?: "replace" | "hybrid" | "undecided" | null;
+          floorplan_object_key?: string | null;
+          floorplan_uploaded_at?: string | null;
+          share_token?: string | null;
+          share_expires_at?: string | null;
+          credits_spent?: number;
+        };
+        Update: Partial<Database["public"]["Tables"]["checks"]["Insert"]>;
+        Relationships: [];
+      };
+      check_results: {
+        Row: {
+          check_id: string;
+          epc_raw: Json | null;
+          epc_recommendations_raw: Json | null;
+          solar_raw: Json | null;
+          pvgis_raw: Json | null;
+          flood_raw: Json | null;
+          listed_raw: Json | null;
+          planning_raw: Json | null;
+          floorplan_analysis: Json | null;
+          eligibility: Json | null;
+          finance: Json | null;
+          generated_at: string;
+        };
+        Insert: {
+          check_id: string;
+          epc_raw?: Json | null;
+          epc_recommendations_raw?: Json | null;
+          solar_raw?: Json | null;
+          pvgis_raw?: Json | null;
+          flood_raw?: Json | null;
+          listed_raw?: Json | null;
+          planning_raw?: Json | null;
+          floorplan_analysis?: Json | null;
+          eligibility?: Json | null;
+          finance?: Json | null;
+          generated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["check_results"]["Insert"]>;
+        Relationships: [];
+      };
+      api_cache: {
+        Row: {
+          namespace: string;
+          key: string;
+          payload: Json;
+          expires_at: string;
+          created_at: string;
+        };
+        Insert: {
+          namespace: string;
+          key: string;
+          payload: Json;
+          expires_at: string;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["api_cache"]["Insert"]>;
+        Relationships: [];
+      };
     };
     Views: {
       [_ in never]: never;
