@@ -58,20 +58,39 @@ export async function POST(req: Request) {
       }),
     ]);
 
-    const addresses = rawAddresses
-      .filter((a) => a.uprn) // only keep rows with a UPRN (what we actually need)
-      .map((a) => ({
-        uprn: a.uprn,
+    // Postcode-level centroid from Postcodes.io — used when Postcoder's
+    // addtags (latitude/longitude) aren't on the plan or happen to be blank.
+    const centroidLat = postcodeMeta?.latitude ?? 0;
+    const centroidLng = postcodeMeta?.longitude ?? 0;
+
+    const addresses = rawAddresses.map((a, i) => {
+      const lat = Number(a.latitude) || centroidLat || 0;
+      const lng = Number(a.longitude) || centroidLng || 0;
+      const uprn = a.uprn || `row-${i}`; // synthetic key keeps React happy; the
+      // EPC lookup will fall back to postcode+address when UPRN is missing.
+      return {
+        uprn,
         udprn: a.udprn || null,
-        summary: a.summaryline || [a.addressline1, a.addressline2].filter(Boolean).join(", "),
-        addressLine1: a.addressline1 || a.summaryline,
+        summary:
+          a.summaryline ||
+          [a.addressline1, a.addressline2].filter(Boolean).join(", ") ||
+          formatted,
+        addressLine1: a.addressline1 || a.summaryline || "",
         addressLine2: a.addressline2 || null,
         postcode: a.postcode || formatted,
         postTown: a.posttown || "",
-        latitude: Number(a.latitude) || 0,
-        longitude: Number(a.longitude) || 0,
-      }))
-      .filter((a) => a.latitude !== 0 && a.longitude !== 0);
+        latitude: lat,
+        longitude: lng,
+      };
+    });
+
+    if (rawAddresses.length > 0 && addresses.every((a) => !a.uprn.startsWith("row-"))) {
+      // all good
+    } else if (rawAddresses.length > 0) {
+      console.warn(
+        `Postcoder returned ${rawAddresses.length} rows for ${formatted} but UPRN was missing on some — check the plan's addtags (uprn,udprn,latitude,longitude).`
+      );
+    }
 
     const response: AddressLookupResponse = {
       addresses,
