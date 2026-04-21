@@ -84,9 +84,9 @@ export function Step2Preview() {
     const qs = new URLSearchParams({
       lat: String(address.latitude),
       lng: String(address.longitude),
-      zoom: "20",
-      w: "640",
-      h: "400",
+      zoom: "21",
+      w: "800",
+      h: "600",
     });
     return `/api/imagery/satellite?${qs.toString()}`;
   }, [address]);
