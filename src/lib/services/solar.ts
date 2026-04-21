@@ -29,11 +29,16 @@ async function fetchBuildingInsights(
   lng: number,
   quality: Quality
 ): Promise<BuildingInsights | null> {
+  // Note: Google's buildingInsights:findClosest accepts only
+  // location.latitude, location.longitude, requiredQuality, and
+  // exactQualityRequired. Earlier code sent panelCapacityWatts=400 which the
+  // API now rejects with a 400 ("Unknown name"). We still size the array at
+  // 400 W panels downstream — we just divide Google's maxArrayPanelsCount
+  // × 0.4 kWp ourselves when feeding PVGIS.
   const url = new URL(`${SOLAR_BASE}/buildingInsights:findClosest`);
   url.searchParams.set("location.latitude", String(lat));
   url.searchParams.set("location.longitude", String(lng));
   url.searchParams.set("requiredQuality", quality);
-  url.searchParams.set("panelCapacityWatts", "400");
   url.searchParams.set("key", requireKey());
 
   const res = await fetch(url.toString());
