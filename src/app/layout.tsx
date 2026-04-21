@@ -15,37 +15,41 @@ const fraunces = Fraunces({
 export const metadata: Metadata = {
   metadataBase: new URL("https://www.propertoasty.com"),
   title: {
-    default: "Propertoasty — Is your home ready for a heat pump or solar?",
-    template: "%s | Propertoasty",
+    default: "Proper Toasty — Greener living starts at home",
+    template: "%s | Proper Toasty",
   },
   description:
-    "Check your UK home's eligibility for the Boiler Upgrade Scheme and solar PV in minutes. Get a pre-survey report an MCS installer can quote from — no site visit needed.",
+    "Check your UK home for a heat pump, rooftop solar, or a home battery — with room for EV charging when you're ready. Pre-survey report, installer-ready, grant-eligible.",
   keywords: [
     "heat pump eligibility",
     "Boiler Upgrade Scheme",
     "BUS grant",
     "solar PV suitability",
+    "home battery",
+    "battery storage UK",
+    "EV charger home",
     "MCS installer",
     "UK home energy",
     "air source heat pump",
     "EPC check",
     "rooftop solar",
+    "greener living",
   ],
   robots: { index: true, follow: true },
   openGraph: {
     type: "website",
     locale: "en_GB",
     url: "https://www.propertoasty.com",
-    siteName: "Propertoasty",
-    title: "Propertoasty — Is your home ready for a heat pump or solar?",
+    siteName: "Proper Toasty",
+    title: "Proper Toasty — Greener living starts at home",
     description:
-      "Pre-survey eligibility and suitability checks for UK heat pump and solar PV upgrades. Report-ready for your MCS installer.",
+      "Pre-survey checks for UK heat pump, solar, battery, and EV-charger upgrades. Report-ready for your MCS installer.",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Propertoasty — Is your home ready for a heat pump or solar?",
+    title: "Proper Toasty — Greener living starts at home",
     description:
-      "Check heat pump grant eligibility and solar suitability for your UK home in minutes.",
+      "Heat pump, solar, battery, and EV-ready checks for your UK home. Grant-eligible, installer-ready.",
   },
   alternates: {
     canonical: "https://www.propertoasty.com",

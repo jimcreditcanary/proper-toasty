@@ -1,7 +1,16 @@
 import Link from "next/link";
 import Image from "next/image";
 import { Logo } from "@/components/logo";
-import { ArrowRight, Flame, Leaf, Sun, CheckCircle2, Home as HomeIcon } from "lucide-react";
+import {
+  ArrowRight,
+  Flame,
+  Leaf,
+  Sun,
+  CheckCircle2,
+  Home as HomeIcon,
+  BatteryCharging,
+  Zap,
+} from "lucide-react";
 
 // Stock imagery: Unsplash photos chosen for a warm, lived-in feel.
 // Swap these for your own photography when you have it — the paths below
@@ -106,14 +115,15 @@ export default function Home() {
             </div>
 
             <h1 className="mt-6 text-5xl sm:text-6xl text-navy leading-[1.05]">
-              Greener heating
+              Greener living
               <br />
               starts at home.
             </h1>
 
             <p className="mt-6 text-lg text-[var(--muted-brand)] leading-relaxed max-w-lg">
-              See if your UK home is ready for a heat pump or solar — grant eligible, installer-ready,
-              and sized for how you actually live. No site visit, no jargon.
+              See if your home is ready for a heat pump, rooftop solar, or a home battery — with
+              room for EV charging when you are. Grant-eligible, installer-ready, and sized for
+              how you actually live.
             </p>
 
             <div className="mt-10 flex flex-wrap items-center gap-3">
@@ -233,9 +243,14 @@ export default function Home() {
               body="Roof pitch, shading, and annual kWh from PVGIS — plus savings and payback as a range, never a single made-up number."
             />
             <Feature
-              icon={<CheckCircle2 className="w-5 h-5" />}
-              title="Installer-ready"
-              body="Structured so an MCS fitter can quote remotely — with questions flagged for the site visit they do need to make."
+              icon={<BatteryCharging className="w-5 h-5" />}
+              title="Home battery sizing"
+              body="How much storage actually pays back for your usage pattern — paired with your solar output and any overnight heat-pump load."
+            />
+            <Feature
+              icon={<Zap className="w-5 h-5" />}
+              title="EV-ready electrics"
+              body="Headroom for a 7 kW charger when you need it, sized against your likely future draw so your installer isn't back out for a second visit."
             />
           </ul>
         </div>

@@ -1,8 +1,8 @@
 const SIZES = {
-  sm: { mark: 39, text: "text-xl", gap: "gap-2.5" },
-  md: { mark: 55, text: "text-2xl", gap: "gap-3" },
-  lg: { mark: 70, text: "text-3xl", gap: "gap-3.5" },
-  xl: { mark: 88, text: "text-4xl", gap: "gap-4" },
+  sm: { mark: 39, text: "text-[1.625rem]", gap: "gap-2.5" }, // 26px
+  md: { mark: 55, text: "text-[1.95rem]", gap: "gap-3" },    // 31px
+  lg: { mark: 70, text: "text-[2.44rem]", gap: "gap-3.5" },  // 39px
+  xl: { mark: 88, text: "text-[2.93rem]", gap: "gap-4" },    // 47px
 } as const;
 
 type LogoSize = keyof typeof SIZES;
