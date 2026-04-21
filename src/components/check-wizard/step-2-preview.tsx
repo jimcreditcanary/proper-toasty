@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
-import { ArrowLeft, ArrowRight, Building2, Flame, Sun, Zap, Info, Loader2 } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Flame, Sun, Zap, Info, Loader2 } from "lucide-react";
 import { useCheckWizard } from "./context";
 import type { BuildingInsightsResponse } from "@/lib/schemas/solar";
 import type { EpcByAddressResponse } from "@/lib/schemas/epc";
@@ -101,27 +101,24 @@ export function Step2Preview() {
   const ready = solar.status !== "loading" && epc.status !== "loading";
 
   return (
-    <div className="max-w-3xl mx-auto w-full">
-      <div className="text-center mb-8">
+    <div className="max-w-4xl mx-auto w-full">
+      <div className="text-center mb-6">
         <p className="text-xs font-semibold uppercase tracking-wider text-coral mb-2">
           Step 2 of 6
         </p>
-        <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-navy">
-          Is this your home?
-        </h2>
-        <p className="mt-3 text-slate-600">
-          We pulled a satellite view and your EPC — check it looks right before we analyse.
-        </p>
+        <h2 className="text-3xl sm:text-4xl text-navy">Is this your home?</h2>
       </div>
 
-      <div className="rounded-2xl overflow-hidden border border-slate-200 bg-white shadow-sm">
-        <div className="relative aspect-[16/10] bg-slate-100">
+      {/* Side-by-side: compact satellite + address card with inline CTAs so the
+          decision is always above the fold. */}
+      <div className="rounded-2xl overflow-hidden border border-[var(--border)] bg-white shadow-sm grid grid-cols-1 md:grid-cols-5">
+        <div className="relative md:col-span-2 aspect-[4/3] md:aspect-auto md:min-h-[260px] bg-slate-100">
           {satelliteUrl && (
             <Image
               src={satelliteUrl}
               alt="Satellite view of your property"
               fill
-              sizes="(max-width: 768px) 100vw, 768px"
+              sizes="(max-width: 768px) 100vw, 400px"
               className="object-cover"
               unoptimized
               priority
@@ -129,39 +126,46 @@ export function Step2Preview() {
           )}
         </div>
 
-        <div className="p-5 sm:p-6">
-          <p className="text-sm font-medium text-navy">{address.formattedAddress}</p>
-          <p className="mt-1 text-xs text-slate-500">
-            {address.latitude.toFixed(5)}, {address.longitude.toFixed(5)}
-            {state.country ? ` · ${state.country}` : ""}
-            {address.postcode ? ` · ${address.postcode}` : ""}
-          </p>
+        <div className="md:col-span-3 p-5 sm:p-6 flex flex-col">
+          <div className="flex-1">
+            <p className="text-xs font-semibold uppercase tracking-wider text-[var(--muted-brand)] mb-2">
+              The address we&rsquo;ve got
+            </p>
+            <p className="text-base font-medium text-navy leading-snug">
+              {address.formattedAddress}
+            </p>
+            <p className="mt-2 text-xs text-[var(--muted-brand)]">
+              {state.country ? `${state.country} · ` : ""}
+              {address.postcode ?? `${address.latitude.toFixed(4)}, ${address.longitude.toFixed(4)}`}
+            </p>
+          </div>
+
+          <div className="mt-6 flex flex-col-reverse sm:flex-row sm:items-center gap-3">
+            <button
+              type="button"
+              onClick={back}
+              className="inline-flex items-center justify-center gap-1.5 h-11 px-4 rounded-full border border-[var(--border)] text-sm font-medium text-[var(--muted-brand)] hover:text-navy hover:border-navy transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              No, different address
+            </button>
+            <button
+              type="button"
+              onClick={next}
+              disabled={!ready}
+              className="inline-flex items-center justify-center gap-2 h-11 px-6 rounded-full bg-coral hover:bg-coral-dark disabled:bg-slate-300 disabled:cursor-not-allowed text-cream font-semibold text-sm transition-colors shadow-sm flex-1 sm:flex-initial"
+            >
+              <CheckCircle2 className="w-4 h-4" />
+              Yes, that&rsquo;s my home
+            </button>
+          </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6">
+      {/* Detail cards — supporting info, not blockers for advancing. */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-5">
         <SolarCard state={solar} />
         <EpcCard state={epc} />
-      </div>
-
-      <div className="mt-10 flex items-center justify-between">
-        <button
-          type="button"
-          onClick={back}
-          className="inline-flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back
-        </button>
-        <button
-          type="button"
-          onClick={next}
-          disabled={!ready}
-          className="inline-flex items-center gap-2 h-11 px-6 rounded-lg bg-coral hover:bg-coral-dark disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-semibold text-sm transition-colors"
-        >
-          Yes, this is right
-          <ArrowRight className="w-4 h-4" />
-        </button>
       </div>
     </div>
   );
