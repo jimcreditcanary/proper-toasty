@@ -5,8 +5,8 @@ import type { BillParseResponse } from "@/lib/schemas/bill";
 export const runtime = "nodejs";
 export const maxDuration = 30;
 
-const ALLOWED = new Set(["image/jpeg", "image/png"]);
-const MAX_BYTES = 8 * 1024 * 1024; // 8 MB post-resize
+const ALLOWED = new Set(["image/jpeg", "image/png", "application/pdf"]);
+const MAX_BYTES = 12 * 1024 * 1024; // 12 MB — PDFs are heavier than resized images
 
 export async function POST(req: Request) {
   let form: FormData;
@@ -23,19 +23,19 @@ export async function POST(req: Request) {
 
   if (!ALLOWED.has(file.type)) {
     return NextResponse.json(
-      { error: "Only JPG or PNG bills are supported. Save a PDF page as an image first." },
+      { error: "Upload a JPG, PNG, or PDF bill." },
       { status: 415 }
     );
   }
   if (file.size > MAX_BYTES) {
-    return NextResponse.json({ error: "File too large (8 MB max)" }, { status: 413 });
+    return NextResponse.json({ error: "File too large (12 MB max)" }, { status: 413 });
   }
 
   try {
     const buffer = Buffer.from(await file.arrayBuffer());
     const result = await parseBill({
       data: buffer.toString("base64"),
-      mediaType: file.type as "image/jpeg" | "image/png",
+      mediaType: file.type as "image/jpeg" | "image/png" | "application/pdf",
     });
 
     const response: BillParseResponse = result.analysis

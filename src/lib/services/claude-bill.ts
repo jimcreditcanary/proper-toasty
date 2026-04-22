@@ -1,3 +1,4 @@
+import type Anthropic from "@anthropic-ai/sdk";
 import { anthropic } from "@/lib/anthropic";
 import { BILL_SYSTEM, BILL_USER } from "@/lib/prompts/bill-analysis";
 import { BillAnalysisSchema, type BillAnalysis } from "@/lib/schemas/bill";
@@ -5,9 +6,11 @@ import { BillAnalysisSchema, type BillAnalysis } from "@/lib/schemas/bill";
 const MODEL = "claude-opus-4-7";
 const MAX_TOKENS = 800;
 
+export type BillMediaType = "image/jpeg" | "image/png" | "application/pdf";
+
 interface ParseInput {
   data: string; // base64
-  mediaType: "image/jpeg" | "image/png";
+  mediaType: BillMediaType;
 }
 
 export interface BillParseResult {
@@ -21,6 +24,29 @@ function extractJson(text: string): unknown {
   return JSON.parse(candidate.trim());
 }
 
+function buildContentBlock(input: ParseInput): Anthropic.ContentBlockParam {
+  if (input.mediaType === "application/pdf") {
+    // Anthropic vision supports PDFs as a document content block — no need to
+    // pre-render the page client-side.
+    return {
+      type: "document",
+      source: {
+        type: "base64",
+        media_type: "application/pdf",
+        data: input.data,
+      },
+    };
+  }
+  return {
+    type: "image",
+    source: {
+      type: "base64",
+      media_type: input.mediaType,
+      data: input.data,
+    },
+  };
+}
+
 async function callClaude(image: ParseInput, nudge?: string): Promise<string> {
   const userText = nudge ? `${BILL_USER}\n\n${nudge}` : BILL_USER;
   const response = await anthropic.messages.create({
@@ -30,17 +56,7 @@ async function callClaude(image: ParseInput, nudge?: string): Promise<string> {
     messages: [
       {
         role: "user",
-        content: [
-          {
-            type: "image",
-            source: {
-              type: "base64",
-              media_type: image.mediaType,
-              data: image.data,
-            },
-          },
-          { type: "text", text: userText },
-        ],
+        content: [buildContentBlock(image), { type: "text", text: userText }],
       },
     ],
   });

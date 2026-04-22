@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -315,21 +315,35 @@ function EnergyUsageCard({
     | { kind: "done"; confidence: string; supplier: string | null; notes: string }
     | { kind: "error"; message: string }
   >({ kind: "idle" });
+  const [dragOver, setDragOver] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const dropRef = useRef<HTMLDivElement>(null);
 
   const handleFile = async (file: File) => {
-    if (!["image/jpeg", "image/png"].includes(file.type)) {
+    const isImage = file.type === "image/jpeg" || file.type === "image/png";
+    const isPdf = file.type === "application/pdf";
+    if (!isImage && !isPdf) {
       setUploadState({
         kind: "error",
-        message: "Upload a JPG or PNG — screenshot the bill page if it's a PDF.",
+        message: "Upload a JPG, PNG, or PDF.",
       });
       return;
     }
     setUploadState({ kind: "processing" });
     try {
-      const { blob } = await resizeImage(file, { maxLongEdge: 1600, quality: 0.9 });
+      let upload: Blob = file;
+      let uploadName = file.name || (isPdf ? "bill.pdf" : "bill.jpg");
+      let uploadType: string = file.type;
+      if (isImage) {
+        // Only resize images. PDFs go to Claude as-is via the document content
+        // block — we let Claude handle the page.
+        const { blob } = await resizeImage(file, { maxLongEdge: 1600, quality: 0.9 });
+        upload = blob;
+        uploadName = "bill.jpg";
+        uploadType = "image/jpeg";
+      }
       const form = new FormData();
-      form.append("file", new File([blob], "bill.jpg", { type: "image/jpeg" }));
+      form.append("file", new File([upload], uploadName, { type: uploadType }));
       const res = await fetch("/api/bill/parse", { method: "POST", body: form });
       if (!res.ok) {
         const j = (await res.json().catch(() => ({}))) as { error?: string };
@@ -361,6 +375,39 @@ function EnergyUsageCard({
     }
   };
 
+  // Paste-from-clipboard. Active only while the energy card is expanded so we
+  // don't hijack pastes anywhere else on the page (e.g. in the kWh inputs).
+  useEffect(() => {
+    if (!expanded) return;
+    const onPaste = (e: ClipboardEvent) => {
+      // If the user is pasting into a normal input, leave them alone.
+      const target = e.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.isContentEditable)
+      ) {
+        return;
+      }
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (const item of items) {
+        if (item.kind === "file") {
+          const f = item.getAsFile();
+          if (f && (f.type.startsWith("image/") || f.type === "application/pdf")) {
+            e.preventDefault();
+            void handleFile(f);
+            return;
+          }
+        }
+      }
+    };
+    window.addEventListener("paste", onPaste);
+    return () => window.removeEventListener("paste", onPaste);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expanded]);
+
   return (
     <div className="rounded-2xl border border-[var(--border)] bg-white p-5 sm:p-6 shadow-sm">
       <button
@@ -387,28 +434,60 @@ function EnergyUsageCard({
       {expanded && (
         <div className="mt-5 space-y-4">
           <div>
-            <button
-              type="button"
+            <div
+              ref={dropRef}
+              role="button"
+              tabIndex={0}
               onClick={() => fileRef.current?.click()}
-              disabled={uploadState.kind === "processing"}
-              className="w-full flex items-center justify-center gap-2 h-11 px-4 rounded-lg border-2 border-dashed border-coral/40 bg-coral-pale/40 hover:bg-coral-pale hover:border-coral text-coral-dark font-medium text-sm transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  fileRef.current?.click();
+                }
+              }}
+              onDragOver={(e) => {
+                e.preventDefault();
+                if (uploadState.kind !== "processing") setDragOver(true);
+              }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDragOver(false);
+                const f = e.dataTransfer.files?.[0];
+                if (f) void handleFile(f);
+              }}
+              aria-busy={uploadState.kind === "processing"}
+              aria-disabled={uploadState.kind === "processing"}
+              className={`w-full rounded-lg border-2 border-dashed transition-colors px-4 py-5 text-center cursor-pointer select-none ${
+                uploadState.kind === "processing"
+                  ? "border-coral/30 bg-coral-pale/40 opacity-60 cursor-not-allowed"
+                  : dragOver
+                  ? "border-coral bg-coral-pale"
+                  : "border-coral/40 bg-coral-pale/40 hover:bg-coral-pale hover:border-coral"
+              }`}
             >
               {uploadState.kind === "processing" ? (
-                <>
+                <span className="inline-flex items-center gap-2 text-coral-dark text-sm font-medium">
                   <Loader2 className="w-4 h-4 animate-spin" />
                   Reading your bill…
-                </>
+                </span>
               ) : (
                 <>
-                  <Upload className="w-4 h-4" />
-                  Upload a bill to autofill
+                  <span className="inline-flex items-center gap-2 text-coral-dark text-sm font-semibold">
+                    <Upload className="w-4 h-4" />
+                    {dragOver ? "Drop to upload" : "Upload a bill to autofill"}
+                  </span>
+                  <span className="block mt-1.5 text-[11px] text-[var(--muted-brand)]">
+                    Drag &amp; drop, click to choose, or paste a screenshot (⌘V) ·
+                    JPG / PNG / PDF, up to 12 MB
+                  </span>
                 </>
               )}
-            </button>
+            </div>
             <input
               ref={fileRef}
               type="file"
-              accept="image/jpeg,image/png"
+              accept="image/jpeg,image/png,application/pdf"
               className="hidden"
               onChange={(e) => {
                 const f = e.target.files?.[0];
