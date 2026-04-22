@@ -48,7 +48,12 @@ export interface CheckWizardState {
   //   - hot water tank? → floorplan.hotWaterCylinderSpace
   //   - 1m² outdoor space? → floorplan.outdoorSpace + heatPumpInstallationConcerns
   // All of those are surfaced in Step 6 directly from the floorplan analysis.
-  interests: Interest[]; // multi-select: heat_pump, solar_battery, or both
+  //
+  // Interests is no longer asked up-front — the report covers heat pump +
+  // solar + battery as a combined recommendation, and the user can toggle
+  // technologies on/off on the results page. We default to both so the
+  // analysis runs across the full set.
+  interests: Interest[];
   tenure: Tenure | null;
   currentHeatingFuel: HeatingFuel | null; // future: pre-fill from EPC main fuel
   priorHeatPumpFunding: YesNoUnsure | null; // Ofgem BUS: no double funding
@@ -68,7 +73,7 @@ export interface CheckWizardState {
 export const INITIAL_STATE: CheckWizardState = {
   address: null,
   country: null,
-  interests: [],
+  interests: ["heat_pump", "solar_battery"],
   tenure: null,
   currentHeatingFuel: null,
   priorHeatPumpFunding: null,

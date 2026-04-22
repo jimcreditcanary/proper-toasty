@@ -4,37 +4,13 @@ import { useMemo } from "react";
 import {
   ArrowLeft,
   ArrowRight,
-  Flame,
-  Sun,
-  Check,
   Home as HomeIcon,
   Thermometer,
-  Gauge,
   Receipt,
 } from "lucide-react";
 import { useCheckWizard } from "./context";
-import type { HeatingFuel, Interest, Tenure, YesNoUnsure } from "./types";
+import type { HeatingFuel, Tenure, YesNoUnsure } from "./types";
 import { EnergyDetailsCard, isFuelTariffComplete } from "./energy-details";
-
-const INTEREST_OPTIONS: Array<{
-  value: Interest;
-  title: string;
-  body: string;
-  icon: React.ReactNode;
-}> = [
-  {
-    value: "heat_pump",
-    title: "A heat pump",
-    body: "Replace my gas or oil boiler with an air source heat pump.",
-    icon: <Flame className="w-5 h-5" />,
-  },
-  {
-    value: "solar_battery",
-    title: "Solar & battery",
-    body: "Generate my own electricity and store it for later.",
-    icon: <Sun className="w-5 h-5" />,
-  },
-];
 
 const TENURE_OPTIONS: Array<{ value: Tenure; title: string; body: string }> = [
   { value: "owner", title: "I own and live here", body: "Owner-occupier." },
@@ -57,32 +33,23 @@ const YNU_OPTIONS: Array<{ value: YesNoUnsure; title: string }> = [
 
 export function Step3Questions() {
   const { state, update, next, back } = useCheckWizard();
-  const showHeatPumpSpecific = state.interests.includes("heat_pump");
-
-  const toggleInterest = (v: Interest) => {
-    const has = state.interests.includes(v);
-    const next = has ? state.interests.filter((i) => i !== v) : [...state.interests, v];
-    update({ interests: next });
-  };
 
   const gasRequired = state.currentHeatingFuel === "gas";
 
   const ready = useMemo(() => {
-    if (state.interests.length === 0) return false;
     if (!state.tenure || !state.currentHeatingFuel) return false;
-    if (showHeatPumpSpecific && !state.priorHeatPumpFunding) return false;
+    // Heat pump grant blocker — always ask, since the report covers heat pump.
+    if (!state.priorHeatPumpFunding) return false;
     // Energy details: electricity always required; gas required when fuel is gas.
     if (!isFuelTariffComplete(state.electricityTariff)) return false;
     if (gasRequired && !isFuelTariffComplete(state.gasTariff)) return false;
     return true;
   }, [
-    state.interests,
     state.tenure,
     state.currentHeatingFuel,
     state.priorHeatPumpFunding,
     state.electricityTariff,
     state.gasTariff,
-    showHeatPumpSpecific,
     gasRequired,
   ]);
 
@@ -94,65 +61,17 @@ export function Step3Questions() {
         </p>
         <h2 className="text-3xl sm:text-4xl text-navy">A few quick questions</h2>
         <p className="mt-3 text-slate-600">
-          Takes about 30 seconds. We&rsquo;ll read the rest off your EPC, your floorplan,
-          and satellite data.
+          Takes about 30 seconds. Your report will cover{" "}
+          <span className="font-semibold text-navy">heat pump, solar and battery</span>{" "}
+          as a combined recommendation — you can switch any of them on or off when
+          you see the results.
+        </p>
+        <p className="mt-2 text-sm text-slate-500">
+          We&rsquo;ll read the rest off your EPC, your floorplan, and satellite data.
         </p>
       </div>
 
       <div className="space-y-6">
-        <Question
-          icon={<Gauge className="w-4 h-4" />}
-          title="What are you interested in?"
-          sub="Pick one or both — we'll tune the report to what you want to explore."
-        >
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {INTEREST_OPTIONS.map((opt) => {
-              const selected = state.interests.includes(opt.value);
-              return (
-                <button
-                  key={opt.value}
-                  type="button"
-                  role="checkbox"
-                  aria-checked={selected}
-                  onClick={() => toggleInterest(opt.value)}
-                  className={`text-left rounded-lg border px-4 py-3 transition-colors ${
-                    selected
-                      ? "border-coral bg-coral-pale"
-                      : "border-[var(--border)] bg-white hover:border-slate-300"
-                  }`}
-                >
-                  <span
-                    className={`flex items-center justify-between gap-2 text-sm font-medium ${
-                      selected ? "text-coral-dark" : "text-navy"
-                    }`}
-                  >
-                    <span className="inline-flex items-center gap-1.5">
-                      {opt.icon}
-                      {opt.title}
-                    </span>
-                    <span
-                      className={`inline-flex items-center justify-center w-5 h-5 rounded border shrink-0 transition-colors ${
-                        selected
-                          ? "bg-coral border-coral text-cream"
-                          : "border-slate-300 bg-white"
-                      }`}
-                      aria-hidden
-                    >
-                      {selected && <Check className="w-3.5 h-3.5" />}
-                    </span>
-                  </span>
-                  <span className="block text-xs text-slate-500 mt-1">{opt.body}</span>
-                </button>
-              );
-            })}
-          </div>
-          {state.interests.length === 0 && (
-            <p className="mt-3 text-xs text-[var(--muted-brand)]">
-              Tick at least one to carry on.
-            </p>
-          )}
-        </Question>
-
         <Question
           icon={<HomeIcon className="w-4 h-4" />}
           title="Who lives here?"
@@ -178,20 +97,18 @@ export function Step3Questions() {
           />
         </Question>
 
-        {showHeatPumpSpecific && (
-          <Question
-            icon={<Receipt className="w-4 h-4" />}
-            title="Have you already had government funding for a heat pump or biomass boiler?"
-            sub="Ofgem's Boiler Upgrade Scheme only pays out once per property. Separate funding for insulation, windows, or doors is fine."
-          >
-            <Tiles
-              options={YNU_OPTIONS}
-              value={state.priorHeatPumpFunding}
-              onChange={(v) => update({ priorHeatPumpFunding: v })}
-              columns={3}
-            />
-          </Question>
-        )}
+        <Question
+          icon={<Receipt className="w-4 h-4" />}
+          title="Have you already had government funding for a heat pump or biomass boiler?"
+          sub="Ofgem's Boiler Upgrade Scheme only pays out once per property. Separate funding for insulation, windows, or doors is fine."
+        >
+          <Tiles
+            options={YNU_OPTIONS}
+            value={state.priorHeatPumpFunding}
+            onChange={(v) => update({ priorHeatPumpFunding: v })}
+            columns={3}
+          />
+        </Question>
 
         <EnergyDetailsCard
           electricity={state.electricityTariff}
