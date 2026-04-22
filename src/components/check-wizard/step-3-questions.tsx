@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -11,14 +11,10 @@ import {
   Thermometer,
   Gauge,
   Receipt,
-  Upload,
-  Loader2,
-  Sparkles,
 } from "lucide-react";
 import { useCheckWizard } from "./context";
 import type { HeatingFuel, Interest, Tenure, YesNoUnsure } from "./types";
-import { resizeImage } from "@/lib/client/image-resize";
-import type { BillParseResponse } from "@/lib/schemas/bill";
+import { EnergyDetailsCard, isFuelTariffComplete } from "./energy-details";
 
 const INTEREST_OPTIONS: Array<{
   value: Interest;
@@ -69,17 +65,25 @@ export function Step3Questions() {
     update({ interests: next });
   };
 
+  const gasRequired = state.currentHeatingFuel === "gas";
+
   const ready = useMemo(() => {
     if (state.interests.length === 0) return false;
     if (!state.tenure || !state.currentHeatingFuel) return false;
     if (showHeatPumpSpecific && !state.priorHeatPumpFunding) return false;
+    // Energy details: electricity always required; gas required when fuel is gas.
+    if (!isFuelTariffComplete(state.electricityTariff)) return false;
+    if (gasRequired && !isFuelTariffComplete(state.gasTariff)) return false;
     return true;
   }, [
     state.interests,
     state.tenure,
     state.currentHeatingFuel,
     state.priorHeatPumpFunding,
+    state.electricityTariff,
+    state.gasTariff,
     showHeatPumpSpecific,
+    gasRequired,
   ]);
 
   return (
@@ -189,9 +193,10 @@ export function Step3Questions() {
           </Question>
         )}
 
-        <EnergyUsageCard
-          annualGasKWh={state.annualGasKWh}
-          annualElectricityKWh={state.annualElectricityKWh}
+        <EnergyDetailsCard
+          electricity={state.electricityTariff}
+          gas={state.gasTariff}
+          gasRequired={gasRequired}
           onChange={(patch) => update(patch)}
         />
 
@@ -291,292 +296,5 @@ function Tiles<T extends string>({
         );
       })}
     </div>
-  );
-}
-
-function EnergyUsageCard({
-  annualGasKWh,
-  annualElectricityKWh,
-  onChange,
-}: {
-  annualGasKWh: number | null;
-  annualElectricityKWh: number | null;
-  onChange: (patch: {
-    annualGasKWh?: number | null;
-    annualElectricityKWh?: number | null;
-  }) => void;
-}) {
-  const [expanded, setExpanded] = useState(
-    annualGasKWh != null || annualElectricityKWh != null
-  );
-  const [uploadState, setUploadState] = useState<
-    | { kind: "idle" }
-    | { kind: "processing" }
-    | { kind: "done"; confidence: string; supplier: string | null; notes: string }
-    | { kind: "error"; message: string }
-  >({ kind: "idle" });
-  const [dragOver, setDragOver] = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
-  const dropRef = useRef<HTMLDivElement>(null);
-
-  const handleFile = async (file: File) => {
-    const isImage = file.type === "image/jpeg" || file.type === "image/png";
-    const isPdf = file.type === "application/pdf";
-    if (!isImage && !isPdf) {
-      setUploadState({
-        kind: "error",
-        message: "Upload a JPG, PNG, or PDF.",
-      });
-      return;
-    }
-    setUploadState({ kind: "processing" });
-    try {
-      let upload: Blob = file;
-      let uploadName = file.name || (isPdf ? "bill.pdf" : "bill.jpg");
-      let uploadType: string = file.type;
-      if (isImage) {
-        // Only resize images. PDFs go to Claude as-is via the document content
-        // block — we let Claude handle the page.
-        const { blob } = await resizeImage(file, { maxLongEdge: 1600, quality: 0.9 });
-        upload = blob;
-        uploadName = "bill.jpg";
-        uploadType = "image/jpeg";
-      }
-      const form = new FormData();
-      form.append("file", new File([upload], uploadName, { type: uploadType }));
-      const res = await fetch("/api/bill/parse", { method: "POST", body: form });
-      if (!res.ok) {
-        const j = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(j.error ?? `Upload failed (${res.status})`);
-      }
-      const data = (await res.json()) as BillParseResponse;
-      if (!data.ok) {
-        setUploadState({
-          kind: "error",
-          message: data.reason ?? "We couldn't read the bill reliably.",
-        });
-        return;
-      }
-      onChange({
-        annualGasKWh: data.analysis.annualGasKWh ?? null,
-        annualElectricityKWh: data.analysis.annualElectricityKWh ?? null,
-      });
-      setUploadState({
-        kind: "done",
-        confidence: data.analysis.confidence,
-        supplier: data.analysis.supplier,
-        notes: data.analysis.notes,
-      });
-    } catch (e) {
-      setUploadState({
-        kind: "error",
-        message: e instanceof Error ? e.message : "Upload failed",
-      });
-    }
-  };
-
-  // Paste-from-clipboard. Active only while the energy card is expanded so we
-  // don't hijack pastes anywhere else on the page (e.g. in the kWh inputs).
-  useEffect(() => {
-    if (!expanded) return;
-    const onPaste = (e: ClipboardEvent) => {
-      // If the user is pasting into a normal input, leave them alone.
-      const target = e.target as HTMLElement | null;
-      if (
-        target &&
-        (target.tagName === "INPUT" ||
-          target.tagName === "TEXTAREA" ||
-          target.isContentEditable)
-      ) {
-        return;
-      }
-      const items = e.clipboardData?.items;
-      if (!items) return;
-      for (const item of items) {
-        if (item.kind === "file") {
-          const f = item.getAsFile();
-          if (f && (f.type.startsWith("image/") || f.type === "application/pdf")) {
-            e.preventDefault();
-            void handleFile(f);
-            return;
-          }
-        }
-      }
-    };
-    window.addEventListener("paste", onPaste);
-    return () => window.removeEventListener("paste", onPaste);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [expanded]);
-
-  return (
-    <div className="rounded-2xl border border-[var(--border)] bg-white p-5 sm:p-6 shadow-sm">
-      <button
-        type="button"
-        onClick={() => setExpanded((v) => !v)}
-        className="w-full flex items-start gap-3 text-left"
-      >
-        <span className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-coral-pale text-coral shrink-0">
-          <Gauge className="w-4 h-4" />
-        </span>
-        <span className="flex-1">
-          <span className="block text-sm font-semibold text-navy">
-            Add your annual energy use{" "}
-            <span className="text-[var(--muted-brand)] font-normal">(optional)</span>
-          </span>
-          <span className="block mt-1 text-xs text-slate-500 leading-relaxed">
-            Have a recent bill handy? Upload it and we&rsquo;ll pull the annual kWh
-            figures out for you, or type them in yourself.
-          </span>
-        </span>
-        <span className="text-xs text-coral font-medium">{expanded ? "Hide" : "Add"}</span>
-      </button>
-
-      {expanded && (
-        <div className="mt-5 space-y-4">
-          <div>
-            <div
-              ref={dropRef}
-              role="button"
-              tabIndex={0}
-              onClick={() => fileRef.current?.click()}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  fileRef.current?.click();
-                }
-              }}
-              onDragOver={(e) => {
-                e.preventDefault();
-                if (uploadState.kind !== "processing") setDragOver(true);
-              }}
-              onDragLeave={() => setDragOver(false)}
-              onDrop={(e) => {
-                e.preventDefault();
-                setDragOver(false);
-                const f = e.dataTransfer.files?.[0];
-                if (f) void handleFile(f);
-              }}
-              aria-busy={uploadState.kind === "processing"}
-              aria-disabled={uploadState.kind === "processing"}
-              className={`w-full rounded-lg border-2 border-dashed transition-colors px-4 py-5 text-center cursor-pointer select-none ${
-                uploadState.kind === "processing"
-                  ? "border-coral/30 bg-coral-pale/40 opacity-60 cursor-not-allowed"
-                  : dragOver
-                  ? "border-coral bg-coral-pale"
-                  : "border-coral/40 bg-coral-pale/40 hover:bg-coral-pale hover:border-coral"
-              }`}
-            >
-              {uploadState.kind === "processing" ? (
-                <span className="inline-flex items-center gap-2 text-coral-dark text-sm font-medium">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Reading your bill…
-                </span>
-              ) : (
-                <>
-                  <span className="inline-flex items-center gap-2 text-coral-dark text-sm font-semibold">
-                    <Upload className="w-4 h-4" />
-                    {dragOver ? "Drop to upload" : "Upload a bill to autofill"}
-                  </span>
-                  <span className="block mt-1.5 text-[11px] text-[var(--muted-brand)]">
-                    Drag &amp; drop, click to choose, or paste a screenshot (⌘V) ·
-                    JPG / PNG / PDF, up to 12 MB
-                  </span>
-                </>
-              )}
-            </div>
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/jpeg,image/png,application/pdf"
-              className="hidden"
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (f) void handleFile(f);
-                e.target.value = "";
-              }}
-            />
-
-            {uploadState.kind === "done" && (
-              <p className="mt-3 text-xs text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2 flex items-start gap-2">
-                <Sparkles className="w-4 h-4 shrink-0 mt-0.5" />
-                <span>
-                  Pulled your figures from
-                  {uploadState.supplier ? ` your ${uploadState.supplier} bill` : " the bill"}
-                  {" "}(confidence: {uploadState.confidence}). Check they look right — edit
-                  below if not.
-                </span>
-              </p>
-            )}
-            {uploadState.kind === "error" && (
-              <p className="mt-3 text-xs text-red-700 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
-                {uploadState.message}
-              </p>
-            )}
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <NumberField
-              label="Annual gas use"
-              unit="kWh"
-              value={annualGasKWh}
-              onChange={(v) => onChange({ annualGasKWh: v })}
-              placeholder="e.g. 12000"
-            />
-            <NumberField
-              label="Annual electricity use"
-              unit="kWh"
-              value={annualElectricityKWh}
-              onChange={(v) => onChange({ annualElectricityKWh: v })}
-              placeholder="e.g. 3200"
-            />
-          </div>
-
-          <p className="text-[11px] text-slate-500">
-            We don&rsquo;t save your bill — it goes straight to our vision model and the
-            image is discarded after the numbers are extracted.
-          </p>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function NumberField({
-  label,
-  unit,
-  value,
-  onChange,
-  placeholder,
-}: {
-  label: string;
-  unit: string;
-  value: number | null;
-  onChange: (v: number | null) => void;
-  placeholder?: string;
-}) {
-  return (
-    <label className="block">
-      <span className="block text-xs font-semibold text-[var(--muted-brand)] mb-1.5">
-        {label}
-      </span>
-      <span className="relative block">
-        <input
-          type="number"
-          inputMode="numeric"
-          min={0}
-          step={100}
-          value={value ?? ""}
-          placeholder={placeholder}
-          onChange={(e) => {
-            const n = e.target.value === "" ? null : Number(e.target.value);
-            onChange(n != null && Number.isFinite(n) && n >= 0 ? n : null);
-          }}
-          className="w-full h-11 pl-3 pr-14 rounded-lg border border-[var(--border)] bg-white text-sm text-navy focus:outline-none focus:ring-2 focus:ring-coral focus:border-transparent"
-        />
-        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-slate-400">
-          {unit}
-        </span>
-      </span>
-    </label>
   );
 }

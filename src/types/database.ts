@@ -665,6 +665,8 @@ export interface Database {
           hot_water_tank_present: "yes" | "no" | "unsure" | null;
           outdoor_space_for_ashp: "yes" | "no" | "unsure" | null;
           hybrid_preference: "replace" | "hybrid" | "undecided" | null;
+          electricity_tariff: Json | null;
+          gas_tariff: Json | null;
           floorplan_object_key: string | null;
           floorplan_uploaded_at: string | null;
           share_token: string | null;
@@ -692,6 +694,8 @@ export interface Database {
           hot_water_tank_present?: "yes" | "no" | "unsure" | null;
           outdoor_space_for_ashp?: "yes" | "no" | "unsure" | null;
           hybrid_preference?: "replace" | "hybrid" | "undecided" | null;
+          electricity_tariff?: Json | null;
+          gas_tariff?: Json | null;
           floorplan_object_key?: string | null;
           floorplan_uploaded_at?: string | null;
           share_token?: string | null;

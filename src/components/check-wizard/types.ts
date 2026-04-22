@@ -1,5 +1,6 @@
 import type { UkCountry } from "@/lib/postcode/region";
 import type { AnalyseResponse } from "@/lib/schemas/analyse";
+import type { FuelTariff } from "@/lib/schemas/bill";
 
 export type CheckStep =
   | "address"
@@ -51,8 +52,11 @@ export interface CheckWizardState {
   tenure: Tenure | null;
   currentHeatingFuel: HeatingFuel | null; // future: pre-fill from EPC main fuel
   priorHeatPumpFunding: YesNoUnsure | null; // Ofgem BUS: no double funding
-  annualGasKWh: number | null;
-  annualElectricityKWh: number | null;
+
+  // Energy tariff details — required for cost-savings calc later.
+  // Electricity always required; gas required when currentHeatingFuel === "gas".
+  electricityTariff: FuelTariff | null;
+  gasTariff: FuelTariff | null;
 
   // Step 4 — floorplan
   floorplanObjectKey: string | null;
@@ -68,8 +72,8 @@ export const INITIAL_STATE: CheckWizardState = {
   tenure: null,
   currentHeatingFuel: null,
   priorHeatPumpFunding: null,
-  annualGasKWh: null,
-  annualElectricityKWh: null,
+  electricityTariff: null,
+  gasTariff: null,
   floorplanObjectKey: null,
   analysis: null,
 };

@@ -38,6 +38,10 @@ create table public.checks (
   outdoor_space_for_ashp public.yes_no_unsure,
   hybrid_preference public.hybrid_preference,
 
+  -- energy tariffs (per FuelTariffSchema in src/lib/schemas/bill.ts)
+  electricity_tariff jsonb,
+  gas_tariff jsonb,
+
   -- floorplan
   floorplan_object_key text,                 -- bucket path, NOT a public URL
   floorplan_uploaded_at timestamptz,

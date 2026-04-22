@@ -2,6 +2,7 @@ import { z } from "zod";
 import { BuildingInsightsResponseSchema } from "@/lib/schemas/solar";
 import { EpcByAddressResponseSchema } from "@/lib/schemas/epc";
 import { FloorplanAnalysisSchema } from "@/lib/schemas/floorplan";
+import { FuelTariffSchema } from "@/lib/schemas/bill";
 import {
   FloodResponseSchema,
   ListedResponseSchema,
@@ -30,8 +31,12 @@ export const AnalyseRequestSchema = z.object({
     tenure: z.enum(["owner", "landlord", "tenant", "social"]),
     currentHeatingFuel: z.enum(["gas", "electric", "other"]),
     priorHeatPumpFunding: z.enum(["yes", "no", "unsure"]).optional(),
-    annualGasKWh: z.number().nullable().optional(),
-    annualElectricityKWh: z.number().nullable().optional(),
+    // Per-fuel tariff details (electricity always required when the
+    // questionnaire reaches Step 5, gas required when fuel === "gas"). The
+    // shape is the same whether sourced from a bill upload or a manual entry —
+    // see FuelTariffSchema for the discriminator.
+    electricityTariff: FuelTariffSchema.nullable(),
+    gasTariff: FuelTariffSchema.nullable(),
   }),
   floorplanObjectKey: z.string(),
 });
