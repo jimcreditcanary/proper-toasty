@@ -51,6 +51,15 @@ export function Step5Analysis() {
           gasTariff: state.gasTariff,
         },
         floorplanObjectKey: state.floorplanObjectKey,
+        // Step 4 already ran the floorplan analysis (with the user's edits).
+        // Pass it through so /api/analyse skips its own Claude vision call.
+        precomputedFloorplan: state.floorplanAnalysis
+          ? {
+              analysis: state.floorplanAnalysis,
+              degraded: state.floorplanDegraded,
+              reason: state.floorplanDegradedReason ?? undefined,
+            }
+          : undefined,
       }),
     })
       .then(async (res) => {

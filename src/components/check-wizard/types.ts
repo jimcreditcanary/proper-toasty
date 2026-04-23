@@ -1,6 +1,7 @@
 import type { UkCountry } from "@/lib/postcode/region";
 import type { AnalyseResponse } from "@/lib/schemas/analyse";
 import type { FuelTariff } from "@/lib/schemas/bill";
+import type { FloorplanAnalysis } from "@/lib/schemas/floorplan";
 
 export type CheckStep =
   | "address"
@@ -65,6 +66,15 @@ export interface CheckWizardState {
 
   // Step 4 — floorplan
   floorplanObjectKey: string | null;
+  // Pre-computed floorplan analysis from /api/floorplan/analyse, edited by the
+  // user in the in-step editor. Step 5 sends this to /api/analyse so we
+  // don't run Claude floorplan vision twice.
+  floorplanAnalysis: FloorplanAnalysis | null;
+  floorplanDegraded: boolean;
+  floorplanDegradedReason: string | null;
+  // Satellite verdict from the same endpoint — drives whether the editor
+  // asks the "do you have outdoor space?" question.
+  satelliteOutdoorVerdict: "yes" | "no" | "unsure" | null;
 
   // Step 5 — analysis output (stitched)
   analysis: AnalyseResponse | null;
@@ -80,6 +90,10 @@ export const INITIAL_STATE: CheckWizardState = {
   electricityTariff: null,
   gasTariff: null,
   floorplanObjectKey: null,
+  floorplanAnalysis: null,
+  floorplanDegraded: false,
+  floorplanDegradedReason: null,
+  satelliteOutdoorVerdict: null,
   analysis: null,
 };
 
