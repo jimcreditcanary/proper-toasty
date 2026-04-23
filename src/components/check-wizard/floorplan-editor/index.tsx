@@ -487,22 +487,48 @@ export function FloorplanEditor({
     if (nextStage) setStage(nextStage);
   }, [stage, stageIdx, onRequestPlacements, onComplete, stageOrder]);
 
+  // Undo prioritises in-progress drawing state over saved items so it
+  // matches what the user sees.
+  //   - Mouse mode mid-polyline: each press of Undo drops the last
+  //     corner point (Figma-style).
+  //   - Finger mode mid-stroke: a single Undo wipes the whole in-progress
+  //     freehand (you can't selectively un-draw a swirl).
+  //   - Pending radiator popover open: Undo dismisses + removes that
+  //     just-placed pin.
+  //   - Otherwise: removes the last SAVED item from the current stage.
   const undo = useCallback(() => {
+    if (pendingRadiator) {
+      onChange(removeRadiator(analysis, pendingRadiator.id));
+      setPendingRadiator(null);
+      return;
+    }
+    if (inputMode === "mouse" && stroke.length > 0) {
+      setStroke((s) => s.slice(0, -1));
+      return;
+    }
+    if (drawing && stroke.length > 0) {
+      setStroke([]);
+      setDrawing(false);
+      return;
+    }
     if (stage === "walls") onChange(undoLastWall(analysis));
     else if (stage === "outdoor") onChange(undoLastOutdoorZone(analysis));
     else if (stage === "doors") onChange(undoLastDoor(analysis));
     else if (stage === "stairs") onChange(undoLastStairs(analysis));
     else if (stage === "radiators") onChange(undoLastRadiator(analysis));
-  }, [stage, analysis, onChange]);
+  }, [stage, analysis, onChange, inputMode, stroke, drawing, pendingRadiator]);
 
   const undoCount = useMemo(() => {
+    if (pendingRadiator) return 1;
+    if (inputMode === "mouse" && stroke.length > 0) return stroke.length;
+    if (drawing && stroke.length > 0) return 1;
     if (stage === "walls") return analysis.walls.length;
     if (stage === "outdoor") return analysis.outdoorZones.length;
     if (stage === "doors") return analysis.doors.length;
     if (stage === "stairs") return analysis.userStairs.length;
     if (stage === "radiators") return analysis.radiators.length;
     return 0;
-  }, [stage, analysis]);
+  }, [stage, analysis, inputMode, stroke, drawing, pendingRadiator]);
 
   // ─── Render ─────────────────────────────────────────────────────────────
 
