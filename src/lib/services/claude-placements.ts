@@ -8,8 +8,10 @@
 import { z } from "zod";
 import { anthropic } from "@/lib/anthropic";
 import {
+  ClarificationQuestionSchema,
   HeatPumpLocationSchema,
   HotWaterCylinderCandidateSchema,
+  type ClarificationQuestion,
   type Door,
   type HeatPumpLocation,
   type HotWaterCylinderCandidate,
@@ -36,6 +38,7 @@ Your job:
 1. Place 1-2 HEAT PUMP candidates (1m × 1m footprint each). Prefer OUTDOOR — within the outdoor zone polygons the user drew. Away from doors and windows ideally. Last-resort indoor (utility room) is fine if no outdoor zone exists.
 2. Place 1 HOT WATER CYLINDER candidate (0.6m × 0.6m footprint). INDOOR — inside the building footprint (the area enclosed by the walls). Near any visible radiator or an airing cupboard / utility area.
 3. Surface any installation CONCERNS a surveyor would raise (e.g. "HP candidate is within 2m of a neighbour's window — check acoustic limits", "No clear internal route for pipework").
+4. If you're unsure about a placement and a simple question would help, ask CLARIFICATION QUESTIONS. Examples: "Is the space under your stairs taller than 1.5m?" (affects whether it can host a cylinder), "Is there already a boiler in the utility room?" (affects cylinder pipework). Keep questions short and answerable with Yes / No / Not sure. Return an empty array if nothing is ambiguous.
 
 Return STRICT JSON only. No prose. All coordinates are in the 0..1000 viewport space the user drew in.`;
 
@@ -44,6 +47,7 @@ export const SuggestPlacementsResponseSchema = z.object({
   hotWaterCylinderCandidates: z.array(HotWaterCylinderCandidateSchema),
   concerns: z.array(z.string()).default([]),
   installerQuestions: z.array(z.string()).default([]),
+  clarificationQuestions: z.array(ClarificationQuestionSchema).default([]),
 });
 export type SuggestPlacementsResponse = z.infer<typeof SuggestPlacementsResponseSchema>;
 
@@ -67,6 +71,7 @@ export interface SuggestPlacementsResult {
     hotWaterCylinderCandidates: HotWaterCylinderCandidate[];
     concerns: string[];
     installerQuestions: string[];
+    clarificationQuestions: ClarificationQuestion[];
   } | null;
   error?: string;
 }
@@ -141,6 +146,14 @@ Now return JSON with this shape:
   ],
   "installerQuestions": [
     "One question an installer would want the homeowner to confirm."
+  ],
+  "clarificationQuestions": [
+    {
+      "id": "q1",
+      "question": "Is the space under your stairs taller than 1.5m?",
+      "options": ["Yes", "No", "Not sure"],
+      "context": "Determines whether it can host a hot-water cylinder."
+    }
   ]
 }`;
 }

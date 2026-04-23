@@ -90,7 +90,9 @@ export const UserStairsSchema = z.object({
 });
 export type UserStairs = z.infer<typeof UserStairsSchema>;
 
-// Radiators — point + condition. No roomId in v3 (we have no rooms).
+// Radiators — rectangles in v4 so users can drag wider for longer ones.
+// (x, y) is the top-left corner; vWidth/vHeight default to a small
+// horizontal bar when the user just taps instead of dragging.
 export const RadiatorConditionEnum = z.enum(["good", "fair", "poor", "unsure"]);
 export type RadiatorCondition = z.infer<typeof RadiatorConditionEnum>;
 
@@ -98,10 +100,9 @@ export const RadiatorSchema = z.object({
   id: z.string().min(1),
   x: z.number().min(0).max(1000),
   y: z.number().min(0).max(1000),
+  vWidth: z.number().min(1).max(1000).default(40),
+  vHeight: z.number().min(1).max(1000).default(10),
   condition: RadiatorConditionEnum.nullable(),
-  // All radiators in v3 are user-placed. Kept for parity with other
-  // elements (AI doesn't drop radiator pins — the user knows where they
-  // actually are).
   source: z.literal("user_placed").default("user_placed"),
 });
 export type Radiator = z.infer<typeof RadiatorSchema>;
@@ -135,6 +136,23 @@ export const HotWaterCylinderCandidateSchema = z.object({
 });
 export type HotWaterCylinderCandidate = z.infer<typeof HotWaterCylinderCandidateSchema>;
 
+// ─── AI clarification questions ──────────────────────────────────────────────
+// After the AI places HP + cylinder, it can also ask the user follow-up
+// questions it needs answered to be confident in the placement. E.g.:
+//   "Is the space under your stairs taller than 1.5m?"  (affects whether
+//   we can use that space for a cylinder).
+
+export const ClarificationQuestionSchema = z.object({
+  id: z.string().min(1),
+  question: z.string(),
+  // Keep it simple: Yes / No / Unsure are the universal options.
+  options: z.array(z.string()).default(["Yes", "No", "Not sure"]),
+  // What the answer affects — surfaced as helper text under the question.
+  context: z.string().default(""),
+  answer: z.string().nullable().default(null),
+});
+export type ClarificationQuestion = z.infer<typeof ClarificationQuestionSchema>;
+
 // ─── Outdoor space check (from satellite) ────────────────────────────────────
 
 export const OutdoorSpaceCheckSchema = z.object({
@@ -160,6 +178,9 @@ export const FloorplanAnalysisSchema = z.object({
   // ─── v3 AI-placed pins (user-draggable) ───────────────────────────────
   heatPumpLocations: z.array(HeatPumpLocationSchema).default([]),
   hotWaterCylinderCandidates: z.array(HotWaterCylinderCandidateSchema).default([]),
+
+  // ─── v4 AI follow-up questions ────────────────────────────────────────
+  clarificationQuestions: z.array(ClarificationQuestionSchema).default([]),
 
   // ─── Satellite outdoor check ──────────────────────────────────────────
   outdoorSpace: OutdoorSpaceCheckSchema.default({

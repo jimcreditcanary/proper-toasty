@@ -1,7 +1,9 @@
-// Mutators + id helpers for the floorplan editor (v3 annotation model).
-// Every mutator returns a new analysis object — never mutate the input.
+// Mutators + id helpers + geometry helpers for the floorplan editor
+// (v4 conversational-stage model). Every mutator returns a new analysis
+// object — never mutate the input.
 
 import type {
+  ClarificationQuestion,
   Door,
   FloorplanAnalysis,
   HeatPumpLocation,
@@ -151,13 +153,14 @@ export function removeStairs(
 
 export function addRadiator(
   analysis: FloorplanAnalysis,
-  x: number,
-  y: number,
+  rect: { x: number; y: number; vWidth: number; vHeight: number },
 ): FloorplanAnalysis {
   const r: Radiator = {
     id: newRadiatorId(),
-    x,
-    y,
+    x: rect.x,
+    y: rect.y,
+    vWidth: Math.max(12, rect.vWidth),
+    vHeight: Math.max(6, rect.vHeight),
     condition: null,
     source: "user_placed",
   };
@@ -285,6 +288,7 @@ export function applyAiPlacements(
     hotWaterCylinderCandidates: HotWaterCylinderCandidate[];
     concerns: string[];
     installerQuestions: string[];
+    clarificationQuestions: ClarificationQuestion[];
   },
 ): FloorplanAnalysis {
   return {
@@ -293,9 +297,111 @@ export function applyAiPlacements(
     hotWaterCylinderCandidates: payload.hotWaterCylinderCandidates,
     heatPumpInstallationConcerns: payload.concerns,
     recommendedInstallerQuestions: payload.installerQuestions,
+    clarificationQuestions: payload.clarificationQuestions,
     placementsRequested: true,
     edited: true,
   };
+}
+
+// Set the user's answer on a clarification question.
+export function answerClarification(
+  analysis: FloorplanAnalysis,
+  questionId: string,
+  answer: string,
+): FloorplanAnalysis {
+  return {
+    ...analysis,
+    clarificationQuestions: (analysis.clarificationQuestions ?? []).map((q) =>
+      q.id === questionId ? { ...q, answer } : q,
+    ),
+    edited: true,
+  };
+}
+
+// ─── Per-stage "undo last" helpers ───────────────────────────────────────────
+
+export function undoLastWall(analysis: FloorplanAnalysis): FloorplanAnalysis {
+  if (analysis.walls.length === 0) return analysis;
+  return { ...analysis, walls: analysis.walls.slice(0, -1), edited: true };
+}
+
+export function undoLastOutdoorZone(analysis: FloorplanAnalysis): FloorplanAnalysis {
+  if (analysis.outdoorZones.length === 0) return analysis;
+  return {
+    ...analysis,
+    outdoorZones: analysis.outdoorZones.slice(0, -1),
+    edited: true,
+  };
+}
+
+export function undoLastDoor(analysis: FloorplanAnalysis): FloorplanAnalysis {
+  if (analysis.doors.length === 0) return analysis;
+  return { ...analysis, doors: analysis.doors.slice(0, -1), edited: true };
+}
+
+export function undoLastStairs(analysis: FloorplanAnalysis): FloorplanAnalysis {
+  if (analysis.userStairs.length === 0) return analysis;
+  return {
+    ...analysis,
+    userStairs: analysis.userStairs.slice(0, -1),
+    edited: true,
+  };
+}
+
+export function undoLastRadiator(analysis: FloorplanAnalysis): FloorplanAnalysis {
+  if (analysis.radiators.length === 0) return analysis;
+  return {
+    ...analysis,
+    radiators: analysis.radiators.slice(0, -1),
+    radiatorsVisible: analysis.radiators.length - 1,
+    edited: true,
+  };
+}
+
+// ─── Stroke simplification (Ramer–Douglas–Peucker) ───────────────────────────
+// Converts a dense freehand stroke (hundreds of mousemove points) into a
+// sparse polyline that still captures the shape. Critical for keeping
+// rendering fast and the persisted payload small.
+
+function perpendicularDistance(
+  p: Point,
+  a: Point,
+  b: Point,
+): number {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const norm = Math.hypot(dx, dy);
+  if (norm === 0) return Math.hypot(p.x - a.x, p.y - a.y);
+  return Math.abs(dy * p.x - dx * p.y + b.x * a.y - b.y * a.x) / norm;
+}
+
+export function simplifyStroke(points: Point[], tolerance = 6): Point[] {
+  if (points.length < 3) return points.slice();
+  let maxDist = 0;
+  let index = 0;
+  const end = points.length - 1;
+  for (let i = 1; i < end; i++) {
+    const d = perpendicularDistance(points[i]!, points[0]!, points[end]!);
+    if (d > maxDist) {
+      maxDist = d;
+      index = i;
+    }
+  }
+  if (maxDist > tolerance) {
+    const left = simplifyStroke(points.slice(0, index + 1), tolerance);
+    const right = simplifyStroke(points.slice(index), tolerance);
+    return left.slice(0, -1).concat(right);
+  }
+  return [points[0]!, points[end]!];
+}
+
+// Snap each point to the nearest grid cell. Keeps the canonical floorplan
+// tidy — freehand strokes stop looking hand-drawn after save.
+export function snapToGrid(points: Point[], grid = 10): Point[] {
+  return points.map((p) => ({
+    x: Math.round(p.x / grid) * grid,
+    y: Math.round(p.y / grid) * grid,
+  }));
 }
 
 // ─── Outdoor-space user confirmation (kept for back-compat) ──────────────────

@@ -1,68 +1,78 @@
 "use client";
 
-// FloorplanEditor v3 — user annotates the uploaded floorplan image.
+// FloorplanEditor v4 — conversational stage flow.
 //
-// The flow:
-//   1. walls      — click to add points, double-click / Enter to finish path
-//   2. doors      — click near a wall; auto-snaps to the wall and drops a
-//                   door marker
-//   3. outdoor    — click to add polygon points, double-click / Enter to
-//                   close (garden / side return / driveway)
-//   4. stairs     — drag a rectangle
-//   5. radiators  — click anywhere to drop a pin; condition popover appears
-//   6. "Find heat pump & cylinder" button → AI call
-//   7. adjust     — drag HP / cylinder pins to reposition
+// The user is walked through each annotation type one stage at a time, with
+// short prompts, a prominent Undo button, a per-stage Save, and optional
+// Skip. After all stages, the AI places HP + cylinder and asks any follow-up
+// questions it needs. Finally the editor flips to a canonical view where
+// the uploaded image fades out and the user's drawing becomes the floorplan.
+//
+// Stages: welcome → walls → outdoor → doors → stairs → radiators
+//         → placing (AI call) → adjust (drag pins + answer questions) → done
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import Image from "next/image";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  AlertCircle,
+  ArrowRight,
+  Check,
   DoorOpen,
+  Eye,
+  EyeOff,
   Flame,
   Loader2,
   Minus,
+  Rows,
   Sparkles,
   Target,
-  Trash2,
   TreePine,
+  Undo2,
   Wand2,
 } from "lucide-react";
-import type {
-  FloorplanAnalysis,
-  Point,
-  RadiatorCondition,
-} from "@/lib/schemas/floorplan";
-import type { EditorMode, FloorplanEditorProps } from "./types";
+import type { Point, RadiatorCondition } from "@/lib/schemas/floorplan";
+import type { FloorplanEditorProps, Stage } from "./types";
 import {
   addDoor,
   addOutdoorZone,
   addRadiator,
   addStairs,
-  addUserHeatPump,
   addWallPath,
+  answerClarification,
   findNearestWall,
   moveCylinder,
   moveHeatPump,
-  removeCylinder,
-  removeDoor,
-  removeHeatPump,
-  removeOutdoorZone,
   removeRadiator,
-  removeStairs,
-  removeWallPath,
   setRadiatorCondition,
   setUserOutdoor,
+  simplifyStroke,
+  snapToGrid,
+  undoLastDoor,
+  undoLastOutdoorZone,
+  undoLastRadiator,
+  undoLastStairs,
+  undoLastWall,
 } from "./utils";
 
 const VIEWPORT = 1000;
 
+const STAGE_ORDER: Stage[] = [
+  "welcome",
+  "walls",
+  "outdoor",
+  "doors",
+  "stairs",
+  "radiators",
+  "placing",
+  "adjust",
+  "done",
+];
+
 const COLOURS = {
-  wall: "#ef6c4f",
-  wallPreview: "#ef6c4f80",
+  wall: "#1e293b",            // slate-800 — walls render DARK for canonical feel
+  wallCurrent: "#ef6c4f",     // coral — the in-progress stroke
   door: "#f59e0b",
   zoneStroke: "#22c55e",
   zoneFill: "#86efac30",
-  zonePreview: "#22c55e50",
+  zoneCurrent: "#16a34a",
   stairsFill: "#cbd5e1",
   stairsStroke: "#64748b",
   hpStroke: "#10b981",
@@ -70,52 +80,84 @@ const COLOURS = {
   cylStroke: "#8b5cf6",
   cylFill: "#8b5cf620",
   radiator: "#ef6c4f",
-  point: "#ef6c4f",
+  radiatorSelected: "#dc2626",
 } as const;
 
-const MODES: Array<{
-  key: EditorMode;
-  label: string;
+// ─── Stage definitions ───────────────────────────────────────────────────────
+
+interface StageConfig {
+  key: Stage;
+  title: string;
+  body: string;
+  skippable?: boolean;
   icon: React.ReactNode;
-  tip: string;
-}> = [
-  {
+  example?: React.ReactNode;
+}
+
+const STAGE_CONFIG: Record<Stage, StageConfig | null> = {
+  welcome: {
+    key: "welcome",
+    title: "Let's draw over your floorplan",
+    body:
+      "We'll walk you through it step by step. You'll trace the walls, outline your garden, mark doors, stairs and radiators. Takes about 2 minutes.",
+    icon: <Sparkles className="w-5 h-5" />,
+  },
+  walls: {
     key: "walls",
-    label: "Walls",
-    icon: <Minus className="w-3.5 h-3.5" />,
-    tip: "Click to add corners; double-click or hit Enter to finish a wall.",
+    title: "Draw over your walls",
+    body:
+      "Use your mouse or finger like a marker pen. Trace every wall in your home — windows count as walls too. Lift and start again for each new wall.",
+    icon: <Minus className="w-5 h-5" />,
   },
-  {
-    key: "doors",
-    label: "Doors",
-    icon: <DoorOpen className="w-3.5 h-3.5" />,
-    tip: "Click near a wall to drop a door; it snaps to the nearest segment.",
-  },
-  {
+  outdoor: {
     key: "outdoor",
-    label: "Outdoor space",
-    icon: <TreePine className="w-3.5 h-3.5" />,
-    tip: "Outline garden / side return. Click points, double-click to close the shape.",
+    title: "Mark your outdoor space",
+    body:
+      "Draw around your garden, side return, driveway — anywhere you could put a 1m × 1m heat-pump unit. No outdoor space? Skip this step.",
+    skippable: true,
+    icon: <TreePine className="w-5 h-5" />,
   },
-  {
+  doors: {
+    key: "doors",
+    title: "Tap where your doors are",
+    body: "Click once for each door. Don't worry about being exact — we'll snap them to the nearest wall for you.",
+    icon: <DoorOpen className="w-5 h-5" />,
+  },
+  stairs: {
     key: "stairs",
-    label: "Stairs",
-    icon: <Wand2 className="w-3.5 h-3.5" />,
-    tip: "Click and drag a rectangle where the stairs are.",
+    title: "Drag over your stairs",
+    body: "Click and drag a rectangle over where the stairs are. If you've got more than one flight, draw each one separately.",
+    skippable: true,
+    icon: <Wand2 className="w-5 h-5" />,
   },
-  {
+  radiators: {
     key: "radiators",
-    label: "Radiators",
-    icon: <Flame className="w-3.5 h-3.5" />,
-    tip: "Click anywhere to place a radiator; rate its condition in the popover.",
+    title: "Draw over every radiator",
+    body:
+      "Click and drag to draw each radiator — longer radiators should span wider. After drawing one, rate its condition.",
+    icon: <Rows className="w-5 h-5" />,
   },
-  {
+  placing: {
+    key: "placing",
+    title: "Finding where everything fits…",
+    body: "We're looking at your floorplan plus what you've drawn to suggest where the heat pump and hot water cylinder can go.",
+    icon: <Sparkles className="w-5 h-5" />,
+  },
+  adjust: {
     key: "adjust",
-    label: "Move pins",
-    icon: <Target className="w-3.5 h-3.5" />,
-    tip: "Drag heat pump / cylinder pins to where they actually go.",
+    title: "Adjust the heat pump and cylinder",
+    body: "Drag either pin to where you'd actually put it. Answer any follow-up questions below if they appear.",
+    icon: <Target className="w-5 h-5" />,
   },
-];
+  done: {
+    key: "done",
+    title: "All set — here's your annotated floorplan",
+    body: "This is what your MCS installer will see. Go back any step if you want to tweak.",
+    icon: <Check className="w-5 h-5" />,
+  },
+};
+
+// ─── Main component ──────────────────────────────────────────────────────────
 
 export function FloorplanEditor({
   analysis,
@@ -127,11 +169,36 @@ export function FloorplanEditor({
   placementsRunning,
   placementsError,
 }: FloorplanEditorProps) {
-  const [mode, setMode] = useState<EditorMode>("walls");
-  const [currentWallPoints, setCurrentWallPoints] = useState<Point[]>([]);
-  const [currentZonePoints, setCurrentZonePoints] = useState<Point[]>([]);
-  const [cursor, setCursor] = useState<Point | null>(null);
-  const [stairsDrag, setStairsDrag] = useState<
+  // Pick initial stage based on what's already in analysis (for back-and-
+  // forth through the wizard).
+  const initialStage: Stage = useMemo(() => {
+    if (analysis.placementsRequested) return "adjust";
+    if (analysis.radiators.length > 0) return "radiators";
+    if (analysis.userStairs.length > 0) return "stairs";
+    if (analysis.doors.length > 0) return "doors";
+    if (analysis.outdoorZones.length > 0) return "outdoor";
+    if (analysis.walls.length > 0) return "walls";
+    return "welcome";
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const [stage, setStage] = useState<Stage>(initialStage);
+
+  // Auto-advance out of placing when AI returns.
+  useEffect(() => {
+    if (stage === "placing" && !placementsRunning && analysis.placementsRequested) {
+      setStage("adjust");
+    }
+  }, [stage, placementsRunning, analysis.placementsRequested]);
+
+  // Show background image except during adjust/done — those are canonical.
+  const [backgroundOverride, setBackgroundOverride] = useState<boolean | null>(null);
+  const showBackground =
+    backgroundOverride ?? !(stage === "adjust" || stage === "done");
+
+  // ─── Drawing state (local; persisted on save) ───────────────────────────
+  const [stroke, setStroke] = useState<Point[]>([]);
+  const [drawing, setDrawing] = useState(false);
+  const [dragRect, setDragRect] = useState<
     | { startX: number; startY: number; curX: number; curY: number }
     | null
   >(null);
@@ -139,9 +206,6 @@ export function FloorplanEditor({
     | { id: string; kind: "hp" | "cyl"; offsetX: number; offsetY: number; curX: number; curY: number }
     | null
   >(null);
-  // Pending radiator state stores container-relative click position so the
-  // popover renders without touching refs during render (React strict-mode
-  // safe).
   const [pendingRadiator, setPendingRadiator] = useState<
     | { id: string; relX: number; relY: number }
     | null
@@ -150,40 +214,16 @@ export function FloorplanEditor({
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Reset in-flight draft state when mode changes so switching tools doesn't
-  // leave a half-drawn wall lingering.
+  // Clear in-flight drawing state whenever stage changes.
   useEffect(() => {
-    setCurrentWallPoints([]);
-    setCurrentZonePoints([]);
-    setStairsDrag(null);
+    setStroke([]);
+    setDragRect(null);
+    setDrawing(false);
     setPendingRadiator(null);
-  }, [mode]);
+  }, [stage]);
 
-  // Keyboard: Enter finishes the active draft, Escape cancels it.
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Enter") {
-        if (mode === "walls" && currentWallPoints.length >= 2) {
-          onChange(addWallPath(analysis, currentWallPoints));
-          setCurrentWallPoints([]);
-          e.preventDefault();
-        } else if (mode === "outdoor" && currentZonePoints.length >= 3) {
-          onChange(addOutdoorZone(analysis, currentZonePoints));
-          setCurrentZonePoints([]);
-          e.preventDefault();
-        }
-      } else if (e.key === "Escape") {
-        setCurrentWallPoints([]);
-        setCurrentZonePoints([]);
-      }
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [analysis, mode, currentWallPoints, currentZonePoints, onChange]);
-
-  // Translate a DOM mouse event into viewport (0..1000) coordinates.
   function eventToViewport(
-    e: React.MouseEvent<SVGSVGElement>,
+    e: React.MouseEvent<SVGSVGElement> | React.PointerEvent<SVGSVGElement>,
   ): { vx: number; vy: number } | null {
     const svg = svgRef.current;
     if (!svg) return null;
@@ -196,56 +236,21 @@ export function FloorplanEditor({
     return { vx: local.x, vy: local.y };
   }
 
-  function handleSvgClick(e: React.MouseEvent<SVGSVGElement>) {
+  // ─── Pointer handlers — behaviour depends on stage ──────────────────────
+
+  function handlePointerDown(e: React.PointerEvent<SVGSVGElement>) {
     const pos = eventToViewport(e);
     if (!pos) return;
 
-    if (mode === "walls") {
-      setCurrentWallPoints([...currentWallPoints, { x: pos.vx, y: pos.vy }]);
-    } else if (mode === "outdoor") {
-      setCurrentZonePoints([...currentZonePoints, { x: pos.vx, y: pos.vy }]);
-    } else if (mode === "doors") {
-      const snap = findNearestWall(analysis.walls, pos.vx, pos.vy, 40);
-      if (snap) {
-        onChange(addDoor(analysis, snap.x, snap.y, snap.wallPathId));
-      } else {
-        // Still allow placing without a wall; wallPathId = null.
-        onChange(addDoor(analysis, pos.vx, pos.vy, null));
-      }
-    } else if (mode === "radiators") {
-      const next = addRadiator(analysis, pos.vx, pos.vy);
-      const last = next.radiators[next.radiators.length - 1];
-      onChange(next);
-      if (last && containerRef.current) {
-        const rect = containerRef.current.getBoundingClientRect();
-        setPendingRadiator({
-          id: last.id,
-          relX: e.clientX - rect.left,
-          relY: e.clientY - rect.top,
-        });
-      }
-    } else if (mode === "adjust") {
-      // Clicking empty space clears selection — drag handled in mousedown/move.
-    }
-  }
-
-  function handleSvgDoubleClick() {
-    if (mode === "walls" && currentWallPoints.length >= 2) {
-      onChange(addWallPath(analysis, currentWallPoints));
-      setCurrentWallPoints([]);
-    } else if (mode === "outdoor" && currentZonePoints.length >= 3) {
-      onChange(addOutdoorZone(analysis, currentZonePoints));
-      setCurrentZonePoints([]);
-    }
-  }
-
-  function handleSvgMouseDown(e: React.MouseEvent<SVGSVGElement>) {
-    const pos = eventToViewport(e);
-    if (!pos) return;
-    if (mode === "stairs") {
-      setStairsDrag({ startX: pos.vx, startY: pos.vy, curX: pos.vx, curY: pos.vy });
-    } else if (mode === "adjust") {
-      // Find HP or cylinder under cursor.
+    if (stage === "walls" || stage === "outdoor") {
+      setStroke([{ x: pos.vx, y: pos.vy }]);
+      setDrawing(true);
+      // Capture pointer so drag stays inside the SVG even when fast.
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } else if (stage === "stairs" || stage === "radiators") {
+      setDragRect({ startX: pos.vx, startY: pos.vy, curX: pos.vx, curY: pos.vy });
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } else if (stage === "adjust") {
       const hp = analysis.heatPumpLocations.find(
         (h) =>
           pos.vx >= h.x && pos.vx <= h.x + h.vWidth && pos.vy >= h.y && pos.vy <= h.y + h.vHeight,
@@ -259,6 +264,7 @@ export function FloorplanEditor({
           curX: hp.x,
           curY: hp.y,
         });
+        e.currentTarget.setPointerCapture(e.pointerId);
         return;
       }
       const cyl = analysis.hotWaterCylinderCandidates.find(
@@ -274,16 +280,24 @@ export function FloorplanEditor({
           curX: cyl.x,
           curY: cyl.y,
         });
+        e.currentTarget.setPointerCapture(e.pointerId);
       }
     }
   }
 
-  function handleSvgMouseMove(e: React.MouseEvent<SVGSVGElement>) {
+  function handlePointerMove(e: React.PointerEvent<SVGSVGElement>) {
     const pos = eventToViewport(e);
     if (!pos) return;
-    setCursor({ x: pos.vx, y: pos.vy });
-    if (stairsDrag) {
-      setStairsDrag({ ...stairsDrag, curX: pos.vx, curY: pos.vy });
+
+    if (drawing && (stage === "walls" || stage === "outdoor")) {
+      // Accumulate. Only add if moved > 2 units from last point (dedupe).
+      const last = stroke[stroke.length - 1];
+      if (!last || Math.hypot(pos.vx - last.x, pos.vy - last.y) > 2) {
+        setStroke([...stroke, { x: pos.vx, y: pos.vy }]);
+      }
+    }
+    if (dragRect) {
+      setDragRect({ ...dragRect, curX: pos.vx, curY: pos.vy });
     }
     if (pinDrag) {
       setPinDrag({
@@ -294,17 +308,72 @@ export function FloorplanEditor({
     }
   }
 
-  function handleSvgMouseUp() {
-    if (stairsDrag) {
-      const x = Math.min(stairsDrag.startX, stairsDrag.curX);
-      const y = Math.min(stairsDrag.startY, stairsDrag.curY);
-      const w = Math.abs(stairsDrag.curX - stairsDrag.startX);
-      const h = Math.abs(stairsDrag.curY - stairsDrag.startY);
-      setStairsDrag(null);
-      if (w >= 30 && h >= 30) {
-        onChange(addStairs(analysis, { x, y, vWidth: w, vHeight: h }));
-      }
+  function handlePointerUp(e: React.PointerEvent<SVGSVGElement>) {
+    // Release pointer capture.
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {
+      /* already released */
     }
+
+    if (drawing) {
+      setDrawing(false);
+      if (stroke.length < 2) {
+        setStroke([]);
+        return;
+      }
+      const simplified = snapToGrid(simplifyStroke(stroke, 6), 10);
+      if (stage === "walls") {
+        onChange(addWallPath(analysis, simplified));
+      } else if (stage === "outdoor" && simplified.length >= 3) {
+        onChange(addOutdoorZone(analysis, simplified, "Outdoor space"));
+      }
+      setStroke([]);
+      return;
+    }
+
+    if (dragRect) {
+      const x = Math.min(dragRect.startX, dragRect.curX);
+      const y = Math.min(dragRect.startY, dragRect.curY);
+      const w = Math.abs(dragRect.curX - dragRect.startX);
+      const h = Math.abs(dragRect.curY - dragRect.startY);
+      setDragRect(null);
+      if (stage === "stairs" && w >= 30 && h >= 30) {
+        onChange(addStairs(analysis, { x, y, vWidth: w, vHeight: h }));
+      } else if (stage === "radiators") {
+        // Radiators can be tiny (click = default small bar).
+        const finalW = w < 8 ? 40 : w;
+        const finalH = h < 4 ? 10 : h;
+        const finalX = w < 8 ? x - finalW / 2 : x;
+        const finalY = h < 4 ? y - finalH / 2 : y;
+        const next = addRadiator(analysis, {
+          x: finalX,
+          y: finalY,
+          vWidth: finalW,
+          vHeight: finalH,
+        });
+        const last = next.radiators[next.radiators.length - 1];
+        onChange(next);
+        // Position condition popover at top-right of the rectangle.
+        if (last && containerRef.current && svgRef.current) {
+          const rect = containerRef.current.getBoundingClientRect();
+          const svgCtm = svgRef.current.getScreenCTM();
+          if (svgCtm) {
+            const pt = svgRef.current.createSVGPoint();
+            pt.x = finalX + finalW;
+            pt.y = finalY;
+            const screen = pt.matrixTransform(svgCtm);
+            setPendingRadiator({
+              id: last.id,
+              relX: screen.x - rect.left,
+              relY: screen.y - rect.top,
+            });
+          }
+        }
+      }
+      return;
+    }
+
     if (pinDrag) {
       const next =
         pinDrag.kind === "hp"
@@ -315,52 +384,128 @@ export function FloorplanEditor({
     }
   }
 
-  // Preview line for walls/outdoor while the user is adding points.
-  const wallPreview = useMemo(() => {
-    if (mode !== "walls" || currentWallPoints.length === 0 || !cursor) return null;
-    const last = currentWallPoints[currentWallPoints.length - 1]!;
-    return { from: last, to: cursor };
-  }, [mode, currentWallPoints, cursor]);
+  function handleClick(e: React.MouseEvent<SVGSVGElement>) {
+    const pos = eventToViewport(e);
+    if (!pos) return;
 
-  const zonePreview = useMemo(() => {
-    if (mode !== "outdoor" || currentZonePoints.length === 0 || !cursor) return null;
-    const last = currentZonePoints[currentZonePoints.length - 1]!;
-    return { from: last, to: cursor };
-  }, [mode, currentZonePoints, cursor]);
+    if (stage === "doors") {
+      const snap = findNearestWall(analysis.walls, pos.vx, pos.vy, 60);
+      if (snap) {
+        onChange(addDoor(analysis, snap.x, snap.y, snap.wallPathId));
+      } else {
+        onChange(addDoor(analysis, pos.vx, pos.vy, null));
+      }
+    }
+  }
 
-  // Enough annotations to call the AI placement step?
-  const canFindPlacements =
-    analysis.walls.length > 0 || analysis.outdoorZones.length > 0;
+  // ─── Stage navigation ───────────────────────────────────────────────────
 
-  const totalPins =
-    analysis.heatPumpLocations.length + analysis.hotWaterCylinderCandidates.length;
+  // Static ordering — defined once so the useCallback deps stay stable.
+  const stageOrder = STAGE_ORDER;
+  const stageIdx = stageOrder.indexOf(stage);
+  const totalInteractive = 6; // welcome..radiators
+
+  const goBack = useCallback(() => {
+    const prev = stageOrder[stageIdx - 1];
+    if (prev && prev !== "placing") setStage(prev);
+  }, [stageIdx, stageOrder]);
+
+  const advance = useCallback(() => {
+    // radiators → placing fires the AI call
+    if (stage === "radiators") {
+      setStage("placing");
+      onRequestPlacements?.();
+      return;
+    }
+    if (stage === "adjust") {
+      setStage("done");
+      return;
+    }
+    const nextStage = stageOrder[stageIdx + 1];
+    if (nextStage) setStage(nextStage);
+  }, [stage, stageIdx, onRequestPlacements, stageOrder]);
+
+  const undo = useCallback(() => {
+    if (stage === "walls") onChange(undoLastWall(analysis));
+    else if (stage === "outdoor") onChange(undoLastOutdoorZone(analysis));
+    else if (stage === "doors") onChange(undoLastDoor(analysis));
+    else if (stage === "stairs") onChange(undoLastStairs(analysis));
+    else if (stage === "radiators") onChange(undoLastRadiator(analysis));
+  }, [stage, analysis, onChange]);
+
+  const undoCount = useMemo(() => {
+    if (stage === "walls") return analysis.walls.length;
+    if (stage === "outdoor") return analysis.outdoorZones.length;
+    if (stage === "doors") return analysis.doors.length;
+    if (stage === "stairs") return analysis.userStairs.length;
+    if (stage === "radiators") return analysis.radiators.length;
+    return 0;
+  }, [stage, analysis]);
+
+  // ─── Render ─────────────────────────────────────────────────────────────
+
+  const cfg = STAGE_CONFIG[stage]!;
+  const showUndo =
+    stage !== "welcome" && stage !== "placing" && stage !== "adjust" && stage !== "done";
 
   return (
     <div className="rounded-2xl border border-[var(--border)] bg-white p-5 shadow-sm">
-      {/* Outdoor confirmation (only when satellite was inconclusive AND user
-          hasn't outlined an outdoor zone yet) */}
+      {/* Progress dots */}
+      {stage !== "welcome" && stage !== "placing" && stage !== "done" && (
+        <div className="mb-4 flex items-center gap-1.5">
+          {["walls", "outdoor", "doors", "stairs", "radiators", "adjust"].map(
+            (s, i) => {
+              const idx = stageOrder.indexOf(s as Stage);
+              const isActive = s === stage;
+              const isDone = stageIdx > idx;
+              return (
+                <span
+                  key={s}
+                  className={`h-1.5 flex-1 rounded-full transition-colors ${
+                    isActive ? "bg-coral" : isDone ? "bg-coral/50" : "bg-slate-200"
+                  }`}
+                  title={s}
+                />
+              );
+            },
+          )}
+          <span className="ml-2 text-[11px] text-slate-500 tabular-nums whitespace-nowrap">
+            {Math.min(stageIdx, totalInteractive)} of {totalInteractive}
+          </span>
+        </div>
+      )}
+
+      {/* Conversational prompt */}
+      <div className="mb-4 flex items-start gap-3">
+        <div className="shrink-0 inline-flex items-center justify-center w-10 h-10 rounded-lg bg-coral-pale text-coral">
+          {cfg.icon}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-lg font-semibold text-navy leading-snug">{cfg.title}</p>
+          <p className="mt-1 text-sm text-slate-600 leading-relaxed">{cfg.body}</p>
+        </div>
+        <StageExample stage={stage} />
+      </div>
+
+      {/* Outdoor confirmation banner (optional, early in the flow) */}
       {outdoorAsk &&
+        stage !== "welcome" &&
         analysis.outdoorSpace.userConfirmed == null &&
-        analysis.outdoorZones.length === 0 && (
-          <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4">
-            <p className="text-sm font-semibold text-amber-900">
-              We couldn&rsquo;t see your outdoor space clearly from satellite.
-            </p>
-            <p className="mt-1 text-xs text-amber-800">
-              Do you have a garden, side return, or any outdoor wall where a 1m × 1m
-              heat-pump unit could sit? (Or skip this and outline it directly on the
-              floorplan.)
-            </p>
-            <div className="mt-3 flex gap-2">
+        analysis.outdoorZones.length === 0 &&
+        stage === "outdoor" && (
+          <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+            Satellite couldn&rsquo;t tell whether you have outdoor space. Answer below or
+            just draw it on the floorplan above.
+            <div className="mt-2 flex gap-2">
               <button
                 type="button"
                 onClick={() => {
                   onChange(setUserOutdoor(analysis, "yes"));
                   onOutdoorConfirm?.("yes");
                 }}
-                className="h-9 px-4 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-sm font-semibold"
+                className="h-8 px-3 rounded-lg bg-amber-600 text-white text-xs font-semibold"
               >
-                Yes
+                I have outdoor space
               </button>
               <button
                 type="button"
@@ -368,7 +513,7 @@ export function FloorplanEditor({
                   onChange(setUserOutdoor(analysis, "no"));
                   onOutdoorConfirm?.("no");
                 }}
-                className="h-9 px-4 rounded-lg border border-amber-300 bg-white hover:bg-amber-100 text-amber-900 text-sm font-semibold"
+                className="h-8 px-3 rounded-lg border border-amber-300 bg-white text-amber-900 text-xs font-semibold"
               >
                 No outdoor space
               </button>
@@ -376,48 +521,28 @@ export function FloorplanEditor({
           </div>
         )}
 
-      {/* Mode toolbar (top, full width — tips inline) */}
-      <div className="mb-3">
-        <div className="flex flex-wrap items-center gap-1.5">
-          {MODES.filter((m) => m.key !== "adjust" || analysis.placementsRequested).map((m) => {
-            const on = mode === m.key;
-            return (
-              <button
-                key={m.key}
-                type="button"
-                onClick={() => setMode(m.key)}
-                className={`inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-medium border transition-colors ${
-                  on
-                    ? "border-coral bg-coral text-white"
-                    : "border-[var(--border)] bg-white text-slate-700 hover:border-slate-300"
-                }`}
-              >
-                {m.icon}
-                {m.label}
-              </button>
-            );
-          })}
-        </div>
-        <p className="mt-2 text-xs text-slate-500">{MODES.find((m) => m.key === mode)?.tip}</p>
-      </div>
-
-      {/* Canvas — full width */}
+      {/* Canvas */}
       <div
         ref={containerRef}
         className={`relative rounded-xl border border-slate-200 bg-slate-50 overflow-hidden ${
-          mode === "stairs" || mode === "outdoor" || mode === "walls"
+          stage === "stairs" || stage === "radiators"
             ? "cursor-crosshair"
-            : mode === "adjust"
-              ? "cursor-grab"
-              : "cursor-pointer"
+            : stage === "walls" || stage === "outdoor"
+              ? "cursor-crosshair"
+              : stage === "adjust"
+                ? "cursor-grab"
+                : "cursor-pointer"
         }`}
+        style={{ touchAction: "none" }}
       >
         {imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={imageUrl}
             alt="Your floorplan"
-            className="block w-full h-auto select-none pointer-events-none"
+            className={`block w-full h-auto select-none pointer-events-none transition-opacity ${
+              showBackground ? "opacity-100" : "opacity-0"
+            }`}
             draggable={false}
           />
         ) : (
@@ -425,27 +550,26 @@ export function FloorplanEditor({
             No floorplan image — upload one to start annotating.
           </div>
         )}
-        {/* SVG overlay — viewBox 0..1000, preserveAspectRatio="none" so
-            coords stretch to fill the image exactly. */}
+
+        {/* SVG overlay — canonical view uses an empty coloured backdrop */}
+        {!showBackground && imageUrl && (
+          <div className="absolute inset-0 bg-amber-50/60" />
+        )}
+
         <svg
           ref={svgRef}
           viewBox={`0 0 ${VIEWPORT} ${VIEWPORT}`}
           preserveAspectRatio="none"
           className="absolute inset-0 w-full h-full"
-          onClick={handleSvgClick}
-          onDoubleClick={handleSvgDoubleClick}
-          onMouseDown={handleSvgMouseDown}
-          onMouseMove={handleSvgMouseMove}
-          onMouseUp={handleSvgMouseUp}
-          onMouseLeave={() => {
-            setStairsDrag(null);
-            setPinDrag(null);
-            setCursor(null);
-          }}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerCancel={handlePointerUp}
+          onClick={handleClick}
         >
           <defs>
             <pattern
-              id="fe-stairs-hatch"
+              id="fe4-stairs-hatch"
               width="10"
               height="10"
               patternUnits="userSpaceOnUse"
@@ -455,7 +579,7 @@ export function FloorplanEditor({
             </pattern>
           </defs>
 
-          {/* Outdoor zones (filled polygons) */}
+          {/* Outdoor zones */}
           {analysis.outdoorZones.map((z) => (
             <g key={z.id}>
               <polygon
@@ -465,31 +589,20 @@ export function FloorplanEditor({
                 strokeWidth={2}
                 strokeDasharray="8 4"
               />
-              {/* Label at centroid */}
-              <text
-                x={z.points.reduce((s, p) => s + p.x, 0) / z.points.length}
-                y={z.points.reduce((s, p) => s + p.y, 0) / z.points.length}
-                textAnchor="middle"
-                fontSize="14"
-                fontWeight="600"
-                fill={COLOURS.zoneStroke}
-                pointerEvents="none"
-              >
-                {z.label}
-              </text>
             </g>
           ))}
 
-          {/* Walls (polylines) */}
+          {/* Walls — thicker in canonical view for "real floorplan" look */}
           {analysis.walls.map((w) => (
             <polyline
               key={w.id}
               points={w.points.map((p) => `${p.x},${p.y}`).join(" ")}
               fill="none"
-              stroke={COLOURS.wall}
-              strokeWidth={4}
+              stroke={showBackground ? COLOURS.wall : COLOURS.wall}
+              strokeWidth={showBackground ? 5 : 10}
               strokeLinecap="round"
               strokeLinejoin="round"
+              strokeOpacity={showBackground ? 0.85 : 1}
             />
           ))}
 
@@ -511,7 +624,7 @@ export function FloorplanEditor({
                 y={s.y}
                 width={s.vWidth}
                 height={s.vHeight}
-                fill="url(#fe-stairs-hatch)"
+                fill="url(#fe4-stairs-hatch)"
                 opacity={0.5}
               />
               <text
@@ -541,7 +654,7 @@ export function FloorplanEditor({
             </g>
           ))}
 
-          {/* Radiators */}
+          {/* Radiators — rectangles */}
           {analysis.radiators.map((r) => {
             const colour =
               r.condition === "good"
@@ -553,18 +666,29 @@ export function FloorplanEditor({
                     : COLOURS.radiator;
             return (
               <g key={r.id}>
-                <circle cx={r.x} cy={r.y} r={12} fill={colour} stroke="white" strokeWidth={2} />
-                <text
+                <rect
                   x={r.x}
-                  y={r.y + 3}
-                  textAnchor="middle"
-                  fontSize="9"
-                  fontWeight="700"
-                  fill="white"
-                  pointerEvents="none"
-                >
-                  R
-                </text>
+                  y={r.y}
+                  width={r.vWidth}
+                  height={r.vHeight}
+                  fill={colour}
+                  stroke="white"
+                  strokeWidth={1.5}
+                  rx={3}
+                />
+                {/* Subtle internal hatching */}
+                {[0.25, 0.5, 0.75].map((p, i) => (
+                  <line
+                    key={i}
+                    x1={r.x + r.vWidth * p}
+                    y1={r.y}
+                    x2={r.x + r.vWidth * p}
+                    y2={r.y + r.vHeight}
+                    stroke="white"
+                    strokeOpacity={0.5}
+                    strokeWidth={1}
+                  />
+                ))}
               </g>
             );
           })}
@@ -596,7 +720,7 @@ export function FloorplanEditor({
                   fill={COLOURS.hpStroke}
                   pointerEvents="none"
                 >
-                  HP
+                  Heat pump
                 </text>
                 <title>{hp.label} — {hp.notes}</title>
               </g>
@@ -630,83 +754,38 @@ export function FloorplanEditor({
                   fill={COLOURS.cylStroke}
                   pointerEvents="none"
                 >
-                  Cyl
+                  Cylinder
                 </text>
                 <title>{cy.label} — {cy.notes}</title>
               </g>
             );
           })}
 
-          {/* In-flight wall path */}
-          {currentWallPoints.length > 0 && (
-            <>
-              <polyline
-                points={currentWallPoints.map((p) => `${p.x},${p.y}`).join(" ")}
-                fill="none"
-                stroke={COLOURS.wall}
-                strokeWidth={4}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeOpacity={0.6}
-              />
-              {currentWallPoints.map((p, i) => (
-                <circle key={i} cx={p.x} cy={p.y} r={4} fill={COLOURS.point} />
-              ))}
-            </>
-          )}
-          {wallPreview && (
-            <line
-              x1={wallPreview.from.x}
-              y1={wallPreview.from.y}
-              x2={wallPreview.to.x}
-              y2={wallPreview.to.y}
-              stroke={COLOURS.wallPreview}
-              strokeWidth={3}
-              strokeDasharray="4 4"
-              pointerEvents="none"
+          {/* Current wall/outdoor stroke while drawing */}
+          {stroke.length > 1 && (
+            <polyline
+              points={stroke.map((p) => `${p.x},${p.y}`).join(" ")}
+              fill="none"
+              stroke={stage === "outdoor" ? COLOURS.zoneCurrent : COLOURS.wallCurrent}
+              strokeWidth={stage === "outdoor" ? 4 : 6}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeOpacity={0.8}
             />
           )}
 
-          {/* In-flight outdoor zone */}
-          {currentZonePoints.length > 0 && (
-            <>
-              <polyline
-                points={currentZonePoints.map((p) => `${p.x},${p.y}`).join(" ")}
-                fill={COLOURS.zoneFill}
-                stroke={COLOURS.zoneStroke}
-                strokeWidth={2}
-                strokeOpacity={0.6}
-              />
-              {currentZonePoints.map((p, i) => (
-                <circle key={i} cx={p.x} cy={p.y} r={4} fill={COLOURS.zoneStroke} />
-              ))}
-            </>
-          )}
-          {zonePreview && (
-            <line
-              x1={zonePreview.from.x}
-              y1={zonePreview.from.y}
-              x2={zonePreview.to.x}
-              y2={zonePreview.to.y}
-              stroke={COLOURS.zonePreview}
-              strokeWidth={2}
-              strokeDasharray="4 4"
-              pointerEvents="none"
-            />
-          )}
-
-          {/* Stairs drag preview */}
-          {stairsDrag && (
+          {/* Rectangle drag preview */}
+          {dragRect && (
             <rect
-              x={Math.min(stairsDrag.startX, stairsDrag.curX)}
-              y={Math.min(stairsDrag.startY, stairsDrag.curY)}
-              width={Math.abs(stairsDrag.curX - stairsDrag.startX)}
-              height={Math.abs(stairsDrag.curY - stairsDrag.startY)}
-              fill={COLOURS.stairsFill}
-              fillOpacity={0.4}
-              stroke={COLOURS.stairsStroke}
+              x={Math.min(dragRect.startX, dragRect.curX)}
+              y={Math.min(dragRect.startY, dragRect.curY)}
+              width={Math.abs(dragRect.curX - dragRect.startX)}
+              height={Math.abs(dragRect.curY - dragRect.startY)}
+              fill={stage === "radiators" ? `${COLOURS.radiator}50` : `${COLOURS.stairsFill}80`}
+              stroke={stage === "radiators" ? COLOURS.radiator : COLOURS.stairsStroke}
               strokeWidth={2}
               strokeDasharray="4 4"
+              rx={3}
             />
           )}
         </svg>
@@ -726,46 +805,79 @@ export function FloorplanEditor({
             }}
           />
         )}
+
+        {/* Background toggle — bottom right, only when it's useful */}
+        {(stage === "adjust" || stage === "done") && imageUrl && (
+          <button
+            type="button"
+            onClick={() => setBackgroundOverride(!showBackground)}
+            className="absolute bottom-3 right-3 h-8 px-3 rounded-lg bg-white/90 backdrop-blur border border-slate-200 text-xs font-medium text-navy hover:bg-white inline-flex items-center gap-1.5 shadow-sm"
+          >
+            {showBackground ? (
+              <>
+                <EyeOff className="w-3.5 h-3.5" /> Hide uploaded floorplan
+              </>
+            ) : (
+              <>
+                <Eye className="w-3.5 h-3.5" /> Show uploaded floorplan
+              </>
+            )}
+          </button>
+        )}
       </div>
 
-      {/* "Find heat pump & cylinder" action + summary */}
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-        <div className="text-xs text-slate-500">
-          {analysis.walls.length} wall path(s) · {analysis.doors.length} door(s) ·{" "}
-          {analysis.outdoorZones.length} outdoor zone(s) · {analysis.userStairs.length} stair(s) ·{" "}
-          {analysis.radiators.length} radiator(s)
-          {totalPins > 0 && ` · ${totalPins} AI pin${totalPins === 1 ? "" : "s"}`}
-        </div>
-        <button
-          type="button"
-          disabled={!canFindPlacements || placementsRunning}
-          onClick={() => onRequestPlacements?.()}
-          className="inline-flex items-center gap-2 h-10 px-4 rounded-lg bg-coral hover:bg-coral-dark disabled:bg-slate-300 disabled:cursor-not-allowed text-white text-sm font-semibold transition-colors"
-        >
-          {placementsRunning ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin" /> Finding placements…
-            </>
-          ) : (
-            <>
-              <Sparkles className="w-4 h-4" />
-              {analysis.placementsRequested ? "Re-run placement" : "Find heat pump & cylinder"}
-            </>
-          )}
-        </button>
-      </div>
-
+      {/* Placements error + concerns */}
       {placementsError && (
-        <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 flex items-start gap-2">
-          <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
-          <span>{placementsError}</span>
+        <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          {placementsError}
         </div>
       )}
 
-      {/* Concerns from the AI step */}
-      {analysis.placementsRequested && analysis.heatPumpInstallationConcerns.length > 0 && (
-        <div className="mt-4 rounded-lg bg-slate-50 border border-slate-100 p-3 text-xs text-slate-600">
-          <p className="font-semibold text-navy mb-1">Install concerns</p>
+      {/* Clarification questions (adjust stage) */}
+      {stage === "adjust" &&
+        (analysis.clarificationQuestions ?? []).length > 0 && (
+          <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <p className="text-sm font-semibold text-navy mb-2">
+              A couple of things worth confirming
+            </p>
+            <div className="space-y-3">
+              {(analysis.clarificationQuestions ?? []).map((q) => (
+                <div key={q.id}>
+                  <p className="text-sm text-navy">{q.question}</p>
+                  {q.context && (
+                    <p className="text-[11px] text-slate-500 mt-0.5">{q.context}</p>
+                  )}
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {q.options.map((opt) => {
+                      const picked = q.answer === opt;
+                      return (
+                        <button
+                          key={opt}
+                          type="button"
+                          onClick={() =>
+                            onChange(answerClarification(analysis, q.id, opt))
+                          }
+                          className={`h-8 px-3 rounded-lg text-xs font-medium border transition-colors ${
+                            picked
+                              ? "bg-coral border-coral text-white"
+                              : "bg-white border-[var(--border)] text-slate-700 hover:border-slate-300"
+                          }`}
+                        >
+                          {opt}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+      {/* AI concerns */}
+      {stage === "adjust" && analysis.heatPumpInstallationConcerns.length > 0 && (
+        <div className="mt-3 rounded-lg bg-amber-50 border border-amber-200 p-3 text-xs text-amber-900">
+          <p className="font-semibold mb-1">A note from the survey assistant</p>
           <ul className="list-disc pl-4 space-y-0.5">
             {analysis.heatPumpInstallationConcerns.map((c, i) => (
               <li key={i}>{c}</li>
@@ -774,21 +886,174 @@ export function FloorplanEditor({
         </div>
       )}
 
-      {/* Remove lists */}
-      <RemoveLists analysis={analysis} onChange={onChange} />
+      {/* Footer controls */}
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        {stageIdx > 0 && stage !== "welcome" && stage !== "placing" && (
+          <button
+            type="button"
+            onClick={goBack}
+            className="h-9 px-3 rounded-lg text-sm text-slate-500 hover:text-slate-900"
+          >
+            ← Back a step
+          </button>
+        )}
 
-      {/* Legend */}
-      <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-[11px] text-slate-500">
-        <LegendRow colour={COLOURS.wall} label="Wall" thick />
-        <LegendRow colour={COLOURS.door} label="Door" />
-        <LegendRow colour={COLOURS.zoneStroke} label="Outdoor zone" />
-        <LegendRow colour={COLOURS.stairsStroke} label="Stairs" />
-        <LegendRow colour={COLOURS.radiator} label="Radiator" />
-        <LegendRow colour={COLOURS.hpStroke} label="Heat pump (outdoor)" dashed />
-        <LegendRow colour={COLOURS.cylStroke} label="Cylinder (indoor)" dashed />
+        {showUndo && (
+          <button
+            type="button"
+            onClick={undo}
+            disabled={undoCount === 0}
+            className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border border-slate-300 bg-white text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:text-slate-300 disabled:cursor-not-allowed"
+          >
+            <Undo2 className="w-3.5 h-3.5" /> Undo
+            {undoCount > 0 && (
+              <span className="text-[11px] text-slate-500">({undoCount})</span>
+            )}
+          </button>
+        )}
+
+        <div className="flex-1" />
+
+        {cfg.skippable && stage !== "welcome" && (
+          <button
+            type="button"
+            onClick={advance}
+            className="h-9 px-4 rounded-lg text-sm text-slate-500 hover:text-slate-900"
+          >
+            Skip this step
+          </button>
+        )}
+
+        {stage !== "placing" && (
+          <button
+            type="button"
+            onClick={advance}
+            disabled={placementsRunning}
+            className="inline-flex items-center gap-2 h-10 px-5 rounded-lg bg-coral hover:bg-coral-dark disabled:bg-slate-300 disabled:cursor-not-allowed text-white text-sm font-semibold transition-colors"
+          >
+            {stage === "welcome" && (
+              <>
+                Let&rsquo;s go <ArrowRight className="w-4 h-4" />
+              </>
+            )}
+            {stage === "walls" && (
+              <>
+                Save walls <ArrowRight className="w-4 h-4" />
+              </>
+            )}
+            {stage === "outdoor" && (
+              <>
+                Save outdoor space <ArrowRight className="w-4 h-4" />
+              </>
+            )}
+            {stage === "doors" && (
+              <>
+                Save doors <ArrowRight className="w-4 h-4" />
+              </>
+            )}
+            {stage === "stairs" && (
+              <>
+                Save stairs <ArrowRight className="w-4 h-4" />
+              </>
+            )}
+            {stage === "radiators" && (
+              <>
+                <Sparkles className="w-4 h-4" /> Find heat pump &amp; cylinder
+              </>
+            )}
+            {stage === "adjust" && (
+              <>
+                <Check className="w-4 h-4" /> Looks good
+              </>
+            )}
+            {stage === "done" && (
+              <>
+                <Check className="w-4 h-4" /> Done
+              </>
+            )}
+          </button>
+        )}
+
+        {stage === "placing" && (
+          <div className="inline-flex items-center gap-2 h-10 px-5 rounded-lg bg-slate-200 text-slate-500 text-sm font-semibold">
+            <Loader2 className="w-4 h-4 animate-spin" /> Thinking…
+          </div>
+        )}
       </div>
     </div>
   );
+}
+
+// ─── Stage example visuals ───────────────────────────────────────────────────
+
+function StageExample({ stage }: { stage: Stage }) {
+  if (stage === "doors") {
+    return (
+      <div className="hidden sm:flex shrink-0 flex-col items-center gap-0.5">
+        <svg viewBox="0 0 30 30" className="w-8 h-8">
+          <circle cx="15" cy="15" r="10" fill="white" stroke="#f59e0b" strokeWidth="2" />
+          <path d="M 8 15 A 7 7 0 0 1 22 15" fill="none" stroke="#f59e0b" strokeWidth="1.5" />
+        </svg>
+        <span className="text-[10px] text-slate-500">Door</span>
+      </div>
+    );
+  }
+  if (stage === "radiators") {
+    return (
+      <div className="hidden sm:flex shrink-0 flex-col items-center gap-0.5">
+        <svg viewBox="0 0 40 14" className="w-12 h-4">
+          <rect x="0" y="0" width="40" height="14" rx="2" fill="#ef6c4f" />
+          {[10, 20, 30].map((x) => (
+            <line key={x} x1={x} y1="0" x2={x} y2="14" stroke="white" strokeOpacity="0.5" />
+          ))}
+        </svg>
+        <span className="text-[10px] text-slate-500">Radiator</span>
+      </div>
+    );
+  }
+  if (stage === "stairs") {
+    return (
+      <div className="hidden sm:flex shrink-0 flex-col items-center gap-0.5">
+        <svg viewBox="0 0 30 30" className="w-8 h-8">
+          <rect x="2" y="2" width="26" height="26" fill="#cbd5e1" stroke="#64748b" />
+          {[8, 14, 20].map((y) => (
+            <line key={y} x1="2" y1={y} x2="28" y2={y} stroke="#64748b" strokeWidth="1" />
+          ))}
+          <text x="15" y="20" textAnchor="middle" fontSize="10" fontWeight="700" fill="#64748b">
+            ↑
+          </text>
+        </svg>
+        <span className="text-[10px] text-slate-500">Stairs</span>
+      </div>
+    );
+  }
+  if (stage === "walls") {
+    return (
+      <div className="hidden sm:flex shrink-0 flex-col items-center gap-0.5">
+        <svg viewBox="0 0 30 16" className="w-10 h-5">
+          <path d="M 2 8 L 28 8" stroke="#1e293b" strokeWidth="5" strokeLinecap="round" />
+        </svg>
+        <span className="text-[10px] text-slate-500">Wall</span>
+      </div>
+    );
+  }
+  if (stage === "outdoor") {
+    return (
+      <div className="hidden sm:flex shrink-0 flex-col items-center gap-0.5">
+        <svg viewBox="0 0 30 20" className="w-10 h-6">
+          <polygon
+            points="2,18 8,4 22,4 28,18"
+            fill="#86efac30"
+            stroke="#22c55e"
+            strokeWidth="1.5"
+            strokeDasharray="3 2"
+          />
+        </svg>
+        <span className="text-[10px] text-slate-500">Outdoor</span>
+      </div>
+    );
+  }
+  return null;
 }
 
 // ─── Radiator condition popover ──────────────────────────────────────────────
@@ -806,13 +1071,13 @@ function RadiatorConditionPopover({
 }) {
   return (
     <div
-      className="absolute z-10 rounded-xl border border-coral bg-white shadow-lg p-3 min-w-[180px]"
+      className="absolute z-10 rounded-xl border border-coral bg-white shadow-xl p-3 min-w-[200px]"
       style={{
-        left: Math.max(8, Math.min(x + 12, 9999)),
-        top: Math.max(8, y + 12),
+        left: Math.max(8, Math.min(x + 8, 10000)),
+        top: Math.max(8, y),
       }}
     >
-      <p className="text-xs font-semibold text-navy">Radiator condition?</p>
+      <p className="text-xs font-semibold text-navy">Condition?</p>
       <div className="mt-2 flex flex-col gap-1">
         {(["good", "fair", "poor", "unsure"] as RadiatorCondition[]).map((c) => (
           <button
@@ -821,209 +1086,23 @@ function RadiatorConditionPopover({
             onClick={() => onPick(c)}
             className="h-8 px-3 rounded-lg border border-coral bg-white text-xs font-medium text-navy hover:bg-coral hover:text-white transition-colors text-left"
           >
-            {conditionLabel(c)}
+            {c === "good" && "Good"}
+            {c === "fair" && "Fair"}
+            {c === "poor" && "Poor"}
+            {c === "unsure" && "Not sure"}
           </button>
         ))}
         <button
           type="button"
           onClick={onRemove}
-          className="mt-1 h-7 text-[11px] text-slate-500 hover:text-red-600 inline-flex items-center gap-1.5"
+          className="mt-1 h-7 text-[11px] text-slate-500 hover:text-red-600"
         >
-          <Trash2 className="w-3 h-3" /> Remove
+          Remove
         </button>
       </div>
     </div>
   );
 }
 
-// ─── Remove lists ────────────────────────────────────────────────────────────
-
-function RemoveLists({
-  analysis,
-  onChange,
-}: {
-  analysis: FloorplanAnalysis;
-  onChange: (next: FloorplanAnalysis) => void;
-}) {
-  const any =
-    analysis.walls.length +
-      analysis.doors.length +
-      analysis.outdoorZones.length +
-      analysis.userStairs.length +
-      analysis.radiators.length +
-      analysis.heatPumpLocations.length +
-      analysis.hotWaterCylinderCandidates.length >
-    0;
-  if (!any) return null;
-  return (
-    <details className="mt-4 rounded-lg border border-slate-100 bg-slate-50 p-3 text-xs text-slate-600">
-      <summary className="cursor-pointer font-semibold text-navy">
-        Manage annotations ({
-          analysis.walls.length +
-            analysis.doors.length +
-            analysis.outdoorZones.length +
-            analysis.userStairs.length +
-            analysis.radiators.length +
-            analysis.heatPumpLocations.length +
-            analysis.hotWaterCylinderCandidates.length
-        })
-      </summary>
-      <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {analysis.walls.length > 0 && (
-          <ItemGroup title="Walls">
-            {analysis.walls.map((w, i) => (
-              <Item
-                key={w.id}
-                label={`Wall #${i + 1} (${w.points.length} points)`}
-                onRemove={() => onChange(removeWallPath(analysis, w.id))}
-              />
-            ))}
-          </ItemGroup>
-        )}
-        {analysis.doors.length > 0 && (
-          <ItemGroup title="Doors">
-            {analysis.doors.map((d, i) => (
-              <Item
-                key={d.id}
-                label={`Door #${i + 1}`}
-                onRemove={() => onChange(removeDoor(analysis, d.id))}
-              />
-            ))}
-          </ItemGroup>
-        )}
-        {analysis.outdoorZones.length > 0 && (
-          <ItemGroup title="Outdoor zones">
-            {analysis.outdoorZones.map((z) => (
-              <Item
-                key={z.id}
-                label={z.label}
-                onRemove={() => onChange(removeOutdoorZone(analysis, z.id))}
-              />
-            ))}
-          </ItemGroup>
-        )}
-        {analysis.userStairs.length > 0 && (
-          <ItemGroup title="Stairs">
-            {analysis.userStairs.map((s, i) => (
-              <Item
-                key={s.id}
-                label={`Stairs #${i + 1}`}
-                onRemove={() => onChange(removeStairs(analysis, s.id))}
-              />
-            ))}
-          </ItemGroup>
-        )}
-        {analysis.radiators.length > 0 && (
-          <ItemGroup title="Radiators">
-            {analysis.radiators.map((r, i) => (
-              <Item
-                key={r.id}
-                label={`Radiator #${i + 1}${r.condition ? ` · ${r.condition}` : ""}`}
-                onRemove={() => onChange(removeRadiator(analysis, r.id))}
-              />
-            ))}
-          </ItemGroup>
-        )}
-        {analysis.heatPumpLocations.length > 0 && (
-          <ItemGroup title="Heat pump pins">
-            {analysis.heatPumpLocations.map((h) => (
-              <Item
-                key={h.id}
-                label={h.label}
-                onRemove={() => onChange(removeHeatPump(analysis, h.id))}
-              />
-            ))}
-          </ItemGroup>
-        )}
-        {analysis.hotWaterCylinderCandidates.length > 0 && (
-          <ItemGroup title="Cylinder pins">
-            {analysis.hotWaterCylinderCandidates.map((c) => (
-              <Item
-                key={c.id}
-                label={c.label}
-                onRemove={() => onChange(removeCylinder(analysis, c.id))}
-              />
-            ))}
-          </ItemGroup>
-        )}
-      </div>
-      {/* Let the user also add a custom HP pin. */}
-      <div className="mt-3 text-[11px] text-slate-500">
-        Tip: to add a heat-pump pin manually, switch to the Move pins mode and use
-        the Add button below.
-      </div>
-      <button
-        type="button"
-        onClick={() => onChange(addUserHeatPump(analysis, 500, 500))}
-        className="mt-2 h-8 px-3 rounded-lg border border-coral bg-white text-xs font-medium text-coral hover:bg-coral-pale inline-flex items-center gap-1.5"
-      >
-        <Target className="w-3 h-3" /> Add heat-pump pin at centre
-      </button>
-    </details>
-  );
-}
-
-function ItemGroup({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <p className="font-semibold text-navy text-[11px] uppercase tracking-wider mb-1.5">
-        {title}
-      </p>
-      <ul className="space-y-1">{children}</ul>
-    </div>
-  );
-}
-
-function Item({ label, onRemove }: { label: string; onRemove: () => void }) {
-  return (
-    <li className="flex items-center gap-2">
-      <span className="flex-1 truncate">{label}</span>
-      <button
-        type="button"
-        onClick={onRemove}
-        className="text-slate-400 hover:text-red-600"
-        title="Remove"
-      >
-        <Trash2 className="w-3 h-3" />
-      </button>
-    </li>
-  );
-}
-
-function LegendRow({
-  colour,
-  label,
-  thick,
-  dashed,
-}: {
-  colour: string;
-  label: string;
-  thick?: boolean;
-  dashed?: boolean;
-}) {
-  return (
-    <span className="inline-flex items-center gap-1.5">
-      <span
-        className="inline-block w-3 h-3 rounded"
-        style={
-          dashed
-            ? { border: `2px dashed ${colour}`, background: `${colour}20` }
-            : thick
-              ? { background: colour, height: "3px", width: "12px", alignSelf: "center" }
-              : { background: colour }
-        }
-      />
-      {label}
-    </span>
-  );
-}
-
-function conditionLabel(c: RadiatorCondition): string {
-  if (c === "good") return "Good — no rust, works fine";
-  if (c === "fair") return "Fair — ageing but works";
-  if (c === "poor") return "Poor — leaks or doesn't heat";
-  return "Not sure";
-}
-
-// Unused import guard (keeps TS happy if Image is ever swapped in)
-void Image;
+// Export Flame icon so the step-4 wrapper can match the editor's visual language.
+export { Flame };

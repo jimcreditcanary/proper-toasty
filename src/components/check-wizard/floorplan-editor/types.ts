@@ -6,27 +6,28 @@
 
 import type { FloorplanAnalysis } from "@/lib/schemas/floorplan";
 
-export type EditorMode =
+// V4: conversational stage flow. The editor walks the user through each
+// annotation type one at a time, with a prominent Undo and a Save/Skip to
+// advance. After all stages, AI places HP + cylinder, optionally asks
+// follow-up questions, then shows a canonical view (uploaded image
+// hidden; user's drawing IS the floorplan).
+export type Stage =
+  | "welcome"
   | "walls"
-  | "doors"
   | "outdoor"
+  | "doors"
   | "stairs"
   | "radiators"
-  | "adjust";
+  | "placing"
+  | "adjust"
+  | "done";
 
 export interface FloorplanEditorProps {
   analysis: FloorplanAnalysis;
   onChange: (next: FloorplanAnalysis) => void;
-  // URL (client-fetchable proxy) of the uploaded floorplan image — drawn as
-  // the background of the canvas.
   imageUrl: string | null;
-  // Optional — when provided, the outdoor-space confirmation block renders
-  // above the editor so the user can answer Yes/No.
   outdoorAsk?: boolean;
   onOutdoorConfirm?: (answer: "yes" | "no") => void;
-  // Callback when user presses "Find heat pump & cylinder". Parent owns the
-  // AI call; editor just reports intent. `running` is passed back so the
-  // button can show a loading state.
   onRequestPlacements?: () => void;
   placementsRunning?: boolean;
   placementsError?: string | null;
