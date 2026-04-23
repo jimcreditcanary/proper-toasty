@@ -20,6 +20,7 @@ import type {
   AnalyseResponse,
 } from "@/lib/schemas/analyse";
 import { useCheckWizard } from "./context";
+import { SavingsCalculator } from "./savings-calculator";
 
 export function Step6Report() {
   const { state, reset, back } = useCheckWizard();
@@ -70,6 +71,13 @@ export function Step6Report() {
         <HeatPumpSection a={a} />
         <SolarSection a={a} />
       </div>
+
+      {/* Live savings calculator (Octopus pricing API) */}
+      <SavingsCalculator
+        analysis={a}
+        electricityTariff={state.electricityTariff}
+        gasTariff={state.gasTariff}
+      />
 
       {/* Floorplan analysis */}
       <FloorplanSection a={a} />

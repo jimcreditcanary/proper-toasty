@@ -718,6 +718,7 @@ export interface Database {
           floorplan_analysis: Json | null;
           eligibility: Json | null;
           finance: Json | null;
+          savings_raw: Json | null;
           generated_at: string;
         };
         Insert: {
@@ -732,6 +733,7 @@ export interface Database {
           floorplan_analysis?: Json | null;
           eligibility?: Json | null;
           finance?: Json | null;
+          savings_raw?: Json | null;
           generated_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["check_results"]["Insert"]>;
