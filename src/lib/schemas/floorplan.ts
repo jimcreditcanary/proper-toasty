@@ -90,6 +90,29 @@ export const HeatPumpLocationSchema = z.object({
 });
 export type HeatPumpLocation = z.infer<typeof HeatPumpLocationSchema>;
 
+// ─── Hot water cylinder candidates ───────────────────────────────────────────
+// A typical UK unvented cylinder for a 4-bed home is ~600mm × 600mm footprint
+// (~0.36m²) and 1.5–2m tall. It needs to sit indoors, near central heating
+// pipework. The visualisation answers: "is there ACTUALLY space at scale?"
+
+export const HotWaterCylinderCandidateSchema = z.object({
+  id: z.string().min(1),
+  label: z.string(),               // "Airing cupboard", "Utility room"
+  // Same coord system as rooms.
+  x: z.number(),
+  y: z.number(),
+  // Footprint scaled to roughly 0.6m × 0.6m relative to the room scale.
+  vWidth: z.number(),
+  vHeight: z.number(),
+  // Which room does this candidate live in? Should always be set.
+  roomId: z.string().nullable(),
+  // Why this spot? "Adjacent to the existing boiler", "Under-stairs cupboard
+  // already plumbed" etc.
+  notes: z.string(),
+  source: z.enum(["claude_detected", "user_added"]).default("claude_detected"),
+});
+export type HotWaterCylinderCandidate = z.infer<typeof HotWaterCylinderCandidateSchema>;
+
 // ─── Outdoor space (cross-referenced with satellite) ─────────────────────────
 
 export const OutdoorSpaceCheckSchema = z.object({
@@ -112,6 +135,7 @@ export const FloorplanAnalysisSchema = z.object({
   rooms: z.array(RoomSchema).default([]),
   radiators: z.array(RadiatorSchema).default([]),
   heatPumpLocations: z.array(HeatPumpLocationSchema).default([]),
+  hotWaterCylinderCandidates: z.array(HotWaterCylinderCandidateSchema).default([]),
   // Diagram viewport — always 1000 × 1000 in v1, exposed for forward
   // compatibility (we may want non-square layouts later).
   viewport: z

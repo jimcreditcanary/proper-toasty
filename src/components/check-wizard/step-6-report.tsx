@@ -1,29 +1,44 @@
 "use client";
 
+import { useState } from "react";
 import Image from "next/image";
 import {
   AlertTriangle,
   CheckCircle2,
   Flame,
+  Home,
   Info,
   Landmark,
   MapPin,
-  Shield,
   Sun,
   Waves,
   Zap,
   ArrowLeft,
   ArrowRight,
   ExternalLink,
+  Layers,
+  ClipboardList,
+  Sparkles,
 } from "lucide-react";
-import type {
-  AnalyseResponse,
-} from "@/lib/schemas/analyse";
+import type { AnalyseResponse } from "@/lib/schemas/analyse";
+import type { FloorplanAnalysis } from "@/lib/schemas/floorplan";
 import { useCheckWizard } from "./context";
 import { SavingsCalculator } from "./savings-calculator";
+import { FloorplanEditor } from "./floorplan-editor";
+
+type TabKey = "overview" | "heatpump" | "solar" | "home" | "installer";
+
+const TABS: Array<{ key: TabKey; label: string; icon: React.ReactNode }> = [
+  { key: "overview", label: "Overview", icon: <Sparkles className="w-3.5 h-3.5" /> },
+  { key: "heatpump", label: "Heat pump", icon: <Flame className="w-3.5 h-3.5" /> },
+  { key: "solar", label: "Solar & battery", icon: <Sun className="w-3.5 h-3.5" /> },
+  { key: "home", label: "Your home", icon: <Home className="w-3.5 h-3.5" /> },
+  { key: "installer", label: "For your installer", icon: <ClipboardList className="w-3.5 h-3.5" /> },
+];
 
 export function Step6Report() {
-  const { state, reset, back } = useCheckWizard();
+  const { state, update, reset, back } = useCheckWizard();
+  const [tab, setTab] = useState<TabKey>("overview");
   const a = state.analysis;
   const addr = state.address;
 
@@ -47,49 +62,79 @@ export function Step6Report() {
     h: "360",
   }).toString()}`;
 
+  // The report uses the user-edited floorplan analysis from Step 4 if
+  // available, falling back to whatever /api/analyse produced.
+  const floorplan: FloorplanAnalysis | null =
+    state.floorplanAnalysis ?? a.floorplan.analysis;
+
+  const handleFloorplanChange = (next: FloorplanAnalysis) => {
+    update({ floorplanAnalysis: next });
+  };
+
   return (
-    <div className="max-w-4xl mx-auto w-full">
-      {/* Headline */}
-      <div className="text-center mb-10">
+    <div className="max-w-5xl mx-auto w-full">
+      {/* Headline strip — always visible */}
+      <div className="text-center mb-6">
         <p className="text-xs font-semibold uppercase tracking-wider text-coral mb-2">
           Your report
         </p>
-        <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-navy leading-tight">
+        <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-navy leading-tight max-w-3xl mx-auto">
           {headline}
         </h2>
-        <p className="mt-4 text-sm text-slate-500 max-w-2xl mx-auto">
-          A pre-survey indication based on public data, satellite imagery, and your floorplan — not
-          a final quote. An on-site heat-loss survey by an MCS installer will refine the numbers.
-        </p>
       </div>
 
-      {/* Property summary */}
-      <PropertyCard address={addr.formattedAddress} satelliteUrl={satelliteUrl} epc={a.epc} enrichments={a.enrichments} />
-
-      {/* Heat pump + Solar */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-        <HeatPumpSection a={a} />
-        <SolarSection a={a} />
+      {/* Tab bar */}
+      <div className="border-b border-slate-200 mb-6 -mx-4 sm:mx-0 px-4 sm:px-0 overflow-x-auto">
+        <nav className="flex gap-1 min-w-max sm:min-w-0">
+          {TABS.map((t) => {
+            const active = tab === t.key;
+            return (
+              <button
+                key={t.key}
+                type="button"
+                onClick={() => setTab(t.key)}
+                className={`relative inline-flex items-center gap-1.5 px-3 sm:px-4 py-3 text-sm font-medium transition-colors ${
+                  active
+                    ? "text-coral"
+                    : "text-slate-500 hover:text-slate-900"
+                }`}
+              >
+                {t.icon}
+                <span>{t.label}</span>
+                {active && (
+                  <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-coral" />
+                )}
+              </button>
+            );
+          })}
+        </nav>
       </div>
 
-      {/* Live savings calculator (Octopus pricing API) */}
-      <SavingsCalculator
-        analysis={a}
-        electricityTariff={state.electricityTariff}
-        gasTariff={state.gasTariff}
-      />
-
-      {/* Floorplan analysis */}
-      <FloorplanSection a={a} />
-
-      {/* Site considerations */}
-      <SiteConsiderations a={a} />
-
-      {/* Installer questions */}
-      <InstallerQuestions a={a} />
-
-      {/* Next steps + disclaimer */}
-      <NextSteps />
+      {/* Tab content */}
+      <div className="space-y-6">
+        {tab === "overview" && (
+          <OverviewTab
+            a={a}
+            address={addr.formattedAddress}
+            satelliteUrl={satelliteUrl}
+            electricityTariff={state.electricityTariff}
+            gasTariff={state.gasTariff}
+          />
+        )}
+        {tab === "heatpump" && <HeatPumpTab a={a} floorplan={floorplan} />}
+        {tab === "solar" && <SolarTab a={a} />}
+        {tab === "home" && (
+          <YourHomeTab
+            a={a}
+            address={addr.formattedAddress}
+            satelliteUrl={satelliteUrl}
+            floorplan={floorplan}
+            satelliteOutdoorVerdict={state.satelliteOutdoorVerdict}
+            onFloorplanChange={handleFloorplanChange}
+          />
+        )}
+        {tab === "installer" && <InstallerTab a={a} address={addr.formattedAddress} />}
+      </div>
 
       <div className="mt-10 flex items-center justify-between">
         <button
@@ -111,16 +156,19 @@ export function Step6Report() {
       </div>
 
       <p className="mt-10 pt-6 border-t border-slate-200 text-xs text-slate-500 leading-relaxed">
-        Solar yield via PVGIS v5.3 (EU JRC). Eligibility logic against Ofgem Boiler Upgrade Scheme
-        guidance — confirm figures against the current version before applying. Listed building and
-        planning-area data from Historic England and planning.data.gov.uk. Flood warnings from the
-        Environment Agency. Report generated {new Date().toLocaleDateString("en-GB")}.
+        A pre-survey indication based on public data, satellite imagery, and your floorplan — not
+        a final quote. An MCS-certified installer will refine numbers on a site visit.
+        Solar yield via PVGIS v5.3 (EU JRC). BUS eligibility per Ofgem guidance — confirm against
+        the current scheme version. Listed-building data from Historic England; planning areas from
+        planning.data.gov.uk. Flood warnings from the Environment Agency. Savings figures from
+        Octopus Energy&rsquo;s calculator API. Report generated {new Date().toLocaleDateString("en-GB")}.
       </p>
     </div>
   );
 }
 
-// ─── headline ────────────────────────────────────────────────────────────────
+// ─── Headline ────────────────────────────────────────────────────────────────
+
 function buildHeadline(a: AnalyseResponse): string {
   const hp = a.eligibility.heatPump;
   const solar = a.eligibility.solar;
@@ -148,7 +196,343 @@ function buildHeadline(a: AnalyseResponse): string {
   return "We've flagged the key things an installer would want to know about your property.";
 }
 
-// ─── section components ──────────────────────────────────────────────────────
+// ─── Overview tab ────────────────────────────────────────────────────────────
+
+function OverviewTab({
+  a,
+  address,
+  satelliteUrl,
+  electricityTariff,
+  gasTariff,
+}: {
+  a: AnalyseResponse;
+  address: string;
+  satelliteUrl: string;
+  electricityTariff: ReturnType<typeof useCheckWizard>["state"]["electricityTariff"];
+  gasTariff: ReturnType<typeof useCheckWizard>["state"]["gasTariff"];
+}) {
+  const hp = a.eligibility.heatPump;
+  const solar = a.eligibility.solar;
+
+  return (
+    <>
+      <PropertyCard address={address} satelliteUrl={satelliteUrl} epc={a.epc} enrichments={a.enrichments} />
+
+      {/* Recommendation pills — quick visual of the three techs */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <RecommendationPill
+          icon={<Flame className="w-5 h-5" />}
+          label="Heat pump"
+          verdict={hp.verdict === "eligible" ? "Recommended" : hp.verdict === "conditional" ? "Possible" : "Not now"}
+          tone={hp.verdict === "eligible" ? "green" : hp.verdict === "conditional" ? "amber" : "red"}
+          sub={hp.recommendedSystemKW != null ? `~${hp.recommendedSystemKW} kW · £${hp.estimatedGrantGBP.toLocaleString()} grant` : "Sizing pending"}
+        />
+        <RecommendationPill
+          icon={<Sun className="w-5 h-5" />}
+          label="Solar"
+          verdict={solar.rating}
+          tone={solar.rating === "Excellent" || solar.rating === "Good" ? "green" : solar.rating === "Marginal" ? "amber" : "red"}
+          sub={solar.recommendedKWp != null ? `${solar.recommendedKWp} kWp · ${solar.estimatedAnnualKWh?.toLocaleString() ?? "—"} kWh/yr` : "Roof not suitable"}
+        />
+        <RecommendationPill
+          icon={<Layers className="w-5 h-5" />}
+          label="Battery"
+          verdict={solar.rating === "Excellent" || solar.rating === "Good" ? "Recommended" : "Optional"}
+          tone={solar.rating === "Excellent" || solar.rating === "Good" ? "green" : "amber"}
+          sub="Pairs with solar to shift midday generation to the evening"
+        />
+      </div>
+
+      <SavingsCalculator analysis={a} electricityTariff={electricityTariff} gasTariff={gasTariff} />
+    </>
+  );
+}
+
+function RecommendationPill({
+  icon,
+  label,
+  verdict,
+  tone,
+  sub,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  verdict: string;
+  tone: "green" | "amber" | "red";
+  sub: string;
+}) {
+  const cls =
+    tone === "green"
+      ? "border-emerald-200 bg-emerald-50"
+      : tone === "amber"
+        ? "border-amber-200 bg-amber-50"
+        : "border-red-200 bg-red-50";
+  const verdictCls =
+    tone === "green"
+      ? "text-emerald-700"
+      : tone === "amber"
+        ? "text-amber-800"
+        : "text-red-700";
+  return (
+    <div className={`rounded-2xl border p-4 ${cls}`}>
+      <div className="flex items-center gap-2">
+        <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-white/60 text-coral">
+          {icon}
+        </span>
+        <p className="text-sm font-semibold text-navy">{label}</p>
+        <span className={`ml-auto text-[11px] font-bold uppercase tracking-wider ${verdictCls}`}>
+          {verdict}
+        </span>
+      </div>
+      <p className="mt-2 text-xs text-slate-600">{sub}</p>
+    </div>
+  );
+}
+
+// ─── Heat pump tab ───────────────────────────────────────────────────────────
+
+function HeatPumpTab({ a, floorplan }: { a: AnalyseResponse; floorplan: FloorplanAnalysis | null }) {
+  const hp = a.eligibility.heatPump;
+  const f = a.finance.heatPump;
+  const tone: "green" | "amber" | "red" =
+    hp.verdict === "eligible" ? "green" : hp.verdict === "conditional" ? "amber" : "red";
+
+  return (
+    <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <SectionHeader icon={<Flame className="w-5 h-5" />} title="Heat pump">
+        <VerdictBadge tone={tone} label={hp.verdict.toUpperCase()} />
+      </SectionHeader>
+
+      {hp.blockers.length > 0 && <IssueList kind="blocker" items={hp.blockers} />}
+      {hp.warnings.length > 0 && <IssueList kind="warning" items={hp.warnings} />}
+
+      <dl className="mt-4 space-y-2 text-sm">
+        <Row label="Estimated BUS grant">
+          <span className="font-semibold text-navy">£{hp.estimatedGrantGBP.toLocaleString()}</span>
+        </Row>
+        {hp.recommendedSystemKW != null && (
+          <Row label="Planning-estimate system size">
+            <span className="font-medium text-navy">{hp.recommendedSystemKW} kW</span>
+          </Row>
+        )}
+        {f.estimatedNetInstallCostRangeGBP && (
+          <Row label="Estimated cost after grant">
+            <span className="font-medium text-navy">
+              £{f.estimatedNetInstallCostRangeGBP[0].toLocaleString()}–£{f.estimatedNetInstallCostRangeGBP[1].toLocaleString()}
+            </span>
+          </Row>
+        )}
+        {floorplan && floorplan.heatPumpLocations.length > 0 && (
+          <Row label="Outdoor unit candidates">
+            <span className="font-medium text-navy">
+              {floorplan.heatPumpLocations.length} spot{floorplan.heatPumpLocations.length === 1 ? "" : "s"} flagged on your floorplan
+            </span>
+          </Row>
+        )}
+        {floorplan && (floorplan.hotWaterCylinderCandidates?.length ?? 0) > 0 && (
+          <Row label="Cylinder candidates">
+            <span className="font-medium text-navy">
+              {floorplan.hotWaterCylinderCandidates.length} indoor spot{floorplan.hotWaterCylinderCandidates.length === 1 ? "" : "s"}
+            </span>
+          </Row>
+        )}
+      </dl>
+
+      {floorplan && (
+        <div className="mt-4 rounded-lg bg-slate-50 border border-slate-100 p-3 text-xs text-slate-600 space-y-2">
+          <p>
+            <strong className="text-navy">Cylinder space:</strong>{" "}
+            {floorplan.hotWaterCylinderSpace.likelyPresent
+              ? `Likely — ${floorplan.hotWaterCylinderSpace.location ?? "location unclear"}.`
+              : "Not obvious from the floorplan — installer will need to find space for a new cylinder."}
+          </p>
+          {floorplan.heatPumpInstallationConcerns.length > 0 && (
+            <ul className="list-disc pl-4 space-y-0.5">
+              {floorplan.heatPumpInstallationConcerns.map((c, i) => (
+                <li key={i}>{c}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+
+      {hp.notes.length > 0 && (
+        <ul className="mt-3 text-xs text-slate-500 space-y-1 list-disc pl-4">
+          {hp.notes.map((n, i) => (
+            <li key={i}>{n}</li>
+          ))}
+        </ul>
+      )}
+
+      <p className="mt-5 text-xs text-slate-500">
+        See the <strong className="text-navy">Your home</strong> tab to mark up radiators
+        and fine-tune what an installer will see.
+      </p>
+    </section>
+  );
+}
+
+// ─── Solar & battery tab ─────────────────────────────────────────────────────
+
+function SolarTab({ a }: { a: AnalyseResponse }) {
+  const s = a.eligibility.solar;
+  const f = a.finance.solar;
+  const tone: "green" | "amber" | "red" =
+    s.rating === "Excellent" || s.rating === "Good"
+      ? "green"
+      : s.rating === "Marginal"
+        ? "amber"
+        : "red";
+
+  const segments = a.solar.coverage ? a.solar.data.solarPotential.roofSegmentStats ?? [] : [];
+
+  return (
+    <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <SectionHeader icon={<Sun className="w-5 h-5" />} title="Solar PV & battery">
+        <VerdictBadge tone={tone} label={s.rating} />
+      </SectionHeader>
+
+      {s.reason && <p className="text-sm text-slate-500 mb-3">{s.reason}</p>}
+
+      <dl className="space-y-2 text-sm">
+        {s.recommendedPanels != null && (
+          <Row label="Recommended array">
+            <span className="font-medium text-navy">
+              {s.recommendedPanels} × 400 W · {s.recommendedKWp?.toFixed(1)} kWp
+            </span>
+          </Row>
+        )}
+        {s.estimatedAnnualKWh != null && (
+          <Row label="Estimated production">
+            <span className="font-medium text-navy">{s.estimatedAnnualKWh.toLocaleString()} kWh/year</span>
+          </Row>
+        )}
+        {f.installCostGBP != null && (
+          <Row label="Estimated install cost">
+            <span className="font-medium text-navy">£{f.installCostGBP.toLocaleString()}</span>
+          </Row>
+        )}
+        {f.annualSavingsRangeGBP && (
+          <Row label="Estimated annual savings">
+            <span className="font-medium text-navy">
+              £{f.annualSavingsRangeGBP[0].toLocaleString()}–£{f.annualSavingsRangeGBP[1].toLocaleString()}
+            </span>
+          </Row>
+        )}
+        {f.paybackYearsRange && (
+          <Row label="Payback">
+            <span className="font-medium text-navy">
+              {f.paybackYearsRange[0]}–{f.paybackYearsRange[1]} years
+            </span>
+          </Row>
+        )}
+      </dl>
+
+      {segments.length > 0 && (
+        <div className="mt-4">
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">
+            Roof segments
+          </p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead className="text-slate-500">
+                <tr>
+                  <th className="text-left font-normal pb-1.5">Azimuth</th>
+                  <th className="text-left font-normal pb-1.5">Pitch</th>
+                  <th className="text-right font-normal pb-1.5">Area</th>
+                </tr>
+              </thead>
+              <tbody>
+                {segments.slice(0, 5).map((seg, i) => (
+                  <tr key={i} className="border-t border-slate-100">
+                    <td className="py-1.5 text-navy">{describeAzimuth(seg.azimuthDegrees)}</td>
+                    <td className="py-1.5 text-navy">
+                      {seg.pitchDegrees != null ? `${Math.round(seg.pitchDegrees)}°` : "—"}
+                    </td>
+                    <td className="py-1.5 text-navy text-right">
+                      {seg.stats?.areaMeters2 != null ? `${Math.round(seg.stats.areaMeters2)} m²` : "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      <p className="mt-4 text-xs text-slate-500">
+        Yield source: PVGIS v5.3. 0% VAT on solar until 31 March 2027. Use the Overview
+        calculator to model battery sizing and cumulative savings.
+      </p>
+    </section>
+  );
+}
+
+// ─── Your home tab ───────────────────────────────────────────────────────────
+
+function YourHomeTab({
+  a,
+  address,
+  satelliteUrl,
+  floorplan,
+  satelliteOutdoorVerdict,
+  onFloorplanChange,
+}: {
+  a: AnalyseResponse;
+  address: string;
+  satelliteUrl: string;
+  floorplan: FloorplanAnalysis | null;
+  satelliteOutdoorVerdict: "yes" | "no" | "unsure" | null;
+  onFloorplanChange: (next: FloorplanAnalysis) => void;
+}) {
+  return (
+    <>
+      <PropertyCard address={address} satelliteUrl={satelliteUrl} epc={a.epc} enrichments={a.enrichments} />
+
+      {floorplan ? (
+        <FloorplanEditor
+          analysis={floorplan}
+          onChange={onFloorplanChange}
+          outdoorAsk={satelliteOutdoorVerdict === "unsure" || satelliteOutdoorVerdict === "no"}
+        />
+      ) : (
+        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <SectionHeader icon={<Home className="w-5 h-5" />} title="Your floorplan">
+            {null}
+          </SectionHeader>
+          <p className="mt-2 text-sm text-slate-500">
+            We couldn&rsquo;t read your floorplan reliably — your installer will assess on-site.
+          </p>
+        </section>
+      )}
+
+      <SiteConsiderations a={a} />
+    </>
+  );
+}
+
+// ─── Installer tab ───────────────────────────────────────────────────────────
+
+function InstallerTab({ a, address }: { a: AnalyseResponse; address: string }) {
+  return (
+    <>
+      <InstallerQuestions a={a} />
+      <NextSteps />
+      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <SectionHeader icon={<ClipboardList className="w-5 h-5" />} title="Property summary">
+          {null}
+        </SectionHeader>
+        <p className="mt-2 text-xs text-slate-500">
+          A printable summary is on the way. For now, share this report URL with your installer
+          along with the address: <strong className="text-navy">{address}</strong>.
+        </p>
+      </section>
+    </>
+  );
+}
+
+// ─── Shared sections ─────────────────────────────────────────────────────────
+
 function PropertyCard({
   address,
   satelliteUrl,
@@ -241,214 +625,6 @@ function PropertyCard({
   );
 }
 
-function HeatPumpSection({ a }: { a: AnalyseResponse }) {
-  const hp = a.eligibility.heatPump;
-  const f = a.finance.heatPump;
-  const tone: "green" | "amber" | "red" =
-    hp.verdict === "eligible" ? "green" : hp.verdict === "conditional" ? "amber" : "red";
-
-  return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-      <div className="flex items-center gap-2 mb-4">
-        <div className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-coral-pale text-coral">
-          <Flame className="w-5 h-5" />
-        </div>
-        <h3 className="text-lg font-semibold text-navy">Heat pump</h3>
-        <VerdictBadge tone={tone} label={hp.verdict.toUpperCase()} />
-      </div>
-
-      {hp.blockers.length > 0 && <IssueList kind="blocker" items={hp.blockers} />}
-      {hp.warnings.length > 0 && <IssueList kind="warning" items={hp.warnings} />}
-
-      <dl className="mt-4 space-y-2 text-sm">
-        <Row label="Estimated BUS grant">
-          <span className="font-semibold text-navy">£{hp.estimatedGrantGBP.toLocaleString()}</span>
-        </Row>
-        {hp.recommendedSystemKW != null && (
-          <Row label="Planning-estimate system size">
-            <span className="font-medium text-navy">{hp.recommendedSystemKW} kW</span>
-          </Row>
-        )}
-        {f.estimatedNetInstallCostRangeGBP && (
-          <Row label="Estimated cost after grant">
-            <span className="font-medium text-navy">
-              £{f.estimatedNetInstallCostRangeGBP[0].toLocaleString()}–£{f.estimatedNetInstallCostRangeGBP[1].toLocaleString()}
-            </span>
-          </Row>
-        )}
-      </dl>
-
-      {a.floorplan.analysis && (
-        <div className="mt-4 rounded-lg bg-slate-50 border border-slate-100 p-3 text-xs text-slate-600 space-y-2">
-          <p>
-            <strong className="text-navy">Cylinder space:</strong>{" "}
-            {a.floorplan.analysis.hotWaterCylinderSpace.likelyPresent
-              ? `Likely — ${a.floorplan.analysis.hotWaterCylinderSpace.location ?? "location unclear"}.`
-              : "Not obvious from the floorplan — installer will need to find space for a new cylinder."}
-          </p>
-          {a.floorplan.analysis.heatPumpInstallationConcerns.length > 0 && (
-            <ul className="list-disc pl-4 space-y-0.5">
-              {a.floorplan.analysis.heatPumpInstallationConcerns.map((c, i) => (
-                <li key={i}>{c}</li>
-              ))}
-            </ul>
-          )}
-        </div>
-      )}
-
-      {hp.notes.length > 0 && (
-        <ul className="mt-3 text-xs text-slate-500 space-y-1 list-disc pl-4">
-          {hp.notes.map((n, i) => (
-            <li key={i}>{n}</li>
-          ))}
-        </ul>
-      )}
-    </section>
-  );
-}
-
-function SolarSection({ a }: { a: AnalyseResponse }) {
-  const s = a.eligibility.solar;
-  const f = a.finance.solar;
-  const tone: "green" | "amber" | "red" =
-    s.rating === "Excellent" || s.rating === "Good"
-      ? "green"
-      : s.rating === "Marginal"
-      ? "amber"
-      : "red";
-
-  const segments = a.solar.coverage ? a.solar.data.solarPotential.roofSegmentStats ?? [] : [];
-
-  return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-      <div className="flex items-center gap-2 mb-4">
-        <div className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-coral-pale text-coral">
-          <Sun className="w-5 h-5" />
-        </div>
-        <h3 className="text-lg font-semibold text-navy">Solar PV</h3>
-        <VerdictBadge tone={tone} label={s.rating} />
-      </div>
-
-      {s.reason && <p className="text-sm text-slate-500 mb-3">{s.reason}</p>}
-
-      <dl className="space-y-2 text-sm">
-        {s.recommendedPanels != null && (
-          <Row label="Recommended array">
-            <span className="font-medium text-navy">
-              {s.recommendedPanels} × 400 W · {s.recommendedKWp?.toFixed(1)} kWp
-            </span>
-          </Row>
-        )}
-        {s.estimatedAnnualKWh != null && (
-          <Row label="Estimated production">
-            <span className="font-medium text-navy">{s.estimatedAnnualKWh.toLocaleString()} kWh/year</span>
-          </Row>
-        )}
-        {f.installCostGBP != null && (
-          <Row label="Estimated install cost">
-            <span className="font-medium text-navy">£{f.installCostGBP.toLocaleString()}</span>
-          </Row>
-        )}
-        {f.annualSavingsRangeGBP && (
-          <Row label="Estimated annual savings">
-            <span className="font-medium text-navy">
-              £{f.annualSavingsRangeGBP[0].toLocaleString()}–£{f.annualSavingsRangeGBP[1].toLocaleString()}
-            </span>
-          </Row>
-        )}
-        {f.paybackYearsRange && (
-          <Row label="Payback">
-            <span className="font-medium text-navy">
-              {f.paybackYearsRange[0]}–{f.paybackYearsRange[1]} years
-            </span>
-          </Row>
-        )}
-      </dl>
-
-      {segments.length > 0 && (
-        <div className="mt-4">
-          <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">
-            Roof segments
-          </p>
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead className="text-slate-500">
-                <tr>
-                  <th className="text-left font-normal pb-1.5">Azimuth</th>
-                  <th className="text-left font-normal pb-1.5">Pitch</th>
-                  <th className="text-right font-normal pb-1.5">Area</th>
-                </tr>
-              </thead>
-              <tbody>
-                {segments.slice(0, 5).map((seg, i) => (
-                  <tr key={i} className="border-t border-slate-100">
-                    <td className="py-1.5 text-navy">{describeAzimuth(seg.azimuthDegrees)}</td>
-                    <td className="py-1.5 text-navy">
-                      {seg.pitchDegrees != null ? `${Math.round(seg.pitchDegrees)}°` : "—"}
-                    </td>
-                    <td className="py-1.5 text-navy text-right">
-                      {seg.stats?.areaMeters2 != null ? `${Math.round(seg.stats.areaMeters2)} m²` : "—"}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      <p className="mt-4 text-xs text-slate-500">
-        Yield source: PVGIS v5.3. 0% VAT on solar until 31 March 2027.
-      </p>
-    </section>
-  );
-}
-
-function FloorplanSection({ a }: { a: AnalyseResponse }) {
-  const fp = a.floorplan.analysis;
-  if (!fp) {
-    return (
-      <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h3 className="text-lg font-semibold text-navy flex items-center gap-2">
-          <Shield className="w-5 h-5 text-coral" /> Floorplan analysis
-        </h3>
-        <p className="mt-2 text-sm text-slate-500">
-          {a.floorplan.reason ?? "We couldn't read the floorplan — your installer will assess on-site."}
-        </p>
-      </section>
-    );
-  }
-
-  const byType = fp.roomsByType;
-  return (
-    <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-      <h3 className="text-lg font-semibold text-navy flex items-center gap-2">
-        <Shield className="w-5 h-5 text-coral" /> Floorplan analysis
-        <span className="ml-auto text-xs font-normal text-slate-500">
-          Confidence: {fp.confidence}
-        </span>
-      </h3>
-
-      <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
-        <Stat label="Rooms" value={fp.roomCount} />
-        <Stat label="Bedrooms" value={byType.bedrooms} />
-        <Stat label="Bathrooms" value={byType.bathrooms} />
-        <Stat label="Floors" value={fp.floorsVisible} />
-        {fp.radiatorsVisible != null && <Stat label="Radiators" value={fp.radiatorsVisible} />}
-        {fp.estimatedTotalAreaM2 != null && (
-          <Stat label="Estimated area" value={`${Math.round(fp.estimatedTotalAreaM2)} m²`} />
-        )}
-        {fp.boilerLocation && <Stat label="Boiler" value={fp.boilerLocation} />}
-        <Stat label="Wall exposure" value={fp.externalWallExposure} />
-      </div>
-
-      {fp.confidenceNotes && (
-        <p className="mt-4 text-xs text-slate-500">{fp.confidenceNotes}</p>
-      )}
-    </section>
-  );
-}
-
 function SiteConsiderations({ a }: { a: AnalyseResponse }) {
   const { flood, listed, planning } = a.enrichments;
   const items: Array<{ icon: React.ReactNode; label: string; body: string; tone: "neutral" | "amber" | "red" }> = [];
@@ -495,14 +671,26 @@ function SiteConsiderations({ a }: { a: AnalyseResponse }) {
     });
   }
 
-  if (items.length === 0) return null;
+  if (items.length === 0) {
+    return (
+      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <SectionHeader icon={<Info className="w-5 h-5" />} title="Site considerations">
+          {null}
+        </SectionHeader>
+        <p className="mt-2 text-sm text-slate-500">
+          No flagged constraints — no listed status, conservation, AONB, national park, or active
+          flood warnings at this address.
+        </p>
+      </section>
+    );
+  }
 
   return (
-    <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-      <h3 className="text-lg font-semibold text-navy flex items-center gap-2 mb-4">
-        <Info className="w-5 h-5 text-coral" /> Site considerations
-      </h3>
-      <ul className="space-y-3">
+    <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <SectionHeader icon={<Info className="w-5 h-5" />} title="Site considerations">
+        {null}
+      </SectionHeader>
+      <ul className="mt-4 space-y-3">
         {items.map((i, idx) => (
           <li
             key={idx}
@@ -527,25 +715,31 @@ function InstallerQuestions({ a }: { a: AnalyseResponse }) {
   const fromFp = a.floorplan.analysis?.recommendedInstallerQuestions ?? [];
   const fromHp = a.eligibility.heatPump.warnings;
   const all = [...fromFp, ...fromHp].slice(0, 8);
-  if (all.length === 0) return null;
 
   return (
-    <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-      <h3 className="text-lg font-semibold text-navy flex items-center gap-2 mb-4">
-        <Zap className="w-5 h-5 text-coral" /> Ask the installer
-      </h3>
-      <ul className="space-y-2 text-sm text-slate-700 list-disc pl-5">
-        {all.map((q, i) => (
-          <li key={i}>{q}</li>
-        ))}
-      </ul>
+    <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <SectionHeader icon={<Zap className="w-5 h-5" />} title="Ask the installer">
+        {null}
+      </SectionHeader>
+      {all.length === 0 ? (
+        <p className="mt-2 text-sm text-slate-500">
+          Nothing specific to flag. Standard pre-survey questions still apply (heat-loss survey,
+          DNO notification for solar, MCS warranty terms).
+        </p>
+      ) : (
+        <ul className="mt-4 space-y-2 text-sm text-slate-700 list-disc pl-5">
+          {all.map((q, i) => (
+            <li key={i}>{q}</li>
+          ))}
+        </ul>
+      )}
     </section>
   );
 }
 
 function NextSteps() {
   return (
-    <section className="mt-8 rounded-2xl bg-navy text-white p-6 sm:p-8">
+    <section className="rounded-2xl bg-navy text-white p-6 sm:p-8">
       <h3 className="text-lg font-semibold">What&rsquo;s next?</h3>
       <p className="mt-2 text-sm text-slate-300">
         Get in touch with an MCS-certified installer to turn this indication into a real quote.
@@ -565,7 +759,28 @@ function NextSteps() {
   );
 }
 
-// ─── little bits ─────────────────────────────────────────────────────────────
+// ─── Atoms ───────────────────────────────────────────────────────────────────
+
+function SectionHeader({
+  icon,
+  title,
+  children,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-center gap-2">
+      <div className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-coral-pale text-coral">
+        {icon}
+      </div>
+      <h3 className="text-lg font-semibold text-navy">{title}</h3>
+      {children}
+    </div>
+  );
+}
+
 function Badge({ tone, children }: { tone: "amber" | "red"; children: React.ReactNode }) {
   const cls =
     tone === "red"
@@ -579,8 +794,8 @@ function VerdictBadge({ tone, label }: { tone: "green" | "amber" | "red"; label:
     tone === "green"
       ? "bg-emerald-100 text-emerald-700 border-emerald-200"
       : tone === "amber"
-      ? "bg-amber-100 text-amber-800 border-amber-200"
-      : "bg-red-100 text-red-700 border-red-200";
+        ? "bg-amber-100 text-amber-800 border-amber-200"
+        : "bg-red-100 text-red-700 border-red-200";
   return (
     <span className={`ml-auto inline-flex items-center text-[11px] font-semibold uppercase tracking-wider rounded-full px-2 py-0.5 border ${cls}`}>
       {label}
@@ -593,15 +808,6 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
     <div className="flex items-center justify-between gap-3">
       <dt className="text-xs text-slate-500">{label}</dt>
       <dd className="text-right">{children}</dd>
-    </div>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: number | string }) {
-  return (
-    <div className="rounded-lg bg-slate-50 border border-slate-100 px-3 py-2">
-      <div className="text-[11px] uppercase tracking-wider text-slate-500">{label}</div>
-      <div className="text-sm font-semibold text-navy">{String(value)}</div>
     </div>
   );
 }

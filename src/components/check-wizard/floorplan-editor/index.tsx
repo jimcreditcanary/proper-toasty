@@ -52,8 +52,10 @@ const COLOURS = {
   roomStroke: "#cbd5e1",        // slate-300
   roomLabel: "#0f172a",          // slate-900
   selectedStroke: "#ef6c4f",     // coral
-  hpStroke: "#10b981",           // emerald-500
+  hpStroke: "#10b981",           // emerald-500 — outdoor heat pump
   hpFill: "#10b98120",
+  cylStroke: "#8b5cf6",          // violet-500 — indoor cylinder
+  cylFill: "#8b5cf620",
   radiator: "#ef6c4f",           // coral
   radiatorHole: "#ffffff",
   ghost: "#9ca3af",              // slate-400
@@ -95,6 +97,15 @@ export function FloorplanEditor({
         (h) => h.roomId == null || visibleRooms.some((r) => r.id === h.roomId),
       ),
     [analysis.heatPumpLocations, visibleRooms],
+  );
+  const visibleCylinders = useMemo(
+    () =>
+      // Defensive: localStorage state from before this field existed may
+      // surface as undefined. Default to [].
+      (analysis.hotWaterCylinderCandidates ?? []).filter(
+        (c) => c.roomId == null || visibleRooms.some((r) => r.id === c.roomId),
+      ),
+    [analysis.hotWaterCylinderCandidates, visibleRooms],
   );
   const selectedRoom = useMemo(
     () => visibleRooms.find((r) => r.id === selectedRoomId) ?? null,
@@ -336,7 +347,7 @@ export function FloorplanEditor({
               );
             })}
 
-            {/* Heat pump candidate locations */}
+            {/* Heat pump candidate locations (outdoor, ~1m²) */}
             {visibleHps.map((hp) => (
               <g key={hp.id}>
                 <rect
@@ -358,9 +369,37 @@ export function FloorplanEditor({
                   fill={COLOURS.hpStroke}
                   pointerEvents="none"
                 >
-                  HP candidate
+                  HP
                 </text>
                 <title>{hp.label} — {hp.notes}</title>
+              </g>
+            ))}
+
+            {/* Hot water cylinder candidate locations (indoor, ~0.6m²) */}
+            {visibleCylinders.map((cy) => (
+              <g key={cy.id}>
+                <rect
+                  x={cy.x}
+                  y={cy.y}
+                  width={cy.vWidth}
+                  height={cy.vHeight}
+                  fill={COLOURS.cylFill}
+                  stroke={COLOURS.cylStroke}
+                  strokeWidth={2}
+                  strokeDasharray="3 3"
+                  rx={2}
+                />
+                <text
+                  x={cy.x + cy.vWidth / 2}
+                  y={cy.y - 4}
+                  textAnchor="middle"
+                  fontSize="10"
+                  fill={COLOURS.cylStroke}
+                  pointerEvents="none"
+                >
+                  Cyl
+                </text>
+                <title>{cy.label} — {cy.notes}</title>
               </g>
             ))}
 
@@ -447,7 +486,8 @@ export function FloorplanEditor({
       {/* Legend */}
       <div className="mt-4 flex flex-wrap gap-4 text-[11px] text-slate-500">
         <LegendDot colour={COLOURS.radiator} label="Radiator (tap to rate)" />
-        <LegendDot colour={COLOURS.hpStroke} dashed label="Heat-pump candidate" />
+        <LegendDot colour={COLOURS.hpStroke} dashed label="Heat-pump (outdoor)" />
+        <LegendDot colour={COLOURS.cylStroke} dashed label="Hot water cylinder (indoor)" />
         <LegendDot colour="#10b981" label="Good" />
         <LegendDot colour="#f59e0b" label="Fair" />
         <LegendDot colour="#ef4444" label="Poor" />
@@ -550,10 +590,11 @@ function SidePanel({
         </ul>
       )}
       <div className="mt-4 pt-3 border-t border-slate-200">
-        <p className="font-semibold text-navy mb-1">In this floor</p>
+        <p className="font-semibold text-navy mb-1">Across the property</p>
         <p>Rooms: {analysis.rooms.length}</p>
         <p>Radiators: {analysis.radiators.length}</p>
-        <p>HP candidates: {analysis.heatPumpLocations.length}</p>
+        <p>Heat-pump spots: {analysis.heatPumpLocations.length}</p>
+        <p>Cylinder spots: {analysis.hotWaterCylinderCandidates.length}</p>
       </div>
     </div>
   );

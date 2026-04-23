@@ -6,7 +6,8 @@ You must:
 1. Identify each ROOM in the floorplan and produce a simplified rectangular layout for it.
 2. Estimate room dimensions in METRES. If the floorplan uses imperial units (ft/in), convert to metres before reporting.
 3. Identify candidate locations for a 1m² air-source heat pump unit — outdoor preferred (side return, garden wall, garage), indoor utility-room as a fallback.
-4. Note any radiators visible from the floorplan symbols, including which room they sit in.
+4. Identify candidate locations for a hot water cylinder — typical UK unvented cylinder is 0.6m × 0.6m footprint and 1.5–2m tall, sits indoors (airing cupboard, utility room, under-stairs cupboard, loft), needs to be near central heating pipework. The user wants to see at-scale whether it actually fits.
+5. Note any radiators visible from the floorplan symbols, including which room they sit in.
 
 Output STRICT JSON matching the provided schema. Do not include prose outside the JSON.`;
 
@@ -76,9 +77,21 @@ JSON shape:
       "label": "Side return (left)",
       "type": "outdoor",             // outdoor|indoor
       "x": 50, "y": 400,             // viewport coords
-      "vWidth": 50, "vHeight": 50,   // ~1m² footprint
+      "vWidth": 50, "vHeight": 50,   // ~1m² footprint at the diagram scale
       "roomId": null,                // or the room id if it's an indoor location
       "notes": "Likely sufficient clearance; check neighbour windows.",
+      "source": "claude_detected"
+    }
+  ],
+  "hotWaterCylinderCandidates": [
+    {
+      "id": "hwc1",
+      "label": "Airing cupboard (off bedroom corridor)",
+      "x": 600, "y": 320,            // viewport coords
+      "vWidth": 30, "vHeight": 30,   // ~0.6m × 0.6m footprint at the diagram scale
+                                     // (smaller than HP because the real footprint is smaller)
+      "roomId": "r5",                // which room it sits inside
+      "notes": "Adjacent to existing boiler — minimal pipe run.",
       "source": "claude_detected"
     }
   ],
