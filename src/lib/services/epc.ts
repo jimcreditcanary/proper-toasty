@@ -8,7 +8,11 @@ import {
 } from "@/lib/schemas/epc";
 
 const EPC_BASE = "https://api.get-energy-performance-data.communities.gov.uk";
+// Hit TTL for a found EPC — 30 days matches how often upstream refreshes.
 const TTL_SECONDS = 30 * 24 * 60 * 60; // 30 days
+// Miss TTL — shorter so a newly-registered EPC is picked up within a week
+// rather than being pinned "not found" for a month.
+const MISS_TTL_SECONDS = 7 * 24 * 60 * 60; // 7 days
 
 function requireToken(): string {
   const token = process.env.EPC_API_KEY;
@@ -184,14 +188,47 @@ export interface GetEpcInput {
   addressLine1?: string | null;
 }
 
+// Build a stable cache key from the input. UPRN is the preferred anchor
+// (one per property); postcode+address is the fallback. Returns null when
+// there's nothing to key on — in that case we skip the cache entirely.
+function epcCacheKey(input: GetEpcInput): string | null {
+  if (input.uprn) return `uprn:${padUprn(input.uprn)}`;
+  if (input.postcode && input.addressLine1) {
+    const pc = normalisePostcode(input.postcode);
+    const addr = input.addressLine1.toLowerCase().trim().replace(/\s+/g, " ");
+    return `pcaddr:${pc}:${addr}`;
+  }
+  return null;
+}
+
 /**
  * Resolve the EPC for an address. Prefers UPRN lookup (exact match) and falls
  * back to postcode + address fuzzy match. When only the search row is
  * available (detail endpoint 404s, the cert pre-dates the richer dataset, etc.)
  * we return the trimmed row rather than giving up — the UI surfaces whatever
  * fields are present.
+ *
+ * The whole result is cached for 30 days (7 on miss) in api_cache under
+ * namespace "epc:by-address". This means re-analysing the same property
+ * skips the upstream UPRN/postcode search + detail fetch entirely.
  */
 export async function getEpc(input: GetEpcInput): Promise<EpcByAddressResponse> {
+  const ck = epcCacheKey(input);
+  if (ck) {
+    const cached = await cacheGet<EpcByAddressResponse>("epc:by-address", ck);
+    if (cached) return cached;
+  }
+
+  const result = await resolveEpcUncached(input);
+
+  if (ck) {
+    const ttl = result.found ? TTL_SECONDS : MISS_TTL_SECONDS;
+    await cacheSet("epc:by-address", ck, result, ttl);
+  }
+  return result;
+}
+
+async function resolveEpcUncached(input: GetEpcInput): Promise<EpcByAddressResponse> {
   let rows: EpcSearchRow[] = [];
   let matchMethod: "uprn" | "postcode+address" = "postcode+address";
 
