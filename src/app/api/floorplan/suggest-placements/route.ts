@@ -25,6 +25,9 @@ const RequestSchema = z.object({
   objectKey: z.string().min(1),
   satelliteVerdict: z.enum(["yes", "no", "unsure"]).nullable(),
   satelliteNotes: z.string().nullable(),
+  // Optional EPC floor area used as a scaling anchor when the AI can't
+  // read dimension labels off the image.
+  totalFloorAreaM2: z.number().positive().nullable().optional(),
   annotations: z.object({
     walls: z.array(WallPathSchema),
     doors: z.array(DoorSchema),

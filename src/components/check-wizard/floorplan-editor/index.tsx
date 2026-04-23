@@ -115,7 +115,7 @@ const STAGE_CONFIG: Record<Stage, StageConfig | null> = {
     key: "walls",
     title: "Draw over your walls",
     body:
-      "Use your mouse or finger like a marker pen. Trace every wall in your home — windows count as walls too. Lift and start again for each new wall.",
+      "Use your mouse or finger like a marker pen. Trace every wall — windows count as walls. Draw RIGHT ACROSS doorways too; we'll add the doors as gaps in the next step. Lift and start again for each new wall.",
     icon: <Minus className="w-5 h-5" />,
   },
   outdoor: {
@@ -609,80 +609,93 @@ export function FloorplanEditor({
             </pattern>
           </defs>
 
-          {/* Outdoor zones */}
-          {analysis.outdoorZones.map((z) => (
-            <g key={z.id}>
-              <polygon
-                points={z.points.map((p) => `${p.x},${p.y}`).join(" ")}
-                fill={COLOURS.zoneFill}
-                stroke={COLOURS.zoneStroke}
-                strokeWidth={2}
-                strokeDasharray="8 4"
-              />
-            </g>
-          ))}
+          {/* Geometry — switch to AI-refined version on canonical stages
+              (review / placing / adjust). Falls back to user freehand if
+              the AI didn't return refined geometry. */}
+          {(() => {
+            const useRefined = canonicalStage && analysis.refinedWalls.length > 0;
+            const wallsToRender = useRefined ? analysis.refinedWalls : analysis.walls;
+            const doorsToRender = useRefined ? analysis.refinedDoors : analysis.doors;
+            const zonesToRender = useRefined ? analysis.refinedOutdoorZones : analysis.outdoorZones;
+            const stairsToRender = useRefined ? analysis.refinedStairs : analysis.userStairs;
+            return (
+              <>
+                {/* Outdoor zones */}
+                {zonesToRender.map((z) => (
+                  <g key={z.id}>
+                    <polygon
+                      points={z.points.map((p) => `${p.x},${p.y}`).join(" ")}
+                      fill={COLOURS.zoneFill}
+                      stroke={COLOURS.zoneStroke}
+                      strokeWidth={2}
+                      strokeDasharray="8 4"
+                    />
+                  </g>
+                ))}
 
-          {/* Walls — thick, vibrant, visible over the white-washed photo.
-              Even thicker in canonical view for a "real floorplan" look. */}
-          {analysis.walls.map((w) => (
-            <polyline
-              key={w.id}
-              points={w.points.map((p) => `${p.x},${p.y}`).join(" ")}
-              fill="none"
-              stroke={COLOURS.wall}
-              strokeWidth={showBackground ? 8 : 12}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          ))}
+                {/* Walls — thicker in canonical view for a "real floorplan" look */}
+                {wallsToRender.map((w) => (
+                  <polyline
+                    key={w.id}
+                    points={w.points.map((p) => `${p.x},${p.y}`).join(" ")}
+                    fill="none"
+                    stroke={COLOURS.wall}
+                    strokeWidth={showBackground ? 8 : 12}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                ))}
 
-          {/* Stairs */}
-          {analysis.userStairs.map((s) => (
-            <g key={s.id}>
-              <rect
-                x={s.x}
-                y={s.y}
-                width={s.vWidth}
-                height={s.vHeight}
-                fill={COLOURS.stairsFill}
-                stroke={COLOURS.stairsStroke}
-                strokeWidth={1.5}
-                rx={2}
-              />
-              <rect
-                x={s.x}
-                y={s.y}
-                width={s.vWidth}
-                height={s.vHeight}
-                fill="url(#fe4-stairs-hatch)"
-                opacity={0.5}
-              />
-              <text
-                x={s.x + s.vWidth / 2}
-                y={s.y + s.vHeight / 2 + 4}
-                textAnchor="middle"
-                fontSize="12"
-                fontWeight="700"
-                fill={COLOURS.stairsStroke}
-                pointerEvents="none"
-              >
-                {s.direction === "down" ? "↓" : s.direction === "both" ? "⇅" : "↑"}
-              </text>
-            </g>
-          ))}
+                {/* Stairs */}
+                {stairsToRender.map((s) => (
+                  <g key={s.id}>
+                    <rect
+                      x={s.x}
+                      y={s.y}
+                      width={s.vWidth}
+                      height={s.vHeight}
+                      fill={COLOURS.stairsFill}
+                      stroke={COLOURS.stairsStroke}
+                      strokeWidth={1.5}
+                      rx={2}
+                    />
+                    <rect
+                      x={s.x}
+                      y={s.y}
+                      width={s.vWidth}
+                      height={s.vHeight}
+                      fill="url(#fe4-stairs-hatch)"
+                      opacity={0.5}
+                    />
+                    <text
+                      x={s.x + s.vWidth / 2}
+                      y={s.y + s.vHeight / 2 + 4}
+                      textAnchor="middle"
+                      fontSize="12"
+                      fontWeight="700"
+                      fill={COLOURS.stairsStroke}
+                      pointerEvents="none"
+                    >
+                      {s.direction === "down" ? "↓" : s.direction === "both" ? "⇅" : "↑"}
+                    </text>
+                  </g>
+                ))}
 
-          {/* Doors */}
-          {analysis.doors.map((d) => (
-            <g key={d.id}>
-              <circle cx={d.x} cy={d.y} r={10} fill="white" stroke={COLOURS.door} strokeWidth={2} />
-              <path
-                d={`M ${d.x - 7} ${d.y} A 7 7 0 0 1 ${d.x + 7} ${d.y}`}
-                fill="none"
-                stroke={COLOURS.door}
-                strokeWidth={1.5}
-              />
-            </g>
-          ))}
+                {/* Doors */}
+                {doorsToRender.map((d) => (
+                  <g key={d.id}>
+                    <circle cx={d.x} cy={d.y} r={10} fill="white" stroke={COLOURS.door} strokeWidth={2} />
+                    <path
+                      d={`M ${d.x - 7} ${d.y} A 7 7 0 0 1 ${d.x + 7} ${d.y}`}
+                      fill="none"
+                      stroke={COLOURS.door}
+                      strokeWidth={1.5}
+                    />
+                  </g>
+                ))}
+              </>
+            );
+          })()}
 
           {/* Radiators — rectangles */}
           {analysis.radiators.map((r) => {

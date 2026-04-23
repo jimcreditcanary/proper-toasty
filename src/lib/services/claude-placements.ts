@@ -1,16 +1,22 @@
-// Claude service: given a floorplan image + the user's annotations (walls,
-// doors, stairs, outdoor zones, radiators), suggest 1-2 heat-pump candidate
-// locations and 1 hot-water cylinder candidate location.
+// Claude service: REFINE the user's freehand annotations against the
+// original floorplan image AND place HP + cylinder candidates.
 //
-// This replaces the old "extract everything from the floorplan" Claude pass.
-// The user has done the ground-truth bit; Claude just does placement.
+// v4.2 expansion: Claude is now asked to clean up the wonky freehand
+// strokes into perpendicular, properly-proportioned lines, treating
+// the original photo as the source of truth. It also returns a
+// metric scale so the HP and cylinder are sized accurately on the
+// canonical view.
 
 import { z } from "zod";
 import { anthropic } from "@/lib/anthropic";
 import {
   ClarificationQuestionSchema,
+  DoorSchema,
   HeatPumpLocationSchema,
   HotWaterCylinderCandidateSchema,
+  OutdoorZoneSchema,
+  UserStairsSchema,
+  WallPathSchema,
   type ClarificationQuestion,
   type Door,
   type HeatPumpLocation,
@@ -23,26 +29,51 @@ import {
 import { signedReadUrl } from "@/lib/services/floorplan";
 
 const MODEL = "claude-opus-4-7";
-const MAX_TOKENS = 2048; // Small output — 2 HPs, 1 cylinder, a few notes
+// Bigger output budget — refinement can produce 2-4x the wall data of
+// the user's freehand input.
+const MAX_TOKENS = 6144;
 
-const SYSTEM = `You are a UK heat-pump installer's assistant suggesting candidate positions for equipment on a floorplan the homeowner has annotated.
+const SYSTEM = `You are a floorplan-refinement and equipment-placement assistant for a UK heat-pump installer.
 
-The user has already drawn:
-- WALLS: where the exterior and internal walls run.
-- DOORS: where the doors are.
-- STAIRS: where stairs sit.
-- OUTDOOR ZONES: closed polygons showing garden / side return / driveway / patio.
-- RADIATORS: existing radiator positions.
+You receive:
+- The homeowner's uploaded floorplan IMAGE (the source of truth).
+- Their FREEHAND ANNOTATIONS over it (rough, wonky, captured by mouse / finger).
+- An optional satellite verdict on outdoor space.
 
-Your job:
-1. Place 1-2 HEAT PUMP candidates (1m × 1m footprint each). Prefer OUTDOOR — within the outdoor zone polygons the user drew. Away from doors and windows ideally. Last-resort indoor (utility room) is fine if no outdoor zone exists.
-2. Place 1 HOT WATER CYLINDER candidate (0.6m × 0.6m footprint). INDOOR — inside the building footprint (the area enclosed by the walls). Near any visible radiator or an airing cupboard / utility area.
-3. Surface any installation CONCERNS a surveyor would raise (e.g. "HP candidate is within 2m of a neighbour's window — check acoustic limits", "No clear internal route for pipework").
-4. If you're unsure about a placement and a simple question would help, ask CLARIFICATION QUESTIONS. Examples: "Is the space under your stairs taller than 1.5m?" (affects whether it can host a cylinder), "Is there already a boiler in the utility room?" (affects cylinder pipework). Keep questions short and answerable with Yes / No / Not sure. Return an empty array if nothing is ambiguous.
+Your job has TWO halves.
 
-Return STRICT JSON only. No prose. All coordinates are in the 0..1000 viewport space the user drew in.`;
+A) REFINE THE GEOMETRY. The freehand strokes are a hint about which features the user considered important — but they're not pixel-perfect. Use the floorplan IMAGE to redraw their walls / doors / outdoor zones / stairs as CLEAN, mostly-perpendicular shapes:
+   - Walls become straight lines that follow the actual wall positions in the image. Internal walls separate rooms. External walls trace the building outline.
+   - Doors snap to wall positions. Place them at the actual door positions visible in the image.
+   - Outdoor zones (gardens / driveways / side returns) become tidy polygons matching the actual outdoor area in the image.
+   - Stairs become tidy rectangles at the staircase position.
+   - All coordinates are in the same 0..1000 viewport space the user drew in.
+   - DO NOT throw away walls the user drew unless they're clearly noise. Keep the same number of walls or merge into fewer cleaner ones.
+   - The "walls cross over door positions" rule still holds — the door entries are separate.
+
+B) DETERMINE SCALE. Estimate how many viewport units = 1 metre. Use any of:
+   - Dimension labels visible on the floorplan (e.g. "Kitchen 4.2m × 3.1m" or "1442 sq ft / 134 sqm")
+   - The total floor area when labelled (sum of room areas should match)
+   - Best-guess from typical room sizes if nothing's labelled.
+   Return as "viewportUnitsPerMeter".
+
+C) PLACE EQUIPMENT.
+   - 1-2 HEAT PUMP candidates, 1m × 1m. STRICTLY within an outdoor zone polygon. Avoid placing on top of doors, windows, or wall openings. Prefer ≥1m clear from any door.
+   - 1 HOT WATER CYLINDER candidate, 0.6m × 0.6m. INSIDE the building footprint. Near central heating pipework / utility / airing cupboard. NOT directly behind a door (i.e. not in the swing area or immediate threshold).
+   - Both sized using viewportUnitsPerMeter (e.g. if 1m = 50 units, HP = 50×50, cylinder = 30×30).
+
+D) Return CONCERNS a surveyor would raise (1-3 short bullets).
+
+E) Return CLARIFICATION QUESTIONS if a simple Yes/No would change the placement (e.g. "Is the under-stairs cupboard taller than 1.5m?"). Empty array if nothing's ambiguous.
+
+Output STRICT JSON only. No prose outside the JSON.`;
 
 export const SuggestPlacementsResponseSchema = z.object({
+  refinedWalls: z.array(WallPathSchema).default([]),
+  refinedDoors: z.array(DoorSchema).default([]),
+  refinedOutdoorZones: z.array(OutdoorZoneSchema).default([]),
+  refinedStairs: z.array(UserStairsSchema).default([]),
+  viewportUnitsPerMeter: z.number().positive().nullable().default(null),
   heatPumpLocations: z.array(HeatPumpLocationSchema),
   hotWaterCylinderCandidates: z.array(HotWaterCylinderCandidateSchema),
   concerns: z.array(z.string()).default([]),
@@ -55,6 +86,9 @@ export interface SuggestPlacementsInput {
   objectKey: string;
   satelliteVerdict: "yes" | "no" | "unsure" | null;
   satelliteNotes: string | null;
+  // Optional total floor area in m² — used as a scaling anchor when the AI
+  // can't read dimension labels off the floorplan. From the EPC, when known.
+  totalFloorAreaM2?: number | null;
   annotations: {
     walls: WallPath[];
     doors: Door[];
@@ -67,6 +101,11 @@ export interface SuggestPlacementsInput {
 export interface SuggestPlacementsResult {
   ok: boolean;
   data: {
+    refinedWalls: WallPath[];
+    refinedDoors: Door[];
+    refinedOutdoorZones: OutdoorZone[];
+    refinedStairs: UserStairs[];
+    viewportUnitsPerMeter: number | null;
     heatPumpLocations: HeatPumpLocation[];
     hotWaterCylinderCandidates: HotWaterCylinderCandidate[];
     concerns: string[];
@@ -94,12 +133,12 @@ function extractJson(text: string): unknown {
 }
 
 function buildUserPrompt(input: SuggestPlacementsInput): string {
-  const { satelliteVerdict, satelliteNotes, annotations } = input;
+  const { satelliteVerdict, satelliteNotes, annotations, totalFloorAreaM2 } = input;
 
   const summary = [
-    `Walls: ${annotations.walls.length} path(s)`,
+    `Walls (freehand): ${annotations.walls.length} path(s)`,
     `Doors: ${annotations.doors.length}`,
-    `Outdoor zones: ${annotations.outdoorZones.length} (${annotations.outdoorZones.map((z) => z.label).join(", ") || "none"})`,
+    `Outdoor zones (freehand): ${annotations.outdoorZones.length} (${annotations.outdoorZones.map((z) => z.label).join(", ") || "none"})`,
     `Stairs: ${annotations.userStairs.length}`,
     `Radiators: ${annotations.radiators.length}`,
   ].join("\n");
@@ -109,25 +148,67 @@ function buildUserPrompt(input: SuggestPlacementsInput): string {
       ? `Satellite verdict on outdoor space: ${satelliteVerdict}${satelliteNotes ? ` — ${satelliteNotes}` : ""}`
       : "Satellite verdict on outdoor space: unavailable";
 
-  return `Here's the user's floorplan (attached image) and their annotations.
+  const areaLine =
+    totalFloorAreaM2 != null
+      ? `Known total floor area (from EPC): ${totalFloorAreaM2} m². Use this as a scaling constraint when computing viewportUnitsPerMeter.`
+      : "Total floor area: unknown — read dimension labels off the floorplan if you can.";
+
+  return `Here's the user's floorplan (attached image) and their freehand annotations.
 
 ${satLine}
+${areaLine}
 
 User annotations summary:
 ${summary}
 
-Exact annotation data (JSON, all coords in 0..1000 viewport space):
+Exact user-drawn data (JSON, all coords in 0..1000 viewport space):
 ${JSON.stringify(annotations, null, 2)}
 
-Now return JSON with this shape:
+Now refine + place. Return JSON with this shape (NO prose):
 {
+  "refinedWalls": [
+    {
+      "id": "rw1",
+      "points": [
+        { "x": 100, "y": 200 },
+        { "x": 600, "y": 200 }
+      ]
+    }
+  ],
+  "refinedDoors": [
+    { "id": "rd1", "x": 350, "y": 200, "wallPathId": "rw1" }
+  ],
+  "refinedOutdoorZones": [
+    {
+      "id": "rz1",
+      "label": "Rear garden",
+      "type": "garden",
+      "points": [
+        { "x": 50, "y": 50 },
+        { "x": 350, "y": 50 },
+        { "x": 350, "y": 200 },
+        { "x": 50, "y": 200 }
+      ],
+      "notes": ""
+    }
+  ],
+  "refinedStairs": [
+    {
+      "id": "rs1",
+      "x": 700, "y": 350,
+      "vWidth": 80, "vHeight": 200,
+      "direction": "up"
+    }
+  ],
+  "viewportUnitsPerMeter": 50,
+
   "heatPumpLocations": [
     {
       "id": "hp1",
-      "label": "Rear garden (SW corner)",
-      "x": 150, "y": 800,
+      "label": "Rear garden — SW corner",
+      "x": 80, "y": 130,
       "vWidth": 50, "vHeight": 50,
-      "notes": "Within user-drawn garden polygon; ~4m from kitchen wall.",
+      "notes": "Within outdoor zone, ~3m from kitchen wall, no doors within 1m.",
       "source": "ai_suggested"
     }
   ],
@@ -137,12 +218,12 @@ Now return JSON with this shape:
       "label": "Airing cupboard off upstairs landing",
       "x": 500, "y": 400,
       "vWidth": 30, "vHeight": 30,
-      "notes": "Adjacent to existing radiator — short pipe run.",
+      "notes": "Adjacent to existing radiator; clear of door swing.",
       "source": "ai_suggested"
     }
   ],
   "concerns": [
-    "Short example of an install concern an MCS surveyor would raise."
+    "One short bullet per real installer concern."
   ],
   "installerQuestions": [
     "One question an installer would want the homeowner to confirm."
@@ -174,6 +255,7 @@ export async function suggestPlacements(
   }
 
   let raw: string;
+  let stopReason: string | null = null;
   try {
     const response = await anthropic.messages.create({
       model: MODEL,
@@ -196,9 +278,15 @@ export async function suggestPlacements(
         },
       ],
     });
+    stopReason = response.stop_reason ?? null;
     console.log(
-      `[placements] stop=${response.stop_reason} in=${response.usage?.input_tokens ?? 0} out=${response.usage?.output_tokens ?? 0}`,
+      `[placements] stop=${stopReason} in=${response.usage?.input_tokens ?? 0} out=${response.usage?.output_tokens ?? 0}`,
     );
+    if (stopReason === "max_tokens") {
+      console.warn(
+        "[placements] hit max_tokens — refinement may be truncated. Bump MAX_TOKENS.",
+      );
+    }
     const block = response.content.find((c) => c.type === "text");
     if (!block || block.type !== "text") throw new Error("No text block in response");
     raw = block.text;

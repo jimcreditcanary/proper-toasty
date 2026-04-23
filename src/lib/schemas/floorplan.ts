@@ -193,6 +193,22 @@ export const FloorplanAnalysisSchema = z.object({
   // ─── v4 AI follow-up questions ────────────────────────────────────────
   clarificationQuestions: z.array(ClarificationQuestionSchema).default([]),
 
+  // ─── v4.2 AI-refined geometry ─────────────────────────────────────────
+  // The user's freehand annotations get redrawn by Claude into clean,
+  // perpendicular shapes using the original floorplan image as the
+  // source of truth. Stored separately so we can show "what you drew"
+  // vs "what we cleaned up" side-by-side or via a toggle.
+  refinedWalls: z.array(WallPathSchema).default([]),
+  refinedDoors: z.array(DoorSchema).default([]),
+  refinedOutdoorZones: z.array(OutdoorZoneSchema).default([]),
+  refinedStairs: z.array(UserStairsSchema).default([]),
+
+  // Scale: how many viewport units = 1 metre. Lets us size HP (1m × 1m)
+  // and cylinder (0.6m × 0.6m) at scale on the canonical view. Null when
+  // the AI couldn't infer a scale (no labelled dimensions visible, no
+  // EPC area to anchor against).
+  viewportUnitsPerMeter: z.number().positive().nullable().default(null),
+
   // ─── Satellite outdoor check ──────────────────────────────────────────
   outdoorSpace: OutdoorSpaceCheckSchema.default({
     indicated: false,

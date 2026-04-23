@@ -344,6 +344,11 @@ export function removeCylinder(
 export function applyAiPlacements(
   analysis: FloorplanAnalysis,
   payload: {
+    refinedWalls: WallPath[];
+    refinedDoors: Door[];
+    refinedOutdoorZones: OutdoorZone[];
+    refinedStairs: UserStairs[];
+    viewportUnitsPerMeter: number | null;
     heatPumpLocations: HeatPumpLocation[];
     hotWaterCylinderCandidates: HotWaterCylinderCandidate[];
     concerns: string[];
@@ -353,6 +358,15 @@ export function applyAiPlacements(
 ): FloorplanAnalysis {
   return {
     ...analysis,
+    // AI-cleaned geometry — kept separate from the user's freehand so
+    // we can toggle between "what I drew" and "what the AI cleaned up"
+    // in the editor.
+    refinedWalls: payload.refinedWalls,
+    refinedDoors: payload.refinedDoors,
+    refinedOutdoorZones: payload.refinedOutdoorZones,
+    refinedStairs: payload.refinedStairs,
+    viewportUnitsPerMeter: payload.viewportUnitsPerMeter,
+
     heatPumpLocations: payload.heatPumpLocations,
     hotWaterCylinderCandidates: payload.hotWaterCylinderCandidates,
     heatPumpInstallationConcerns: payload.concerns,
