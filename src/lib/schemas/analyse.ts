@@ -2,6 +2,9 @@ import { z } from "zod";
 import { BuildingInsightsResponseSchema } from "@/lib/schemas/solar";
 import { EpcByAddressResponseSchema } from "@/lib/schemas/epc";
 import { FloorplanAnalysisSchema } from "@/lib/schemas/floorplan";
+// Re-export so other files (route handlers, services) get the schema from a
+// single import surface.
+export { FloorplanAnalysisSchema };
 import { FuelTariffSchema } from "@/lib/schemas/bill";
 import {
   FloodResponseSchema,
@@ -39,6 +42,17 @@ export const AnalyseRequestSchema = z.object({
     gasTariff: FuelTariffSchema.nullable(),
   }),
   floorplanObjectKey: z.string(),
+  // Precomputed floorplan analysis from Step 4 (after the user has reviewed
+  // and edited the diagram). When present, /api/analyse skips its own Claude
+  // floorplan call and uses this directly. Optional for backward compat —
+  // the old "upload + analyse later" flow still works if absent.
+  precomputedFloorplan: z
+    .object({
+      analysis: FloorplanAnalysisSchema.nullable(),
+      degraded: z.boolean(),
+      reason: z.string().optional(),
+    })
+    .optional(),
 });
 
 export type AnalyseRequest = z.infer<typeof AnalyseRequestSchema>;

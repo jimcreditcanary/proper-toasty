@@ -45,7 +45,7 @@ export async function POST(req: Request) {
     );
   }
   const request = parsed.data;
-  const { address, floorplanObjectKey } = request;
+  const { address, floorplanObjectKey, precomputedFloorplan } = request;
 
   // Fan out solar, EPC, and the three enrichments immediately — none depend on
   // each other, and the enrichments are free public APIs.
@@ -83,17 +83,26 @@ export async function POST(req: Request) {
   const epcPropertyType = epc.found ? epc.certificate.propertyType : null;
   const epcAgeBand = epc.found ? epc.certificate.constructionAgeBand : null;
 
-  const floorplanPromise = analyseFloorplan({
-    objectKey: floorplanObjectKey,
-    context: { epcFloorAreaM2, epcPropertyType, epcAgeBand },
-  }).catch((err) => {
-    console.warn("Claude floorplan failed:", err);
-    return {
-      analysis: null,
-      degraded: true,
-      reason: err instanceof Error ? err.message : "Floorplan analysis failed",
-    };
-  });
+  // If Step 4 already ran the floorplan analysis (via /api/floorplan/analyse)
+  // and the user reviewed the diagram, use that. Otherwise call Claude here
+  // — preserves the old "upload + skip editor" flow during dev.
+  const floorplanPromise: Promise<AnalyseResponse["floorplan"]> = precomputedFloorplan
+    ? Promise.resolve({
+        analysis: precomputedFloorplan.analysis,
+        degraded: precomputedFloorplan.degraded,
+        reason: precomputedFloorplan.reason,
+      })
+    : analyseFloorplan({
+        objectKey: floorplanObjectKey,
+        context: { epcFloorAreaM2, epcPropertyType, epcAgeBand },
+      }).catch((err) => {
+        console.warn("Claude floorplan failed:", err);
+        return {
+          analysis: null,
+          degraded: true,
+          reason: err instanceof Error ? err.message : "Floorplan analysis failed",
+        };
+      });
 
   let pvgisPromise: Promise<AnalyseResponse["pvgis"]> = Promise.resolve(null);
   let pvgisPeakKwp: number | null = null;
