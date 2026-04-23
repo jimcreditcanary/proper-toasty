@@ -129,6 +129,11 @@ export function Step6Report() {
             address={addr.formattedAddress}
             satelliteUrl={satelliteUrl}
             floorplan={floorplan}
+            floorplanImageUrl={
+              state.floorplanObjectKey
+                ? `/api/floorplan/image?key=${encodeURIComponent(state.floorplanObjectKey)}`
+                : null
+            }
             satelliteOutdoorVerdict={state.satelliteOutdoorVerdict}
             onFloorplanChange={handleFloorplanChange}
           />
@@ -475,6 +480,7 @@ function YourHomeTab({
   address,
   satelliteUrl,
   floorplan,
+  floorplanImageUrl,
   satelliteOutdoorVerdict,
   onFloorplanChange,
 }: {
@@ -482,6 +488,7 @@ function YourHomeTab({
   address: string;
   satelliteUrl: string;
   floorplan: FloorplanAnalysis | null;
+  floorplanImageUrl: string | null;
   satelliteOutdoorVerdict: "yes" | "no" | "unsure" | null;
   onFloorplanChange: (next: FloorplanAnalysis) => void;
 }) {
@@ -489,10 +496,11 @@ function YourHomeTab({
     <>
       <PropertyCard address={address} satelliteUrl={satelliteUrl} epc={a.epc} enrichments={a.enrichments} />
 
-      {floorplan ? (
+      {floorplan && floorplanImageUrl ? (
         <FloorplanEditor
           analysis={floorplan}
           onChange={onFloorplanChange}
+          imageUrl={floorplanImageUrl}
           outdoorAsk={satelliteOutdoorVerdict === "unsure" || satelliteOutdoorVerdict === "no"}
         />
       ) : (

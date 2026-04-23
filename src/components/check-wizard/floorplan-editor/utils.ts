@@ -1,160 +1,165 @@
-// Layout + id helpers for the floorplan editor.
+// Mutators + id helpers for the floorplan editor (v3 annotation model).
+// Every mutator returns a new analysis object — never mutate the input.
 
 import type {
+  Door,
   FloorplanAnalysis,
   HeatPumpLocation,
+  HotWaterCylinderCandidate,
+  OutdoorZone,
+  Point,
   Radiator,
   RadiatorCondition,
-  Rect,
-  Room,
+  UserStairs,
+  WallPath,
 } from "@/lib/schemas/floorplan";
 
-// 14 of the typed-out chars in nanoid's default alphabet — collision risk is
-// vanishingly low for editor-local ids that only exist in one analysis blob.
 function genId(prefix: string): string {
   const rand = Math.random().toString(36).slice(2, 10);
   return `${prefix}_${rand}`;
 }
 
-export const newRoomId = () => genId("r");
+export const newWallId = () => genId("wall");
+export const newDoorId = () => genId("door");
+export const newZoneId = () => genId("zone");
+export const newStairsId = () => genId("stairs");
 export const newRadiatorId = () => genId("rad");
 export const newHpId = () => genId("hp");
+export const newCylId = () => genId("cyl");
 
-// Distinct floor indices present in the analysis, sorted ascending.
-export function floorsPresent(analysis: FloorplanAnalysis): number[] {
-  const set = new Set<number>();
-  for (const r of analysis.rooms) set.add(r.floor);
-  if (set.size === 0) set.add(0);
-  return [...set].sort((a, b) => a - b);
-}
+// ─── Walls ───────────────────────────────────────────────────────────────────
 
-export function floorLabel(floor: number): string {
-  if (floor === 0) return "Ground floor";
-  if (floor === 1) return "First floor";
-  if (floor === 2) return "Second floor";
-  return `Floor ${floor + 1}`;
-}
-
-// Composite shapes — a room can be 1+ rectangles (L-shape, T-shape).
-// `roomRects` returns whatever's most accurate: prefers the explicit rects[]
-// array, falls back to the bounding box for older data.
-export function roomRects(room: Room): Rect[] {
-  if (room.rects && room.rects.length > 0) return room.rects;
-  return [{ x: room.x, y: room.y, vWidth: room.vWidth, vHeight: room.vHeight }];
-}
-
-// Point-in-rect test.
-function pointInRect(rect: Rect, vx: number, vy: number): boolean {
-  return (
-    vx >= rect.x &&
-    vx <= rect.x + rect.vWidth &&
-    vy >= rect.y &&
-    vy <= rect.y + rect.vHeight
-  );
-}
-
-// Convert SVG viewport pixel coordinates back to room-relative coordinates
-// (0..1) for radiator placement. Uses the bounding box as the reference
-// frame so radiator coordinates stay valid even on composite shapes.
-export function pointInRoomNormalised(
-  room: Room,
-  vx: number,
-  vy: number,
-): { ux: number; uy: number } {
-  const ux = (vx - room.x) / room.vWidth;
-  const uy = (vy - room.y) / room.vHeight;
-  return {
-    ux: Math.max(0, Math.min(1, ux)),
-    uy: Math.max(0, Math.min(1, uy)),
-  };
-}
-
-// Find which (visible) room contains a given viewport point. Tests every
-// rect of the composite shape — a click in the missing corner of an
-// L-shaped kitchen falls through, as it should.
-export function findRoomAt(
-  rooms: Room[],
-  vx: number,
-  vy: number,
-): Room | null {
-  for (const r of rooms) {
-    for (const rect of roomRects(r)) {
-      if (pointInRect(rect, vx, vy)) return r;
-    }
-  }
-  return null;
-}
-
-// ─── Heat pump movement ──────────────────────────────────────────────────────
-
-export function moveHeatPump(
+export function addWallPath(
   analysis: FloorplanAnalysis,
-  hpId: string,
-  newX: number,
-  newY: number,
+  points: Point[],
 ): FloorplanAnalysis {
+  if (points.length < 2) return analysis;
+  const wall: WallPath = { id: newWallId(), points };
   return {
     ...analysis,
-    heatPumpLocations: analysis.heatPumpLocations.map((h) =>
-      h.id === hpId ? { ...h, x: newX, y: newY } : h,
-    ),
+    walls: [...analysis.walls, wall],
     edited: true,
   };
 }
 
-export function addHeatPump(
+export function removeWallPath(
   analysis: FloorplanAnalysis,
-  vx: number,
-  vy: number,
-  size = 50,
+  id: string,
 ): FloorplanAnalysis {
-  const hp: HeatPumpLocation = {
-    id: newHpId(),
-    label: "Heat pump (you placed)",
-    type: "outdoor",
-    x: vx - size / 2,
-    y: vy - size / 2,
-    vWidth: size,
-    vHeight: size,
-    roomId: null,
-    notes: "Placed by user.",
-    source: "user_added",
-  };
   return {
     ...analysis,
-    heatPumpLocations: [...analysis.heatPumpLocations, hp],
+    walls: analysis.walls.filter((w) => w.id !== id),
+    // Drop any doors anchored to this wall.
+    doors: analysis.doors.filter((d) => d.wallPathId !== id),
     edited: true,
   };
 }
 
-export function removeHeatPump(
+// ─── Doors ───────────────────────────────────────────────────────────────────
+
+export function addDoor(
   analysis: FloorplanAnalysis,
-  hpId: string,
+  x: number,
+  y: number,
+  wallPathId: string | null,
 ): FloorplanAnalysis {
+  const door: Door = { id: newDoorId(), x, y, wallPathId };
   return {
     ...analysis,
-    heatPumpLocations: analysis.heatPumpLocations.filter((h) => h.id !== hpId),
+    doors: [...analysis.doors, door],
     edited: true,
   };
 }
 
-// ─── Mutators ────────────────────────────────────────────────────────────────
-// All return a new analysis object — never mutate the input. The editor calls
-// onChange with the result.
+export function removeDoor(
+  analysis: FloorplanAnalysis,
+  id: string,
+): FloorplanAnalysis {
+  return {
+    ...analysis,
+    doors: analysis.doors.filter((d) => d.id !== id),
+    edited: true,
+  };
+}
+
+// ─── Outdoor zones ───────────────────────────────────────────────────────────
+
+export function addOutdoorZone(
+  analysis: FloorplanAnalysis,
+  points: Point[],
+  label = "Outdoor space",
+): FloorplanAnalysis {
+  if (points.length < 3) return analysis;
+  const zone: OutdoorZone = {
+    id: newZoneId(),
+    label,
+    type: "other",
+    points,
+    notes: "",
+  };
+  return {
+    ...analysis,
+    outdoorZones: [...analysis.outdoorZones, zone],
+    edited: true,
+  };
+}
+
+export function removeOutdoorZone(
+  analysis: FloorplanAnalysis,
+  id: string,
+): FloorplanAnalysis {
+  return {
+    ...analysis,
+    outdoorZones: analysis.outdoorZones.filter((z) => z.id !== id),
+    edited: true,
+  };
+}
+
+// ─── Stairs ──────────────────────────────────────────────────────────────────
+
+export function addStairs(
+  analysis: FloorplanAnalysis,
+  rect: { x: number; y: number; vWidth: number; vHeight: number },
+): FloorplanAnalysis {
+  const stairs: UserStairs = {
+    id: newStairsId(),
+    x: rect.x,
+    y: rect.y,
+    vWidth: rect.vWidth,
+    vHeight: rect.vHeight,
+    direction: "up",
+  };
+  return {
+    ...analysis,
+    userStairs: [...analysis.userStairs, stairs],
+    edited: true,
+  };
+}
+
+export function removeStairs(
+  analysis: FloorplanAnalysis,
+  id: string,
+): FloorplanAnalysis {
+  return {
+    ...analysis,
+    userStairs: analysis.userStairs.filter((s) => s.id !== id),
+    edited: true,
+  };
+}
+
+// ─── Radiators ───────────────────────────────────────────────────────────────
 
 export function addRadiator(
   analysis: FloorplanAnalysis,
-  roomId: string,
-  ux: number,
-  uy: number,
+  x: number,
+  y: number,
 ): FloorplanAnalysis {
   const r: Radiator = {
     id: newRadiatorId(),
-    roomId,
-    ux,
-    uy,
+    x,
+    y,
     condition: null,
-    source: "user_added",
+    source: "user_placed",
   };
   return {
     ...analysis,
@@ -166,9 +171,9 @@ export function addRadiator(
 
 export function removeRadiator(
   analysis: FloorplanAnalysis,
-  radId: string,
+  id: string,
 ): FloorplanAnalysis {
-  const filtered = analysis.radiators.filter((r) => r.id !== radId);
+  const filtered = analysis.radiators.filter((r) => r.id !== id);
   return {
     ...analysis,
     radiators: filtered,
@@ -179,70 +184,122 @@ export function removeRadiator(
 
 export function setRadiatorCondition(
   analysis: FloorplanAnalysis,
-  radId: string,
+  id: string,
   condition: RadiatorCondition,
 ): FloorplanAnalysis {
   return {
     ...analysis,
     radiators: analysis.radiators.map((r) =>
-      r.id === radId ? { ...r, condition } : r,
+      r.id === id ? { ...r, condition } : r,
     ),
     edited: true,
   };
 }
 
-// Edit a room's metric dimensions. Re-derives areaM2.
-export function setRoomDimensions(
+// ─── Heat pump pins (AI-suggested, user-draggable) ───────────────────────────
+
+export function moveHeatPump(
   analysis: FloorplanAnalysis,
-  roomId: string,
-  patch: { widthM?: number | null; heightM?: number | null; label?: string },
+  id: string,
+  x: number,
+  y: number,
 ): FloorplanAnalysis {
   return {
     ...analysis,
-    rooms: analysis.rooms.map((r) => {
-      if (r.id !== roomId) return r;
-      const widthM = patch.widthM === undefined ? r.widthM : patch.widthM;
-      const heightM = patch.heightM === undefined ? r.heightM : patch.heightM;
-      const areaM2 =
-        widthM != null && heightM != null && widthM > 0 && heightM > 0
-          ? Number((widthM * heightM).toFixed(2))
-          : null;
-      return {
-        ...r,
-        widthM,
-        heightM,
-        areaM2,
-        label: patch.label !== undefined ? patch.label : r.label,
-      };
-    }),
+    heatPumpLocations: analysis.heatPumpLocations.map((h) =>
+      h.id === id ? { ...h, x, y, source: "user_placed" } : h,
+    ),
     edited: true,
   };
 }
 
-export function addRoom(analysis: FloorplanAnalysis, room: Room): FloorplanAnalysis {
+export function removeHeatPump(
+  analysis: FloorplanAnalysis,
+  id: string,
+): FloorplanAnalysis {
   return {
     ...analysis,
-    rooms: [...analysis.rooms, room],
-    roomCount: analysis.rooms.length + 1,
+    heatPumpLocations: analysis.heatPumpLocations.filter((h) => h.id !== id),
     edited: true,
   };
 }
 
-export function removeRoom(analysis: FloorplanAnalysis, roomId: string): FloorplanAnalysis {
-  const rooms = analysis.rooms.filter((r) => r.id !== roomId);
-  // Drop any radiators that lived in this room.
-  const radiators = analysis.radiators.filter((r) => r.roomId !== roomId);
+export function addUserHeatPump(
+  analysis: FloorplanAnalysis,
+  x: number,
+  y: number,
+): FloorplanAnalysis {
+  const hp: HeatPumpLocation = {
+    id: newHpId(),
+    label: "Heat pump (you placed)",
+    x: x - 25,
+    y: y - 25,
+    vWidth: 50,
+    vHeight: 50,
+    notes: "Placed by user.",
+    source: "user_placed",
+  };
   return {
     ...analysis,
-    rooms,
-    radiators,
-    roomCount: rooms.length,
-    radiatorsVisible: radiators.length,
+    heatPumpLocations: [...analysis.heatPumpLocations, hp],
     edited: true,
   };
 }
 
-// Outdoor-space user confirmation helper.
+// ─── Cylinder pins ───────────────────────────────────────────────────────────
+
+export function moveCylinder(
+  analysis: FloorplanAnalysis,
+  id: string,
+  x: number,
+  y: number,
+): FloorplanAnalysis {
+  return {
+    ...analysis,
+    hotWaterCylinderCandidates: analysis.hotWaterCylinderCandidates.map((c) =>
+      c.id === id ? { ...c, x, y, source: "user_placed" } : c,
+    ),
+    edited: true,
+  };
+}
+
+export function removeCylinder(
+  analysis: FloorplanAnalysis,
+  id: string,
+): FloorplanAnalysis {
+  return {
+    ...analysis,
+    hotWaterCylinderCandidates: analysis.hotWaterCylinderCandidates.filter(
+      (c) => c.id !== id,
+    ),
+    edited: true,
+  };
+}
+
+// ─── Applying AI placement results ───────────────────────────────────────────
+
+export function applyAiPlacements(
+  analysis: FloorplanAnalysis,
+  payload: {
+    heatPumpLocations: HeatPumpLocation[];
+    hotWaterCylinderCandidates: HotWaterCylinderCandidate[];
+    concerns: string[];
+    installerQuestions: string[];
+  },
+): FloorplanAnalysis {
+  return {
+    ...analysis,
+    heatPumpLocations: payload.heatPumpLocations,
+    hotWaterCylinderCandidates: payload.hotWaterCylinderCandidates,
+    heatPumpInstallationConcerns: payload.concerns,
+    recommendedInstallerQuestions: payload.installerQuestions,
+    placementsRequested: true,
+    edited: true,
+  };
+}
+
+// ─── Outdoor-space user confirmation (kept for back-compat) ──────────────────
+
 export function setUserOutdoor(
   analysis: FloorplanAnalysis,
   answer: "yes" | "no",
@@ -256,4 +313,55 @@ export function setUserOutdoor(
     },
     edited: true,
   };
+}
+
+// ─── Hit-testing helpers ─────────────────────────────────────────────────────
+
+// Project a point onto a line segment; return distance + projected point.
+export function distanceToSegment(
+  px: number,
+  py: number,
+  ax: number,
+  ay: number,
+  bx: number,
+  by: number,
+): { dist: number; t: number; projX: number; projY: number } {
+  const abx = bx - ax;
+  const aby = by - ay;
+  const len2 = abx * abx + aby * aby;
+  if (len2 === 0) {
+    const dx = px - ax;
+    const dy = py - ay;
+    return { dist: Math.sqrt(dx * dx + dy * dy), t: 0, projX: ax, projY: ay };
+  }
+  let t = ((px - ax) * abx + (py - ay) * aby) / len2;
+  t = Math.max(0, Math.min(1, t));
+  const projX = ax + t * abx;
+  const projY = ay + t * aby;
+  const dx = px - projX;
+  const dy = py - projY;
+  return { dist: Math.sqrt(dx * dx + dy * dy), t, projX, projY };
+}
+
+// Find the wall path whose closest segment is nearest to (x, y) within
+// maxDistance. Used for snapping doors to walls.
+export function findNearestWall(
+  walls: WallPath[],
+  x: number,
+  y: number,
+  maxDistance = 30,
+): { wallPathId: string; x: number; y: number } | null {
+  let best: { wallPathId: string; x: number; y: number; dist: number } | null = null;
+  for (const w of walls) {
+    for (let i = 0; i < w.points.length - 1; i++) {
+      const a = w.points[i]!;
+      const b = w.points[i + 1]!;
+      const r = distanceToSegment(x, y, a.x, a.y, b.x, b.y);
+      if (r.dist <= maxDistance && (!best || r.dist < best.dist)) {
+        best = { wallPathId: w.id, x: r.projX, y: r.projY, dist: r.dist };
+      }
+    }
+  }
+  if (!best) return null;
+  return { wallPathId: best.wallPathId, x: best.x, y: best.y };
 }

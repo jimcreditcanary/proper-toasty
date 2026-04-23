@@ -2,12 +2,12 @@ import { NextResponse } from "next/server";
 import { getBuildingInsights } from "@/lib/services/solar";
 import { getEpc } from "@/lib/services/epc";
 import { getPvgisYield } from "@/lib/services/pvgis";
-import { analyseFloorplan } from "@/lib/services/claude-floorplan";
 import { getFloodWarnings } from "@/lib/services/enrichment/flood";
 import { getListedBuildings } from "@/lib/services/enrichment/listed";
 import { getPlanningFlags } from "@/lib/services/enrichment/planning";
 import { buildEligibility } from "@/lib/services/eligibility";
 import { AnalyseRequestSchema, type AnalyseResponse } from "@/lib/schemas/analyse";
+import { emptyFloorplanAnalysis } from "@/lib/schemas/floorplan";
 import type { BuildingInsightsResponse, RoofSegment } from "@/lib/schemas/solar";
 import type { EpcByAddressResponse } from "@/lib/schemas/epc";
 
@@ -45,7 +45,7 @@ export async function POST(req: Request) {
     );
   }
   const request = parsed.data;
-  const { address, floorplanObjectKey, precomputedFloorplan } = request;
+  const { address, precomputedFloorplan } = request;
 
   // Fan out solar, EPC, and the three enrichments immediately — none depend on
   // each other, and the enrichments are free public APIs.
@@ -83,26 +83,26 @@ export async function POST(req: Request) {
   const epcPropertyType = epc.found ? epc.certificate.propertyType : null;
   const epcAgeBand = epc.found ? epc.certificate.constructionAgeBand : null;
 
-  // If Step 4 already ran the floorplan analysis (via /api/floorplan/analyse)
-  // and the user reviewed the diagram, use that. Otherwise call Claude here
-  // — preserves the old "upload + skip editor" flow during dev.
-  const floorplanPromise: Promise<AnalyseResponse["floorplan"]> = precomputedFloorplan
-    ? Promise.resolve({
+  // v3: floorplan analysis is built up by the user in the Step 4 editor and
+  // passed through as `precomputedFloorplan`. We no longer run a Claude
+  // extraction pass here — the editor + /api/floorplan/suggest-placements
+  // produce the analysis blob. If for some reason the client doesn't send
+  // one (older browsers / interrupted state), we synthesise an empty one
+  // so the rest of the pipeline still works.
+  const floorplan: AnalyseResponse["floorplan"] = precomputedFloorplan
+    ? {
         analysis: precomputedFloorplan.analysis,
         degraded: precomputedFloorplan.degraded,
         reason: precomputedFloorplan.reason,
-      })
-    : analyseFloorplan({
-        objectKey: floorplanObjectKey,
-        context: { epcFloorAreaM2, epcPropertyType, epcAgeBand },
-      }).catch((err) => {
-        console.warn("Claude floorplan failed:", err);
-        return {
-          analysis: null,
-          degraded: true,
-          reason: err instanceof Error ? err.message : "Floorplan analysis failed",
-        };
-      });
+      }
+    : {
+        analysis: emptyFloorplanAnalysis(),
+        degraded: false,
+      };
+  // Silence unused-var lint for context fields that v2 needed but v3 doesn't.
+  void epcFloorAreaM2;
+  void epcPropertyType;
+  void epcAgeBand;
 
   let pvgisPromise: Promise<AnalyseResponse["pvgis"]> = Promise.resolve(null);
   let pvgisPeakKwp: number | null = null;
@@ -127,7 +127,7 @@ export async function POST(req: Request) {
     }
   }
 
-  const [floorplan, pvgis] = await Promise.all([floorplanPromise, pvgisPromise]);
+  const pvgis = await pvgisPromise;
 
   const { eligibility, finance } = buildEligibility({
     request,

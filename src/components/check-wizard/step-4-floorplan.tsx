@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  AlertTriangle,
   ArrowLeft,
   ArrowRight,
   CheckCircle2,
@@ -14,18 +13,25 @@ import {
 import { resizeImage } from "@/lib/client/image-resize";
 import { useCheckWizard } from "./context";
 import { FloorplanEditor } from "./floorplan-editor";
-import type { FloorplanAnalysis } from "@/lib/schemas/floorplan";
+import { applyAiPlacements } from "./floorplan-editor/utils";
+import {
+  emptyFloorplanAnalysis,
+  type FloorplanAnalysis,
+} from "@/lib/schemas/floorplan";
 import type { FloorplanAnalyseResponse } from "@/app/api/floorplan/analyse/route";
+import type { SuggestPlacementsResult } from "@/lib/services/claude-placements";
 
-// Step 4 flow:
-//   1. User drags / picks / pastes a floorplan image.
-//   2. We upload to Supabase storage, get an objectKey.
-//   3. We auto-fire /api/floorplan/analyse — Claude vision + satellite check
-//      run in parallel; takes ~10–15s.
-//   4. The editor renders inline. The user can place radiators, edit
-//      dimensions, add extensions, and confirm outdoor space if the satellite
-//      check was inconclusive.
-//   5. Continue takes them to Step 5, which now skips the floorplan call.
+// Step 4 (v3 — user-annotation model):
+//   1. Upload floorplan image → store object key
+//   2. Background: hit /api/floorplan/analyse for the satellite outdoor
+//      verdict (no Claude floorplan extraction in v3)
+//   3. Render the FloorplanEditor with an empty analysis. The user draws
+//      walls / doors / outdoor zones / stairs / radiators directly on top
+//      of their uploaded image.
+//   4. User presses "Find heat pump & cylinder" → POST to
+//      /api/floorplan/suggest-placements → AI drops pins based on the
+//      drawn annotations. User adjusts.
+//   5. Continue → Step 5 sends the precomputed analysis to /api/analyse.
 
 type UploadState =
   | { kind: "idle" }
@@ -34,33 +40,23 @@ type UploadState =
   | { kind: "uploaded"; previewUrl: string; objectKey: string; bytes: number }
   | { kind: "error"; message: string };
 
-type AnalysisState =
-  | { kind: "idle" }
-  | { kind: "running" }
-  | { kind: "done" }
-  | { kind: "degraded"; reason: string }
-  | { kind: "error"; message: string };
-
 const ACCEPT = "image/jpeg,image/png";
 
 export function Step4Floorplan() {
   const { state, update, next, back } = useCheckWizard();
+
   const [upload, setUpload] = useState<UploadState>(() =>
     state.floorplanObjectKey
       ? { kind: "uploaded", previewUrl: "", objectKey: state.floorplanObjectKey, bytes: 0 }
       : { kind: "idle" },
   );
-  const [analysis, setAnalysis] = useState<AnalysisState>(() =>
-    state.floorplanAnalysis
-      ? { kind: "done" }
-      : state.floorplanDegraded
-        ? { kind: "degraded", reason: state.floorplanDegradedReason ?? "Couldn't read your floorplan." }
-        : { kind: "idle" },
-  );
+  const [satelliteRunning, setSatelliteRunning] = useState(false);
+  const [placementsRunning, setPlacementsRunning] = useState(false);
+  const [placementsError, setPlacementsError] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Cleanup object URLs.
+  // Cleanup object URLs on unmount.
   useEffect(() => {
     return () => {
       if (upload.kind === "resizing" || upload.kind === "uploading" || upload.kind === "uploaded") {
@@ -70,58 +66,41 @@ export function Step4Floorplan() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const runAnalysis = useCallback(
-    async (objectKey: string) => {
-      setAnalysis({ kind: "running" });
-      try {
-        const res = await fetch("/api/floorplan/analyse", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            objectKey,
-            // EPC context isn't on the client — Step 5 has access via the
-            // analyse pipeline. For Step 4 we pass nulls and Claude works
-            // off the image alone. (We could fetch EPC here too, but it
-            // adds latency before the user sees anything.)
-            epcContext: null,
-            lat: state.address?.latitude ?? null,
-            lng: state.address?.longitude ?? null,
-          }),
-        });
-        if (!res.ok) {
-          const j = (await res.json().catch(() => ({}))) as { error?: string };
-          throw new Error(j.error ?? `Analyse failed (${res.status})`);
-        }
-        const data = (await res.json()) as FloorplanAnalyseResponse;
-        if (data.degraded || !data.analysis) {
-          update({
-            floorplanAnalysis: null,
-            floorplanDegraded: true,
-            floorplanDegradedReason: data.reason ?? "Couldn't read your floorplan.",
-            satelliteOutdoorVerdict: data.satellite.verdict,
-          });
-          setAnalysis({
-            kind: "degraded",
-            reason: data.reason ?? "We couldn't read your floorplan reliably.",
-          });
-          return;
-        }
-        update({
-          floorplanAnalysis: data.analysis,
-          floorplanDegraded: false,
-          floorplanDegradedReason: null,
-          satelliteOutdoorVerdict: data.satellite.verdict,
-        });
-        setAnalysis({ kind: "done" });
-      } catch (err) {
-        setAnalysis({
-          kind: "error",
-          message: err instanceof Error ? err.message : "Analysis failed",
-        });
-      }
-    },
-    [update, state.address?.latitude, state.address?.longitude],
-  );
+  // Make sure we always have a non-null analysis blob to feed the editor.
+  useEffect(() => {
+    if (upload.kind === "uploaded" && !state.floorplanAnalysis) {
+      update({ floorplanAnalysis: emptyFloorplanAnalysis() });
+    }
+  }, [upload, state.floorplanAnalysis, update]);
+
+  // Run the satellite check once after upload (gives us the outdoor-space
+  // verdict for the editor's optional confirmation banner).
+  const runSatelliteCheck = useCallback(async () => {
+    if (state.satelliteOutdoorVerdict != null) return; // already have it
+    if (state.address?.latitude == null) return;
+    setSatelliteRunning(true);
+    try {
+      const res = await fetch("/api/floorplan/analyse", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          lat: state.address.latitude,
+          lng: state.address.longitude,
+        }),
+      });
+      if (!res.ok) throw new Error(`Satellite check failed (${res.status})`);
+      const data = (await res.json()) as FloorplanAnalyseResponse;
+      update({ satelliteOutdoorVerdict: data.satellite.verdict });
+    } catch (err) {
+      console.warn("Satellite check failed:", err);
+    } finally {
+      setSatelliteRunning(false);
+    }
+  }, [state.address, state.satelliteOutdoorVerdict, update]);
+
+  useEffect(() => {
+    if (upload.kind === "uploaded") void runSatelliteCheck();
+  }, [upload.kind, runSatelliteCheck]);
 
   const handleFile = useCallback(
     async (file: File) => {
@@ -172,13 +151,11 @@ export function Step4Floorplan() {
         setUpload({ kind: "uploaded", previewUrl, objectKey: j.objectKey, bytes: j.bytes });
         update({
           floorplanObjectKey: j.objectKey,
-          floorplanAnalysis: null,
+          floorplanAnalysis: emptyFloorplanAnalysis(),
           floorplanDegraded: false,
           floorplanDegradedReason: null,
           satelliteOutdoorVerdict: null,
         });
-        // Auto-fire analysis as soon as the upload lands.
-        void runAnalysis(j.objectKey);
       } catch (err) {
         URL.revokeObjectURL(previewUrl);
         setUpload({
@@ -187,7 +164,7 @@ export function Step4Floorplan() {
         });
       }
     },
-    [update, runAnalysis],
+    [update],
   );
 
   const reset = useCallback(() => {
@@ -195,7 +172,7 @@ export function Step4Floorplan() {
       if (upload.previewUrl) URL.revokeObjectURL(upload.previewUrl);
     }
     setUpload({ kind: "idle" });
-    setAnalysis({ kind: "idle" });
+    setPlacementsError(null);
     update({
       floorplanObjectKey: null,
       floorplanAnalysis: null,
@@ -225,12 +202,51 @@ export function Step4Floorplan() {
     [update],
   );
 
-  // The continue button enables once analysis is done OR degraded — we let
-  // users press on past a failed analysis (Step 5 will run the eligibility
-  // engine on whatever data we do have).
-  const canContinue =
-    upload.kind === "uploaded" &&
-    (analysis.kind === "done" || analysis.kind === "degraded");
+  // Fire the AI placement step when the user clicks the button in the editor.
+  const handleRequestPlacements = useCallback(async () => {
+    if (upload.kind !== "uploaded" || !state.floorplanAnalysis) return;
+    setPlacementsRunning(true);
+    setPlacementsError(null);
+    try {
+      const res = await fetch("/api/floorplan/suggest-placements", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          objectKey: upload.objectKey,
+          satelliteVerdict: state.satelliteOutdoorVerdict,
+          satelliteNotes: null,
+          annotations: {
+            walls: state.floorplanAnalysis.walls,
+            doors: state.floorplanAnalysis.doors,
+            outdoorZones: state.floorplanAnalysis.outdoorZones,
+            userStairs: state.floorplanAnalysis.userStairs,
+            radiators: state.floorplanAnalysis.radiators,
+          },
+        }),
+      });
+      if (!res.ok) {
+        const j = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(j.error ?? `Placement failed (${res.status})`);
+      }
+      const result = (await res.json()) as SuggestPlacementsResult;
+      if (!result.ok || !result.data) {
+        throw new Error(result.error ?? "Placement failed");
+      }
+      update({
+        floorplanAnalysis: applyAiPlacements(state.floorplanAnalysis, result.data),
+      });
+    } catch (err) {
+      setPlacementsError(err instanceof Error ? err.message : "Placement failed");
+    } finally {
+      setPlacementsRunning(false);
+    }
+  }, [upload, state.floorplanAnalysis, state.satelliteOutdoorVerdict, update]);
+
+  const imageUrl = state.floorplanObjectKey
+    ? `/api/floorplan/image?key=${encodeURIComponent(state.floorplanObjectKey)}`
+    : null;
+
+  const canContinue = upload.kind === "uploaded";
 
   return (
     <div className="max-w-5xl mx-auto w-full">
@@ -239,14 +255,15 @@ export function Step4Floorplan() {
           Step 4 of 6
         </p>
         <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-navy">
-          Upload your floorplan
+          Upload &amp; annotate your floorplan
         </h2>
         <p className="mt-3 text-slate-600 max-w-xl mx-auto">
-          A JPG or PNG. We&rsquo;ll read the rooms, then ask you to mark up where the radiators are.
+          Drop your floorplan, then trace the walls, doors, outdoor space, stairs and
+          radiators. We&rsquo;ll suggest where the heat pump and hot water cylinder go.
         </p>
       </div>
 
-      {/* Upload UI */}
+      {/* Upload UI (shown before / on error) */}
       {upload.kind === "idle" || upload.kind === "error" ? (
         <div className="max-w-2xl mx-auto">
           <div
@@ -290,58 +307,25 @@ export function Step4Floorplan() {
           )}
         </div>
       ) : (
-        // Upload card + (loader OR editor OR degraded fallback)
         <div className="space-y-5">
           <UploadCard
             preview={upload.previewUrl}
-            label={uploadLabel(upload, analysis)}
+            label={uploadLabel(upload, satelliteRunning)}
             onReplace={reset}
           />
 
-          {analysis.kind === "running" && (
-            <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center">
-              <Loader2 className="w-10 h-10 text-coral animate-spin mx-auto mb-4" />
-              <p className="text-sm font-medium text-navy">
-                Reading your floorplan and checking the satellite view…
-              </p>
-              <p className="mt-1 text-xs text-slate-500">
-                Usually 10–15 seconds.
-              </p>
-            </div>
-          )}
-
-          {analysis.kind === "error" && (
-            <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-sm text-red-700">
-              <p className="font-semibold">Analysis failed</p>
-              <p className="mt-1">{analysis.message}</p>
-              <button
-                type="button"
-                onClick={() => upload.kind === "uploaded" && void runAnalysis(upload.objectKey)}
-                className="mt-3 h-9 px-4 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-semibold"
-              >
-                Try again
-              </button>
-            </div>
-          )}
-
-          {analysis.kind === "degraded" && (
-            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-sm text-amber-900">
-              <p className="font-semibold flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4" /> We couldn&rsquo;t read your floorplan reliably
-              </p>
-              <p className="mt-1 text-amber-800">{analysis.reason}</p>
-              <p className="mt-2 text-xs text-amber-700">
-                You can carry on — your installer will assess everything on their site visit.
-                Or replace the file with a higher-quality image and try again.
-              </p>
-            </div>
-          )}
-
-          {analysis.kind === "done" && state.floorplanAnalysis && (
+          {state.floorplanAnalysis && (
             <FloorplanEditor
               analysis={state.floorplanAnalysis}
               onChange={handleEditorChange}
-              outdoorAsk={state.satelliteOutdoorVerdict === "unsure" || state.satelliteOutdoorVerdict === "no"}
+              imageUrl={imageUrl}
+              outdoorAsk={
+                state.satelliteOutdoorVerdict === "unsure" ||
+                state.satelliteOutdoorVerdict === "no"
+              }
+              onRequestPlacements={handleRequestPlacements}
+              placementsRunning={placementsRunning}
+              placementsError={placementsError}
             />
           )}
         </div>
@@ -372,14 +356,11 @@ export function Step4Floorplan() {
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
-function uploadLabel(upload: UploadState, analysis: AnalysisState): string {
+function uploadLabel(upload: UploadState, satelliteRunning: boolean): string {
   if (upload.kind === "resizing") return "Resizing…";
   if (upload.kind === "uploading") return `Uploading · ${(upload.bytes / 1024).toFixed(0)} KB`;
-  if (analysis.kind === "running") return "Analysing…";
-  if (analysis.kind === "done") return "Ready — mark up your radiators below";
-  if (analysis.kind === "degraded") return "Uploaded — analysis incomplete";
-  if (analysis.kind === "error") return "Uploaded — analysis failed";
-  return "Uploaded";
+  if (satelliteRunning) return "Checking satellite for outdoor space…";
+  return "Ready — annotate the floorplan below";
 }
 
 function UploadCard({
@@ -407,7 +388,11 @@ function UploadCard({
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium text-navy">Floorplan</p>
           <p className="mt-1 text-xs text-slate-500 inline-flex items-center gap-1.5">
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+            {label.includes("Resizing") || label.includes("Uploading") || label.includes("Checking") ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+            )}
             {label}
           </p>
           <button
