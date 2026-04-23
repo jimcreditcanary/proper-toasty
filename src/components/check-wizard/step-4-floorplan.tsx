@@ -317,6 +317,7 @@ export function Step4Floorplan() {
               onRequestPlacements={handleRequestPlacements}
               placementsRunning={placementsRunning}
               placementsError={placementsError}
+              onComplete={next}
             />
           )}
 

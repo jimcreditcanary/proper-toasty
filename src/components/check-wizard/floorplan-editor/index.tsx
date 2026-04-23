@@ -28,7 +28,12 @@ import {
   Undo2,
   Wand2,
 } from "lucide-react";
-import type { Point, RadiatorCondition } from "@/lib/schemas/floorplan";
+import type {
+  Point,
+  RadiatorCondition,
+  RadiatorOrientation,
+  RadiatorSize,
+} from "@/lib/schemas/floorplan";
 import type { FloorplanEditorProps, Stage } from "./types";
 import {
   addDoor,
@@ -41,7 +46,7 @@ import {
   moveCylinder,
   moveHeatPump,
   removeRadiator,
-  setRadiatorCondition,
+  setRadiatorMeta,
   setUserOutdoor,
   simplifyStroke,
   snapToGrid,
@@ -61,26 +66,30 @@ const STAGE_ORDER: Stage[] = [
   "doors",
   "stairs",
   "radiators",
+  "review",
   "placing",
   "adjust",
-  "done",
 ];
 
+// Vibrant palette — meant to stand out against the white-overlaid
+// floorplan image while in drawing stages, AND against the amber-wash
+// canonical background when we hide the photo.
 const COLOURS = {
-  wall: "#1e293b",            // slate-800 — walls render DARK for canonical feel
-  wallCurrent: "#ef6c4f",     // coral — the in-progress stroke
+  wall: "#ef6c4f",            // coral — walls match the brand and pop on the light overlay
+  wallCurrent: "#dc2626",     // red-600 — extra vivid while in-progress
   door: "#f59e0b",
-  zoneStroke: "#22c55e",
-  zoneFill: "#86efac30",
-  zoneCurrent: "#16a34a",
+  zoneStroke: "#16a34a",      // green-600
+  zoneFill: "#86efac55",
+  zoneCurrent: "#15803d",
   stairsFill: "#cbd5e1",
-  stairsStroke: "#64748b",
-  hpStroke: "#10b981",
-  hpFill: "#10b98120",
-  cylStroke: "#8b5cf6",
-  cylFill: "#8b5cf620",
+  stairsStroke: "#334155",
+  hpStroke: "#0f766e",        // teal-700 — more contrast than emerald
+  hpFill: "#14b8a625",
+  cylStroke: "#7c3aed",       // violet-600
+  cylFill: "#8b5cf625",
   radiator: "#ef6c4f",
   radiatorSelected: "#dc2626",
+  overlayOpacity: 0.55,
 } as const;
 
 // ─── Stage definitions ───────────────────────────────────────────────────────
@@ -132,28 +141,29 @@ const STAGE_CONFIG: Record<Stage, StageConfig | null> = {
   },
   radiators: {
     key: "radiators",
-    title: "Draw over every radiator",
+    title: "Mark your radiators",
     body:
-      "Click and drag to draw each radiator — longer radiators should span wider. After drawing one, rate its condition.",
+      "Click where each radiator is. A quick popover will ask the size (small / medium / large), whether it's tall, and its condition.",
     icon: <Rows className="w-5 h-5" />,
+  },
+  review: {
+    key: "review",
+    title: "Here's what you've drawn",
+    body:
+      "This is your simplified floorplan. Take a look — go back if anything needs a tweak. When it looks right, we'll work out where the heat pump and cylinder can go.",
+    icon: <Check className="w-5 h-5" />,
   },
   placing: {
     key: "placing",
     title: "Finding where everything fits…",
-    body: "We're looking at your floorplan plus what you've drawn to suggest where the heat pump and hot water cylinder can go.",
+    body: "Comparing what you've drawn against your original floorplan to suggest where the heat pump and hot water cylinder can go.",
     icon: <Sparkles className="w-5 h-5" />,
   },
   adjust: {
     key: "adjust",
     title: "Adjust the heat pump and cylinder",
-    body: "Drag either pin to where you'd actually put it. Answer any follow-up questions below if they appear.",
+    body: "Drag either pin to where you'd actually put it. Answer any follow-up questions below if they appear, then hit Looks good.",
     icon: <Target className="w-5 h-5" />,
-  },
-  done: {
-    key: "done",
-    title: "All set — here's your annotated floorplan",
-    body: "This is what your MCS installer will see. Go back any step if you want to tweak.",
-    icon: <Check className="w-5 h-5" />,
   },
 };
 
@@ -168,6 +178,7 @@ export function FloorplanEditor({
   onRequestPlacements,
   placementsRunning,
   placementsError,
+  onComplete,
 }: FloorplanEditorProps) {
   // Pick initial stage based on what's already in analysis (for back-and-
   // forth through the wizard).
@@ -183,17 +194,24 @@ export function FloorplanEditor({
   }, []);
   const [stage, setStage] = useState<Stage>(initialStage);
 
-  // Auto-advance out of placing when AI returns.
+  // Auto-advance out of placing when AI returns (or if it errors — so the
+  // user isn't stuck on the loading state).
   useEffect(() => {
-    if (stage === "placing" && !placementsRunning && analysis.placementsRequested) {
-      setStage("adjust");
-    }
+    if (stage !== "placing") return;
+    if (placementsRunning) return;
+    if (analysis.placementsRequested) setStage("adjust");
   }, [stage, placementsRunning, analysis.placementsRequested]);
 
   // Show background image except during adjust/done — those are canonical.
+  // Background visibility:
+  //   - During drawing stages (walls..radiators): show image WITH a white
+  //     overlay so the photo's colour doesn't drown out the annotations.
+  //   - review / adjust: image hidden by default (canonical view of the
+  //     drawing), but the user can toggle it back on.
   const [backgroundOverride, setBackgroundOverride] = useState<boolean | null>(null);
-  const showBackground =
-    backgroundOverride ?? !(stage === "adjust" || stage === "done");
+  const canonicalStage =
+    stage === "review" || stage === "adjust" || stage === "placing";
+  const showBackground = backgroundOverride ?? !canonicalStage;
 
   // ─── Drawing state (local; persisted on save) ───────────────────────────
   const [stroke, setStroke] = useState<Point[]>([]);
@@ -247,9 +265,30 @@ export function FloorplanEditor({
       setDrawing(true);
       // Capture pointer so drag stays inside the SVG even when fast.
       e.currentTarget.setPointerCapture(e.pointerId);
-    } else if (stage === "stairs" || stage === "radiators") {
+    } else if (stage === "stairs") {
       setDragRect({ startX: pos.vx, startY: pos.vy, curX: pos.vx, curY: pos.vy });
       e.currentTarget.setPointerCapture(e.pointerId);
+    } else if (stage === "radiators") {
+      // Radiators are pins in v4.1 — single click, popover for size +
+      // condition. No drag.
+      const next = addRadiator(analysis, pos.vx, pos.vy);
+      const last = next.radiators[next.radiators.length - 1];
+      onChange(next);
+      if (last && containerRef.current && svgRef.current) {
+        const rect = containerRef.current.getBoundingClientRect();
+        const svgCtm = svgRef.current.getScreenCTM();
+        if (svgCtm) {
+          const pt = svgRef.current.createSVGPoint();
+          pt.x = last.x + last.vWidth;
+          pt.y = last.y;
+          const screen = pt.matrixTransform(svgCtm);
+          setPendingRadiator({
+            id: last.id,
+            relX: screen.x - rect.left,
+            relY: screen.y - rect.top,
+          });
+        }
+      }
     } else if (stage === "adjust") {
       const hp = analysis.heatPumpLocations.find(
         (h) =>
@@ -340,36 +379,6 @@ export function FloorplanEditor({
       setDragRect(null);
       if (stage === "stairs" && w >= 30 && h >= 30) {
         onChange(addStairs(analysis, { x, y, vWidth: w, vHeight: h }));
-      } else if (stage === "radiators") {
-        // Radiators can be tiny (click = default small bar).
-        const finalW = w < 8 ? 40 : w;
-        const finalH = h < 4 ? 10 : h;
-        const finalX = w < 8 ? x - finalW / 2 : x;
-        const finalY = h < 4 ? y - finalH / 2 : y;
-        const next = addRadiator(analysis, {
-          x: finalX,
-          y: finalY,
-          vWidth: finalW,
-          vHeight: finalH,
-        });
-        const last = next.radiators[next.radiators.length - 1];
-        onChange(next);
-        // Position condition popover at top-right of the rectangle.
-        if (last && containerRef.current && svgRef.current) {
-          const rect = containerRef.current.getBoundingClientRect();
-          const svgCtm = svgRef.current.getScreenCTM();
-          if (svgCtm) {
-            const pt = svgRef.current.createSVGPoint();
-            pt.x = finalX + finalW;
-            pt.y = finalY;
-            const screen = pt.matrixTransform(svgCtm);
-            setPendingRadiator({
-              id: last.id,
-              relX: screen.x - rect.left,
-              relY: screen.y - rect.top,
-            });
-          }
-        }
       }
       return;
     }
@@ -411,19 +420,27 @@ export function FloorplanEditor({
   }, [stageIdx, stageOrder]);
 
   const advance = useCallback(() => {
-    // radiators → placing fires the AI call
+    // radiators → review (show canonical drawing before AI runs)
     if (stage === "radiators") {
+      setStage("review");
+      return;
+    }
+    // review → placing fires the AI call
+    if (stage === "review") {
       setStage("placing");
       onRequestPlacements?.();
       return;
     }
+    // adjust is the final stage — advancing means the user is done with
+    // the floorplan step, so we call onComplete which the wizard wires
+    // to next() (→ Step 5).
     if (stage === "adjust") {
-      setStage("done");
+      onComplete?.();
       return;
     }
     const nextStage = stageOrder[stageIdx + 1];
     if (nextStage) setStage(nextStage);
-  }, [stage, stageIdx, onRequestPlacements, stageOrder]);
+  }, [stage, stageIdx, onRequestPlacements, onComplete, stageOrder]);
 
   const undo = useCallback(() => {
     if (stage === "walls") onChange(undoLastWall(analysis));
@@ -446,15 +463,18 @@ export function FloorplanEditor({
 
   const cfg = STAGE_CONFIG[stage]!;
   const showUndo =
-    stage !== "welcome" && stage !== "placing" && stage !== "adjust" && stage !== "done";
+    stage !== "welcome" &&
+    stage !== "placing" &&
+    stage !== "review" &&
+    stage !== "adjust";
 
   return (
     <div className="rounded-2xl border border-[var(--border)] bg-white p-5 shadow-sm">
       {/* Progress dots */}
-      {stage !== "welcome" && stage !== "placing" && stage !== "done" && (
+      {stage !== "welcome" && stage !== "placing" && (
         <div className="mb-4 flex items-center gap-1.5">
-          {["walls", "outdoor", "doors", "stairs", "radiators", "adjust"].map(
-            (s, i) => {
+          {["walls", "outdoor", "doors", "stairs", "radiators", "review", "adjust"].map(
+            (s) => {
               const idx = stageOrder.indexOf(s as Stage);
               const isActive = s === stage;
               const isDone = stageIdx > idx;
@@ -551,7 +571,17 @@ export function FloorplanEditor({
           </div>
         )}
 
-        {/* SVG overlay — canonical view uses an empty coloured backdrop */}
+        {/* White wash over the photo so annotations pop. Opacity tuned so
+            the floorplan is still visible as a guide but doesn't compete
+            with the brightly-coloured sketches. */}
+        {showBackground && imageUrl && (
+          <div
+            className="absolute inset-0 bg-white pointer-events-none"
+            style={{ opacity: COLOURS.overlayOpacity }}
+          />
+        )}
+
+        {/* Canonical backdrop (review / adjust stages when image is hidden) */}
         {!showBackground && imageUrl && (
           <div className="absolute inset-0 bg-amber-50/60" />
         )}
@@ -592,17 +622,17 @@ export function FloorplanEditor({
             </g>
           ))}
 
-          {/* Walls — thicker in canonical view for "real floorplan" look */}
+          {/* Walls — thick, vibrant, visible over the white-washed photo.
+              Even thicker in canonical view for a "real floorplan" look. */}
           {analysis.walls.map((w) => (
             <polyline
               key={w.id}
               points={w.points.map((p) => `${p.x},${p.y}`).join(" ")}
               fill="none"
-              stroke={showBackground ? COLOURS.wall : COLOURS.wall}
-              strokeWidth={showBackground ? 5 : 10}
+              stroke={COLOURS.wall}
+              strokeWidth={showBackground ? 8 : 12}
               strokeLinecap="round"
               strokeLinejoin="round"
-              strokeOpacity={showBackground ? 0.85 : 1}
             />
           ))}
 
@@ -790,24 +820,30 @@ export function FloorplanEditor({
           )}
         </svg>
 
-        {/* Radiator condition popover */}
-        {pendingRadiator && (
-          <RadiatorConditionPopover
-            x={pendingRadiator.relX}
-            y={pendingRadiator.relY}
-            onPick={(c) => {
-              onChange(setRadiatorCondition(analysis, pendingRadiator.id, c));
-              setPendingRadiator(null);
-            }}
-            onRemove={() => {
-              onChange(removeRadiator(analysis, pendingRadiator.id));
-              setPendingRadiator(null);
-            }}
-          />
-        )}
+        {/* Radiator size + condition popover */}
+        {pendingRadiator &&
+          (() => {
+            const rad = analysis.radiators.find((r) => r.id === pendingRadiator.id);
+            if (!rad) return null;
+            return (
+              <RadiatorPopover
+                x={pendingRadiator.relX}
+                y={pendingRadiator.relY}
+                radiator={rad}
+                onUpdate={(patch) => {
+                  onChange(setRadiatorMeta(analysis, pendingRadiator.id, patch));
+                }}
+                onConfirm={() => setPendingRadiator(null)}
+                onRemove={() => {
+                  onChange(removeRadiator(analysis, pendingRadiator.id));
+                  setPendingRadiator(null);
+                }}
+              />
+            );
+          })()}
 
         {/* Background toggle — bottom right, only when it's useful */}
-        {(stage === "adjust" || stage === "done") && imageUrl && (
+        {(stage === "adjust" || stage === "review") && imageUrl && (
           <button
             type="button"
             onClick={() => setBackgroundOverride(!showBackground)}
@@ -958,17 +994,17 @@ export function FloorplanEditor({
             )}
             {stage === "radiators" && (
               <>
+                Save radiators <ArrowRight className="w-4 h-4" />
+              </>
+            )}
+            {stage === "review" && (
+              <>
                 <Sparkles className="w-4 h-4" /> Find heat pump &amp; cylinder
               </>
             )}
             {stage === "adjust" && (
               <>
-                <Check className="w-4 h-4" /> Looks good
-              </>
-            )}
-            {stage === "done" && (
-              <>
-                <Check className="w-4 h-4" /> Done
+                <Check className="w-4 h-4" /> Looks good — continue
               </>
             )}
           </button>
@@ -1056,51 +1092,135 @@ function StageExample({ stage }: { stage: Stage }) {
   return null;
 }
 
-// ─── Radiator condition popover ──────────────────────────────────────────────
+// ─── Radiator popover (size + orientation + condition) ──────────────────────
 
-function RadiatorConditionPopover({
+function RadiatorPopover({
   x,
   y,
-  onPick,
+  radiator,
+  onUpdate,
+  onConfirm,
   onRemove,
 }: {
   x: number;
   y: number;
-  onPick: (c: RadiatorCondition) => void;
+  radiator: { size: RadiatorSize; orientation: RadiatorOrientation; condition: RadiatorCondition | null };
+  onUpdate: (patch: {
+    size?: RadiatorSize;
+    orientation?: RadiatorOrientation;
+    condition?: RadiatorCondition;
+  }) => void;
+  onConfirm: () => void;
   onRemove: () => void;
 }) {
+  const sizeOpts: Array<{ v: RadiatorSize; label: string }> = [
+    { v: "small", label: "Small" },
+    { v: "medium", label: "Medium" },
+    { v: "large", label: "Large" },
+  ];
+  const orientOpts: Array<{ v: RadiatorOrientation; label: string }> = [
+    { v: "standard", label: "Standard" },
+    { v: "tall", label: "Tall" },
+  ];
+  const condOpts: Array<{ v: RadiatorCondition; label: string }> = [
+    { v: "good", label: "Good" },
+    { v: "fair", label: "Fair" },
+    { v: "poor", label: "Poor" },
+    { v: "unsure", label: "Not sure" },
+  ];
   return (
     <div
-      className="absolute z-10 rounded-xl border border-coral bg-white shadow-xl p-3 min-w-[200px]"
+      className="absolute z-10 rounded-xl border-2 border-coral bg-white shadow-xl p-3 w-[240px]"
       style={{
-        left: Math.max(8, Math.min(x + 8, 10000)),
+        left: Math.max(8, Math.min(x + 8, 99999)),
         top: Math.max(8, y),
       }}
     >
-      <p className="text-xs font-semibold text-navy">Condition?</p>
-      <div className="mt-2 flex flex-col gap-1">
-        {(["good", "fair", "poor", "unsure"] as RadiatorCondition[]).map((c) => (
-          <button
-            key={c}
-            type="button"
-            onClick={() => onPick(c)}
-            className="h-8 px-3 rounded-lg border border-coral bg-white text-xs font-medium text-navy hover:bg-coral hover:text-white transition-colors text-left"
+      <PopRow label="Size">
+        {sizeOpts.map((o) => (
+          <PopPill
+            key={o.v}
+            on={radiator.size === o.v}
+            onClick={() => onUpdate({ size: o.v })}
           >
-            {c === "good" && "Good"}
-            {c === "fair" && "Fair"}
-            {c === "poor" && "Poor"}
-            {c === "unsure" && "Not sure"}
-          </button>
+            {o.label}
+          </PopPill>
         ))}
+      </PopRow>
+      <PopRow label="Orientation">
+        {orientOpts.map((o) => (
+          <PopPill
+            key={o.v}
+            on={radiator.orientation === o.v}
+            onClick={() => onUpdate({ orientation: o.v })}
+          >
+            {o.label}
+          </PopPill>
+        ))}
+      </PopRow>
+      <PopRow label="Condition">
+        {condOpts.map((o) => (
+          <PopPill
+            key={o.v}
+            on={radiator.condition === o.v}
+            onClick={() => onUpdate({ condition: o.v })}
+          >
+            {o.label}
+          </PopPill>
+        ))}
+      </PopRow>
+      <div className="mt-2 flex items-center gap-2">
+        <button
+          type="button"
+          onClick={onConfirm}
+          className="flex-1 h-8 rounded-lg bg-coral text-white text-xs font-semibold hover:bg-coral-dark"
+        >
+          Done
+        </button>
         <button
           type="button"
           onClick={onRemove}
-          className="mt-1 h-7 text-[11px] text-slate-500 hover:text-red-600"
+          className="h-8 px-2 text-[11px] text-slate-500 hover:text-red-600"
         >
           Remove
         </button>
       </div>
     </div>
+  );
+}
+
+function PopRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="mb-2">
+      <p className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold mb-1">
+        {label}
+      </p>
+      <div className="flex flex-wrap gap-1">{children}</div>
+    </div>
+  );
+}
+
+function PopPill({
+  on,
+  onClick,
+  children,
+}: {
+  on: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`h-7 px-2 rounded-md text-[11px] font-medium border transition-colors ${
+        on
+          ? "bg-coral border-coral text-white"
+          : "bg-white border-slate-200 text-slate-700 hover:border-slate-300"
+      }`}
+    >
+      {children}
+    </button>
   );
 }
 

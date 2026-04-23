@@ -6,11 +6,14 @@
 
 import type { FloorplanAnalysis } from "@/lib/schemas/floorplan";
 
-// V4: conversational stage flow. The editor walks the user through each
-// annotation type one at a time, with a prominent Undo and a Save/Skip to
-// advance. After all stages, AI places HP + cylinder, optionally asks
-// follow-up questions, then shows a canonical view (uploaded image
-// hidden; user's drawing IS the floorplan).
+// V4.1 stages. Flow:
+//   welcome → walls → outdoor → doors → stairs → radiators → review
+//   → placing (AI) → adjust
+//
+// `review` shows the canonical drawing (image hidden) before the AI runs,
+// so the user sees their annotated floorplan cleanly first. `adjust` is
+// the final stage — clicking "Looks good" there fires onComplete which
+// advances the wizard to Step 5.
 export type Stage =
   | "welcome"
   | "walls"
@@ -18,9 +21,9 @@ export type Stage =
   | "doors"
   | "stairs"
   | "radiators"
+  | "review"
   | "placing"
-  | "adjust"
-  | "done";
+  | "adjust";
 
 export interface FloorplanEditorProps {
   analysis: FloorplanAnalysis;
@@ -31,4 +34,6 @@ export interface FloorplanEditorProps {
   onRequestPlacements?: () => void;
   placementsRunning?: boolean;
   placementsError?: string | null;
+  // Called when the user is finished — wizard should advance.
+  onComplete?: () => void;
 }

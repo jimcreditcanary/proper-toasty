@@ -90,18 +90,29 @@ export const UserStairsSchema = z.object({
 });
 export type UserStairs = z.infer<typeof UserStairsSchema>;
 
-// Radiators — rectangles in v4 so users can drag wider for longer ones.
-// (x, y) is the top-left corner; vWidth/vHeight default to a small
-// horizontal bar when the user just taps instead of dragging.
+// Radiators — pin-based with size + orientation metadata. User clicks to
+// place, then the popover asks: size (small/medium/large), orientation
+// (standard/tall), condition (good/fair/poor/unsure). The rendered
+// rectangle derives width/height from size × orientation.
 export const RadiatorConditionEnum = z.enum(["good", "fair", "poor", "unsure"]);
 export type RadiatorCondition = z.infer<typeof RadiatorConditionEnum>;
+
+export const RadiatorSizeEnum = z.enum(["small", "medium", "large"]);
+export type RadiatorSize = z.infer<typeof RadiatorSizeEnum>;
+
+export const RadiatorOrientationEnum = z.enum(["standard", "tall"]);
+export type RadiatorOrientation = z.infer<typeof RadiatorOrientationEnum>;
 
 export const RadiatorSchema = z.object({
   id: z.string().min(1),
   x: z.number().min(0).max(1000),
   y: z.number().min(0).max(1000),
+  // vWidth / vHeight derived from size+orientation at placement time;
+  // preserved here so the renderer doesn't need to know the mapping.
   vWidth: z.number().min(1).max(1000).default(40),
   vHeight: z.number().min(1).max(1000).default(10),
+  size: RadiatorSizeEnum.default("medium"),
+  orientation: RadiatorOrientationEnum.default("standard"),
   condition: RadiatorConditionEnum.nullable(),
   source: z.literal("user_placed").default("user_placed"),
 });

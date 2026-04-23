@@ -12,9 +12,24 @@ import type {
   Point,
   Radiator,
   RadiatorCondition,
+  RadiatorOrientation,
+  RadiatorSize,
   UserStairs,
   WallPath,
 } from "@/lib/schemas/floorplan";
+
+// Dimensions (viewport units) for each size × orientation combo.
+// Tall radiators flip to a vertical aspect ratio.
+export function radiatorDims(
+  size: RadiatorSize,
+  orientation: RadiatorOrientation,
+): { vWidth: number; vHeight: number } {
+  const long = size === "small" ? 30 : size === "medium" ? 45 : 65;
+  const short = size === "small" ? 8 : size === "medium" ? 10 : 12;
+  return orientation === "tall"
+    ? { vWidth: short, vHeight: long }
+    : { vWidth: long, vHeight: short };
+}
 
 function genId(prefix: string): string {
   const rand = Math.random().toString(36).slice(2, 10);
@@ -151,23 +166,68 @@ export function removeStairs(
 
 // ─── Radiators ───────────────────────────────────────────────────────────────
 
+// Click to place a radiator pin at (x, y). The x/y here is the CENTRE
+// point the user tapped; we convert to top-left using medium/standard
+// dimensions as the initial default. Popover then updates size and
+// condition — dims get recomputed via setRadiatorMeta.
 export function addRadiator(
   analysis: FloorplanAnalysis,
-  rect: { x: number; y: number; vWidth: number; vHeight: number },
+  centreX: number,
+  centreY: number,
 ): FloorplanAnalysis {
+  const { vWidth, vHeight } = radiatorDims("medium", "standard");
   const r: Radiator = {
     id: newRadiatorId(),
-    x: rect.x,
-    y: rect.y,
-    vWidth: Math.max(12, rect.vWidth),
-    vHeight: Math.max(6, rect.vHeight),
+    x: centreX - vWidth / 2,
+    y: centreY - vHeight / 2,
+    vWidth,
+    vHeight,
+    size: "medium",
+    orientation: "standard",
     condition: null,
     source: "user_placed",
   };
   return {
     ...analysis,
     radiators: [...analysis.radiators, r],
-    radiatorsVisible: (analysis.radiatorsVisible ?? 0) + 1,
+    radiatorsVisible: (analysis.radiators.length + 1),
+    edited: true,
+  };
+}
+
+// Update a radiator's size / orientation / condition, keeping the
+// pin centred on the same point so the renderer shifts its bounding
+// rectangle rather than jumping to a new location.
+export function setRadiatorMeta(
+  analysis: FloorplanAnalysis,
+  radId: string,
+  patch: {
+    size?: RadiatorSize;
+    orientation?: RadiatorOrientation;
+    condition?: RadiatorCondition;
+  },
+): FloorplanAnalysis {
+  return {
+    ...analysis,
+    radiators: analysis.radiators.map((r) => {
+      if (r.id !== radId) return r;
+      const size = patch.size ?? r.size;
+      const orientation = patch.orientation ?? r.orientation;
+      const condition = patch.condition !== undefined ? patch.condition : r.condition;
+      const { vWidth, vHeight } = radiatorDims(size, orientation);
+      const centreX = r.x + r.vWidth / 2;
+      const centreY = r.y + r.vHeight / 2;
+      return {
+        ...r,
+        size,
+        orientation,
+        condition,
+        vWidth,
+        vHeight,
+        x: centreX - vWidth / 2,
+        y: centreY - vHeight / 2,
+      };
+    }),
     edited: true,
   };
 }
