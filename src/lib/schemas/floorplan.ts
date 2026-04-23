@@ -134,14 +134,17 @@ export const HeatPumpLocationSchema = z.object({
 });
 export type HeatPumpLocation = z.infer<typeof HeatPumpLocationSchema>;
 
-// Hot water cylinder candidate. Smaller footprint (~0.6m × 0.6m), indoor.
+// Hot water cylinder candidate. We allocate a 1m × 1m PROVISION (matching
+// the HP) so the user can see whether there's actually room for a cylinder
+// PLUS clearance / access. The cylinder itself is smaller (~0.6m diameter)
+// but installers need the full square metre to work in.
 export const HotWaterCylinderCandidateSchema = z.object({
   id: z.string().min(1),
   label: z.string(),
   x: z.number(),
   y: z.number(),
-  vWidth: z.number().default(30),   // ~0.6m² at diagram scale
-  vHeight: z.number().default(30),
+  vWidth: z.number().default(50),   // 1m at base scale (50 units = 1m)
+  vHeight: z.number().default(50),
   notes: z.string().default(""),
   source: z.enum(["ai_suggested", "user_placed"]).default("ai_suggested"),
 });

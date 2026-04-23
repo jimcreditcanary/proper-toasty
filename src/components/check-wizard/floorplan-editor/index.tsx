@@ -194,6 +194,16 @@ export function FloorplanEditor({
   }, []);
   const [stage, setStage] = useState<Stage>(initialStage);
 
+  // Mouse vs finger drawing — only affects the freehand stages (walls,
+  // outdoor). Mouse defaults to click-to-add-points polyline (each click
+  // adds a corner; double-click or Enter finishes). Finger / stylus
+  // defaults to continuous freehand (drag to trace, lift to commit).
+  // Auto-detect: a touch-capable device defaults to finger; otherwise mouse.
+  const [inputMode, setInputMode] = useState<"mouse" | "finger">(() => {
+    if (typeof window === "undefined") return "mouse";
+    return navigator.maxTouchPoints > 0 ? "finger" : "mouse";
+  });
+
   // Auto-advance out of placing when AI returns (or if it errors — so the
   // user isn't stuck on the loading state).
   useEffect(() => {
@@ -261,10 +271,18 @@ export function FloorplanEditor({
     if (!pos) return;
 
     if (stage === "walls" || stage === "outdoor") {
-      setStroke([{ x: pos.vx, y: pos.vy }]);
-      setDrawing(true);
-      // Capture pointer so drag stays inside the SVG even when fast.
-      e.currentTarget.setPointerCapture(e.pointerId);
+      // Branch by input mode: in mouse mode, each pointerdown adds a
+      // corner point to a click-and-click polyline (commit on
+      // double-click / Enter). In finger mode, we capture the pointer
+      // and trace continuously until release.
+      if (inputMode === "mouse") {
+        setStroke((s) => [...s, { x: pos.vx, y: pos.vy }]);
+      } else {
+        setStroke([{ x: pos.vx, y: pos.vy }]);
+        setDrawing(true);
+        // Capture pointer so drag stays inside the SVG even when fast.
+        e.currentTarget.setPointerCapture(e.pointerId);
+      }
     } else if (stage === "stairs") {
       setDragRect({ startX: pos.vx, startY: pos.vy, curX: pos.vx, curY: pos.vy });
       e.currentTarget.setPointerCapture(e.pointerId);
@@ -407,6 +425,33 @@ export function FloorplanEditor({
     }
   }
 
+  // Commit an in-progress mouse-mode polyline. Triggered by double-click
+  // on the SVG canvas OR by Enter on the keyboard.
+  const commitMousePolyline = useCallback(() => {
+    if (inputMode !== "mouse") return;
+    if (stroke.length < 2) return;
+    const simplified = snapToGrid(stroke, 10);
+    if (stage === "walls") {
+      onChange(addWallPath(analysis, simplified));
+    } else if (stage === "outdoor" && simplified.length >= 3) {
+      onChange(addOutdoorZone(analysis, simplified, "Outdoor space"));
+    }
+    setStroke([]);
+  }, [inputMode, stroke, stage, analysis, onChange]);
+
+  function handleDoubleClick() {
+    commitMousePolyline();
+  }
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Enter") commitMousePolyline();
+      else if (e.key === "Escape") setStroke([]);
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [commitMousePolyline]);
+
   // ─── Stage navigation ───────────────────────────────────────────────────
 
   // Static ordering — defined once so the useCallback deps stay stable.
@@ -503,9 +548,56 @@ export function FloorplanEditor({
         <div className="flex-1 min-w-0">
           <p className="text-lg font-semibold text-navy leading-snug">{cfg.title}</p>
           <p className="mt-1 text-sm text-slate-600 leading-relaxed">{cfg.body}</p>
+          {/* Input-mode tip — only for the freehand stages */}
+          {(stage === "walls" || stage === "outdoor") && (
+            <p className="mt-2 text-[11px] text-slate-500">
+              {inputMode === "mouse"
+                ? "Click to add corner points; double-click or press Enter to finish a shape."
+                : "Drag with your finger to trace; lift to finish a shape."}
+            </p>
+          )}
         </div>
         <StageExample stage={stage} />
       </div>
+
+      {/* Input mode toggle — only useful in the drawing stages */}
+      {(stage === "walls" || stage === "outdoor") && (
+        <div className="mb-3 flex items-center justify-end gap-2 text-xs text-slate-500">
+          <span>Drawing with</span>
+          <div className="inline-flex rounded-lg border border-[var(--border)] bg-white p-0.5">
+            <button
+              type="button"
+              onClick={() => {
+                setInputMode("mouse");
+                setStroke([]);
+                setDrawing(false);
+              }}
+              className={`h-7 px-3 text-xs font-medium rounded ${
+                inputMode === "mouse"
+                  ? "bg-coral text-white"
+                  : "text-slate-600 hover:text-navy"
+              }`}
+            >
+              Mouse
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setInputMode("finger");
+                setStroke([]);
+                setDrawing(false);
+              }}
+              className={`h-7 px-3 text-xs font-medium rounded ${
+                inputMode === "finger"
+                  ? "bg-coral text-white"
+                  : "text-slate-600 hover:text-navy"
+              }`}
+            >
+              Finger
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Outdoor confirmation banner (optional, early in the flow) */}
       {outdoorAsk &&
@@ -596,6 +688,7 @@ export function FloorplanEditor({
           onPointerUp={handlePointerUp}
           onPointerCancel={handlePointerUp}
           onClick={handleClick}
+          onDoubleClick={handleDoubleClick}
         >
           <defs>
             <pattern
@@ -618,8 +711,22 @@ export function FloorplanEditor({
             const doorsToRender = useRefined ? analysis.refinedDoors : analysis.doors;
             const zonesToRender = useRefined ? analysis.refinedOutdoorZones : analysis.outdoorZones;
             const stairsToRender = useRefined ? analysis.refinedStairs : analysis.userStairs;
+            // Door-gap mask: each door punches a hole in the wall stroke
+            // so the wall visually breaks at the door, like a real
+            // floorplan. The door arc is drawn ON TOP of the gap.
+            const wallStrokeWidth = showBackground ? 8 : 12;
+            const maskRadius = wallStrokeWidth + 6;
             return (
               <>
+                <defs>
+                  <mask id="fe4-door-mask">
+                    <rect x={0} y={0} width={VIEWPORT} height={VIEWPORT} fill="white" />
+                    {doorsToRender.map((d) => (
+                      <circle key={d.id} cx={d.x} cy={d.y} r={maskRadius} fill="black" />
+                    ))}
+                  </mask>
+                </defs>
+
                 {/* Outdoor zones */}
                 {zonesToRender.map((z) => (
                   <g key={z.id}>
@@ -633,18 +740,21 @@ export function FloorplanEditor({
                   </g>
                 ))}
 
-                {/* Walls — thicker in canonical view for a "real floorplan" look */}
-                {wallsToRender.map((w) => (
-                  <polyline
-                    key={w.id}
-                    points={w.points.map((p) => `${p.x},${p.y}`).join(" ")}
-                    fill="none"
-                    stroke={COLOURS.wall}
-                    strokeWidth={showBackground ? 8 : 12}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                ))}
+                {/* Walls — thicker in canonical view for a "real floorplan"
+                    look. Wrapped in the door mask so doors break the line. */}
+                <g mask="url(#fe4-door-mask)">
+                  {wallsToRender.map((w) => (
+                    <polyline
+                      key={w.id}
+                      points={w.points.map((p) => `${p.x},${p.y}`).join(" ")}
+                      fill="none"
+                      stroke={COLOURS.wall}
+                      strokeWidth={wallStrokeWidth}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  ))}
+                </g>
 
                 {/* Stairs */}
                 {stairsToRender.map((s) => (

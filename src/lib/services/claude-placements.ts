@@ -58,9 +58,9 @@ B) DETERMINE SCALE. Estimate how many viewport units = 1 metre. Use any of:
    Return as "viewportUnitsPerMeter".
 
 C) PLACE EQUIPMENT.
-   - 1-2 HEAT PUMP candidates, 1m × 1m. STRICTLY within an outdoor zone polygon. Avoid placing on top of doors, windows, or wall openings. Prefer ≥1m clear from any door.
-   - 1 HOT WATER CYLINDER candidate, 0.6m × 0.6m. INSIDE the building footprint. Near central heating pipework / utility / airing cupboard. NOT directly behind a door (i.e. not in the swing area or immediate threshold).
-   - Both sized using viewportUnitsPerMeter (e.g. if 1m = 50 units, HP = 50×50, cylinder = 30×30).
+   - 1-2 HEAT PUMP candidates, 1m × 1m PROVISION (the unit footprint plus required clearance). STRICTLY within an outdoor zone polygon. Avoid placing on top of doors, windows, or wall openings. Prefer ≥1m clear from any door.
+   - 1 HOT WATER CYLINDER candidate, 1m × 1m PROVISION (cylinder ~0.6m diameter plus working clearance). INSIDE the building footprint. Near central heating pipework / utility / airing cupboard. NOT directly behind a door (i.e. not in the swing area or immediate threshold).
+   - Both sized using viewportUnitsPerMeter (e.g. if 1m = 50 units, HP = 50×50 and cylinder = 50×50).
 
 D) Return CONCERNS a surveyor would raise (1-3 short bullets).
 
@@ -217,7 +217,7 @@ Now refine + place. Return JSON with this shape (NO prose):
       "id": "hwc1",
       "label": "Airing cupboard off upstairs landing",
       "x": 500, "y": 400,
-      "vWidth": 30, "vHeight": 30,
+      "vWidth": 50, "vHeight": 50,
       "notes": "Adjacent to existing radiator; clear of door swing.",
       "source": "ai_suggested"
     }
