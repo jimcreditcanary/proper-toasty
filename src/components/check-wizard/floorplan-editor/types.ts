@@ -6,7 +6,7 @@
 
 import type { FloorplanAnalysis } from "@/lib/schemas/floorplan";
 
-export type EditorMode = "radiator" | "dimension" | "extension";
+export type EditorMode = "radiator" | "dimension" | "extension" | "move-hp";
 
 export interface FloorplanEditorProps {
   analysis: FloorplanAnalysis;

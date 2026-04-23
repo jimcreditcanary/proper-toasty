@@ -2,8 +2,10 @@
 
 import type {
   FloorplanAnalysis,
+  HeatPumpLocation,
   Radiator,
   RadiatorCondition,
+  Rect,
   Room,
 } from "@/lib/schemas/floorplan";
 
@@ -33,8 +35,27 @@ export function floorLabel(floor: number): string {
   return `Floor ${floor + 1}`;
 }
 
+// Composite shapes — a room can be 1+ rectangles (L-shape, T-shape).
+// `roomRects` returns whatever's most accurate: prefers the explicit rects[]
+// array, falls back to the bounding box for older data.
+export function roomRects(room: Room): Rect[] {
+  if (room.rects && room.rects.length > 0) return room.rects;
+  return [{ x: room.x, y: room.y, vWidth: room.vWidth, vHeight: room.vHeight }];
+}
+
+// Point-in-rect test.
+function pointInRect(rect: Rect, vx: number, vy: number): boolean {
+  return (
+    vx >= rect.x &&
+    vx <= rect.x + rect.vWidth &&
+    vy >= rect.y &&
+    vy <= rect.y + rect.vHeight
+  );
+}
+
 // Convert SVG viewport pixel coordinates back to room-relative coordinates
-// (0..1) for radiator placement. Assumes the room is axis-aligned.
+// (0..1) for radiator placement. Uses the bounding box as the reference
+// frame so radiator coordinates stay valid even on composite shapes.
 export function pointInRoomNormalised(
   room: Room,
   vx: number,
@@ -48,18 +69,73 @@ export function pointInRoomNormalised(
   };
 }
 
-// Find which (visible) room contains a given viewport point.
+// Find which (visible) room contains a given viewport point. Tests every
+// rect of the composite shape — a click in the missing corner of an
+// L-shaped kitchen falls through, as it should.
 export function findRoomAt(
   rooms: Room[],
   vx: number,
   vy: number,
 ): Room | null {
   for (const r of rooms) {
-    if (vx >= r.x && vx <= r.x + r.vWidth && vy >= r.y && vy <= r.y + r.vHeight) {
-      return r;
+    for (const rect of roomRects(r)) {
+      if (pointInRect(rect, vx, vy)) return r;
     }
   }
   return null;
+}
+
+// ─── Heat pump movement ──────────────────────────────────────────────────────
+
+export function moveHeatPump(
+  analysis: FloorplanAnalysis,
+  hpId: string,
+  newX: number,
+  newY: number,
+): FloorplanAnalysis {
+  return {
+    ...analysis,
+    heatPumpLocations: analysis.heatPumpLocations.map((h) =>
+      h.id === hpId ? { ...h, x: newX, y: newY } : h,
+    ),
+    edited: true,
+  };
+}
+
+export function addHeatPump(
+  analysis: FloorplanAnalysis,
+  vx: number,
+  vy: number,
+  size = 50,
+): FloorplanAnalysis {
+  const hp: HeatPumpLocation = {
+    id: newHpId(),
+    label: "Heat pump (you placed)",
+    type: "outdoor",
+    x: vx - size / 2,
+    y: vy - size / 2,
+    vWidth: size,
+    vHeight: size,
+    roomId: null,
+    notes: "Placed by user.",
+    source: "user_added",
+  };
+  return {
+    ...analysis,
+    heatPumpLocations: [...analysis.heatPumpLocations, hp],
+    edited: true,
+  };
+}
+
+export function removeHeatPump(
+  analysis: FloorplanAnalysis,
+  hpId: string,
+): FloorplanAnalysis {
+  return {
+    ...analysis,
+    heatPumpLocations: analysis.heatPumpLocations.filter((h) => h.id !== hpId),
+    edited: true,
+  };
 }
 
 // ─── Mutators ────────────────────────────────────────────────────────────────

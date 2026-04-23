@@ -28,20 +28,48 @@ export const RoomTypeEnum = z.enum([
 ]);
 export type RoomType = z.infer<typeof RoomTypeEnum>;
 
+// Room category — drives how we tint the room and which interactions are
+// available. Halls/landings are "circulation" so they read visually as
+// transit space rather than usable living space.
+export const RoomCategoryEnum = z.enum(["living", "circulation", "service"]);
+export type RoomCategory = z.infer<typeof RoomCategoryEnum>;
+
+// One axis-aligned rectangle in viewport coordinates (0..1000).
+export const RectSchema = z.object({
+  x: z.number().min(0).max(1000),
+  y: z.number().min(0).max(1000),
+  vWidth: z.number().min(1).max(1000),
+  vHeight: z.number().min(1).max(1000),
+});
+export type Rect = z.infer<typeof RectSchema>;
+
 export const RoomSchema = z.object({
   // Stable id — Claude generates these, the user keeps them.
   id: z.string().min(1),
   // Free-text label ("Kitchen", "Bedroom 1"). User can rename.
   label: z.string(),
   type: RoomTypeEnum,
+  // What kind of space — drives rendering. Defaults to living.
+  category: RoomCategoryEnum.default("living"),
   // Floor index (0 = ground, 1 = first, 2 = second). Defaults to 0 if unclear.
   floor: z.number().int().min(0).max(5),
-  // Layout in normalised viewport units. (0,0) = top-left, axes go right/down.
-  // Bounding box is axis-aligned; we don't model L-shapes in v1.
+
+  // ─── Geometry ────────────────────────────────────────────────────────
+  // Composite shape — list of axis-aligned rectangles whose union forms the
+  // room. L-shapes need 2 rects, T-shapes need 3, simple rooms just 1.
+  // Defaults to []; the bounding-box fields below are the fallback for
+  // older data (and for the editor's add-extension flow which still creates
+  // a single rectangle).
+  rects: z.array(RectSchema).default([]),
+  // Bounding box of the whole room (still required for older data and as
+  // the click-target fallback when rects is empty). When both rects and
+  // x/y/vWidth/vHeight exist, rects is the source of truth for rendering;
+  // the bounding box is just a hit-test envelope.
   x: z.number().min(0).max(1000),
   y: z.number().min(0).max(1000),
   vWidth: z.number().min(1).max(1000),
   vHeight: z.number().min(1).max(1000),
+
   // Real dimensions in metres. May be null if Claude couldn't infer.
   widthM: z.number().positive().nullable(),
   heightM: z.number().positive().nullable(),
@@ -51,6 +79,61 @@ export const RoomSchema = z.object({
   source: z.enum(["claude_detected", "user_added"]).default("claude_detected"),
 });
 export type Room = z.infer<typeof RoomSchema>;
+
+// ─── Stairs ──────────────────────────────────────────────────────────────────
+// Stairs occupy real floor area but aren't living space — render them
+// distinctly and exclude them from heat-loss calculations.
+
+export const StairsSchema = z.object({
+  id: z.string().min(1),
+  label: z.string().default("Stairs"),
+  // Which floor this set of stairs lives ON (the floor you climb FROM).
+  // A 3-storey home has stairs on floors 0 and 1.
+  floor: z.number().int().min(0).max(5),
+  // Always a single rectangle.
+  x: z.number().min(0).max(1000),
+  y: z.number().min(0).max(1000),
+  vWidth: z.number().min(1).max(1000),
+  vHeight: z.number().min(1).max(1000),
+  // Direction relative to this floor.
+  direction: z.enum(["up", "down", "both"]).default("up"),
+  source: z.enum(["claude_detected", "user_added"]).default("claude_detected"),
+});
+export type Stairs = z.infer<typeof StairsSchema>;
+
+// ─── Outdoor zones ───────────────────────────────────────────────────────────
+// The garden / driveway / side return / patio adjacent to the property.
+// Heat pumps must sit WITHIN one of these zones — we visualise them so the
+// user (and AI) can see where the building footprint ends and outdoor begins.
+
+export const OutdoorZoneTypeEnum = z.enum([
+  "garden",
+  "side_return",
+  "driveway",
+  "patio",
+  "garage",
+  "other",
+]);
+export type OutdoorZoneType = z.infer<typeof OutdoorZoneTypeEnum>;
+
+export const OutdoorZoneSchema = z.object({
+  id: z.string().min(1),
+  label: z.string(),
+  type: OutdoorZoneTypeEnum.default("other"),
+  // Always associated with the ground floor (floor 0) — outdoor zones
+  // don't exist on upper floors. Kept here in case we want to model
+  // balconies / roof terraces later.
+  floor: z.number().int().min(0).max(5).default(0),
+  // Single rectangle. Real outdoor space is rarely a perfect rectangle but
+  // for "is there enough space for a heat pump" purposes it's plenty.
+  x: z.number(),
+  y: z.number(),
+  vWidth: z.number(),
+  vHeight: z.number(),
+  // Notes — e.g. "south-facing", "neighbour windows on the east side".
+  notes: z.string().default(""),
+});
+export type OutdoorZone = z.infer<typeof OutdoorZoneSchema>;
 
 // ─── Radiators ───────────────────────────────────────────────────────────────
 
@@ -136,6 +219,9 @@ export const FloorplanAnalysisSchema = z.object({
   radiators: z.array(RadiatorSchema).default([]),
   heatPumpLocations: z.array(HeatPumpLocationSchema).default([]),
   hotWaterCylinderCandidates: z.array(HotWaterCylinderCandidateSchema).default([]),
+  // v2 additions — defaults to [] so old localStorage data still parses.
+  stairs: z.array(StairsSchema).default([]),
+  outdoorZones: z.array(OutdoorZoneSchema).default([]),
   // Diagram viewport — always 1000 × 1000 in v1, exposed for forward
   // compatibility (we may want non-square layouts later).
   viewport: z

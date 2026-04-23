@@ -2,31 +2,37 @@
 
 // FloorplanEditor — interactive SVG editor for the analysed floorplan.
 //
-// Three modes (toolbar):
+// Four modes (toolbar):
 //   - radiator   : click a room → drop a pin → rate condition
 //   - dimension  : click a room → side panel opens with metric dimensions
 //   - extension  : click+drag empty space → create a new room
+//   - move-hp    : click-drag a heat-pump candidate to reposition it
 //
-// All state changes are emitted via onChange. The editor is "controlled" so
-// the wizard can persist updates straight to the analysis blob.
-//
-// Heat-pump candidate locations (from Claude) are rendered as ghosted
-// dashed-border squares — read-only.
+// Rendering order (back → front):
+//   1. Grid background
+//   2. Outdoor zones (muted green — "here's the garden")
+//   3. Rooms (composite rects; circulation rooms tinted grey)
+//   4. Stairs (diagonal hatch)
+//   5. Hot water cylinder candidates (violet dashed, indoor)
+//   6. Heat pump candidates (emerald dashed, outdoor)
+//   7. Radiators (coral pins with condition colour)
+//   8. Drag previews (extension rectangle, HP ghost during drag)
 
 import { useMemo, useRef, useState } from "react";
 import {
   Flame,
   Move,
   Plus,
-  Sun,
+  Target,
   Trash2,
   Wand2,
-  X,
 } from "lucide-react";
 import type {
   FloorplanAnalysis,
+  OutdoorZone,
   RadiatorCondition,
   Room,
+  Stairs,
 } from "@/lib/schemas/floorplan";
 import type { EditorMode, FloorplanEditorProps } from "./types";
 import {
@@ -35,10 +41,13 @@ import {
   findRoomAt,
   floorLabel,
   floorsPresent,
+  moveHeatPump,
   newRoomId,
   pointInRoomNormalised,
   removeRadiator,
+  removeHeatPump,
   removeRoom,
+  roomRects,
   setRadiatorCondition,
   setRoomDimensions,
   setUserOutdoor,
@@ -48,17 +57,30 @@ const VIEWPORT = 1000;
 
 // Tailwind palette in hex so SVG fill/stroke use the same brand colours.
 const COLOURS = {
-  roomFill: "#fff7ed",          // amber-50 — warm "toasty" canvas
-  roomStroke: "#cbd5e1",        // slate-300
-  roomLabel: "#0f172a",          // slate-900
-  selectedStroke: "#ef6c4f",     // coral
-  hpStroke: "#10b981",           // emerald-500 — outdoor heat pump
+  // Rooms
+  roomFillLiving: "#fff7ed",       // amber-50
+  roomFillCirculation: "#f1f5f9",  // slate-100 — halls/landings feel like transit space
+  roomFillService: "#fef3c7",      // amber-100 — utility/cupboards
+  roomStroke: "#94a3b8",           // slate-400 (a touch darker than v1 for legibility)
+  roomLabel: "#0f172a",
+  selectedStroke: "#ef6c4f",       // coral
+
+  // Outdoor zones
+  zoneFill: "#86efac30",           // green-300 @ ~19%
+  zoneStroke: "#22c55e",           // green-500
+  zoneLabel: "#15803d",            // green-700
+
+  // Stairs
+  stairsFill: "#e2e8f0",           // slate-200
+  stairsStroke: "#64748b",         // slate-500
+
+  // Equipment
+  hpStroke: "#10b981",             // emerald-500 — outdoor heat pump
   hpFill: "#10b98120",
-  cylStroke: "#8b5cf6",          // violet-500 — indoor cylinder
+  hpDragStroke: "#059669",         // emerald-600 — while dragging
+  cylStroke: "#8b5cf6",            // violet-500 — indoor cylinder
   cylFill: "#8b5cf620",
-  radiator: "#ef6c4f",           // coral
-  radiatorHole: "#ffffff",
-  ghost: "#9ca3af",              // slate-400
+  radiator: "#ef6c4f",             // coral
 } as const;
 
 export function FloorplanEditor({
@@ -73,35 +95,61 @@ export function FloorplanEditor({
   const [pendingRadiatorId, setPendingRadiatorId] = useState<string | null>(null);
 
   // Drag state for "add extension" mode.
-  const [drag, setDrag] = useState<
+  const [extensionDrag, setExtensionDrag] = useState<
     | { startX: number; startY: number; curX: number; curY: number }
     | null
   >(null);
 
+  // Drag state for "move-hp" mode.
+  const [hpDrag, setHpDrag] = useState<
+    | { hpId: string; offsetX: number; offsetY: number; curX: number; curY: number }
+    | null
+  >(null);
+
   const svgRef = useRef<SVGSVGElement>(null);
-  const floors = floorsPresent(analysis);
+
+  // ─── Defensive reads — old localStorage data may lack v2 fields ─────────
+  // Read directly off `analysis` inside each memo so the dep arrays are
+  // stable object references (plain `??` would produce new [] each render).
+  const floors = useMemo(() => {
+    const set = new Set<number>();
+    for (const r of analysis.rooms ?? []) set.add(r.floor);
+    for (const s of analysis.stairs ?? []) set.add(s.floor);
+    if (set.size === 0) set.add(0);
+    return [...set].sort((a, b) => a - b);
+  }, [analysis.rooms, analysis.stairs]);
+
   const visibleRooms = useMemo(
-    () => analysis.rooms.filter((r) => r.floor === activeFloor),
+    () => (analysis.rooms ?? []).filter((r) => r.floor === activeFloor),
     [analysis.rooms, activeFloor],
+  );
+  const visibleStairs = useMemo(
+    () => (analysis.stairs ?? []).filter((s) => s.floor === activeFloor),
+    [analysis.stairs, activeFloor],
+  );
+  const visibleZones = useMemo(
+    // Outdoor zones only render on floor 0.
+    () => (activeFloor === 0 ? analysis.outdoorZones ?? [] : []),
+    [analysis.outdoorZones, activeFloor],
   );
   const visibleRadiators = useMemo(
     () =>
-      analysis.radiators.filter((r) =>
+      (analysis.radiators ?? []).filter((r) =>
         visibleRooms.some((room) => room.id === r.roomId),
       ),
     [analysis.radiators, visibleRooms],
   );
   const visibleHps = useMemo(
     () =>
-      analysis.heatPumpLocations.filter(
-        (h) => h.roomId == null || visibleRooms.some((r) => r.id === h.roomId),
+      (analysis.heatPumpLocations ?? []).filter((h) =>
+        h.type === "outdoor"
+          ? activeFloor === 0 // outdoor units only on ground floor
+          : visibleRooms.some((r) => r.id === h.roomId),
       ),
-    [analysis.heatPumpLocations, visibleRooms],
+    [analysis.heatPumpLocations, visibleRooms, activeFloor],
   );
   const visibleCylinders = useMemo(
     () =>
-      // Defensive: localStorage state from before this field existed may
-      // surface as undefined. Default to [].
       (analysis.hotWaterCylinderCandidates ?? []).filter(
         (c) => c.roomId == null || visibleRooms.some((r) => r.id === c.roomId),
       ),
@@ -112,7 +160,7 @@ export function FloorplanEditor({
     [visibleRooms, selectedRoomId],
   );
 
-  // Translate a DOM mouse event into viewport (0..1000) coordinates.
+  // Translate DOM mouse event → viewport (0..1000) coordinates.
   function eventToViewport(e: React.MouseEvent<SVGSVGElement>): { vx: number; vy: number } | null {
     const svg = svgRef.current;
     if (!svg) return null;
@@ -128,12 +176,29 @@ export function FloorplanEditor({
   function handleSvgMouseDown(e: React.MouseEvent<SVGSVGElement>) {
     const pos = eventToViewport(e);
     if (!pos) return;
+
+    if (mode === "move-hp") {
+      // Pick up any HP we clicked on.
+      const hit = visibleHps.find(
+        (h) =>
+          pos.vx >= h.x && pos.vx <= h.x + h.vWidth && pos.vy >= h.y && pos.vy <= h.y + h.vHeight,
+      );
+      if (hit) {
+        setHpDrag({
+          hpId: hit.id,
+          offsetX: pos.vx - hit.x,
+          offsetY: pos.vy - hit.y,
+          curX: hit.x,
+          curY: hit.y,
+        });
+      }
+      return;
+    }
+
     const room = findRoomAt(visibleRooms, pos.vx, pos.vy);
 
     if (mode === "extension") {
-      // Always start a drag — even if over a room (you can extend over an
-      // existing room boundary; Step 4's "I had a kitchen extension" case).
-      setDrag({ startX: pos.vx, startY: pos.vy, curX: pos.vx, curY: pos.vy });
+      setExtensionDrag({ startX: pos.vx, startY: pos.vy, curX: pos.vx, curY: pos.vy });
       setSelectedRoomId(null);
       return;
     }
@@ -155,38 +220,55 @@ export function FloorplanEditor({
   }
 
   function handleSvgMouseMove(e: React.MouseEvent<SVGSVGElement>) {
-    if (!drag) return;
     const pos = eventToViewport(e);
     if (!pos) return;
-    setDrag({ ...drag, curX: pos.vx, curY: pos.vy });
+    if (extensionDrag) {
+      setExtensionDrag({ ...extensionDrag, curX: pos.vx, curY: pos.vy });
+    }
+    if (hpDrag) {
+      setHpDrag({
+        ...hpDrag,
+        curX: Math.max(0, Math.min(VIEWPORT, pos.vx - hpDrag.offsetX)),
+        curY: Math.max(0, Math.min(VIEWPORT, pos.vy - hpDrag.offsetY)),
+      });
+    }
   }
 
   function handleSvgMouseUp() {
-    if (!drag) return;
-    const x = Math.min(drag.startX, drag.curX);
-    const y = Math.min(drag.startY, drag.curY);
-    const w = Math.abs(drag.curX - drag.startX);
-    const h = Math.abs(drag.curY - drag.startY);
-    setDrag(null);
-    if (w < 30 || h < 30) return; // ignore accidental clicks
-    const newRoom: Room = {
-      id: newRoomId(),
-      label: "Extension",
-      type: "other",
-      floor: activeFloor,
-      x,
-      y,
-      vWidth: w,
-      vHeight: h,
-      widthM: null,
-      heightM: null,
-      areaM2: null,
-      source: "user_added",
-    };
-    const next = addRoom(analysis, newRoom);
-    onChange(next);
-    setSelectedRoomId(newRoom.id);
-    setMode("dimension"); // jump to dimension mode so the user can size it
+    if (extensionDrag) {
+      const x = Math.min(extensionDrag.startX, extensionDrag.curX);
+      const y = Math.min(extensionDrag.startY, extensionDrag.curY);
+      const w = Math.abs(extensionDrag.curX - extensionDrag.startX);
+      const h = Math.abs(extensionDrag.curY - extensionDrag.startY);
+      setExtensionDrag(null);
+      if (w >= 30 && h >= 30) {
+        const newRoom: Room = {
+          id: newRoomId(),
+          label: "Extension",
+          type: "other",
+          category: "living",
+          floor: activeFloor,
+          rects: [{ x, y, vWidth: w, vHeight: h }],
+          x,
+          y,
+          vWidth: w,
+          vHeight: h,
+          widthM: null,
+          heightM: null,
+          areaM2: null,
+          source: "user_added",
+        };
+        const next = addRoom(analysis, newRoom);
+        onChange(next);
+        setSelectedRoomId(newRoom.id);
+        setMode("dimension");
+      }
+    }
+    if (hpDrag) {
+      const next = moveHeatPump(analysis, hpDrag.hpId, hpDrag.curX, hpDrag.curY);
+      onChange(next);
+      setHpDrag(null);
+    }
   }
 
   return (
@@ -240,7 +322,7 @@ export function FloorplanEditor({
           on={mode === "dimension"}
           onClick={() => setMode("dimension")}
           icon={<Move className="w-3.5 h-3.5" />}
-          label="Edit room dimensions"
+          label="Edit dimensions"
         />
         <ModeButton
           on={mode === "extension"}
@@ -251,8 +333,16 @@ export function FloorplanEditor({
           icon={<Plus className="w-3.5 h-3.5" />}
           label="Add extension"
         />
+        <ModeButton
+          on={mode === "move-hp"}
+          onClick={() => {
+            setMode("move-hp");
+            setSelectedRoomId(null);
+          }}
+          icon={<Target className="w-3.5 h-3.5" />}
+          label="Move heat pump"
+        />
         <div className="ml-auto flex items-center gap-3">
-          {/* Floor switcher */}
           {floors.length > 1 && (
             <div className="flex rounded-lg border border-[var(--border)] bg-slate-50 p-0.5">
               {floors.map((f) => (
@@ -281,7 +371,11 @@ export function FloorplanEditor({
         {/* Canvas */}
         <div
           className={`relative rounded-xl border border-slate-200 bg-slate-50/30 ${
-            mode === "extension" ? "cursor-crosshair" : "cursor-pointer"
+            mode === "extension"
+              ? "cursor-crosshair"
+              : mode === "move-hp"
+                ? "cursor-grab"
+                : "cursor-pointer"
           }`}
         >
           <svg
@@ -291,91 +385,59 @@ export function FloorplanEditor({
             onMouseDown={handleSvgMouseDown}
             onMouseMove={handleSvgMouseMove}
             onMouseUp={handleSvgMouseUp}
-            onMouseLeave={() => setDrag(null)}
+            onMouseLeave={() => {
+              setExtensionDrag(null);
+              setHpDrag(null);
+            }}
           >
-            {/* Light grid for orientation */}
             <defs>
               <pattern id="grid" width="50" height="50" patternUnits="userSpaceOnUse">
                 <path
                   d="M 50 0 L 0 0 0 50"
                   fill="none"
-                  stroke="#f1f5f9"
+                  stroke="#e2e8f0"
                   strokeWidth="1"
+                />
+              </pattern>
+              <pattern
+                id="stairs-hatch"
+                width="10"
+                height="10"
+                patternUnits="userSpaceOnUse"
+                patternTransform="rotate(45)"
+              >
+                <line
+                  x1="0"
+                  y1="0"
+                  x2="0"
+                  y2="10"
+                  stroke={COLOURS.stairsStroke}
+                  strokeWidth="2"
                 />
               </pattern>
             </defs>
             <rect width={VIEWPORT} height={VIEWPORT} fill="url(#grid)" />
 
-            {/* Rooms */}
-            {visibleRooms.map((room) => {
-              const isSelected = selectedRoomId === room.id;
-              return (
-                <g key={room.id}>
-                  <rect
-                    x={room.x}
-                    y={room.y}
-                    width={room.vWidth}
-                    height={room.vHeight}
-                    fill={COLOURS.roomFill}
-                    stroke={isSelected ? COLOURS.selectedStroke : COLOURS.roomStroke}
-                    strokeWidth={isSelected ? 3 : 1.5}
-                    rx={4}
-                  />
-                  {/* Label */}
-                  <text
-                    x={room.x + room.vWidth / 2}
-                    y={room.y + room.vHeight / 2 - 6}
-                    textAnchor="middle"
-                    fontSize="14"
-                    fontWeight="600"
-                    fill={COLOURS.roomLabel}
-                    pointerEvents="none"
-                  >
-                    {room.label}
-                  </text>
-                  <text
-                    x={room.x + room.vWidth / 2}
-                    y={room.y + room.vHeight / 2 + 12}
-                    textAnchor="middle"
-                    fontSize="11"
-                    fill="#64748b"
-                    pointerEvents="none"
-                  >
-                    {room.areaM2 != null ? `${room.areaM2} m²` : "size unknown"}
-                  </text>
-                </g>
-              );
-            })}
-
-            {/* Heat pump candidate locations (outdoor, ~1m²) */}
-            {visibleHps.map((hp) => (
-              <g key={hp.id}>
-                <rect
-                  x={hp.x}
-                  y={hp.y}
-                  width={hp.vWidth}
-                  height={hp.vHeight}
-                  fill={COLOURS.hpFill}
-                  stroke={COLOURS.hpStroke}
-                  strokeWidth={2}
-                  strokeDasharray="6 4"
-                  rx={2}
-                />
-                <text
-                  x={hp.x + hp.vWidth / 2}
-                  y={hp.y - 4}
-                  textAnchor="middle"
-                  fontSize="10"
-                  fill={COLOURS.hpStroke}
-                  pointerEvents="none"
-                >
-                  HP
-                </text>
-                <title>{hp.label} — {hp.notes}</title>
-              </g>
+            {/* 1. Outdoor zones — render FIRST so rooms sit on top */}
+            {visibleZones.map((z) => (
+              <ZoneShape key={z.id} zone={z} />
             ))}
 
-            {/* Hot water cylinder candidate locations (indoor, ~0.6m²) */}
+            {/* 2. Rooms — composite rects */}
+            {visibleRooms.map((room) => (
+              <RoomShape
+                key={room.id}
+                room={room}
+                selected={selectedRoomId === room.id}
+              />
+            ))}
+
+            {/* 3. Stairs */}
+            {visibleStairs.map((s) => (
+              <StairsShape key={s.id} stairs={s} />
+            ))}
+
+            {/* 4. Hot water cylinder candidates */}
             {visibleCylinders.map((cy) => (
               <g key={cy.id}>
                 <rect
@@ -403,7 +465,42 @@ export function FloorplanEditor({
               </g>
             ))}
 
-            {/* Radiators */}
+            {/* 5. Heat pump candidates */}
+            {visibleHps.map((hp) => {
+              const isDragging = hpDrag?.hpId === hp.id;
+              const x = isDragging ? hpDrag!.curX : hp.x;
+              const y = isDragging ? hpDrag!.curY : hp.y;
+              const stroke = isDragging ? COLOURS.hpDragStroke : COLOURS.hpStroke;
+              return (
+                <g key={hp.id} className={mode === "move-hp" ? "cursor-grab" : undefined}>
+                  <rect
+                    x={x}
+                    y={y}
+                    width={hp.vWidth}
+                    height={hp.vHeight}
+                    fill={COLOURS.hpFill}
+                    stroke={stroke}
+                    strokeWidth={2}
+                    strokeDasharray="6 4"
+                    rx={2}
+                  />
+                  <text
+                    x={x + hp.vWidth / 2}
+                    y={y - 4}
+                    textAnchor="middle"
+                    fontSize="10"
+                    fontWeight="600"
+                    fill={stroke}
+                    pointerEvents="none"
+                  >
+                    HP
+                  </text>
+                  <title>{hp.label} — {hp.notes}</title>
+                </g>
+              );
+            })}
+
+            {/* 6. Radiators */}
             {visibleRadiators.map((rad) => {
               const room = visibleRooms.find((r) => r.id === rad.roomId);
               if (!room) return null;
@@ -418,15 +515,8 @@ export function FloorplanEditor({
                       ? "#ef4444"
                       : COLOURS.radiator;
               return (
-                <g key={rad.id} style={{ pointerEvents: "auto" }}>
-                  <circle
-                    cx={cx}
-                    cy={cy}
-                    r={12}
-                    fill={condColour}
-                    stroke="white"
-                    strokeWidth={2}
-                  />
+                <g key={rad.id}>
+                  <circle cx={cx} cy={cy} r={12} fill={condColour} stroke="white" strokeWidth={2} />
                   <text
                     x={cx}
                     y={cy + 3}
@@ -442,13 +532,13 @@ export function FloorplanEditor({
               );
             })}
 
-            {/* Drag preview for "add extension" */}
-            {drag && (
+            {/* 7. Extension drag preview */}
+            {extensionDrag && (
               <rect
-                x={Math.min(drag.startX, drag.curX)}
-                y={Math.min(drag.startY, drag.curY)}
-                width={Math.abs(drag.curX - drag.startX)}
-                height={Math.abs(drag.curY - drag.startY)}
+                x={Math.min(extensionDrag.startX, extensionDrag.curX)}
+                y={Math.min(extensionDrag.startY, extensionDrag.curY)}
+                width={Math.abs(extensionDrag.curX - extensionDrag.startX)}
+                height={Math.abs(extensionDrag.curY - extensionDrag.startY)}
                 fill="rgba(239, 108, 79, 0.15)"
                 stroke={COLOURS.selectedStroke}
                 strokeWidth={2}
@@ -459,13 +549,13 @@ export function FloorplanEditor({
           </svg>
 
           {/* Empty state */}
-          {visibleRooms.length === 0 && (
+          {visibleRooms.length === 0 && visibleStairs.length === 0 && visibleZones.length === 0 && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <div className="text-center text-slate-500 text-sm">
                 <Wand2 className="w-6 h-6 mx-auto mb-2 opacity-50" />
-                No rooms detected on this floor.
+                Nothing detected on this floor.
                 {mode === "extension" && (
-                  <p className="mt-1 text-xs">Click and drag to add one.</p>
+                  <p className="mt-1 text-xs">Click and drag to add a room.</p>
                 )}
               </div>
             </div>
@@ -484,15 +574,141 @@ export function FloorplanEditor({
       </div>
 
       {/* Legend */}
-      <div className="mt-4 flex flex-wrap gap-4 text-[11px] text-slate-500">
-        <LegendDot colour={COLOURS.radiator} label="Radiator (tap to rate)" />
-        <LegendDot colour={COLOURS.hpStroke} dashed label="Heat-pump (outdoor)" />
-        <LegendDot colour={COLOURS.cylStroke} dashed label="Hot water cylinder (indoor)" />
-        <LegendDot colour="#10b981" label="Good" />
-        <LegendDot colour="#f59e0b" label="Fair" />
-        <LegendDot colour="#ef4444" label="Poor" />
+      <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-[11px] text-slate-500">
+        <LegendSwatch colour={COLOURS.zoneFill} borderColour={COLOURS.zoneStroke} label="Outdoor zone" />
+        <LegendSwatch colour={COLOURS.roomFillLiving} borderColour={COLOURS.roomStroke} label="Living room" />
+        <LegendSwatch colour={COLOURS.roomFillCirculation} borderColour={COLOURS.roomStroke} label="Hallway" />
+        <LegendSwatch colour={COLOURS.stairsFill} borderColour={COLOURS.stairsStroke} label="Stairs" hatched />
+        <LegendDot colour={COLOURS.radiator} label="Radiator" />
+        <LegendDot colour={COLOURS.hpStroke} dashed label="Heat pump (outdoor)" />
+        <LegendDot colour={COLOURS.cylStroke} dashed label="Cylinder (indoor)" />
       </div>
     </div>
+  );
+}
+
+// ─── SVG shape components ────────────────────────────────────────────────────
+
+function RoomShape({ room, selected }: { room: Room; selected: boolean }) {
+  const rects = roomRects(room);
+  const fill =
+    room.category === "circulation"
+      ? COLOURS.roomFillCirculation
+      : room.category === "service"
+        ? COLOURS.roomFillService
+        : COLOURS.roomFillLiving;
+  const stroke = selected ? COLOURS.selectedStroke : COLOURS.roomStroke;
+  const strokeWidth = selected ? 3 : 1.5;
+  // Label sits at the bounding-box centre.
+  const cx = room.x + room.vWidth / 2;
+  const cy = room.y + room.vHeight / 2;
+  return (
+    <g>
+      {rects.map((r, i) => (
+        <rect
+          key={i}
+          x={r.x}
+          y={r.y}
+          width={r.vWidth}
+          height={r.vHeight}
+          fill={fill}
+          stroke={stroke}
+          strokeWidth={strokeWidth}
+          rx={4}
+        />
+      ))}
+      <text
+        x={cx}
+        y={cy - 6}
+        textAnchor="middle"
+        fontSize="14"
+        fontWeight="600"
+        fill={COLOURS.roomLabel}
+        pointerEvents="none"
+      >
+        {room.label}
+      </text>
+      <text
+        x={cx}
+        y={cy + 12}
+        textAnchor="middle"
+        fontSize="11"
+        fill="#475569"
+        pointerEvents="none"
+      >
+        {room.areaM2 != null ? `${room.areaM2} m²` : "size unknown"}
+      </text>
+    </g>
+  );
+}
+
+function StairsShape({ stairs }: { stairs: Stairs }) {
+  const arrow =
+    stairs.direction === "up" ? "↑" : stairs.direction === "down" ? "↓" : "⇅";
+  return (
+    <g>
+      <rect
+        x={stairs.x}
+        y={stairs.y}
+        width={stairs.vWidth}
+        height={stairs.vHeight}
+        fill={COLOURS.stairsFill}
+        stroke={COLOURS.stairsStroke}
+        strokeWidth={1.5}
+        rx={2}
+      />
+      <rect
+        x={stairs.x}
+        y={stairs.y}
+        width={stairs.vWidth}
+        height={stairs.vHeight}
+        fill="url(#stairs-hatch)"
+        opacity={0.5}
+        rx={2}
+      />
+      <text
+        x={stairs.x + stairs.vWidth / 2}
+        y={stairs.y + stairs.vHeight / 2 + 4}
+        textAnchor="middle"
+        fontSize="12"
+        fontWeight="700"
+        fill={COLOURS.stairsStroke}
+        pointerEvents="none"
+      >
+        {arrow}
+      </text>
+      <title>{stairs.label}</title>
+    </g>
+  );
+}
+
+function ZoneShape({ zone }: { zone: OutdoorZone }) {
+  return (
+    <g>
+      <rect
+        x={zone.x}
+        y={zone.y}
+        width={zone.vWidth}
+        height={zone.vHeight}
+        fill={COLOURS.zoneFill}
+        stroke={COLOURS.zoneStroke}
+        strokeWidth={1.5}
+        strokeDasharray="8 4"
+        rx={6}
+      />
+      <text
+        x={zone.x + zone.vWidth / 2}
+        y={zone.y + 16}
+        textAnchor="middle"
+        fontSize="11"
+        fontWeight="600"
+        fill={COLOURS.zoneLabel}
+        pointerEvents="none"
+      >
+        {zone.label}
+      </text>
+      <title>{zone.notes || zone.label}</title>
+    </g>
   );
 }
 
@@ -513,12 +729,10 @@ function SidePanel({
   onClearPendingRadiator: () => void;
   onChange: (next: FloorplanAnalysis) => void;
 }) {
-  // Radiator condition popover takes priority — it appears whenever a fresh
-  // pin was just dropped, even in dimension mode.
   if (pendingRadiatorId) {
-    const rad = analysis.radiators.find((r) => r.id === pendingRadiatorId);
+    const rad = (analysis.radiators ?? []).find((r) => r.id === pendingRadiatorId);
     if (!rad) return null;
-    const room = analysis.rooms.find((r) => r.id === rad.roomId);
+    const room = (analysis.rooms ?? []).find((r) => r.id === rad.roomId);
     return (
       <div className="rounded-xl border border-coral bg-coral-pale p-4">
         <p className="text-xs font-semibold text-navy">
@@ -531,8 +745,7 @@ function SidePanel({
               key={c}
               type="button"
               onClick={() => {
-                const next = setRadiatorCondition(analysis, rad.id, c);
-                onChange(next);
+                onChange(setRadiatorCondition(analysis, rad.id, c));
                 onClearPendingRadiator();
               }}
               className="h-9 px-3 rounded-lg border border-coral bg-white text-sm font-medium text-navy hover:bg-coral hover:text-white transition-colors text-left"
@@ -543,8 +756,7 @@ function SidePanel({
           <button
             type="button"
             onClick={() => {
-              const next = removeRadiator(analysis, rad.id);
-              onChange(next);
+              onChange(removeRadiator(analysis, rad.id));
               onClearPendingRadiator();
             }}
             className="mt-1 h-9 px-3 rounded-lg text-xs text-slate-500 hover:text-red-600 inline-flex items-center gap-1.5"
@@ -558,15 +770,10 @@ function SidePanel({
 
   if (mode === "dimension" && selectedRoom) {
     return (
-      <RoomDetailsPanel
-        analysis={analysis}
-        room={selectedRoom}
-        onChange={onChange}
-      />
+      <RoomDetailsPanel analysis={analysis} room={selectedRoom} onChange={onChange} />
     );
   }
 
-  // Default panel: summary + tips for the active mode.
   return (
     <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-4 text-xs text-slate-600">
       <p className="font-semibold text-navy mb-2">Tips</p>
@@ -589,13 +796,44 @@ function SidePanel({
           <li>You&rsquo;ll be asked for its dimensions next.</li>
         </ul>
       )}
+      {mode === "move-hp" && (
+        <ul className="space-y-1 list-disc pl-4">
+          <li>Click and drag any heat-pump box to reposition it.</li>
+          <li>Aim for outdoor space away from neighbour windows.</li>
+          <li>Remove a box via the room details panel (on HP candidates list below).</li>
+        </ul>
+      )}
       <div className="mt-4 pt-3 border-t border-slate-200">
         <p className="font-semibold text-navy mb-1">Across the property</p>
-        <p>Rooms: {analysis.rooms.length}</p>
-        <p>Radiators: {analysis.radiators.length}</p>
-        <p>Heat-pump spots: {analysis.heatPumpLocations.length}</p>
-        <p>Cylinder spots: {analysis.hotWaterCylinderCandidates.length}</p>
+        <p>Rooms: {(analysis.rooms ?? []).length}</p>
+        <p>Stairs: {(analysis.stairs ?? []).length}</p>
+        <p>Outdoor zones: {(analysis.outdoorZones ?? []).length}</p>
+        <p>Radiators: {(analysis.radiators ?? []).length}</p>
+        <p>Heat-pump spots: {(analysis.heatPumpLocations ?? []).length}</p>
+        <p>Cylinder spots: {(analysis.hotWaterCylinderCandidates ?? []).length}</p>
       </div>
+
+      {/* HP list with remove for move-hp mode */}
+      {mode === "move-hp" && (analysis.heatPumpLocations ?? []).length > 0 && (
+        <div className="mt-4 pt-3 border-t border-slate-200">
+          <p className="font-semibold text-navy mb-2">Heat-pump candidates</p>
+          <ul className="space-y-1.5">
+            {(analysis.heatPumpLocations ?? []).map((hp) => (
+              <li key={hp.id} className="flex items-center gap-2">
+                <span className="flex-1 truncate">{hp.label}</span>
+                <button
+                  type="button"
+                  onClick={() => onChange(removeHeatPump(analysis, hp.id))}
+                  className="text-slate-400 hover:text-red-600"
+                  title="Remove"
+                >
+                  <Trash2 className="w-3 h-3" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }
@@ -642,9 +880,7 @@ function RoomDetailsPanel({
             placeholder="—"
             onChange={(e) => {
               const v = e.target.value === "" ? null : Number(e.target.value);
-              onChange(
-                setRoomDimensions(analysis, room.id, { widthM: v }),
-              );
+              onChange(setRoomDimensions(analysis, room.id, { widthM: v }));
             }}
             className="mt-1 w-full h-9 rounded-lg border border-[var(--border)] bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-coral/30"
           />
@@ -658,9 +894,7 @@ function RoomDetailsPanel({
             placeholder="—"
             onChange={(e) => {
               const v = e.target.value === "" ? null : Number(e.target.value);
-              onChange(
-                setRoomDimensions(analysis, room.id, { heightM: v }),
-              );
+              onChange(setRoomDimensions(analysis, room.id, { heightM: v }));
             }}
             className="mt-1 w-full h-9 rounded-lg border border-[var(--border)] bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-coral/30"
           />
@@ -669,6 +903,11 @@ function RoomDetailsPanel({
       <p className="mt-3 text-[11px] text-slate-500">
         {room.areaM2 != null ? `Area: ${room.areaM2} m²` : "Add both dimensions to compute area."}
       </p>
+      {room.rects && room.rects.length > 1 && (
+        <p className="mt-2 text-[11px] text-slate-500">
+          Shape: {room.rects.length}-rect composite (L-shaped or similar).
+        </p>
+      )}
     </div>
   );
 }
@@ -702,6 +941,33 @@ function ModeButton({
   );
 }
 
+function LegendSwatch({
+  colour,
+  borderColour,
+  label,
+  hatched,
+}: {
+  colour: string;
+  borderColour: string;
+  label: string;
+  hatched?: boolean;
+}) {
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <span
+        className="inline-block w-3 h-3 rounded-sm"
+        style={{
+          background: hatched
+            ? `repeating-linear-gradient(45deg, ${borderColour}, ${borderColour} 1.5px, ${colour} 1.5px, ${colour} 4px)`
+            : colour,
+          border: `1px solid ${borderColour}`,
+        }}
+      />
+      {label}
+    </span>
+  );
+}
+
 function LegendDot({
   colour,
   label,
@@ -717,10 +983,7 @@ function LegendDot({
         className="inline-block w-3 h-3 rounded"
         style={
           dashed
-            ? {
-                border: `2px dashed ${colour}`,
-                background: `${colour}20`,
-              }
+            ? { border: `2px dashed ${colour}`, background: `${colour}20` }
             : { background: colour }
         }
       />
@@ -732,7 +995,8 @@ function LegendDot({
 function modeHelp(mode: EditorMode): string {
   if (mode === "radiator") return "Click a room to drop a radiator.";
   if (mode === "dimension") return "Click a room to edit its dimensions.";
-  return "Drag to outline an extension.";
+  if (mode === "extension") return "Drag to outline an extension.";
+  return "Drag a heat-pump box to reposition it.";
 }
 
 function conditionLabel(c: RadiatorCondition): string {
@@ -741,6 +1005,3 @@ function conditionLabel(c: RadiatorCondition): string {
   if (c === "poor") return "Poor — leaks or doesn't heat";
   return "Not sure";
 }
-
-// Re-export icon used by parent for header consistency (not strictly needed).
-export { Sun, Flame, X };
