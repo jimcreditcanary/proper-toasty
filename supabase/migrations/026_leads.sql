@@ -57,7 +57,7 @@ create index homeowner_leads_user_type_idx on public.homeowner_leads (user_type)
 create index homeowner_leads_created_at_idx on public.homeowner_leads (created_at desc);
 
 -- updated_at trigger — auto-bump on any row change.
-create or replace function public.homeowner_homeowner_leads_set_updated_at()
+create or replace function public.homeowner_leads_set_updated_at()
 returns trigger as $$
 begin
   new.updated_at = now();
@@ -67,7 +67,7 @@ $$ language plpgsql;
 
 create trigger homeowner_leads_updated_at_trigger
 before update on public.homeowner_leads
-for each row execute function public.homeowner_homeowner_leads_set_updated_at();
+for each row execute function public.homeowner_leads_set_updated_at();
 
 -- RLS: service role writes everything. No public reads yet.
 alter table public.homeowner_leads enable row level security;
