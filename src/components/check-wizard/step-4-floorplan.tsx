@@ -164,6 +164,29 @@ export function Step4Floorplan() {
     [update],
   );
 
+  // Cmd/Ctrl+V on the upload page — pull an image out of the clipboard
+  // if one's there. Only active while on the upload / error state so
+  // paste doesn't stomp on an already-loaded floorplan.
+  useEffect(() => {
+    if (upload.kind !== "idle" && upload.kind !== "error") return;
+    const onPaste = (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (const item of items) {
+        if (item.type.startsWith("image/")) {
+          const file = item.getAsFile();
+          if (file) {
+            e.preventDefault();
+            void handleFile(file);
+            return;
+          }
+        }
+      }
+    };
+    window.addEventListener("paste", onPaste);
+    return () => window.removeEventListener("paste", onPaste);
+  }, [upload.kind, handleFile]);
+
   const reset = useCallback(() => {
     if (upload.kind === "resizing" || upload.kind === "uploading" || upload.kind === "uploaded") {
       if (upload.previewUrl) URL.revokeObjectURL(upload.previewUrl);
@@ -243,7 +266,12 @@ export function Step4Floorplan() {
     ? `/api/floorplan/image?key=${encodeURIComponent(state.floorplanObjectKey)}`
     : null;
 
-  const canContinue = upload.kind === "uploaded";
+  // Only let the user advance once they've uploaded AND completed the
+  // annotation flow (ie. fired "Find heat pump & cylinder"). Pre-v4.4
+  // this was just "upload complete" which meant people could skip the
+  // whole floorplan step.
+  const canContinue =
+    upload.kind === "uploaded" && state.floorplanAnalysis?.placementsRequested === true;
 
   return (
     <div className="max-w-5xl mx-auto w-full">
@@ -288,7 +316,9 @@ export function Step4Floorplan() {
             <p className="text-sm font-medium text-navy">
               Drag your floorplan here, or <span className="text-coral">click to choose</span>
             </p>
-            <p className="mt-1 text-xs text-slate-500">JPG or PNG, up to 10 MB</p>
+            <p className="mt-1 text-xs text-slate-500">
+              JPG or PNG, up to 10 MB · or paste from clipboard ({typeof navigator !== "undefined" && /Mac/i.test(navigator.platform) ? "⌘V" : "Ctrl+V"})
+            </p>
             <input
               ref={inputRef}
               type="file"
@@ -349,15 +379,21 @@ export function Step4Floorplan() {
           <ArrowLeft className="w-4 h-4" />
           Back
         </button>
-        <button
-          type="button"
-          onClick={next}
-          disabled={!canContinue}
-          className="inline-flex items-center gap-2 h-11 px-6 rounded-full bg-coral hover:bg-coral-dark disabled:bg-slate-300 disabled:cursor-not-allowed text-cream font-semibold text-sm transition-colors shadow-sm"
-        >
-          Continue
-          <ArrowRight className="w-4 h-4" />
-        </button>
+        {/* Continue button is hidden until the editor has completed
+            (placementsRequested=true after "Find heat pump & cylinder").
+            The editor's "Looks good — continue" button in the adjust
+            stage also calls onComplete={next}, so users normally advance
+            from there — this is a backstop. */}
+        {canContinue && (
+          <button
+            type="button"
+            onClick={next}
+            className="inline-flex items-center gap-2 h-11 px-6 rounded-full bg-coral hover:bg-coral-dark text-cream font-semibold text-sm transition-colors shadow-sm"
+          >
+            Continue to your report
+            <ArrowRight className="w-4 h-4" />
+          </button>
+        )}
       </div>
     </div>
   );

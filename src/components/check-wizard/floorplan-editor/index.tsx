@@ -234,8 +234,11 @@ export function FloorplanEditor({
     | { id: string; kind: "hp" | "cyl"; offsetX: number; offsetY: number; curX: number; curY: number }
     | null
   >(null);
+  // Stores container-relative click position + the container's dimensions
+  // at click time so the popover can clamp itself inside the canvas. Near-
+  // edge clicks used to overflow the visible area.
   const [pendingRadiator, setPendingRadiator] = useState<
-    | { id: string; relX: number; relY: number }
+    | { id: string; relX: number; relY: number; containerW: number; containerH: number }
     | null
   >(null);
 
@@ -304,6 +307,8 @@ export function FloorplanEditor({
             id: last.id,
             relX: screen.x - rect.left,
             relY: screen.y - rect.top,
+            containerW: rect.width,
+            containerH: rect.height,
           });
         }
       }
@@ -539,10 +544,36 @@ export function FloorplanEditor({
     stage !== "review" &&
     stage !== "adjust";
 
+  // Welcome stage is a hero — no canvas, no toolbar, just the big CTA.
+  // Keeps the "Let's go" button above the fold on any viewport.
+  if (stage === "welcome") {
+    return (
+      <div className="rounded-2xl border border-[var(--border)] bg-white p-6 sm:p-10 shadow-sm text-center">
+        <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-coral-pale text-coral mb-4">
+          {cfg.icon}
+        </div>
+        <h3 className="text-2xl sm:text-3xl font-bold tracking-tight text-navy">
+          {cfg.title}
+        </h3>
+        <p className="mt-3 text-sm text-slate-600 max-w-md mx-auto leading-relaxed">
+          {cfg.body}
+        </p>
+        <button
+          type="button"
+          onClick={advance}
+          className="mt-6 inline-flex items-center gap-2 h-12 px-7 rounded-full bg-coral hover:bg-coral-dark text-white font-semibold text-sm shadow-sm"
+        >
+          Let&rsquo;s go
+          <ArrowRight className="w-4 h-4" />
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="rounded-2xl border border-[var(--border)] bg-white p-5 shadow-sm">
       {/* Progress dots */}
-      {stage !== "welcome" && stage !== "placing" && (
+      {stage !== "placing" && (
         <div className="mb-4 flex items-center gap-1.5">
           {["walls", "outdoor", "doors", "stairs", "radiators", "review", "adjust"].map(
             (s) => {
@@ -627,7 +658,6 @@ export function FloorplanEditor({
 
       {/* Outdoor confirmation banner (optional, early in the flow) */}
       {outdoorAsk &&
-        stage !== "welcome" &&
         analysis.outdoorSpace.userConfirmed == null &&
         analysis.outdoorZones.length === 0 &&
         stage === "outdoor" && (
@@ -988,6 +1018,8 @@ export function FloorplanEditor({
               <RadiatorPopover
                 x={pendingRadiator.relX}
                 y={pendingRadiator.relY}
+                containerW={pendingRadiator.containerW}
+                containerH={pendingRadiator.containerH}
                 radiator={rad}
                 onUpdate={(patch) => {
                   onChange(setRadiatorMeta(analysis, pendingRadiator.id, patch));
@@ -1083,7 +1115,7 @@ export function FloorplanEditor({
 
       {/* Footer controls */}
       <div className="mt-4 flex flex-wrap items-center gap-2">
-        {stageIdx > 0 && stage !== "welcome" && stage !== "placing" && (
+        {stageIdx > 0 && stage !== "placing" && (
           <button
             type="button"
             onClick={goBack}
@@ -1109,7 +1141,7 @@ export function FloorplanEditor({
 
         <div className="flex-1" />
 
-        {cfg.skippable && stage !== "welcome" && (
+        {cfg.skippable && (
           <button
             type="button"
             onClick={advance}
@@ -1126,11 +1158,6 @@ export function FloorplanEditor({
             disabled={placementsRunning}
             className="inline-flex items-center gap-2 h-10 px-5 rounded-lg bg-coral hover:bg-coral-dark disabled:bg-slate-300 disabled:cursor-not-allowed text-white text-sm font-semibold transition-colors"
           >
-            {stage === "welcome" && (
-              <>
-                Let&rsquo;s go <ArrowRight className="w-4 h-4" />
-              </>
-            )}
             {stage === "walls" && (
               <>
                 Save walls <ArrowRight className="w-4 h-4" />
@@ -1256,6 +1283,8 @@ function StageExample({ stage }: { stage: Stage }) {
 function RadiatorPopover({
   x,
   y,
+  containerW,
+  containerH,
   radiator,
   onUpdate,
   onConfirm,
@@ -1263,6 +1292,8 @@ function RadiatorPopover({
 }: {
   x: number;
   y: number;
+  containerW: number;
+  containerH: number;
   radiator: { size: RadiatorSize; orientation: RadiatorOrientation; condition: RadiatorCondition | null };
   onUpdate: (patch: {
     size?: RadiatorSize;
@@ -1287,12 +1318,25 @@ function RadiatorPopover({
     { v: "poor", label: "Poor" },
     { v: "unsure", label: "Not sure" },
   ];
+  // Approximate popover dimensions — matches w-[240px] + rendered content
+  // height. Used to decide whether to flip the popover to the left or above
+  // the click so it stays fully inside the canvas.
+  const POPOVER_W = 240;
+  const POPOVER_H = 320;
+  const preferRight = x + 8 + POPOVER_W <= containerW - 8;
+  const preferBelow = y + POPOVER_H <= containerH - 8;
+  const leftPx = preferRight
+    ? x + 8
+    : Math.max(8, x - POPOVER_W - 8);
+  const topPx = preferBelow
+    ? Math.max(8, y)
+    : Math.max(8, y - POPOVER_H);
   return (
     <div
       className="absolute z-10 rounded-xl border-2 border-coral bg-white shadow-xl p-3 w-[240px]"
       style={{
-        left: Math.max(8, Math.min(x + 8, 99999)),
-        top: Math.max(8, y),
+        left: leftPx,
+        top: topPx,
       }}
     >
       <PopRow label="Size">

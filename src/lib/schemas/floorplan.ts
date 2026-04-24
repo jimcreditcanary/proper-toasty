@@ -137,18 +137,18 @@ export const HeatPumpLocationSchema = z.object({
 });
 export type HeatPumpLocation = z.infer<typeof HeatPumpLocationSchema>;
 
-// Hot water cylinder candidate. A typical UK unvented cylinder is
-// 500-600mm diameter, 1500-2000mm tall. Footprint alone is ~0.36m², but
-// installers need pipework access + door clearance so the realistic
-// provision is ~0.8m × 0.8m. Explicitly smaller than the HP provision
-// since it sits indoors in an airing cupboard / utility area.
+// Hot water cylinder candidate. Full 1m × 1m PROVISION — cylinder itself
+// is ~0.6m diameter but installers allocate a clear 1m² so there's
+// room for pipework, an unvented expansion vessel next to it, and
+// working access for servicing / removal. Matches what an MCS surveyor
+// marks on a site plan.
 export const HotWaterCylinderCandidateSchema = z.object({
   id: z.string().min(1),
   label: z.string(),
   x: z.number(),
   y: z.number(),
-  vWidth: z.number().default(40),   // 0.8m at base scale (50 units = 1m)
-  vHeight: z.number().default(40),
+  vWidth: z.number().default(50),   // 1m at base scale (50 units = 1m)
+  vHeight: z.number().default(50),
   notes: z.string().default(""),
   source: z.enum(["ai_suggested", "user_placed"]).default("ai_suggested"),
 });

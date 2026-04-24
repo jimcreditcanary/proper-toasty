@@ -59,8 +59,8 @@ B) DETERMINE SCALE. Estimate how many viewport units = 1 metre. Use any of:
 
 C) PLACE EQUIPMENT with realistic UK installation provisions.
    - 1-2 HEAT PUMP candidates. Provision: 1.2m × 1.2m (typical outdoor unit 0.9-1.1m wide + 0.3-0.4m deep + ≥300mm side clearance + ≥1m front clearance). STRICTLY within an outdoor zone polygon. Avoid placing on top of doors, windows, or wall openings. Prefer ≥1m clear from any door. If offering 2 options, label them "Option 1" and "Option 2" so the user sees they are alternatives.
-   - 1 HOT WATER CYLINDER candidate. Provision: 0.8m × 0.8m (typical unvented cylinder ~0.6m diameter + pipework access + door clearance). INSIDE the building footprint. Near central heating pipework / utility / airing cupboard. NOT directly behind a door (i.e. not in the swing area or immediate threshold).
-   - Sized using viewportUnitsPerMeter: if 1m = 50 units then HP = 60×60 and cylinder = 40×40.
+   - 1 HOT WATER CYLINDER candidate. Provision: 1m × 1m (cylinder itself ~0.6m diameter but installers allocate a full square metre for pipework, expansion vessel, and servicing access). INSIDE the building footprint. Near central heating pipework / utility / airing cupboard. NOT directly behind a door (i.e. not in the swing area or immediate threshold).
+   - Sized using viewportUnitsPerMeter: if 1m = 50 units then HP = 60×60 and cylinder = 50×50.
 
    PROXIMITY MATTERS. Place the HEAT PUMP and CYLINDER as close to each other as the layout sensibly allows — ideally within 3m of wall-hugging pipe run. A short run means:
    - lower material cost (copper pipework ~£15-25/m)
@@ -224,7 +224,7 @@ Now refine + place. Return JSON with this shape (NO prose):
       "id": "hwc1",
       "label": "Utility room — against NE wall",
       "x": 500, "y": 400,
-      "vWidth": 40, "vHeight": 40,
+      "vWidth": 50, "vHeight": 50,
       "notes": "Adjacent to existing boiler pipework; ~4m from Option 1 HP — minimal pipe chase.",
       "source": "ai_suggested"
     }
