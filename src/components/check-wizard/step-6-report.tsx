@@ -37,10 +37,21 @@ const TABS: Array<{ key: TabKey; label: string; icon: React.ReactNode }> = [
 ];
 
 export function Step6Report() {
-  const { state, update, reset, back } = useCheckWizard();
+  const { state, update, reset, back, goTo } = useCheckWizard();
   const [tab, setTab] = useState<TabKey>("overview");
   const a = state.analysis;
   const addr = state.address;
+
+  // Lead-capture gate — if somehow the user is on the report without an
+  // email on file, bounce back to the lead-capture step. Belt-and-braces:
+  // the wizard step order already prevents skipping it, this covers
+  // direct-URL / rehydration edge cases.
+  if (a && addr && !state.leadCapturedAt) {
+    // Defer to avoid setState-during-render warnings.
+    if (typeof window !== "undefined") {
+      setTimeout(() => goTo("lead_capture"), 0);
+    }
+  }
 
   if (!a || !addr || !a.eligibility || !a.finance) {
     return (

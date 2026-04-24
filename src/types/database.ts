@@ -757,6 +757,50 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["api_cache"]["Insert"]>;
         Relationships: [];
       };
+      homeowner_leads: {
+        Row: {
+          id: string;
+          email: string;
+          name: string | null;
+          phone: string | null;
+          address: string | null;
+          postcode: string | null;
+          uprn: string | null;
+          latitude: number | null;
+          longitude: number | null;
+          consent_marketing: boolean;
+          consent_installer_matching: boolean;
+          analysis_snapshot: Json | null;
+          user_type: "homeowner" | "installer" | "admin";
+          source: "check_flow" | "installer_signup" | "waitlist" | "other";
+          user_id: string | null;
+          notes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          email: string;
+          name?: string | null;
+          phone?: string | null;
+          address?: string | null;
+          postcode?: string | null;
+          uprn?: string | null;
+          latitude?: number | null;
+          longitude?: number | null;
+          consent_marketing?: boolean;
+          consent_installer_matching?: boolean;
+          analysis_snapshot?: Json | null;
+          user_type?: "homeowner" | "installer" | "admin";
+          source?: "check_flow" | "installer_signup" | "waitlist" | "other";
+          user_id?: string | null;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["homeowner_leads"]["Insert"]>;
+        Relationships: [];
+      };
     };
     Views: {
       [_ in never]: never;

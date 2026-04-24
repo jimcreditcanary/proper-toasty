@@ -9,6 +9,7 @@ export type CheckStep =
   | "questions"
   | "floorplan"
   | "analysis"
+  | "lead_capture"
   | "report";
 
 export const STEP_ORDER: CheckStep[] = [
@@ -17,6 +18,7 @@ export const STEP_ORDER: CheckStep[] = [
   "questions",
   "floorplan",
   "analysis",
+  "lead_capture",
   "report",
 ];
 
@@ -78,6 +80,16 @@ export interface CheckWizardState {
 
   // Step 5 — analysis output (stitched)
   analysis: AnalyseResponse | null;
+
+  // Step 6 — lead capture (email gate before the report).
+  // Persisted so users who hit Back on the report don't have to re-enter
+  // their email, and so the report tab knows if it's been captured.
+  leadEmail: string | null;
+  leadName: string | null;
+  leadConsentMarketing: boolean;
+  leadConsentInstallerMatching: boolean;
+  leadCapturedAt: string | null; // ISO timestamp
+  leadId: string | null;         // server-returned id once saved
 }
 
 export const INITIAL_STATE: CheckWizardState = {
@@ -95,6 +107,12 @@ export const INITIAL_STATE: CheckWizardState = {
   floorplanDegradedReason: null,
   satelliteOutdoorVerdict: null,
   analysis: null,
+  leadEmail: null,
+  leadName: null,
+  leadConsentMarketing: false,
+  leadConsentInstallerMatching: true, // opt-in by default (matches business model)
+  leadCapturedAt: null,
+  leadId: null,
 };
 
 export type CheckWizardAction =

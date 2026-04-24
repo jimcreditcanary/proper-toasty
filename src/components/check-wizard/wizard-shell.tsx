@@ -7,6 +7,7 @@ import { Step2Preview } from "./step-2-preview";
 import { Step3Questions } from "./step-3-questions";
 import { Step4Floorplan } from "./step-4-floorplan";
 import { Step5Analysis } from "./step-5-analysis";
+import { Step5bLeadCapture } from "./step-5b-lead-capture";
 import { Step6Report } from "./step-6-report";
 import { CountryGate } from "./country-gate";
 import { isV1SupportedCountry } from "@/lib/postcode/region";
@@ -49,6 +50,8 @@ function CurrentStep() {
       return <Step4Floorplan />;
     case "analysis":
       return <Step5Analysis />;
+    case "lead_capture":
+      return <Step5bLeadCapture />;
     case "report":
       return <Step6Report />;
   }
