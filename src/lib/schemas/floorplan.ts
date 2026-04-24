@@ -120,31 +120,35 @@ export type Radiator = z.infer<typeof RadiatorSchema>;
 
 // ─── AI-placed (user-draggable) pins ─────────────────────────────────────────
 
-// Heat pump candidate. AI drops 1-2 after the user hits "Find placements".
-// User can drag them to the actually-correct spot.
+// Heat pump candidate. A typical UK air-source outdoor unit is roughly
+// 900-1100mm wide × 300-400mm deep × 700-900mm tall. It needs ≥300mm
+// clearance each side and ≥1m in front for airflow, so the realistic
+// INSTALLATION PROVISION is ~1.2m × 1.2m. That's what the user should
+// see as the "can a heat pump fit here?" footprint.
 export const HeatPumpLocationSchema = z.object({
   id: z.string().min(1),
   label: z.string(),
   x: z.number(),
   y: z.number(),
-  vWidth: z.number().default(50),   // ~1m² at diagram scale
-  vHeight: z.number().default(50),
+  vWidth: z.number().default(60),   // 1.2m at base scale (50 units = 1m)
+  vHeight: z.number().default(60),
   notes: z.string().default(""),
   source: z.enum(["ai_suggested", "user_placed"]).default("ai_suggested"),
 });
 export type HeatPumpLocation = z.infer<typeof HeatPumpLocationSchema>;
 
-// Hot water cylinder candidate. We allocate a 1m × 1m PROVISION (matching
-// the HP) so the user can see whether there's actually room for a cylinder
-// PLUS clearance / access. The cylinder itself is smaller (~0.6m diameter)
-// but installers need the full square metre to work in.
+// Hot water cylinder candidate. A typical UK unvented cylinder is
+// 500-600mm diameter, 1500-2000mm tall. Footprint alone is ~0.36m², but
+// installers need pipework access + door clearance so the realistic
+// provision is ~0.8m × 0.8m. Explicitly smaller than the HP provision
+// since it sits indoors in an airing cupboard / utility area.
 export const HotWaterCylinderCandidateSchema = z.object({
   id: z.string().min(1),
   label: z.string(),
   x: z.number(),
   y: z.number(),
-  vWidth: z.number().default(50),   // 1m at base scale (50 units = 1m)
-  vHeight: z.number().default(50),
+  vWidth: z.number().default(40),   // 0.8m at base scale (50 units = 1m)
+  vHeight: z.number().default(40),
   notes: z.string().default(""),
   source: z.enum(["ai_suggested", "user_placed"]).default("ai_suggested"),
 });

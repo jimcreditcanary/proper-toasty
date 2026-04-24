@@ -872,11 +872,17 @@ export function FloorplanEditor({
             );
           })}
 
-          {/* Heat pump pins */}
-          {analysis.heatPumpLocations.map((hp) => {
+          {/* Heat pump pins — numbered when >1 so the user sees them as
+              alternatives ("Option 1", "Option 2") rather than a single
+              placement. */}
+          {analysis.heatPumpLocations.map((hp, i) => {
             const isDragging = pinDrag?.id === hp.id && pinDrag.kind === "hp";
             const x = isDragging ? pinDrag!.curX : hp.x;
             const y = isDragging ? pinDrag!.curY : hp.y;
+            const prefix =
+              analysis.heatPumpLocations.length > 1
+                ? `HP — Option ${i + 1}`
+                : "Heat pump";
             return (
               <g key={hp.id}>
                 <rect
@@ -894,23 +900,27 @@ export function FloorplanEditor({
                   x={x + hp.vWidth / 2}
                   y={y - 4}
                   textAnchor="middle"
-                  fontSize="10"
-                  fontWeight="600"
+                  fontSize="11"
+                  fontWeight="700"
                   fill={COLOURS.hpStroke}
                   pointerEvents="none"
                 >
-                  Heat pump
+                  {prefix}
                 </text>
                 <title>{hp.label} — {hp.notes}</title>
               </g>
             );
           })}
 
-          {/* Cylinder pins */}
-          {analysis.hotWaterCylinderCandidates.map((cy) => {
+          {/* Cylinder pins — numbered when >1. */}
+          {analysis.hotWaterCylinderCandidates.map((cy, i) => {
             const isDragging = pinDrag?.id === cy.id && pinDrag.kind === "cyl";
             const x = isDragging ? pinDrag!.curX : cy.x;
             const y = isDragging ? pinDrag!.curY : cy.y;
+            const prefix =
+              analysis.hotWaterCylinderCandidates.length > 1
+                ? `Cyl — Option ${i + 1}`
+                : "Cylinder";
             return (
               <g key={cy.id}>
                 <rect
@@ -928,12 +938,12 @@ export function FloorplanEditor({
                   x={x + cy.vWidth / 2}
                   y={y - 4}
                   textAnchor="middle"
-                  fontSize="10"
-                  fontWeight="600"
+                  fontSize="11"
+                  fontWeight="700"
                   fill={COLOURS.cylStroke}
                   pointerEvents="none"
                 >
-                  Cylinder
+                  {prefix}
                 </text>
                 <title>{cy.label} — {cy.notes}</title>
               </g>

@@ -166,31 +166,105 @@ export function removeStairs(
 
 // ─── Radiators ───────────────────────────────────────────────────────────────
 
+// Snap a click point to the nearest wall and infer orientation from the
+// wall's angle. Returns null if no wall is within `maxDistance`.
+//
+// If the user clicks within ~40 viewport units of a wall, we:
+//   - project the click onto the wall segment
+//   - orient the radiator parallel to that segment (tall if the wall
+//     is mostly vertical, standard if mostly horizontal)
+//   - position the radiator's long edge touching the wall, on the
+//     SAME side the user clicked (i.e. inside the room they intended)
+//
+// Diagonal walls (~45°) still use standard orientation — the schema
+// doesn't carry a rotation angle, so radiators always render as
+// axis-aligned rectangles. An acceptable tradeoff for v4.3.
+export function snapRadiatorToWall(
+  walls: WallPath[],
+  clickX: number,
+  clickY: number,
+  size: RadiatorSize,
+  maxDistance = 40,
+): { x: number; y: number; orientation: RadiatorOrientation } | null {
+  let best:
+    | { projX: number; projY: number; dx: number; dy: number; dist: number }
+    | null = null;
+
+  for (const w of walls) {
+    for (let i = 0; i < w.points.length - 1; i++) {
+      const a = w.points[i]!;
+      const b = w.points[i + 1]!;
+      const r = distanceToSegment(clickX, clickY, a.x, a.y, b.x, b.y);
+      if (r.dist <= maxDistance && (!best || r.dist < best.dist)) {
+        best = {
+          projX: r.projX,
+          projY: r.projY,
+          dx: b.x - a.x,
+          dy: b.y - a.y,
+          dist: r.dist,
+        };
+      }
+    }
+  }
+  if (!best) return null;
+
+  // Wall angle: abs(angle) > 45° means it's a vertical-ish wall → tall radiator
+  const angleDeg = (Math.atan2(best.dy, best.dx) * 180) / Math.PI;
+  const absAngle = Math.abs(((angleDeg + 180) % 180) - 90); // distance from vertical
+  const isVertical = absAngle < 45; // within 45° of vertical
+  const orientation: RadiatorOrientation = isVertical ? "tall" : "standard";
+  const { vWidth, vHeight } = radiatorDims(size, orientation);
+
+  // Perpendicular from wall toward the click — tells us which side the
+  // user intended. Offset the radiator so its long edge touches the wall
+  // and the short dimension projects into the room.
+  const perpX = clickX - best.projX;
+  const perpY = clickY - best.projY;
+  const perpLen = Math.hypot(perpX, perpY) || 1;
+  const nx = perpX / perpLen;
+  const ny = perpY / perpLen;
+  // Short dimension = the one perpendicular to the wall
+  const shortDim = isVertical ? vWidth : vHeight;
+  const cx = best.projX + nx * (shortDim / 2);
+  const cy = best.projY + ny * (shortDim / 2);
+
+  return {
+    x: cx - vWidth / 2,
+    y: cy - vHeight / 2,
+    orientation,
+  };
+}
+
 // Click to place a radiator pin at (x, y). The x/y here is the CENTRE
-// point the user tapped; we convert to top-left using medium/standard
-// dimensions as the initial default. Popover then updates size and
-// condition — dims get recomputed via setRadiatorMeta.
+// point the user tapped. If a wall is nearby, the radiator SNAPS to it
+// and its orientation is inferred from the wall's angle. Otherwise it
+// lands at the click as a standard medium radiator.
 export function addRadiator(
   analysis: FloorplanAnalysis,
   centreX: number,
   centreY: number,
 ): FloorplanAnalysis {
-  const { vWidth, vHeight } = radiatorDims("medium", "standard");
+  const size: RadiatorSize = "medium";
+  const snap = snapRadiatorToWall(analysis.walls, centreX, centreY, size);
+  const orientation: RadiatorOrientation = snap?.orientation ?? "standard";
+  const { vWidth, vHeight } = radiatorDims(size, orientation);
+  const x = snap?.x ?? centreX - vWidth / 2;
+  const y = snap?.y ?? centreY - vHeight / 2;
   const r: Radiator = {
     id: newRadiatorId(),
-    x: centreX - vWidth / 2,
-    y: centreY - vHeight / 2,
+    x,
+    y,
     vWidth,
     vHeight,
-    size: "medium",
-    orientation: "standard",
+    size,
+    orientation,
     condition: null,
     source: "user_placed",
   };
   return {
     ...analysis,
     radiators: [...analysis.radiators, r],
-    radiatorsVisible: (analysis.radiators.length + 1),
+    radiatorsVisible: analysis.radiators.length + 1,
     edited: true,
   };
 }

@@ -57,10 +57,17 @@ B) DETERMINE SCALE. Estimate how many viewport units = 1 metre. Use any of:
    - Best-guess from typical room sizes if nothing's labelled.
    Return as "viewportUnitsPerMeter".
 
-C) PLACE EQUIPMENT.
-   - 1-2 HEAT PUMP candidates, 1m × 1m PROVISION (the unit footprint plus required clearance). STRICTLY within an outdoor zone polygon. Avoid placing on top of doors, windows, or wall openings. Prefer ≥1m clear from any door.
-   - 1 HOT WATER CYLINDER candidate, 1m × 1m PROVISION (cylinder ~0.6m diameter plus working clearance). INSIDE the building footprint. Near central heating pipework / utility / airing cupboard. NOT directly behind a door (i.e. not in the swing area or immediate threshold).
-   - Both sized using viewportUnitsPerMeter (e.g. if 1m = 50 units, HP = 50×50 and cylinder = 50×50).
+C) PLACE EQUIPMENT with realistic UK installation provisions.
+   - 1-2 HEAT PUMP candidates. Provision: 1.2m × 1.2m (typical outdoor unit 0.9-1.1m wide + 0.3-0.4m deep + ≥300mm side clearance + ≥1m front clearance). STRICTLY within an outdoor zone polygon. Avoid placing on top of doors, windows, or wall openings. Prefer ≥1m clear from any door. If offering 2 options, label them "Option 1" and "Option 2" so the user sees they are alternatives.
+   - 1 HOT WATER CYLINDER candidate. Provision: 0.8m × 0.8m (typical unvented cylinder ~0.6m diameter + pipework access + door clearance). INSIDE the building footprint. Near central heating pipework / utility / airing cupboard. NOT directly behind a door (i.e. not in the swing area or immediate threshold).
+   - Sized using viewportUnitsPerMeter: if 1m = 50 units then HP = 60×60 and cylinder = 40×40.
+
+   PROXIMITY MATTERS. Place the HEAT PUMP and CYLINDER as close to each other as the layout sensibly allows — ideally within 3m of wall-hugging pipe run. A short run means:
+   - lower material cost (copper pipework ~£15-25/m)
+   - less pipework insulation
+   - less disruption (fewer floors/walls to chase through)
+   - less standing heat loss from the primary flow pipe
+   When the geometry forces a longer separation, FLAG IT in the notes/concerns with an estimate of the pipe run distance AND the implication (e.g. "~8m pipe run from garden-side HP to upstairs airing cupboard — likely to need floor lifting in 1-2 rooms and adds £200-400 to install labour").
 
 D) Return CONCERNS a surveyor would raise (1-3 short bullets).
 
@@ -205,20 +212,20 @@ Now refine + place. Return JSON with this shape (NO prose):
   "heatPumpLocations": [
     {
       "id": "hp1",
-      "label": "Rear garden — SW corner",
+      "label": "Option 1 — Rear garden, SW corner",
       "x": 80, "y": 130,
-      "vWidth": 50, "vHeight": 50,
-      "notes": "Within outdoor zone, ~3m from kitchen wall, no doors within 1m.",
+      "vWidth": 60, "vHeight": 60,
+      "notes": "Within outdoor zone, ~3m to kitchen wall, clear of doors. ~4m pipe run to proposed cylinder location — short internal route via utility room.",
       "source": "ai_suggested"
     }
   ],
   "hotWaterCylinderCandidates": [
     {
       "id": "hwc1",
-      "label": "Airing cupboard off upstairs landing",
+      "label": "Utility room — against NE wall",
       "x": 500, "y": 400,
-      "vWidth": 50, "vHeight": 50,
-      "notes": "Adjacent to existing radiator; clear of door swing.",
+      "vWidth": 40, "vHeight": 40,
+      "notes": "Adjacent to existing boiler pipework; ~4m from Option 1 HP — minimal pipe chase.",
       "source": "ai_suggested"
     }
   ],
