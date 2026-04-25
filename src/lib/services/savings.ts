@@ -14,6 +14,7 @@ import {
   type SavingsCalculateResult,
 } from "@/lib/schemas/savings";
 import { FINANCE_DEFAULTS } from "@/lib/config/finance";
+import { getSupplierTariff } from "@/lib/energy/supplier-tariffs";
 import type { AnalyseResponse } from "@/lib/schemas/analyse";
 import type { FuelTariff } from "@/lib/schemas/bill";
 
@@ -48,17 +49,24 @@ function annualKwh(tariff: FuelTariff | null | undefined, fallback: number): num
   return tariff?.estimatedAnnualUsageKWh ?? fallback;
 }
 
-// The curl example. We use these exact figures as defaults so the calculator
-// produces meaningful numbers even if a user reaches the report with sparse
-// tariff data (shouldn't happen in normal flow — Step 3 enforces it — but
-// belt-and-braces).
+// Belt-and-braces fallback when the user reaches the calculator with no
+// tariff data (shouldn't happen in normal flow — Step 3 enforces tariff
+// entry — but defensive). Sourced from the "Other" row of SUPPLIER_TARIFFS
+// so this stays in sync with whatever the current Ofgem cap is whenever
+// we refresh the supplier table.
+const OFGEM_FALLBACK = getSupplierTariff(null);
 const SAMPLE_FALLBACKS = {
-  elec_price_now: 0.28,
-  gas_price_now: 0.0575,
+  elec_price_now: OFGEM_FALLBACK.electricity.unitRatePencePerKWh / 100,
+  gas_price_now: OFGEM_FALLBACK.gas.unitRatePencePerKWh / 100,
   annual_elec_kwh: 3500,
   annual_gas_kwh: 12000,
-  elec_standing_charge_daily: 0.55,
-  gas_standing_charge_daily: 0.30,
+  elec_standing_charge_daily:
+    OFGEM_FALLBACK.electricity.standingChargePencePerDay / 100,
+  gas_standing_charge_daily:
+    OFGEM_FALLBACK.gas.standingChargePencePerDay / 100,
+  off_peak_elec_price:
+    (OFGEM_FALLBACK.electricity.offPeakRatePencePerKWh ?? 10) / 100,
+  export_price: OFGEM_FALLBACK.electricity.exportRatePencePerKWh / 100,
   num_panels: 10,
   panel_size_watts: 400, // realistic per-panel; the curl's 10000 looked like total system size
 } as const;
@@ -73,10 +81,51 @@ export function buildCalculatorRequest(
   // Solar response is a discriminated union — only `coverage: true` carries
   // data. When Google has no coverage we fall back to sample numbers so the
   // calculator still produces meaningful figures.
+  //
+  // Prefer eligibility.solar.recommendedPanels (post-shading + economic
+  // viability) over solarPotential.maxArrayPanelsCount (raw "physically
+  // fits") so the calc models the array we'd actually quote, not the
+  // theoretical maximum the roof could hold.
   const solarPot =
     analysis.solar.coverage === true ? analysis.solar.data.solarPotential : null;
-  const numPanels = solarPot?.maxArrayPanelsCount ?? SAMPLE_FALLBACKS.num_panels;
+  const numPanels =
+    analysis.eligibility.solar.recommendedPanels ??
+    solarPot?.maxArrayPanelsCount ??
+    SAMPLE_FALLBACKS.num_panels;
   const panelWatts = solarPot?.panelCapacityWatts ?? SAMPLE_FALLBACKS.panel_size_watts;
+
+  // Supplier-aware tariff lookup. When the user has no electricity tariff
+  // at all we still want sensible export / off-peak defaults — pull them
+  // from the same supplier table as the band fallback.
+  const supplierTariff = getSupplierTariff(electricityTariff?.provider);
+
+  // Standard-rate electricity (£/kWh) — supplied by the user's tariff or
+  // the supplier-table fallback. This drives both the "do nothing" cost
+  // and the off-peak collapse below.
+  const elecPriceNow = penceToPounds(
+    electricityTariff?.unitRatePencePerKWh,
+    SAMPLE_FALLBACKS.elec_price_now,
+  );
+
+  // Off-peak: only meaningful when the user is on a TOU tariff. If they're
+  // not (or aren't sure), set off-peak == standard rate so the calculator
+  // doesn't credit them with battery / EV savings they're not getting.
+  const userOnTou = electricityTariff?.timeOfUseTariff === true;
+  const supplierOffPeakP = supplierTariff.electricity.offPeakRatePencePerKWh;
+  const offPeakElecPrice = userOnTou
+    ? penceToPounds(supplierOffPeakP, FINANCE_DEFAULTS.defaultOffPeakElecPrice)
+    : elecPriceNow;
+
+  // SEG export rate: prefer an explicit override on the tariff, else the
+  // supplier's published rate from the table, else the FINANCE_DEFAULTS
+  // benchmark. Inputs.exportPrice (report-page slider) is the final override.
+  const exportPriceFromState = penceToPounds(
+    electricityTariff?.exportRatePencePerKWh,
+    penceToPounds(
+      supplierTariff.electricity.exportRatePencePerKWh,
+      FINANCE_DEFAULTS.defaultExportPrice,
+    ),
+  );
 
   const body: SavingsCalculatorRequest = {
     num_panels: numPanels,
@@ -89,10 +138,7 @@ export function buildCalculatorRequest(
 
     battery_kwh: inputs.batteryKwh ?? FINANCE_DEFAULTS.defaultBatteryKwh,
 
-    elec_price_now: penceToPounds(
-      electricityTariff?.unitRatePencePerKWh,
-      SAMPLE_FALLBACKS.elec_price_now,
-    ),
+    elec_price_now: elecPriceNow,
     gas_price_now: penceToPounds(
       gasTariff?.unitRatePencePerKWh,
       SAMPLE_FALLBACKS.gas_price_now,
@@ -108,8 +154,8 @@ export function buildCalculatorRequest(
     battery_loan_term_years:
       inputs.batteryLoanTermYears ?? FINANCE_DEFAULTS.defaultBatteryLoanTermYears,
 
-    off_peak_elec_price: FINANCE_DEFAULTS.defaultOffPeakElecPrice,
-    export_price: inputs.exportPrice ?? FINANCE_DEFAULTS.defaultExportPrice,
+    off_peak_elec_price: offPeakElecPrice,
+    export_price: inputs.exportPrice ?? exportPriceFromState,
 
     elec_standing_charge_daily: penceDayToPoundsDay(
       electricityTariff?.standingChargePencePerDay,

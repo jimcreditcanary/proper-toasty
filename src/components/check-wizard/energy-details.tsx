@@ -16,9 +16,14 @@ import {
   ELECTRICITY_BANDS,
   GAS_BANDS,
   USAGE_BAND_LABELS,
+  getBandDefaults,
   type UsageBand,
   type BandDefaults,
 } from "@/lib/energy/usage-bands";
+import {
+  getSupplierTariff,
+  supplierHasTouOption,
+} from "@/lib/energy/supplier-tariffs";
 import type { BillParseResponse, FuelTariff } from "@/lib/schemas/bill";
 
 type Fuel = "electricity" | "gas";
@@ -209,7 +214,7 @@ export function EnergyDetailsCard({
               Pulled your tariff from
               {uploadState.supplier ? ` your ${uploadState.supplier} bill` : " the bill"}{" "}
               (confidence: {uploadState.confidence}). Check the details below — edit if
-              anything's off.
+              anything&rsquo;s off.
             </span>
           </p>
         )}
@@ -270,7 +275,7 @@ function FuelDetailForm({
   value: FuelTariff | null;
   onChange: (v: FuelTariff | null) => void;
 }) {
-  const bands = fuel === "electricity" ? ELECTRICITY_BANDS : GAS_BANDS;
+  const fallbackBands = fuel === "electricity" ? ELECTRICITY_BANDS : GAS_BANDS;
   const icon = fuel === "electricity" ? <Zap className="w-4 h-4" /> : <Flame className="w-4 h-4" />;
   const title = fuel === "electricity" ? "Electricity" : "Gas";
 
@@ -287,12 +292,27 @@ function FuelDetailForm({
     estimatedAnnualUsageKWh: null,
     source: "manual_estimate",
     usageBand: null,
+    timeOfUseTariff: null,
+    exportRatePencePerKWh: null,
   };
+
+  // Per-supplier band lookup — drives both the displayed pence/kWh on the
+  // band buttons AND the values written when the user selects a band.
+  // Falls back to the supplier-agnostic ELECTRICITY_BANDS / GAS_BANDS when
+  // provider is null (the "pick a supplier first" state).
+  const bandFor = (band: UsageBand): BandDefaults =>
+    t.provider
+      ? getBandDefaults(t.provider, fuel, band)
+      : fallbackBands[band];
+
+  const supplierTariff = getSupplierTariff(t.provider);
+  const showTouQuestion =
+    fuel === "electricity" && supplierHasTouOption(t.provider);
 
   const update = (patch: Partial<FuelTariff>) => onChange({ ...t, ...patch });
 
   const setBand = (band: UsageBand) => {
-    const defaults: BandDefaults = bands[band];
+    const defaults = bandFor(band);
     update({
       usageBand: band,
       source: "manual_estimate",
@@ -300,6 +320,28 @@ function FuelDetailForm({
       unitRatePencePerKWh: defaults.unitRatePencePerKWh,
       standingChargePencePerDay: defaults.standingChargePencePerDay,
     });
+  };
+
+  // Provider change re-seeds the band-derived rates so the displayed numbers
+  // line up with the new supplier's published tariff. Only re-seeds when
+  // the user is on a manual_estimate (we don't want to clobber bill_upload
+  // figures or hand-typed values from "I know exactly").
+  const setProvider = (provider: string | null) => {
+    if (
+      provider &&
+      t.source === "manual_estimate" &&
+      t.usageBand &&
+      t.usageBand !== "exact"
+    ) {
+      const defaults = getBandDefaults(provider, fuel, t.usageBand);
+      update({
+        provider,
+        unitRatePencePerKWh: defaults.unitRatePencePerKWh,
+        standingChargePencePerDay: defaults.standingChargePencePerDay,
+      });
+      return;
+    }
+    update({ provider });
   };
 
   const setExact = () => {
@@ -333,7 +375,7 @@ function FuelDetailForm({
         <Field label="Provider">
           <select
             value={t.provider ?? ""}
-            onChange={(e) => update({ provider: e.target.value || null })}
+            onChange={(e) => setProvider(e.target.value || null)}
             className="w-full h-10 px-3 rounded-lg border border-[var(--border)] bg-white text-sm text-navy focus:outline-none focus:ring-2 focus:ring-coral focus:border-transparent appearance-none"
             style={{
               backgroundImage:
@@ -371,6 +413,7 @@ function FuelDetailForm({
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
         {(["low", "medium", "high"] as const).map((b) => {
           const selected = t.usageBand === b && t.source === "manual_estimate";
+          const def = bandFor(b);
           return (
             <button
               key={b}
@@ -390,7 +433,8 @@ function FuelDetailForm({
                 {USAGE_BAND_LABELS[b].title}
               </span>
               <span className="block text-[11px] text-slate-500 mt-0.5">
-                ~{bands[b].estimatedAnnualUsageKWh.toLocaleString()} kWh/yr
+                ~{def.estimatedAnnualUsageKWh.toLocaleString()} kWh/yr ·{" "}
+                {def.unitRatePencePerKWh}p
               </span>
             </button>
           );
@@ -416,6 +460,60 @@ function FuelDetailForm({
           <span className="block text-[11px] text-slate-500 mt-0.5">From a bill.</span>
         </button>
       </div>
+
+      {/* Supplier-rates badge — shown when the band buttons are seeded from
+          the supplier table rather than the Ofgem fallback. Tells the user
+          where the numbers came from + when the table was last reviewed. */}
+      {t.source === "manual_estimate" && t.provider && (
+        <p className="mt-2 text-[11px] text-slate-500 italic">
+          Rates seeded from {t.provider}&rsquo;s published standard variable
+          tariff (reviewed {supplierTariff.lastReviewed}). Edit if your bill
+          shows different.
+        </p>
+      )}
+
+      {/* Time-of-Use question — only for electricity, only when the supplier
+          actually offers one. Yes flips on off-peak rate in the savings calc;
+          no/null collapses off-peak to the standard rate so we don't
+          credit the user with savings they're not getting. */}
+      {showTouQuestion && t.source !== "bill_upload" && (
+        <div className="mt-4 rounded-lg border border-[var(--border)] bg-white p-3">
+          <p className="text-xs font-semibold text-navy">
+            Are you on {t.provider}&rsquo;s{" "}
+            {supplierTariff.electricity.touTariffName ?? "smart"} tariff?
+          </p>
+          <p className="mt-1 text-[11px] text-slate-500 leading-relaxed">
+            Time-of-Use tariffs charge less overnight (
+            {supplierTariff.electricity.offPeakRatePencePerKWh}p/kWh) — useful
+            for batteries and EVs.
+          </p>
+          <div className="mt-2 inline-flex rounded-lg border border-[var(--border)] bg-white p-0.5">
+            {(
+              [
+                { v: true, label: "Yes" },
+                { v: false, label: "No" },
+                { v: null, label: "Not sure" },
+              ] as const
+            ).map((opt) => {
+              const selected = t.timeOfUseTariff === opt.v;
+              return (
+                <button
+                  key={String(opt.v)}
+                  type="button"
+                  onClick={() => update({ timeOfUseTariff: opt.v })}
+                  className={`h-8 px-3 text-xs font-medium rounded ${
+                    selected
+                      ? "bg-coral text-white"
+                      : "text-slate-600 hover:text-navy"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {showExact && (
         <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">

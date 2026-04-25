@@ -10,8 +10,10 @@
 
 export const FINANCE_DEFAULTS = {
   // Loan APRs — fixed, admin-controlled (tweak via PR, no env vars).
-  solarLoanAprPct: 5.9,
-  batteryLoanAprPct: 4.5,
+  // Standardised at 6.9% across solar + battery so quotes line up with the
+  // financing partners we're talking to (Apr 2026).
+  solarLoanAprPct: 6.9,
+  batteryLoanAprPct: 6.9,
 
   // Loan terms — defaults; the user can change these on the report.
   defaultSolarLoanTermYears: 10,

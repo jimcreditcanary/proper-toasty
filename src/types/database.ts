@@ -777,6 +777,19 @@ export interface Database {
           notes: string | null;
           created_at: string;
           updated_at: string;
+          // Denormalised tariff metadata (migration 027). Pulled from
+          // analysis_snapshot.electricityTariff / .gasTariff at write time
+          // so analytics queries don't have to grovel through the jsonb.
+          electricity_supplier: string | null;
+          gas_supplier: string | null;
+          electricity_unit_rate_p_per_kwh: number | null;
+          gas_unit_rate_p_per_kwh: number | null;
+          electricity_standing_charge_p_per_day: number | null;
+          gas_standing_charge_p_per_day: number | null;
+          annual_electricity_kwh: number | null;
+          annual_gas_kwh: number | null;
+          tariff_source: "bill_upload" | "manual_known" | "manual_estimate" | null;
+          is_time_of_use_tariff: boolean | null;
         };
         Insert: {
           id?: string;
@@ -797,6 +810,16 @@ export interface Database {
           notes?: string | null;
           created_at?: string;
           updated_at?: string;
+          electricity_supplier?: string | null;
+          gas_supplier?: string | null;
+          electricity_unit_rate_p_per_kwh?: number | null;
+          gas_unit_rate_p_per_kwh?: number | null;
+          electricity_standing_charge_p_per_day?: number | null;
+          gas_standing_charge_p_per_day?: number | null;
+          annual_electricity_kwh?: number | null;
+          annual_gas_kwh?: number | null;
+          tariff_source?: "bill_upload" | "manual_known" | "manual_estimate" | null;
+          is_time_of_use_tariff?: boolean | null;
         };
         Update: Partial<Database["public"]["Tables"]["homeowner_leads"]["Insert"]>;
         Relationships: [];
