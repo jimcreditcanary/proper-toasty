@@ -273,20 +273,25 @@ export function Step4Floorplan() {
   const canContinue =
     upload.kind === "uploaded" && state.floorplanAnalysis?.placementsRequested === true;
 
+  // The editor stages have their own conversational prompt + title, so we
+  // only show the big page title BEFORE upload completes. After upload,
+  // the editor drives the heading hierarchy and we keep the page chrome
+  // tight so as much of the canvas / CTA is above the fold as possible.
+  const showPageHeader = upload.kind !== "uploaded";
+
   return (
     <div className="max-w-5xl mx-auto w-full">
-      <div className="text-center mb-8">
-        <p className="text-xs font-semibold uppercase tracking-wider text-coral mb-2">
-          Step 4 of 6
-        </p>
-        <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-navy">
-          Upload &amp; annotate your floorplan
-        </h2>
-        <p className="mt-3 text-slate-600 max-w-xl mx-auto">
-          Drop your floorplan, then trace the walls, doors, outdoor space, stairs and
-          radiators. We&rsquo;ll suggest where the heat pump and hot water cylinder go.
-        </p>
-      </div>
+      {showPageHeader && (
+        <div className="text-center mb-6 sm:mb-8">
+          <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-navy">
+            Upload &amp; annotate your floorplan
+          </h2>
+          <p className="mt-2 text-sm text-slate-600 max-w-xl mx-auto">
+            Drop your floorplan, then trace the walls, doors, outdoor space, stairs and
+            radiators. We&rsquo;ll suggest where the heat pump and hot water cylinder go.
+          </p>
+        </div>
+      )}
 
       {/* Upload UI (shown before / on error) */}
       {upload.kind === "idle" || upload.kind === "error" ? (

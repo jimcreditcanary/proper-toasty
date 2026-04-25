@@ -15,12 +15,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowRight,
   Check,
+  CornerDownLeft,
   DoorOpen,
   Eye,
   EyeOff,
   Flame,
+  Hand,
   Loader2,
   Minus,
+  MousePointer2,
   Rows,
   Sparkles,
   Target,
@@ -544,24 +547,27 @@ export function FloorplanEditor({
     stage !== "review" &&
     stage !== "adjust";
 
-  // Welcome stage is a hero — no canvas, no toolbar, just the big CTA.
-  // Keeps the "Let's go" button above the fold on any viewport.
+  // Welcome stage is a tight hero — single card, content packed so the CTA
+  // sits above the fold even on a 13" laptop. Padding and copy are deliberately
+  // small because the page wrapper is hidden once the editor is on screen.
   if (stage === "welcome") {
     return (
-      <div className="rounded-2xl border border-[var(--border)] bg-white p-6 sm:p-10 shadow-sm text-center">
-        <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-coral-pale text-coral mb-4">
-          {cfg.icon}
+      <div className="rounded-2xl border border-[var(--border)] bg-white p-5 sm:p-6 shadow-sm">
+        <div className="flex items-center gap-3 mb-3">
+          <div className="shrink-0 inline-flex items-center justify-center w-10 h-10 rounded-xl bg-coral-pale text-coral">
+            {cfg.icon}
+          </div>
+          <h3 className="text-xl sm:text-2xl font-bold tracking-tight text-navy">
+            {cfg.title}
+          </h3>
         </div>
-        <h3 className="text-2xl sm:text-3xl font-bold tracking-tight text-navy">
-          {cfg.title}
-        </h3>
-        <p className="mt-3 text-sm text-slate-600 max-w-md mx-auto leading-relaxed">
+        <p className="text-sm text-slate-600 leading-relaxed">
           {cfg.body}
         </p>
         <button
           type="button"
           onClick={advance}
-          className="mt-6 inline-flex items-center gap-2 h-12 px-7 rounded-full bg-coral hover:bg-coral-dark text-white font-semibold text-sm shadow-sm"
+          className="mt-4 inline-flex items-center gap-2 h-11 px-6 rounded-full bg-coral hover:bg-coral-dark text-white font-semibold text-sm shadow-sm"
         >
           Let&rsquo;s go
           <ArrowRight className="w-4 h-4" />
@@ -570,11 +576,17 @@ export function FloorplanEditor({
     );
   }
 
+  // Is the user actively mid-drawing? Used to show contextual save prompts
+  // ("Press Enter…" for desktop, "Tap save below…" for touch) right next to
+  // the canvas so they don't have to hunt for the action button.
+  const drawingInProgress =
+    (stage === "walls" || stage === "outdoor") && stroke.length > 0;
+
   return (
-    <div className="rounded-2xl border border-[var(--border)] bg-white p-5 shadow-sm">
+    <div className="rounded-2xl border border-[var(--border)] bg-white p-4 sm:p-5 shadow-sm">
       {/* Progress dots */}
       {stage !== "placing" && (
-        <div className="mb-4 flex items-center gap-1.5">
+        <div className="mb-3 flex items-center gap-1.5">
           {["walls", "outdoor", "doors", "stairs", "radiators", "review", "adjust"].map(
             (s) => {
               const idx = stageOrder.indexOf(s as Stage);
@@ -598,63 +610,92 @@ export function FloorplanEditor({
       )}
 
       {/* Conversational prompt */}
-      <div className="mb-4 flex items-start gap-3">
-        <div className="shrink-0 inline-flex items-center justify-center w-10 h-10 rounded-lg bg-coral-pale text-coral">
+      <div className="mb-3 flex items-start gap-3">
+        <div className="shrink-0 inline-flex items-center justify-center w-9 h-9 rounded-lg bg-coral-pale text-coral">
           {cfg.icon}
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-lg font-semibold text-navy leading-snug">{cfg.title}</p>
-          <p className="mt-1 text-sm text-slate-600 leading-relaxed">{cfg.body}</p>
-          {/* Input-mode tip — only for the freehand stages */}
-          {(stage === "walls" || stage === "outdoor") && (
-            <p className="mt-2 text-[11px] text-slate-500">
-              {inputMode === "mouse"
-                ? "Click to add corner points; double-click or press Enter to finish a shape."
-                : "Drag with your finger to trace; lift to finish a shape."}
-            </p>
-          )}
+          <p className="text-base sm:text-lg font-semibold text-navy leading-snug">{cfg.title}</p>
+          <p className="mt-0.5 text-sm text-slate-600 leading-relaxed">{cfg.body}</p>
         </div>
         <StageExample stage={stage} />
       </div>
 
-      {/* Input mode toggle — only useful in the drawing stages */}
+      {/* Prominent mouse / finger toolbar — only shown for the freehand stages.
+          Bigger touch targets, icons + labels, and an inline how-to so the user
+          knows what each mode actually does without reading help text. */}
       {(stage === "walls" || stage === "outdoor") && (
-        <div className="mb-3 flex items-center justify-end gap-2 text-xs text-slate-500">
-          <span>Drawing with</span>
-          <div className="inline-flex rounded-lg border border-[var(--border)] bg-white p-0.5">
-            <button
-              type="button"
-              onClick={() => {
-                setInputMode("mouse");
-                setStroke([]);
-                setDrawing(false);
-              }}
-              className={`h-7 px-3 text-xs font-medium rounded ${
-                inputMode === "mouse"
-                  ? "bg-coral text-white"
-                  : "text-slate-600 hover:text-navy"
-              }`}
+        <div className="mb-3 rounded-xl border border-[var(--border)] bg-slate-50/70 p-3">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+              How are you drawing?
+            </p>
+            <div
+              role="tablist"
+              aria-label="Drawing input mode"
+              className="inline-flex rounded-xl border border-[var(--border)] bg-white p-1 shadow-sm"
             >
-              Mouse
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setInputMode("finger");
-                setStroke([]);
-                setDrawing(false);
-              }}
-              className={`h-7 px-3 text-xs font-medium rounded ${
-                inputMode === "finger"
-                  ? "bg-coral text-white"
-                  : "text-slate-600 hover:text-navy"
-              }`}
-            >
-              Finger
-            </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={inputMode === "mouse"}
+                onClick={() => {
+                  setInputMode("mouse");
+                  setStroke([]);
+                  setDrawing(false);
+                }}
+                className={`inline-flex items-center gap-1.5 h-9 px-3 sm:px-4 rounded-lg text-sm font-semibold transition-colors ${
+                  inputMode === "mouse"
+                    ? "bg-coral text-white shadow-sm"
+                    : "text-slate-600 hover:text-navy"
+                }`}
+              >
+                <MousePointer2 className="w-4 h-4" /> Mouse
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={inputMode === "finger"}
+                onClick={() => {
+                  setInputMode("finger");
+                  setStroke([]);
+                  setDrawing(false);
+                }}
+                className={`inline-flex items-center gap-1.5 h-9 px-3 sm:px-4 rounded-lg text-sm font-semibold transition-colors ${
+                  inputMode === "finger"
+                    ? "bg-coral text-white shadow-sm"
+                    : "text-slate-600 hover:text-navy"
+                }`}
+              >
+                <Hand className="w-4 h-4" /> Finger
+              </button>
+            </div>
           </div>
+          <p className="mt-2 text-xs text-slate-600 leading-relaxed">
+            {inputMode === "mouse"
+              ? "Click to drop corners along the wall. Double-click or press Enter to finish a shape."
+              : "Drag with your finger to trace each wall. Lift to finish a shape."}
+          </p>
         </div>
       )}
+
+      {/* Top action bar — mirrors the bottom one. Renders the primary save
+          button at the top so it's always visible (especially on small
+          screens where the canvas pushes the bottom bar offscreen). */}
+      <div className="mb-3">
+        <FooterActions
+          stage={stage}
+          stageIdx={stageIdx}
+          showUndo={showUndo}
+          undoCount={undoCount}
+          undo={undo}
+          goBack={goBack}
+          advance={advance}
+          placementsRunning={placementsRunning}
+          skippable={cfg.skippable}
+          compact
+        />
+      </div>
 
       {/* Outdoor confirmation banner (optional, early in the flow) */}
       {outdoorAsk &&
@@ -1113,95 +1154,176 @@ export function FloorplanEditor({
         </div>
       )}
 
-      {/* Footer controls */}
-      <div className="mt-4 flex flex-wrap items-center gap-2">
-        {stageIdx > 0 && stage !== "placing" && (
-          <button
-            type="button"
-            onClick={goBack}
-            className="h-9 px-3 rounded-lg text-sm text-slate-500 hover:text-slate-900"
-          >
-            ← Back a step
-          </button>
-        )}
+      {/* Live drawing prompt — appears as soon as the user starts drawing,
+          telling them how to commit. Different copy for desktop vs touch
+          (we already detected this with inputMode). */}
+      {drawingInProgress && (
+        <div className="mt-3 rounded-lg border border-coral/30 bg-coral-pale/40 p-3 text-xs sm:text-sm text-navy flex items-center gap-2 flex-wrap">
+          <Sparkles className="w-4 h-4 text-coral shrink-0" />
+          {inputMode === "mouse" ? (
+            <span>
+              Looking good. Press{" "}
+              <kbd className="inline-flex items-center gap-0.5 h-5 px-1.5 rounded border border-slate-300 bg-white text-[11px] font-mono font-semibold text-navy">
+                <CornerDownLeft className="w-3 h-3" /> Enter
+              </kbd>{" "}
+              to save this shape, or{" "}
+              <kbd className="inline-flex items-center h-5 px-1.5 rounded border border-slate-300 bg-white text-[11px] font-mono font-semibold text-navy">
+                Esc
+              </kbd>{" "}
+              to start over.
+            </span>
+          ) : (
+            <span>
+              Looking good. Lift your finger to finish this shape, then tap{" "}
+              <span className="font-semibold">Save {stage === "walls" ? "walls" : "outdoor space"}</span>{" "}
+              when you&rsquo;re happy.
+            </span>
+          )}
+        </div>
+      )}
 
-        {showUndo && (
-          <button
-            type="button"
-            onClick={undo}
-            disabled={undoCount === 0}
-            className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border border-slate-300 bg-white text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:text-slate-300 disabled:cursor-not-allowed"
-          >
-            <Undo2 className="w-3.5 h-3.5" /> Undo
-            {undoCount > 0 && (
-              <span className="text-[11px] text-slate-500">({undoCount})</span>
-            )}
-          </button>
-        )}
-
-        <div className="flex-1" />
-
-        {cfg.skippable && (
-          <button
-            type="button"
-            onClick={advance}
-            className="h-9 px-4 rounded-lg text-sm text-slate-500 hover:text-slate-900"
-          >
-            Skip this step
-          </button>
-        )}
-
-        {stage !== "placing" && (
-          <button
-            type="button"
-            onClick={advance}
-            disabled={placementsRunning}
-            className="inline-flex items-center gap-2 h-10 px-5 rounded-lg bg-coral hover:bg-coral-dark disabled:bg-slate-300 disabled:cursor-not-allowed text-white text-sm font-semibold transition-colors"
-          >
-            {stage === "walls" && (
-              <>
-                Save walls <ArrowRight className="w-4 h-4" />
-              </>
-            )}
-            {stage === "outdoor" && (
-              <>
-                Save outdoor space <ArrowRight className="w-4 h-4" />
-              </>
-            )}
-            {stage === "doors" && (
-              <>
-                Save doors <ArrowRight className="w-4 h-4" />
-              </>
-            )}
-            {stage === "stairs" && (
-              <>
-                Save stairs <ArrowRight className="w-4 h-4" />
-              </>
-            )}
-            {stage === "radiators" && (
-              <>
-                Save radiators <ArrowRight className="w-4 h-4" />
-              </>
-            )}
-            {stage === "review" && (
-              <>
-                <Sparkles className="w-4 h-4" /> Find heat pump &amp; cylinder
-              </>
-            )}
-            {stage === "adjust" && (
-              <>
-                <Check className="w-4 h-4" /> Looks good — continue
-              </>
-            )}
-          </button>
-        )}
-
-        {stage === "placing" && (
-          <div className="inline-flex items-center gap-2 h-10 px-5 rounded-lg bg-slate-200 text-slate-500 text-sm font-semibold">
-            <Loader2 className="w-4 h-4 animate-spin" /> Thinking…
-          </div>
-        )}
+      {/* Footer controls (full version) */}
+      <div className="mt-4">
+        <FooterActions
+          stage={stage}
+          stageIdx={stageIdx}
+          showUndo={showUndo}
+          undoCount={undoCount}
+          undo={undo}
+          goBack={goBack}
+          advance={advance}
+          placementsRunning={placementsRunning}
+          skippable={cfg.skippable}
+        />
       </div>
+    </div>
+  );
+}
+
+// ─── Footer actions (rendered top + bottom) ──────────────────────────────────
+
+interface FooterActionsProps {
+  stage: Stage;
+  stageIdx: number;
+  showUndo: boolean;
+  undoCount: number;
+  undo: () => void;
+  goBack: () => void;
+  advance: () => void;
+  placementsRunning?: boolean;
+  skippable?: boolean;
+  // Compact variant: hides the Back button (it lives in the bottom bar so
+  // the top bar stays clean) and uses slightly smaller heights so the
+  // top toolbar doesn't dominate the canvas region.
+  compact?: boolean;
+}
+
+function FooterActions({
+  stage,
+  stageIdx,
+  showUndo,
+  undoCount,
+  undo,
+  goBack,
+  advance,
+  placementsRunning,
+  skippable,
+  compact,
+}: FooterActionsProps) {
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      {!compact && stageIdx > 0 && stage !== "placing" && (
+        <button
+          type="button"
+          onClick={goBack}
+          className="h-9 px-3 rounded-lg text-sm text-slate-500 hover:text-slate-900"
+        >
+          ← Back a step
+        </button>
+      )}
+
+      {showUndo && (
+        <button
+          type="button"
+          onClick={undo}
+          disabled={undoCount === 0}
+          className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border border-slate-300 bg-white text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:text-slate-300 disabled:cursor-not-allowed"
+        >
+          <Undo2 className="w-3.5 h-3.5" /> Undo
+          {undoCount > 0 && (
+            <span className="text-[11px] text-slate-500">({undoCount})</span>
+          )}
+        </button>
+      )}
+
+      <div className="flex-1" />
+
+      {skippable && (
+        <button
+          type="button"
+          onClick={advance}
+          className="h-9 px-3 rounded-lg text-sm text-slate-500 hover:text-slate-900"
+        >
+          Skip
+        </button>
+      )}
+
+      {stage !== "placing" && (
+        <button
+          type="button"
+          onClick={advance}
+          disabled={placementsRunning}
+          className={`inline-flex items-center gap-2 ${
+            compact ? "h-9 px-4 text-sm" : "h-10 px-5 text-sm"
+          } rounded-lg bg-coral hover:bg-coral-dark disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-semibold transition-colors shadow-sm`}
+        >
+          {stage === "walls" && (
+            <>
+              Save walls <ArrowRight className="w-4 h-4" />
+            </>
+          )}
+          {stage === "outdoor" && (
+            <>
+              Save outdoor space <ArrowRight className="w-4 h-4" />
+            </>
+          )}
+          {stage === "doors" && (
+            <>
+              Save doors <ArrowRight className="w-4 h-4" />
+            </>
+          )}
+          {stage === "stairs" && (
+            <>
+              Save stairs <ArrowRight className="w-4 h-4" />
+            </>
+          )}
+          {stage === "radiators" && (
+            <>
+              Save radiators <ArrowRight className="w-4 h-4" />
+            </>
+          )}
+          {stage === "review" && (
+            <>
+              <Sparkles className="w-4 h-4" /> Find heat pump &amp; cylinder
+            </>
+          )}
+          {stage === "adjust" && (
+            <>
+              <Check className="w-4 h-4" /> Looks good — continue
+            </>
+          )}
+        </button>
+      )}
+
+      {stage === "placing" && (
+        <div
+          className={`inline-flex items-center gap-2 ${
+            compact ? "h-9 px-4 text-sm" : "h-10 px-5 text-sm"
+          } rounded-lg bg-slate-200 text-slate-500 font-semibold`}
+        >
+          <Loader2 className="w-4 h-4 animate-spin" /> Thinking…
+        </div>
+      )}
     </div>
   );
 }

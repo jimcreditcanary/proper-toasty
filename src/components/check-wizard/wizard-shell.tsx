@@ -1,7 +1,9 @@
 "use client";
 
+import Link from "next/link";
+import { Logo } from "@/components/logo";
 import { CheckWizardProvider, useCheckWizard } from "./context";
-import { STEP_ORDER } from "./types";
+import { STEP_ORDER, type CheckStep } from "./types";
 import { Step1Address } from "./step-1-address";
 import { Step2Preview } from "./step-2-preview";
 import { Step3Questions } from "./step-3-questions";
@@ -12,21 +14,37 @@ import { Step6Report } from "./step-6-report";
 import { CountryGate } from "./country-gate";
 import { isV1SupportedCountry } from "@/lib/postcode/region";
 
-function Progress() {
+// Visible steps in the header progress — `lead_capture` is collapsed into
+// the analysis/report continuum so the user sees a clean "X of 6".
+const VISIBLE_STEPS: CheckStep[] = [
+  "address",
+  "preview",
+  "questions",
+  "floorplan",
+  "analysis",
+  "report",
+];
+
+function HeaderProgress() {
   const { step } = useCheckWizard();
-  const currentIdx = STEP_ORDER.indexOf(step);
+  // Treat `lead_capture` as part of `analysis` for progress purposes.
+  const effectiveStep: CheckStep = step === "lead_capture" ? "analysis" : step;
+  const currentIdx = VISIBLE_STEPS.indexOf(effectiveStep);
   return (
-    <div className="flex items-center justify-center gap-1.5 mb-10">
-      {STEP_ORDER.map((s, i) => (
+    <div className="flex items-center gap-1" aria-label={`Step ${currentIdx + 1} of ${VISIBLE_STEPS.length}`}>
+      {VISIBLE_STEPS.map((s, i) => (
         <span
           key={s}
           className={`h-1.5 rounded-full transition-all ${
             i <= currentIdx ? "bg-coral" : "bg-slate-200"
           }`}
-          style={{ width: i <= currentIdx ? 32 : 20 }}
+          style={{ width: i === currentIdx ? 28 : i < currentIdx ? 20 : 14 }}
           aria-hidden
         />
       ))}
+      <span className="ml-2 text-[11px] font-medium tabular-nums text-slate-500 hidden sm:inline">
+        {currentIdx + 1} / {VISIBLE_STEPS.length}
+      </span>
     </div>
   );
 }
@@ -60,10 +78,28 @@ function CurrentStep() {
 export function CheckWizard() {
   return (
     <CheckWizardProvider>
-      <div className="mx-auto w-full max-w-4xl px-4 sm:px-6 py-12 sm:py-16">
-        <Progress />
-        <CurrentStep />
-      </div>
+      <header className="bg-cream/80 backdrop-blur-md border-b border-[var(--border)] sticky top-0 z-50">
+        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
+          <Link href="/" className="flex items-center shrink-0">
+            <Logo size="sm" variant="light" />
+          </Link>
+          <div className="flex-1 flex items-center justify-center min-w-0">
+            <HeaderProgress />
+          </div>
+          <span className="hidden md:inline text-[11px] font-medium uppercase tracking-wider text-[var(--muted-brand)] shrink-0">
+            Heat pump &amp; solar check
+          </span>
+        </div>
+      </header>
+      <main className="flex-1 bg-gradient-to-b from-cream-deep to-cream">
+        <div className="mx-auto w-full max-w-4xl px-4 sm:px-6 py-6 sm:py-10">
+          <CurrentStep />
+        </div>
+      </main>
     </CheckWizardProvider>
   );
 }
+
+// Re-exported so legacy STEP_ORDER consumers (tests, fixtures) aren't broken
+// by the visible/effective split above.
+export { STEP_ORDER };
