@@ -104,9 +104,6 @@ export function Step1Address() {
   return (
     <div className="max-w-xl mx-auto w-full">
       <div className="text-center mb-8">
-        <p className="text-xs font-semibold uppercase tracking-wider text-coral mb-2">
-          Step 1 of 6
-        </p>
         <h2 className="text-3xl sm:text-4xl text-navy">What&rsquo;s your postcode?</h2>
         <p className="mt-3 text-slate-600">
           We&rsquo;ll pull the exact property — UPRN, EPC, roof — from public UK data.

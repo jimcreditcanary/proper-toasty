@@ -104,9 +104,6 @@ export function Step5Analysis() {
 
   return (
     <div className="max-w-xl mx-auto w-full text-center">
-      <p className="text-xs font-semibold uppercase tracking-wider text-coral mb-2">
-        Step 5 of 6
-      </p>
       <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-navy">
         Running the analysis
       </h2>

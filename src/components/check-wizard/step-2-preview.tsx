@@ -107,9 +107,6 @@ export function Step2Preview() {
   return (
     <div className="max-w-4xl mx-auto w-full">
       <div className="text-center mb-6">
-        <p className="text-xs font-semibold uppercase tracking-wider text-coral mb-2">
-          Step 2 of 6
-        </p>
         <h2 className="text-3xl sm:text-4xl text-navy">Is this your home?</h2>
       </div>
 
