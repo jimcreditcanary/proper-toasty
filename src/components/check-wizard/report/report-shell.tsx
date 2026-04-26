@@ -156,7 +156,7 @@ export function ReportShell() {
   }).toString()}`;
 
   return (
-    <div className="w-full max-w-7xl mx-auto px-3 sm:px-4 lg:px-6">
+    <div className="w-full max-w-[1400px] mx-auto px-3 sm:px-4 lg:px-6">
       {/* Persistent header — address + verdict headline. Stays at the top
           regardless of which tab is active so the user never loses the
           context of what this report is about. */}

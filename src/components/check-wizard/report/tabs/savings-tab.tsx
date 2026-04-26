@@ -163,11 +163,24 @@ export function SavingsTab({
     );
     const payUpAnnual = financeAnnual - totalFinanceCostY1;
 
+    // Export revenue — solar you generated but didn't use, sold to the grid.
+    // Surfaced separately because it's the question users ask most often.
+    const exportRevenueY1 = year1.reduce(
+      (acc, r) => acc + r.Selected_ExportRevenue,
+      0,
+    );
+    const exportKwhY1 = year1.reduce(
+      (acc, r) => acc + r.ExportToGrid_kWh,
+      0,
+    );
+
     return {
       doNothingAnnual,
       financeAnnual,
       payUpAnnual,
       totalFinanceCostY1,
+      exportRevenueY1,
+      exportKwhY1,
     };
   }, [rows]);
 
@@ -285,7 +298,7 @@ export function SavingsTab({
             </span>
           </div>
         ) : scenarios && headline ? (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4">
             <ScenarioCard
               kind="donothing"
               active={activeScenario === "donothing"}
@@ -350,13 +363,46 @@ export function SavingsTab({
               )}
             </p>
             <p className="mt-2 text-xs text-slate-500">
-              Includes export earnings from any solar generation you
-              don&rsquo;t use yourself, energy-bill inflation, and supplier
-              standing charges. Doesn&rsquo;t include planning fees or any
-              electrical-panel upgrades — your installer will price those in
-              the formal quote.
+              Includes export earnings from solar you don&rsquo;t use
+              yourself (called out below), energy-bill inflation, and
+              supplier standing charges. Doesn&rsquo;t include planning
+              fees or any electrical-panel upgrades — your installer
+              will price those in the formal quote.
             </p>
           </div>
+        )}
+
+        {/* Export revenue callout — solar tech only. Answers the
+            "do you account for selling back to the grid?" question
+            with a hard number rather than a footnote. */}
+        {!noTechSelected &&
+          selection.hasSolar &&
+          scenarios &&
+          scenarios.exportRevenueY1 > 1 && (
+            <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 flex items-start gap-3">
+              <span className="shrink-0 inline-flex items-center justify-center w-9 h-9 rounded-xl bg-white text-emerald-600 border border-emerald-100">
+                <Sun className="w-5 h-5" />
+              </span>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-emerald-900">
+                  Plus{" "}
+                  <span className="text-base">
+                    {fmtGbp(scenarios.exportRevenueY1, { compact: true })}
+                  </span>{" "}
+                  earned from selling unused solar back to the grid (year 1)
+                </p>
+                <p className="mt-1 text-xs text-emerald-800/80 leading-relaxed">
+                  You&rsquo;d export roughly{" "}
+                  <strong>
+                    {Math.round(scenarios.exportKwhY1).toLocaleString()} kWh
+                  </strong>{" "}
+                  to the grid this year — that&rsquo;s solar you generated but
+                  weren&rsquo;t home to use. Your supplier&rsquo;s SEG (Smart
+                  Export Guarantee) tariff buys it from you. This is already
+                  netted into the figures above.
+                </p>
+              </div>
+            </div>
         )}
       </SectionCard>
 

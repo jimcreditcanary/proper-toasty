@@ -78,7 +78,7 @@ export function OverviewTab({
         subtitle="Three quick reads — pick the ones you want to dig into."
         icon={<Sparkles className="w-5 h-5" />}
       >
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
           <RecCard
             kind="heatpump"
             title="Heat pump"
@@ -456,7 +456,7 @@ function RecCard({
 
   return (
     <div
-      className={`rounded-2xl border p-4 transition-all ${
+      className={`rounded-2xl border p-4 transition-all flex flex-col ${
         disabled
           ? "border-slate-200 bg-slate-50/40 opacity-60"
           : selected
@@ -464,24 +464,30 @@ function RecCard({
             : "border-slate-200 bg-white"
       }`}
     >
-      <div className="flex items-start gap-3">
-        <span className="shrink-0 inline-flex items-center justify-center w-9 h-9 rounded-xl bg-white text-coral shadow-sm border border-slate-100">
-          {icon}
+      {/* Top strip: icon + title left, verdict pill right.
+          Verdict on its own row prevents the pill clipping the title at
+          narrow widths (the symptom we saw on the 2-col breakpoint where
+          "Heat pump" was getting truncated by the RECOMMENDED chip). */}
+      <div className="flex items-center justify-between gap-2 mb-3">
+        <span className="inline-flex items-center gap-2 min-w-0">
+          <span className="shrink-0 inline-flex items-center justify-center w-9 h-9 rounded-xl bg-white text-coral shadow-sm border border-slate-100">
+            {icon}
+          </span>
+          <span className="text-sm font-semibold text-navy truncate">
+            {title}
+          </span>
         </span>
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-navy">{title}</p>
-          <p className="mt-0.5 text-base font-bold text-navy leading-tight">
-            {headline}
-          </p>
-        </div>
         <span
-          className={`shrink-0 text-[10px] font-bold uppercase tracking-wider rounded-full px-2 py-0.5 ${verdictTone}`}
+          className={`shrink-0 text-[10px] font-bold uppercase tracking-wider rounded-full px-2 py-0.5 whitespace-nowrap ${verdictTone}`}
         >
           {verdict}
         </span>
       </div>
 
-      <p className="mt-3 text-xs text-slate-600 leading-relaxed">{costLine}</p>
+      <p className="text-lg font-bold text-navy leading-tight">{headline}</p>
+      <p className="mt-2 text-xs text-slate-600 leading-relaxed flex-1">
+        {costLine}
+      </p>
 
       <div className="mt-4 flex items-center justify-between gap-3">
         <label
@@ -503,7 +509,7 @@ function RecCard({
           <button
             type="button"
             onClick={onJump}
-            className="text-xs font-semibold text-coral hover:underline"
+            className="text-xs font-semibold text-coral hover:underline whitespace-nowrap"
           >
             See details →
           </button>

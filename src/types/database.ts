@@ -824,6 +824,202 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["homeowner_leads"]["Insert"]>;
         Relationships: [];
       };
+      installers: {
+        Row: {
+          id: number;
+          certification_number: string;
+          certification_body: string;
+          company_name: string;
+          email: string | null;
+          telephone: string | null;
+          website: string | null;
+          address_line_1: string | null;
+          address_line_2: string | null;
+          address_line_3: string | null;
+          county: string | null;
+          postcode: string | null;
+          country: string | null;
+          latitude: number | null;
+          longitude: number | null;
+          bus_registered: boolean;
+          cap_air_source_heat_pump: boolean;
+          cap_battery_storage: boolean;
+          cap_biomass: boolean;
+          cap_exhaust_air_heat_pump: boolean;
+          cap_gas_absorption_heat_pump: boolean;
+          cap_ground_source_heat_pump: boolean;
+          cap_water_source_heat_pump: boolean;
+          cap_hydro: boolean;
+          cap_micro_chp: boolean;
+          cap_solar_assisted_heat_pump: boolean;
+          cap_solar_pv: boolean;
+          cap_solar_thermal: boolean;
+          cap_wind_turbine: boolean;
+          region_east_midlands: boolean;
+          region_eastern: boolean;
+          region_london: boolean;
+          region_north_east: boolean;
+          region_north_west: boolean;
+          region_northern_ireland: boolean;
+          region_scotland: boolean;
+          region_south_east: boolean;
+          region_south_west: boolean;
+          region_wales: boolean;
+          region_west_midlands: boolean;
+          region_yorkshire_humberside: boolean;
+          company_number: string | null;
+          ch_matched_name: string | null;
+          ch_matched_address: string | null;
+          ch_match_source: string | null;
+          ch_match_confidence: "high" | "medium" | "low" | "uncertain" | null;
+          reviews_score: number;
+          reviews_count: number;
+          source: string;
+          scraped_at: string;
+          technology_sub_type: string | null;
+          raw_regions_covered: string | null;
+          raw_technologies: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id: number;
+          certification_number: string;
+          certification_body: string;
+          company_name: string;
+          email?: string | null;
+          telephone?: string | null;
+          website?: string | null;
+          address_line_1?: string | null;
+          address_line_2?: string | null;
+          address_line_3?: string | null;
+          county?: string | null;
+          postcode?: string | null;
+          country?: string | null;
+          latitude?: number | null;
+          longitude?: number | null;
+          bus_registered?: boolean;
+          cap_air_source_heat_pump?: boolean;
+          cap_battery_storage?: boolean;
+          cap_biomass?: boolean;
+          cap_exhaust_air_heat_pump?: boolean;
+          cap_gas_absorption_heat_pump?: boolean;
+          cap_ground_source_heat_pump?: boolean;
+          cap_water_source_heat_pump?: boolean;
+          cap_hydro?: boolean;
+          cap_micro_chp?: boolean;
+          cap_solar_assisted_heat_pump?: boolean;
+          cap_solar_pv?: boolean;
+          cap_solar_thermal?: boolean;
+          cap_wind_turbine?: boolean;
+          region_east_midlands?: boolean;
+          region_eastern?: boolean;
+          region_london?: boolean;
+          region_north_east?: boolean;
+          region_north_west?: boolean;
+          region_northern_ireland?: boolean;
+          region_scotland?: boolean;
+          region_south_east?: boolean;
+          region_south_west?: boolean;
+          region_wales?: boolean;
+          region_west_midlands?: boolean;
+          region_yorkshire_humberside?: boolean;
+          company_number?: string | null;
+          ch_matched_name?: string | null;
+          ch_matched_address?: string | null;
+          ch_match_source?: string | null;
+          ch_match_confidence?: "high" | "medium" | "low" | "uncertain" | null;
+          reviews_score?: number;
+          reviews_count?: number;
+          source?: string;
+          scraped_at?: string;
+          technology_sub_type?: string | null;
+          raw_regions_covered?: string | null;
+          raw_technologies?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["installers"]["Insert"]>;
+        Relationships: [];
+      };
+      installer_leads: {
+        Row: {
+          id: string;
+          homeowner_lead_id: string | null;
+          contact_email: string;
+          contact_name: string | null;
+          contact_phone: string | null;
+          preferred_contact_method: "email" | "phone" | "whatsapp" | "any" | null;
+          preferred_contact_window: string | null;
+          notes: string | null;
+          installer_id: number;
+          wants_heat_pump: boolean;
+          wants_solar: boolean;
+          wants_battery: boolean;
+          property_address: string | null;
+          property_postcode: string | null;
+          property_uprn: string | null;
+          property_latitude: number | null;
+          property_longitude: number | null;
+          analysis_snapshot: Json | null;
+          status:
+            | "new"
+            | "sent_to_installer"
+            | "installer_acknowledged"
+            | "visit_booked"
+            | "visit_completed"
+            | "closed_won"
+            | "closed_lost"
+            | "cancelled";
+          installer_notified_at: string | null;
+          installer_acknowledged_at: string | null;
+          visit_booked_for: string | null;
+          stripe_charge_id: string | null;
+          charge_amount_pence: number | null;
+          charged_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          homeowner_lead_id?: string | null;
+          contact_email: string;
+          contact_name?: string | null;
+          contact_phone?: string | null;
+          preferred_contact_method?: "email" | "phone" | "whatsapp" | "any" | null;
+          preferred_contact_window?: string | null;
+          notes?: string | null;
+          installer_id: number;
+          wants_heat_pump?: boolean;
+          wants_solar?: boolean;
+          wants_battery?: boolean;
+          property_address?: string | null;
+          property_postcode?: string | null;
+          property_uprn?: string | null;
+          property_latitude?: number | null;
+          property_longitude?: number | null;
+          analysis_snapshot?: Json | null;
+          status?:
+            | "new"
+            | "sent_to_installer"
+            | "installer_acknowledged"
+            | "visit_booked"
+            | "visit_completed"
+            | "closed_won"
+            | "closed_lost"
+            | "cancelled";
+          installer_notified_at?: string | null;
+          installer_acknowledged_at?: string | null;
+          visit_booked_for?: string | null;
+          stripe_charge_id?: string | null;
+          charge_amount_pence?: number | null;
+          charged_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["installer_leads"]["Insert"]>;
+        Relationships: [];
+      };
     };
     Views: {
       [_ in never]: never;
