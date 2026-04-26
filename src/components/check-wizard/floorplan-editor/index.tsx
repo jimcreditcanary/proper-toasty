@@ -181,6 +181,9 @@ export function FloorplanEditor({
   onRequestPlacements,
   placementsRunning,
   placementsError,
+  onRequestAutorun,
+  autorunRunning,
+  autorunError,
   onComplete,
 }: FloorplanEditorProps) {
   // Pick initial stage based on what's already in analysis (for back-and-
@@ -547,9 +550,14 @@ export function FloorplanEditor({
     stage !== "review" &&
     stage !== "adjust";
 
-  // Welcome stage is a tight hero — single card, content packed so the CTA
-  // sits above the fold even on a 13" laptop. Padding and copy are deliberately
-  // small because the page wrapper is hidden once the editor is on screen.
+  // Welcome stage is a tight hero — single card, content packed so both
+  // CTAs sit above the fold even on a 13" laptop. Two paths offered:
+  //   1. "Let's go" → walk through the manual annotation wizard (highest
+  //      quality result; user knows their home better than Claude does).
+  //   2. "Let AI do it for me" → POST /api/floorplan/autorun. Claude
+  //      detects everything from the image and we jump straight to
+  //      adjust. Lower friction, lower fidelity. Banner on the adjust
+  //      stage tells the user the installer will verify on site.
   if (stage === "welcome") {
     return (
       <div className="rounded-2xl border border-[var(--border)] bg-white p-5 sm:p-6 shadow-sm">
@@ -564,14 +572,54 @@ export function FloorplanEditor({
         <p className="text-sm text-slate-600 leading-relaxed">
           {cfg.body}
         </p>
-        <button
-          type="button"
-          onClick={advance}
-          className="mt-4 inline-flex items-center gap-2 h-11 px-6 rounded-full bg-coral hover:bg-coral-dark text-white font-semibold text-sm shadow-sm"
-        >
-          Let&rsquo;s go
-          <ArrowRight className="w-4 h-4" />
-        </button>
+
+        <div className="mt-4 flex flex-col sm:flex-row gap-3 sm:items-center">
+          <button
+            type="button"
+            onClick={advance}
+            disabled={autorunRunning}
+            className="inline-flex items-center justify-center gap-2 h-11 px-6 rounded-full bg-coral hover:bg-coral-dark disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-semibold text-sm shadow-sm"
+          >
+            Let&rsquo;s go
+            <ArrowRight className="w-4 h-4" />
+          </button>
+
+          {onRequestAutorun && (
+            <button
+              type="button"
+              onClick={onRequestAutorun}
+              disabled={autorunRunning}
+              className="inline-flex items-center justify-center gap-2 h-11 px-5 rounded-full border border-coral/40 bg-white hover:bg-coral-pale/40 disabled:opacity-60 disabled:cursor-not-allowed text-coral-dark font-semibold text-sm transition-colors"
+            >
+              {autorunRunning ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Reading your floorplan…
+                </>
+              ) : (
+                <>
+                  <Wand2 className="w-4 h-4" />
+                  Let AI do it for me
+                </>
+              )}
+            </button>
+          )}
+        </div>
+
+        {onRequestAutorun && !autorunRunning && (
+          <p className="mt-3 text-xs text-slate-500 leading-relaxed">
+            Drawing it yourself usually gives a better result — you know your
+            home best. But if you&rsquo;re short on time, AI can have a go and
+            your installer will verify everything on site.
+          </p>
+        )}
+
+        {autorunError && (
+          <p className="mt-3 text-xs text-red-700 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
+            Couldn&rsquo;t read the floorplan automatically — {autorunError}.
+            Please try drawing it instead.
+          </p>
+        )}
       </div>
     );
   }
@@ -1098,6 +1146,35 @@ export function FloorplanEditor({
       {placementsError && (
         <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
           {placementsError}
+        </div>
+      )}
+
+      {/* Autorun disclaimer — only shown when the analysis came from the
+          "Let AI do it for me" path, so the user knows to expect rougher
+          geometry and that their installer will verify on site. */}
+      {stage === "adjust" && analysis.aiAutorun && (
+        <div className="mt-4 rounded-xl border border-coral/30 bg-coral-pale/40 p-4">
+          <p className="text-sm font-semibold text-coral-dark inline-flex items-center gap-2">
+            <Wand2 className="w-4 h-4" />
+            AI-generated from your floorplan
+          </p>
+          <p className="mt-1.5 text-xs text-slate-700 leading-relaxed">
+            We&rsquo;ve detected the walls, doors and outdoor space directly
+            from your floorplan, then placed the heat pump and cylinder in
+            sensible spots. It&rsquo;s a great starting point — your installer
+            will measure up and confirm everything on their site visit.
+          </p>
+          <p className="mt-2 text-xs text-slate-600 leading-relaxed">
+            Want to fine-tune anything? Drag the pins below, or{" "}
+            <button
+              type="button"
+              onClick={() => setStage("walls")}
+              className="text-coral-dark hover:underline font-medium"
+            >
+              draw the walls yourself
+            </button>{" "}
+            for a more accurate read.
+          </p>
         </div>
       )}
 

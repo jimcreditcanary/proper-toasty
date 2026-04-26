@@ -323,3 +323,203 @@ export async function suggestPlacements(
 
   return { ok: true, data: validated.data };
 }
+
+// ─── Autorun path ───────────────────────────────────────────────────────────
+//
+// Same output shape as `suggestPlacements`, but takes ONLY the floorplan
+// image (no user annotations) and asks Claude to detect everything itself
+// in one pass. Triggered by the "Let AI do it for me" CTA on the Step 4
+// welcome screen — for users who don't want to draw anything.
+//
+// Trade-off vs the user-annotation flow: lower geometry confidence (the
+// user knows their home better than vision-only inference does), but
+// zero friction. The result is gated behind a "your installer will
+// verify on site" banner so the user understands.
+
+const AUTORUN_SYSTEM = `You are a floorplan-detection and equipment-placement assistant for a UK heat-pump installer.
+
+You receive ONLY the homeowner's uploaded floorplan IMAGE — no annotations.
+The user has skipped the manual draw step and is trusting you to do everything.
+
+Your job has FOUR parts.
+
+A) DETECT GEOMETRY from the image:
+   - Walls — straight lines tracing the actual external + internal walls visible in the floorplan. Aim for clean, perpendicular shapes. External walls form the building outline; internal walls separate rooms.
+   - Doors — points at the actual door positions visible in the image. Each door snaps to a wall.
+   - Outdoor zones — polygons matching any garden / driveway / patio / side return visible. If there's no clear outdoor area in the floorplan but the satellite verdict says "yes", invent a sensible outdoor zone outside the building footprint.
+   - Stairs — rectangles at any visible staircase.
+   - Radiators — these are usually NOT shown on architects' floorplans. Skip unless the image clearly marks them. Do NOT hallucinate radiators.
+   All coordinates in 0..1000 viewport space (assume a square viewport — the image will be drawn into it preserving aspect ratio, but the editor uses a 1000-unit grid).
+
+B) DETERMINE SCALE. As "viewportUnitsPerMeter":
+   - Read any dimension labels visible on the floorplan ("Kitchen 4.2m × 3.1m", "1442 sq ft", "134 sqm").
+   - If labelled total area is given, sum-of-rooms should match.
+   - Fall back to typical UK room sizes if nothing is labelled.
+
+C) PLACE EQUIPMENT (same rules as the user-annotation flow):
+   - 1-2 HEAT PUMP candidates. Provision: 1.2m × 1.2m. Inside an outdoor zone, ≥1m from any door, avoid windows. Sized using viewportUnitsPerMeter (e.g. 60×60 if 1m = 50 units). Label "Option 1" / "Option 2" if you offer two.
+   - 1 HOT WATER CYLINDER candidate. Provision: 1m × 1m. Inside the building footprint, near central heating pipework / utility / airing cupboard. Not in a door swing area.
+   - PROXIMITY: place them as close as the layout sensibly allows (target ≤3m wall-hugging pipe run). Flag any longer separation in the notes with a pipe-run estimate.
+
+D) Return CONCERNS (1-3 short bullets a surveyor would raise) and CLARIFICATION QUESTIONS (Yes/No questions whose answers would change placement — empty array if nothing's ambiguous).
+
+Output STRICT JSON only. No prose outside the JSON.`;
+
+export interface AutorunPlacementsInput {
+  objectKey: string;
+  satelliteVerdict: "yes" | "no" | "unsure" | null;
+  satelliteNotes: string | null;
+  totalFloorAreaM2?: number | null;
+}
+
+function buildAutorunPrompt(input: AutorunPlacementsInput): string {
+  const { satelliteVerdict, satelliteNotes, totalFloorAreaM2 } = input;
+
+  const satLine =
+    satelliteVerdict != null
+      ? `Satellite verdict on outdoor space: ${satelliteVerdict}${satelliteNotes ? ` — ${satelliteNotes}` : ""}`
+      : "Satellite verdict on outdoor space: unavailable";
+
+  const areaLine =
+    totalFloorAreaM2 != null
+      ? `Known total floor area (from EPC): ${totalFloorAreaM2} m². Use this as a scaling constraint when computing viewportUnitsPerMeter.`
+      : "Total floor area: unknown — read dimension labels off the floorplan if you can.";
+
+  return `Here's the user's floorplan (attached image). They've SKIPPED the manual annotation step.
+
+${satLine}
+${areaLine}
+
+Detect the geometry, work out the scale, and place the heat pump and cylinder.
+Return JSON with the same shape as the annotation-flow response (NO prose):
+{
+  "refinedWalls": [
+    { "id": "rw1", "points": [{ "x": 100, "y": 200 }, { "x": 600, "y": 200 }] }
+  ],
+  "refinedDoors": [
+    { "id": "rd1", "x": 350, "y": 200, "wallPathId": "rw1" }
+  ],
+  "refinedOutdoorZones": [
+    {
+      "id": "rz1",
+      "label": "Rear garden",
+      "type": "garden",
+      "points": [
+        { "x": 50, "y": 50 }, { "x": 350, "y": 50 },
+        { "x": 350, "y": 200 }, { "x": 50, "y": 200 }
+      ],
+      "notes": ""
+    }
+  ],
+  "refinedStairs": [
+    { "id": "rs1", "x": 700, "y": 350, "vWidth": 80, "vHeight": 200, "direction": "up" }
+  ],
+  "viewportUnitsPerMeter": 50,
+  "heatPumpLocations": [
+    {
+      "id": "hp1",
+      "label": "Option 1 — Rear garden, SW corner",
+      "x": 80, "y": 130,
+      "vWidth": 60, "vHeight": 60,
+      "notes": "Within outdoor zone, clear of doors. Approx 4m to proposed cylinder location.",
+      "source": "ai_suggested"
+    }
+  ],
+  "hotWaterCylinderCandidates": [
+    {
+      "id": "hwc1",
+      "label": "Utility room — against NE wall",
+      "x": 500, "y": 400,
+      "vWidth": 50, "vHeight": 50,
+      "notes": "Adjacent to existing boiler pipework; short pipe run to outdoor unit.",
+      "source": "ai_suggested"
+    }
+  ],
+  "concerns": ["One short bullet per real installer concern."],
+  "installerQuestions": ["One question an installer would want the homeowner to confirm."],
+  "clarificationQuestions": [
+    {
+      "id": "q1",
+      "question": "Is the space under your stairs taller than 1.5m?",
+      "options": ["Yes", "No", "Not sure"],
+      "context": "Determines whether it can host a hot-water cylinder."
+    }
+  ]
+}`;
+}
+
+export async function autorunPlacements(
+  input: AutorunPlacementsInput,
+): Promise<SuggestPlacementsResult> {
+  let image: { data: string; mediaType: "image/jpeg" | "image/png" };
+  try {
+    const url = await signedReadUrl(input.objectKey, 300);
+    image = await fetchImageAsBase64(url);
+  } catch (err) {
+    return {
+      ok: false,
+      data: null,
+      error: err instanceof Error ? err.message : "Could not fetch floorplan image",
+    };
+  }
+
+  let raw: string;
+  let stopReason: string | null = null;
+  try {
+    const response = await anthropic.messages.create({
+      model: MODEL,
+      max_tokens: MAX_TOKENS,
+      system: AUTORUN_SYSTEM,
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "image",
+              source: {
+                type: "base64",
+                media_type: image.mediaType,
+                data: image.data,
+              },
+            },
+            { type: "text", text: buildAutorunPrompt(input) },
+          ],
+        },
+      ],
+    });
+    stopReason = response.stop_reason ?? null;
+    console.log(
+      `[autorun] stop=${stopReason} in=${response.usage?.input_tokens ?? 0} out=${response.usage?.output_tokens ?? 0}`,
+    );
+    if (stopReason === "max_tokens") {
+      console.warn("[autorun] hit max_tokens — output may be truncated.");
+    }
+    const block = response.content.find((c) => c.type === "text");
+    if (!block || block.type !== "text") throw new Error("No text block in response");
+    raw = block.text;
+  } catch (err) {
+    return {
+      ok: false,
+      data: null,
+      error: err instanceof Error ? err.message : "Claude call failed",
+    };
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = extractJson(raw);
+  } catch {
+    console.warn("[autorun] JSON parse failed; first 300:", raw.slice(0, 300));
+    return { ok: false, data: null, error: "Could not parse Claude JSON" };
+  }
+  const validated = SuggestPlacementsResponseSchema.safeParse(parsed);
+  if (!validated.success) {
+    console.warn(
+      "[autorun] schema validation failed:",
+      JSON.stringify(validated.error.flatten()),
+    );
+    return { ok: false, data: null, error: "Schema validation failed" };
+  }
+
+  return { ok: true, data: validated.data };
+}

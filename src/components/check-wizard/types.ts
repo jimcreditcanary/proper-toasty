@@ -60,6 +60,11 @@ export interface CheckWizardState {
   tenure: Tenure | null;
   currentHeatingFuel: HeatingFuel | null; // future: pre-fill from EPC main fuel
   priorHeatPumpFunding: YesNoUnsure | null; // Ofgem BUS: no double funding
+  // Whether the user wants to finance the works. Drives which calculator
+  // scenario is shown by default on the report (Yes / Not sure → Finance
+  // scenario expanded; No → Pay-up-front scenario expanded). Both scenarios
+  // remain available to toggle regardless of the answer.
+  financingPreference: YesNoUnsure | null;
 
   // Energy tariff details — required for cost-savings calc later.
   // Electricity always required; gas required when currentHeatingFuel === "gas".
@@ -99,6 +104,7 @@ export const INITIAL_STATE: CheckWizardState = {
   tenure: null,
   currentHeatingFuel: null,
   priorHeatPumpFunding: null,
+  financingPreference: null,
   electricityTariff: null,
   gasTariff: null,
   floorplanObjectKey: null,

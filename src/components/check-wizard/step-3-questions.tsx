@@ -7,6 +7,7 @@ import {
   Home as HomeIcon,
   Thermometer,
   Receipt,
+  Banknote,
 } from "lucide-react";
 import { useCheckWizard } from "./context";
 import type { HeatingFuel, Tenure, YesNoUnsure } from "./types";
@@ -40,6 +41,8 @@ export function Step3Questions() {
     if (!state.tenure || !state.currentHeatingFuel) return false;
     // Heat pump grant blocker — always ask, since the report covers heat pump.
     if (!state.priorHeatPumpFunding) return false;
+    // Financing preference drives which scenario the report defaults to.
+    if (!state.financingPreference) return false;
     // Energy details: electricity always required; gas required when fuel is gas.
     if (!isFuelTariffComplete(state.electricityTariff)) return false;
     if (gasRequired && !isFuelTariffComplete(state.gasTariff)) return false;
@@ -48,6 +51,7 @@ export function Step3Questions() {
     state.tenure,
     state.currentHeatingFuel,
     state.priorHeatPumpFunding,
+    state.financingPreference,
     state.electricityTariff,
     state.gasTariff,
     gasRequired,
@@ -107,6 +111,19 @@ export function Step3Questions() {
           />
         </Question>
 
+        <Question
+          icon={<Banknote className="w-4 h-4" />}
+          title="Are you wanting to finance these improvements?"
+          sub="Either way you'll see both options on the report — paying up-front and spreading the cost over 10 years at 6.9% APR. This just sets which one we open with."
+        >
+          <Tiles
+            options={YNU_OPTIONS}
+            value={state.financingPreference}
+            onChange={(v) => update({ financingPreference: v })}
+            columns={3}
+          />
+        </Question>
+
         <EnergyDetailsCard
           electricity={state.electricityTariff}
           gas={state.gasTariff}
@@ -158,12 +175,12 @@ function Question({
   return (
     <fieldset className="rounded-2xl border border-[var(--border)] bg-white p-5 sm:p-6 shadow-sm">
       <legend className="flex items-center gap-2 px-2 -mx-2">
-        <span className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-coral-pale text-coral">
+        <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-coral-pale text-coral">
           {icon}
         </span>
-        <span className="text-sm font-semibold text-navy">{title}</span>
+        <span className="text-base sm:text-lg font-semibold text-navy">{title}</span>
       </legend>
-      <p className="mt-2 text-xs text-slate-500 leading-relaxed">{sub}</p>
+      <p className="mt-2 text-sm text-slate-600 leading-relaxed">{sub}</p>
       <div className="mt-4">{children}</div>
     </fieldset>
   );
@@ -190,21 +207,23 @@ function Tiles<T extends string>({
             key={opt.value}
             type="button"
             onClick={() => onChange(opt.value)}
-            className={`text-left rounded-lg border px-4 py-3 transition-colors ${
+            className={`text-left rounded-lg border px-4 py-3.5 transition-colors ${
               selected
                 ? "border-coral bg-coral-pale"
                 : "border-[var(--border)] bg-white hover:border-slate-300"
             }`}
           >
             <span
-              className={`block text-sm font-medium ${
+              className={`block text-base font-medium ${
                 selected ? "text-coral-dark" : "text-navy"
               }`}
             >
               {opt.title}
             </span>
             {opt.body && (
-              <span className="block text-xs text-slate-500 mt-0.5">{opt.body}</span>
+              <span className="block text-sm text-slate-500 mt-1 leading-snug">
+                {opt.body}
+              </span>
             )}
           </button>
         );

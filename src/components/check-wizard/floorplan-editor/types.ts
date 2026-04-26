@@ -34,6 +34,13 @@ export interface FloorplanEditorProps {
   onRequestPlacements?: () => void;
   placementsRunning?: boolean;
   placementsError?: string | null;
+  // Autorun = "Let AI do it for me" path on the welcome screen. Detects
+  // walls/doors/zones AND places HP/cylinder in one pass — no drawing.
+  // Same loading/error flags so the welcome screen can show the spinner
+  // and surface failures inline.
+  onRequestAutorun?: () => void;
+  autorunRunning?: boolean;
+  autorunError?: string | null;
   // Called when the user is finished — wizard should advance.
   onComplete?: () => void;
 }

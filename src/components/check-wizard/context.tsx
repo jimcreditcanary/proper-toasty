@@ -18,11 +18,9 @@ import {
   type CheckWizardState,
 } from "./types";
 
-// Bumped to _v3 when the floorplan schema pivoted to the user-annotation
-// model (walls / doors / outdoor zones instead of AI-extracted rooms).
-// Existing users get a clean slate on first load; their test data was
-// throwaway anyway.
-const STORAGE_KEY = "propertoasty_check_state_v3";
+// Bumped to _v4 when the financingPreference field landed on Step 3.
+// Older versions discarded on hydration so the new question always shows.
+const STORAGE_KEY = "propertoasty_check_state_v4";
 const STATE_TTL_MS = 24 * 60 * 60 * 1000; // 24h
 
 function reducer(state: CheckWizardState, action: CheckWizardAction): CheckWizardState {

@@ -50,6 +50,8 @@ export function Step4Floorplan() {
   const [satelliteRunning, setSatelliteRunning] = useState(false);
   const [placementsRunning, setPlacementsRunning] = useState(false);
   const [placementsError, setPlacementsError] = useState<string | null>(null);
+  const [autorunRunning, setAutorunRunning] = useState(false);
+  const [autorunError, setAutorunError] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -262,6 +264,47 @@ export function Step4Floorplan() {
     }
   }, [upload, state.floorplanAnalysis, state.satelliteOutdoorVerdict, update]);
 
+  // "Let AI do it for me" — single-pass detection + placement, no drawing.
+  // Same response shape as suggest-placements so we apply it via the same
+  // applyAiPlacements util, but we mark `aiAutorun=true` on the analysis
+  // so the editor can show the "your installer will verify" disclaimer.
+  // Also pulls EPC floor area through as a scaling anchor when available.
+  const handleRequestAutorun = useCallback(async () => {
+    if (upload.kind !== "uploaded" || !state.floorplanAnalysis) return;
+    setAutorunRunning(true);
+    setAutorunError(null);
+    try {
+      const epcArea =
+        state.analysis?.epc?.found === true
+          ? state.analysis.epc.certificate.totalFloorAreaM2 ?? null
+          : null;
+      const res = await fetch("/api/floorplan/autorun", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          objectKey: upload.objectKey,
+          satelliteVerdict: state.satelliteOutdoorVerdict,
+          satelliteNotes: null,
+          totalFloorAreaM2: epcArea,
+        }),
+      });
+      if (!res.ok) {
+        const j = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(j.error ?? `Autorun failed (${res.status})`);
+      }
+      const result = (await res.json()) as SuggestPlacementsResult;
+      if (!result.ok || !result.data) {
+        throw new Error(result.error ?? "Autorun failed");
+      }
+      const merged = applyAiPlacements(state.floorplanAnalysis, result.data);
+      update({ floorplanAnalysis: { ...merged, aiAutorun: true } });
+    } catch (err) {
+      setAutorunError(err instanceof Error ? err.message : "Autorun failed");
+    } finally {
+      setAutorunRunning(false);
+    }
+  }, [upload, state.floorplanAnalysis, state.satelliteOutdoorVerdict, state.analysis, update]);
+
   const imageUrl = state.floorplanObjectKey
     ? `/api/floorplan/image?key=${encodeURIComponent(state.floorplanObjectKey)}`
     : null;
@@ -352,6 +395,9 @@ export function Step4Floorplan() {
               onRequestPlacements={handleRequestPlacements}
               placementsRunning={placementsRunning}
               placementsError={placementsError}
+              onRequestAutorun={handleRequestAutorun}
+              autorunRunning={autorunRunning}
+              autorunError={autorunError}
               onComplete={next}
             />
           )}
