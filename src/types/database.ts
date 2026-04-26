@@ -977,6 +977,20 @@ export interface Database {
           stripe_charge_id: string | null;
           charge_amount_pence: number | null;
           charged_at: string | null;
+          // Migration 029 — notification + acknowledge tracking
+          notification_status:
+            | "pending"
+            | "sent"
+            | "installer_only"
+            | "homeowner_only"
+            | "failed"
+            | "skipped";
+          notification_error: string | null;
+          notification_attempted_at: string | null;
+          installer_email_id: string | null;
+          homeowner_email_id: string | null;
+          acknowledge_token: string | null;
+          acknowledge_clicked_at: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -1014,6 +1028,19 @@ export interface Database {
           stripe_charge_id?: string | null;
           charge_amount_pence?: number | null;
           charged_at?: string | null;
+          notification_status?:
+            | "pending"
+            | "sent"
+            | "installer_only"
+            | "homeowner_only"
+            | "failed"
+            | "skipped";
+          notification_error?: string | null;
+          notification_attempted_at?: string | null;
+          installer_email_id?: string | null;
+          homeowner_email_id?: string | null;
+          acknowledge_token?: string | null;
+          acknowledge_clicked_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
