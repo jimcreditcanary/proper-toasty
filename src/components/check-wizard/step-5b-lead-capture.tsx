@@ -141,7 +141,7 @@ export function Step5bLeadCapture() {
             <BenefitRow
               icon={<Sparkles className="w-4 h-4" />}
               title="Live savings calculator"
-              body="Powered by Octopus&rsquo; pricing engine — see exactly what you&rsquo;d save per year."
+              body="A clear breakdown of what you&rsquo;d save per year — including export earnings if you go solar."
             />
             <BenefitRow
               icon={<FileText className="w-4 h-4" />}
