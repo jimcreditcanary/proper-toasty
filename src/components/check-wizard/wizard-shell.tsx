@@ -75,6 +75,22 @@ function CurrentStep() {
   }
 }
 
+// The report wants the full viewport width — its left-nav + 5 wide tabs
+// need every pixel they can get. Every other step is form-style content
+// that reads better in a narrower column.
+function StepWrapper() {
+  const { step } = useCheckWizard();
+  const isReport = step === "report";
+  const wrapperClass = isReport
+    ? "w-full px-3 sm:px-4 lg:px-6 xl:px-8 py-6 sm:py-8"
+    : "mx-auto w-full max-w-4xl px-4 sm:px-6 py-6 sm:py-10";
+  return (
+    <div className={wrapperClass}>
+      <CurrentStep />
+    </div>
+  );
+}
+
 export function CheckWizard() {
   return (
     <CheckWizardProvider>
@@ -92,9 +108,7 @@ export function CheckWizard() {
         </div>
       </header>
       <main className="flex-1 bg-gradient-to-b from-cream-deep to-cream">
-        <div className="mx-auto w-full max-w-4xl px-4 sm:px-6 py-6 sm:py-10">
-          <CurrentStep />
-        </div>
+        <StepWrapper />
       </main>
     </CheckWizardProvider>
   );
