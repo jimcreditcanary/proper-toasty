@@ -19,13 +19,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertCircle,
-  Battery,
-  CheckCircle2,
-  Flame,
   Loader2,
   PoundSterling,
   Sun,
-  TrendingDown,
 } from "lucide-react";
 import type { AnalyseResponse } from "@/lib/schemas/analyse";
 import type { FuelTariff } from "@/lib/schemas/bill";
@@ -215,63 +211,12 @@ export function SavingsTab({
 
   return (
     <div className="space-y-6">
-      {/* Tech toggles */}
-      <SectionCard
-        title="What should we cost up?"
-        subtitle="Toggle the upgrades you're interested in. The numbers below update live."
-        icon={<TrendingDown className="w-5 h-5" />}
-      >
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <ToggleTile
-            label="Heat pump"
-            icon={<Flame className="w-4 h-4" />}
-            on={selection.hasHeatPump}
-            onChange={(v) =>
-              setSelection({ ...selection, hasHeatPump: v })
-            }
-          />
-          <ToggleTile
-            label="Solar PV"
-            icon={<Sun className="w-4 h-4" />}
-            on={selection.hasSolar}
-            onChange={(v) => setSelection({ ...selection, hasSolar: v })}
-          />
-          <ToggleTile
-            label="Battery"
-            icon={<Battery className="w-4 h-4" />}
-            on={selection.hasBattery}
-            disabled={!selection.hasSolar}
-            disabledHint="Needs solar to charge from"
-            onChange={(v) => setSelection({ ...selection, hasBattery: v })}
-          />
-        </div>
-
-        {selection.hasBattery && (
-          <div className="mt-5 max-w-md">
-            <div className="flex items-baseline justify-between mb-1">
-              <label className="text-sm font-medium text-navy">
-                Battery size
-              </label>
-              <span className="text-sm font-semibold text-coral-dark tabular-nums">
-                {batteryKwh} kWh
-              </span>
-            </div>
-            <input
-              type="range"
-              min={FINANCE_DEFAULTS.batteryKwhMin}
-              max={FINANCE_DEFAULTS.batteryKwhMax}
-              step={FINANCE_DEFAULTS.batteryKwhStep}
-              value={batteryKwh}
-              onChange={(e) => setBatteryKwh(Number(e.target.value))}
-              className="w-full accent-coral"
-            />
-            <p className="mt-1 text-xs text-slate-500">
-              ~{fmtGbp(batteryKwh * BATTERY_COST_PER_KWH, { compact: true })}{" "}
-              installed
-            </p>
-          </div>
-        )}
-      </SectionCard>
+      {/* Tech toggles + battery slider used to live here. They're now
+          redundant with the persistent recommendation strip in the
+          report shell — keeping a duplicate set of toggles confused
+          users about which one was source-of-truth. The battery sizing
+          slider moved to the Solar & battery tab where the rest of the
+          battery decision-making lives. */}
 
       {/* The three scenarios */}
       <SectionCard
@@ -540,58 +485,5 @@ function Row({
   );
 }
 
-function ToggleTile({
-  label,
-  icon,
-  on,
-  onChange,
-  disabled,
-  disabledHint,
-}: {
-  label: string;
-  icon: React.ReactNode;
-  on: boolean;
-  onChange: (v: boolean) => void;
-  disabled?: boolean;
-  disabledHint?: string;
-}) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={on}
-      disabled={disabled}
-      onClick={() => onChange(!on)}
-      title={disabled ? disabledHint : undefined}
-      className={`flex items-center justify-between gap-3 rounded-xl border px-4 py-3 transition-colors ${
-        disabled
-          ? "border-slate-200 bg-slate-50/40 opacity-50 cursor-not-allowed"
-          : on
-            ? "border-coral bg-coral-pale text-coral-dark"
-            : "border-[var(--border)] bg-white text-slate-600 hover:border-slate-300"
-      }`}
-    >
-      <span className="inline-flex items-center gap-2 text-sm font-semibold">
-        <span className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-white/80 text-coral">
-          {icon}
-        </span>
-        {label}
-      </span>
-      <span
-        className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
-          on ? "bg-coral" : "bg-slate-300"
-        }`}
-        aria-hidden
-      >
-        <span
-          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-            on ? "translate-x-4" : "translate-x-1"
-          }`}
-        />
-        {on && (
-          <CheckCircle2 className="absolute right-0 -top-3 w-3.5 h-3.5 text-emerald-500 bg-white rounded-full" />
-        )}
-      </span>
-    </button>
-  );
-}
+// ToggleTile removed — was duplicating the recommendation strip in the
+// shell. Selection is owned at the shell level via RecommendationStrip.

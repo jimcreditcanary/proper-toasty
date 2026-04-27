@@ -1,20 +1,22 @@
 "use client";
 
-// ReportShell — the new full-width report layout.
+// ReportShell — full-width report layout.
 //
-// Replaces the tabbed top-nav of the old step-6-report. The shell carries:
-//   - A sticky left rail with the 5 tabs (collapses to a horizontal row on
-//     small screens so it stays usable on mobile).
-//   - A wide content column (max-w-6xl) — wider than the rest of the
-//     wizard so the savings tab's bigger charts and the floorplan
-//     read-only widget have room to breathe.
-//   - A persistent address strip + verdict headline at the very top,
-//     visible regardless of which tab is active. Below those, each tab
-//     is a single self-contained component.
+// Layout (as of 2026-04-28):
+//   1. Header — address + verdict headline (sticky context)
+//   2. Recommendation strip — three big toggle tiles, always visible
+//      regardless of tab so the user can change their plan at any time
+//   3. Horizontal tab nav under the recommendation strip
+//   4. Active tab body
+//
+// Previous version had a sticky LEFT-RAIL nav; we moved tabs back to
+// horizontal because the rail was too prominent for a 5-tab structure
+// and ate horizontal real-estate the report tabs (esp. Savings + Solar)
+// needed for their wider charts and panels.
 //
 // Solar/Battery dependency is enforced HERE so every tab observes the
-// same source-of-truth: when the user toggles solar off in the savings
-// tab, battery flips off too and the Solar tab shows it as inactive.
+// same source-of-truth: when the user toggles solar off, battery flips
+// off too and the Solar tab shows it as inactive.
 
 import { useMemo, useRef, useState, type ReactNode } from "react";
 import {
@@ -34,6 +36,7 @@ import { SavingsTab } from "./tabs/savings-tab";
 import { HeatPumpTab } from "./tabs/heat-pump-tab";
 import { SolarTab } from "./tabs/solar-tab";
 import { BookVisitTab } from "./tabs/book-visit-tab";
+import { RecommendationStrip } from "./recommendation-strip";
 
 export type ReportTabKey =
   | "overview"
@@ -46,40 +49,14 @@ interface TabDef {
   key: ReportTabKey;
   label: string;
   icon: ReactNode;
-  blurb: string;
 }
 
 const TABS: TabDef[] = [
-  {
-    key: "overview",
-    label: "Overview",
-    icon: <HomeIcon className="w-4 h-4" />,
-    blurb: "Your property at a glance",
-  },
-  {
-    key: "savings",
-    label: "Savings",
-    icon: <PoundSterling className="w-4 h-4" />,
-    blurb: "What it costs, what you save",
-  },
-  {
-    key: "heatpump",
-    label: "Heat pump",
-    icon: <Flame className="w-4 h-4" />,
-    blurb: "How it fits your home",
-  },
-  {
-    key: "solar",
-    label: "Solar & battery",
-    icon: <Sun className="w-4 h-4" />,
-    blurb: "Panels on your roof",
-  },
-  {
-    key: "book",
-    label: "Book a site visit",
-    icon: <CalendarDays className="w-4 h-4" />,
-    blurb: "Pick an installer",
-  },
+  { key: "overview", label: "Overview", icon: <HomeIcon className="w-4 h-4" /> },
+  { key: "savings", label: "Savings", icon: <PoundSterling className="w-4 h-4" /> },
+  { key: "heatpump", label: "Heat pump", icon: <Flame className="w-4 h-4" /> },
+  { key: "solar", label: "Solar & battery", icon: <Sun className="w-4 h-4" /> },
+  { key: "book", label: "Book a site visit", icon: <CalendarDays className="w-4 h-4" /> },
 ];
 
 // Selection state for the "what should we cost up?" toggles. Lives at
@@ -166,11 +143,9 @@ export function ReportShell() {
   }).toString()}`;
 
   return (
-    <div className="w-full">
-      {/* Persistent header — address + verdict headline. Stays at the top
-          regardless of which tab is active so the user never loses the
-          context of what this report is about. */}
-      <header className="mb-5 sm:mb-6">
+    <div className="w-full space-y-6 sm:space-y-8">
+      {/* Persistent header — address + verdict headline. */}
+      <header>
         <p className="text-xs font-semibold uppercase tracking-wider text-coral mb-1.5">
           Your home
         </p>
@@ -182,37 +157,41 @@ export function ReportShell() {
         </p>
       </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-6 lg:gap-8">
-        {/* Left rail nav — proper ARIA tab pattern.
-            role=tablist groups the tabs; each button is role=tab with
-            aria-selected + aria-controls pointing at its panel. Arrow
-            keys move focus between tabs (Home/End jump to first/last).
-            Roving tabindex (tabindex=0 only on the active tab; -1 on
-            the rest) means Tab moves out of the tablist into the panel
-            instead of cycling through all five tabs. */}
-        <div
-          role="tablist"
-          aria-label="Report sections"
-          aria-orientation="vertical"
-          className="lg:sticky lg:top-20 lg:self-start flex lg:flex-col gap-1 -mx-3 sm:mx-0 px-3 sm:px-0 overflow-x-auto lg:overflow-visible"
-          onKeyDown={(e) => {
-            const idx = TABS.findIndex((t) => t.key === tab);
-            if (idx < 0) return;
-            let next = idx;
-            if (e.key === "ArrowDown" || e.key === "ArrowRight") next = (idx + 1) % TABS.length;
-            else if (e.key === "ArrowUp" || e.key === "ArrowLeft") next = (idx - 1 + TABS.length) % TABS.length;
-            else if (e.key === "Home") next = 0;
-            else if (e.key === "End") next = TABS.length - 1;
-            else return;
-            e.preventDefault();
-            const nextKey = TABS[next].key;
-            setTab(nextKey);
-            // Move focus to the newly-selected tab — required for the
-            // ARIA tab pattern so the user's keyboard focus follows the
-            // selection.
-            tabRefs.current[nextKey]?.focus();
-          }}
-        >
+      {/* Persistent recommendation strip — visible across every tab so
+          the user can adjust their plan at any time without bouncing
+          back to Overview. */}
+      <RecommendationStrip
+        analysis={a}
+        selection={selection}
+        setSelection={setSelection}
+        onJumpTab={setTab}
+      />
+
+      {/* Horizontal tab nav — proper ARIA tab pattern.
+          Arrow keys cycle between tabs; Home/End jump to first/last.
+          Roving tabindex means Tab moves out of the tablist into the
+          panel rather than cycling through all five tabs. */}
+      <div
+        role="tablist"
+        aria-label="Report sections"
+        aria-orientation="horizontal"
+        className="-mx-1 px-1 overflow-x-auto border-b border-slate-200"
+        onKeyDown={(e) => {
+          const idx = TABS.findIndex((t) => t.key === tab);
+          if (idx < 0) return;
+          let next = idx;
+          if (e.key === "ArrowRight" || e.key === "ArrowDown") next = (idx + 1) % TABS.length;
+          else if (e.key === "ArrowLeft" || e.key === "ArrowUp") next = (idx - 1 + TABS.length) % TABS.length;
+          else if (e.key === "Home") next = 0;
+          else if (e.key === "End") next = TABS.length - 1;
+          else return;
+          e.preventDefault();
+          const nextKey = TABS[next].key;
+          setTab(nextKey);
+          tabRefs.current[nextKey]?.focus();
+        }}
+      >
+        <div className="flex gap-1 min-w-max">
           {TABS.map((t) => {
             const active = tab === t.key;
             return (
@@ -228,134 +207,111 @@ export function ReportShell() {
                 aria-controls={`tabpanel-${t.key}`}
                 tabIndex={active ? 0 : -1}
                 onClick={() => setTab(t.key)}
-                className={`shrink-0 lg:w-full group flex items-center gap-2.5 text-left px-3 py-2.5 rounded-xl transition-colors ${
+                className={`shrink-0 inline-flex items-center gap-2 px-4 sm:px-5 py-3 text-sm font-semibold border-b-2 -mb-px transition-colors ${
                   active
-                    ? "bg-coral-pale text-coral-dark"
-                    : "text-slate-600 hover:bg-slate-100 hover:text-navy"
+                    ? "border-coral text-coral-dark"
+                    : "border-transparent text-slate-600 hover:text-navy hover:border-slate-300"
                 }`}
               >
-                <span
-                  className={`shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-lg ${
-                    active
-                      ? "bg-white text-coral"
-                      : "bg-slate-100 text-slate-500 group-hover:bg-white"
-                  }`}
-                  aria-hidden="true"
-                >
-                  {t.icon}
-                </span>
-                <span className="min-w-0">
-                  <span
-                    className={`block text-sm font-semibold leading-tight ${
-                      active ? "text-coral-dark" : "text-navy"
-                    }`}
-                  >
-                    {t.label}
-                  </span>
-                  <span className="hidden lg:block text-[11px] text-slate-500 mt-0.5 leading-tight">
-                    {t.blurb}
-                  </span>
-                </span>
+                <span aria-hidden="true">{t.icon}</span>
+                {t.label}
               </button>
             );
           })}
         </div>
+      </div>
 
-        {/* Content column — each tab's body is a tabpanel referenced by
-            the tab's aria-controls. tabIndex=0 makes the panel itself
-            focusable so keyboard users can scroll without first tabbing
-            through every link inside. */}
-        <div
-          className="min-w-0 space-y-6"
-          role="tabpanel"
-          id={`tabpanel-${tab}`}
-          aria-labelledby={`tab-${tab}`}
-          tabIndex={0}
-        >
-          {tab === "overview" && (
-            <OverviewTab
-              analysis={a}
-              address={addr.formattedAddress}
-              satelliteUrl={satelliteUrl}
-              electricityTariff={state.electricityTariff}
-              gasTariff={state.gasTariff}
-              selection={selection}
-              setSelection={setSelection}
-              financingPreference={state.financingPreference}
-              onJumpTab={setTab}
-            />
-          )}
-          {tab === "savings" && (
-            <SavingsTab
-              analysis={a}
-              electricityTariff={state.electricityTariff}
-              gasTariff={state.gasTariff}
-              selection={selection}
-              setSelection={setSelection}
-              financingPreference={state.financingPreference}
-            />
-          )}
-          {tab === "heatpump" && (
-            <HeatPumpTab
-              analysis={a}
-              floorplan={floorplan}
-              floorplanImageUrl={
-                state.floorplanObjectKey
-                  ? `/api/floorplan/image?key=${encodeURIComponent(
-                      state.floorplanObjectKey,
-                    )}`
-                  : null
-              }
-            />
-          )}
-          {tab === "solar" && (
-            <SolarTab
-              analysis={a}
-              satelliteUrl={satelliteUrl}
-              selection={selection}
-              setSelection={setSelection}
-            />
-          )}
-          {tab === "book" && (
-            <BookVisitTab
-              analysis={a}
-              postcode={addr.postcode}
-              latitude={addr.latitude}
-              longitude={addr.longitude}
-              selection={selection}
-            />
-          )}
+      {/* Tab body */}
+      <div
+        className="min-w-0 space-y-6"
+        role="tabpanel"
+        id={`tabpanel-${tab}`}
+        aria-labelledby={`tab-${tab}`}
+        tabIndex={0}
+      >
+        {tab === "overview" && (
+          <OverviewTab
+            analysis={a}
+            address={addr.formattedAddress}
+            satelliteUrl={satelliteUrl}
+            electricityTariff={state.electricityTariff}
+            gasTariff={state.gasTariff}
+            selection={selection}
+            setSelection={setSelection}
+            financingPreference={state.financingPreference}
+            onJumpTab={setTab}
+          />
+        )}
+        {tab === "savings" && (
+          <SavingsTab
+            analysis={a}
+            electricityTariff={state.electricityTariff}
+            gasTariff={state.gasTariff}
+            selection={selection}
+            setSelection={setSelection}
+            financingPreference={state.financingPreference}
+          />
+        )}
+        {tab === "heatpump" && (
+          <HeatPumpTab
+            analysis={a}
+            floorplan={floorplan}
+            floorplanImageUrl={
+              state.floorplanObjectKey
+                ? `/api/floorplan/image?key=${encodeURIComponent(
+                    state.floorplanObjectKey,
+                  )}`
+                : null
+            }
+          />
+        )}
+        {tab === "solar" && (
+          <SolarTab
+            analysis={a}
+            satelliteUrl={satelliteUrl}
+            selection={selection}
+            setSelection={setSelection}
+          />
+        )}
+        {tab === "book" && (
+          <BookVisitTab
+            analysis={a}
+            postcode={addr.postcode}
+            latitude={addr.latitude}
+            longitude={addr.longitude}
+            selection={selection}
+          />
+        )}
 
-          {/* Footer controls — Back / Start over */}
-          <div className="flex items-center justify-between pt-4 border-t border-slate-200 mt-8">
-            <button
-              type="button"
-              onClick={back}
-              className="inline-flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Back to floorplan
-            </button>
-            <button
-              type="button"
-              onClick={reset}
-              className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-slate-900"
-            >
-              Start another check
-              <ArrowRight className="w-4 h-4" />
-            </button>
-          </div>
-
-          <p className="pt-4 text-xs text-slate-500 leading-relaxed">
-            A pre-survey indication based on public data, satellite imagery, and your
-            floorplan — not a final quote. An MCS-certified installer will refine the
-            numbers on a site visit. Solar yield via PVGIS v5.3 (EU JRC). BUS eligibility
-            per Ofgem guidance — confirm against the current scheme version. Listed-
-            building data from Historic England; planning areas from
-            planning.data.gov.uk. Flood warnings from the Environment Agency. Report
-            generated {new Date().toLocaleDateString("en-GB")}.
-          </p>
+        {/* Footer controls — Back / Start over */}
+        <div className="flex items-center justify-between pt-4 border-t border-slate-200 mt-8">
+          <button
+            type="button"
+            onClick={back}
+            className="inline-flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to floorplan
+          </button>
+          <button
+            type="button"
+            onClick={reset}
+            className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-slate-900"
+          >
+            Start another check
+            <ArrowRight className="w-4 h-4" />
+          </button>
         </div>
+
+        <p className="pt-4 text-xs text-slate-500 leading-relaxed">
+          A pre-survey indication based on public data, satellite imagery, and your
+          floorplan — not a final quote. An MCS-certified installer will refine the
+          numbers on a site visit. Solar yield via PVGIS v5.3 (EU JRC). BUS eligibility
+          per Ofgem guidance — confirm against the current scheme version. Listed-
+          building data from Historic England; planning areas from
+          planning.data.gov.uk. Flood warnings from the Environment Agency. Report
+          generated {new Date().toLocaleDateString("en-GB")}.
+        </p>
       </div>
     </div>
   );

@@ -97,19 +97,14 @@ function PageTitleSync() {
   return null;
 }
 
-// Two width modes. The report uses the wide layout (max-w-7xl, same as
-// the header) so its left-nav + 5 tabs have room to breathe AND the
-// content edges line up vertically with the brand mark in the header.
-// Every other step is form-style content that reads better in a
-// narrower column (max-w-4xl).
+// Single width mode for the whole wizard — max-w-7xl matches the header
+// so brand-mark and content edges align on every step. Form-style steps
+// (address, questions, lead capture) keep their own inner max-widths
+// where they need to (e.g. step-1-address has a narrow input column);
+// see each step's own root <div> max-w-* for that.
 function StepWrapper() {
-  const { step } = useCheckWizard();
-  const isReport = step === "report";
-  const wrapperClass = isReport
-    ? "mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-6 sm:py-8"
-    : "mx-auto w-full max-w-4xl px-4 sm:px-6 py-6 sm:py-10";
   return (
-    <div className={wrapperClass}>
+    <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
       <CurrentStep />
     </div>
   );

@@ -3,35 +3,34 @@
 // Overview tab — the front door of the report.
 //
 // Goal: warm, easy-to-skim summary that gives a curious consumer
-// everything they need to decide whether to dig deeper. Three blocks:
+// everything they need to decide whether to dig deeper. Two blocks:
 //   1. Property snapshot — satellite, EPC, planning constraints
-//   2. What could your home benefit from? — three big recommendation
-//      cards (heat pump / solar / battery) with verdict + cost line
-//   3. How to get the most out of installers — practical playbook
+//   2. How to get the most out of installers — practical playbook
 //      (3 quotes, what to look for, common myths)
+//
+// The "What could your home benefit from?" recommendation strip used
+// to live here but moved up to the report shell so it's visible across
+// every tab. The cost teaser also moved out — the real cost breakdown
+// lives on the Savings tab and there's a tab nav right above the user.
 
 import Image from "next/image";
 import {
   Award,
-  Battery,
   CalendarDays,
   CheckCircle2,
   Eye,
-  Flame,
   Landmark,
   MapPin,
   MessageCircleQuestion,
-  PoundSterling,
   ShieldCheck,
-  Sparkles,
-  Sun,
   Waves,
+  X,
 } from "lucide-react";
 import type { AnalyseResponse } from "@/lib/schemas/analyse";
 import type { FuelTariff } from "@/lib/schemas/bill";
 import type { YesNoUnsure } from "../../types";
 import type { ReportSelection, ReportTabKey } from "../report-shell";
-import { SectionCard, fmtGbp } from "../shared";
+import { SectionCard } from "../shared";
 
 interface Props {
   analysis: AnalyseResponse;
@@ -49,19 +48,7 @@ export function OverviewTab({
   analysis,
   address,
   satelliteUrl,
-  selection,
-  setSelection,
-  onJumpTab,
 }: Props) {
-  const hp = analysis.eligibility.heatPump;
-  const solar = analysis.eligibility.solar;
-  const finance = analysis.finance;
-
-  const hpCostLow = finance.heatPump.estimatedNetInstallCostRangeGBP?.[0] ?? null;
-  const hpCostHigh = finance.heatPump.estimatedNetInstallCostRangeGBP?.[1] ?? null;
-  const solarCost = finance.solar.installCostGBP ?? null;
-  const solarSavingsLow = finance.solar.annualSavingsRangeGBP?.[0] ?? null;
-  const solarSavingsHigh = finance.solar.annualSavingsRangeGBP?.[1] ?? null;
 
   return (
     <div className="space-y-6">
@@ -71,126 +58,6 @@ export function OverviewTab({
         epc={analysis.epc}
         enrichments={analysis.enrichments}
       />
-
-      {/* Recommendations */}
-      <SectionCard
-        title="What could your home benefit from?"
-        subtitle="Three quick reads — pick the ones you want to dig into."
-        icon={<Sparkles className="w-5 h-5" />}
-      >
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
-          <RecCard
-            kind="heatpump"
-            title="Heat pump"
-            verdict={
-              hp.verdict === "eligible"
-                ? "Recommended"
-                : hp.verdict === "conditional"
-                  ? "Possible"
-                  : "Not now"
-            }
-            tone={
-              hp.verdict === "eligible"
-                ? "green"
-                : hp.verdict === "conditional"
-                  ? "amber"
-                  : "red"
-            }
-            headline={
-              hp.recommendedSystemKW
-                ? `${hp.recommendedSystemKW} kW system`
-                : "Sizing pending"
-            }
-            costLine={
-              hpCostLow != null && hpCostHigh != null
-                ? `${fmtGbp(hpCostLow)}–${fmtGbp(hpCostHigh)} after the £${hp.estimatedGrantGBP.toLocaleString()} BUS grant`
-                : `£${hp.estimatedGrantGBP.toLocaleString()} BUS grant available`
-            }
-            selected={selection.hasHeatPump}
-            onToggle={(on) => setSelection({ ...selection, hasHeatPump: on })}
-            onJump={() => onJumpTab("heatpump")}
-          />
-          <RecCard
-            kind="solar"
-            title="Solar PV"
-            verdict={solar.rating}
-            tone={
-              solar.rating === "Excellent" || solar.rating === "Good"
-                ? "green"
-                : solar.rating === "Marginal"
-                  ? "amber"
-                  : "red"
-            }
-            headline={
-              solar.recommendedKWp
-                ? `${solar.recommendedKWp} kWp · ${solar.estimatedAnnualKWh?.toLocaleString() ?? "—"} kWh/year`
-                : "Roof not suitable"
-            }
-            costLine={
-              solarCost != null
-                ? `${fmtGbp(solarCost)} install${
-                    solarSavingsLow != null && solarSavingsHigh != null
-                      ? ` · ${fmtGbp(solarSavingsLow)}–${fmtGbp(solarSavingsHigh)}/yr saved`
-                      : ""
-                  }`
-                : "Install cost depends on roof access"
-            }
-            selected={selection.hasSolar}
-            onToggle={(on) => setSelection({ ...selection, hasSolar: on })}
-            onJump={() => onJumpTab("solar")}
-          />
-          <RecCard
-            kind="battery"
-            title="Battery"
-            verdict={
-              solar.rating === "Excellent" || solar.rating === "Good"
-                ? "Pairs well"
-                : "Optional"
-            }
-            tone={
-              solar.rating === "Excellent" || solar.rating === "Good"
-                ? "green"
-                : "slate"
-            }
-            headline="Stores midday solar for evening"
-            costLine="From £3,500 for a 5kWh unit"
-            selected={selection.hasBattery}
-            onToggle={(on) =>
-              setSelection({ ...selection, hasBattery: on })
-            }
-            disabled={!selection.hasSolar}
-            disabledHint="Battery needs solar to charge from"
-            onJump={() => onJumpTab("solar")}
-          />
-        </div>
-      </SectionCard>
-
-      {/* Cost / savings teaser → savings tab */}
-      <SectionCard
-        title="What's it going to cost — and what could you save?"
-        subtitle="See the full breakdown across pay-up-front and finance scenarios in the Savings tab."
-        icon={<PoundSterling className="w-5 h-5" />}
-      >
-        <button
-          type="button"
-          onClick={() => onJumpTab("savings")}
-          className="w-full text-left rounded-xl border border-coral/30 bg-coral-pale/40 hover:bg-coral-pale/60 transition-colors p-4 flex items-center justify-between gap-3"
-        >
-          <div>
-            <p className="text-sm font-semibold text-coral-dark">
-              See your monthly bill comparison
-            </p>
-            <p className="mt-0.5 text-xs text-slate-600">
-              We&rsquo;ll compare what you pay today vs. what you&rsquo;d pay with the
-              upgrades you&rsquo;ve selected — bills, finance payments and export
-              earnings all included.
-            </p>
-          </div>
-          <span className="shrink-0 inline-flex items-center justify-center w-9 h-9 rounded-full bg-white text-coral border border-coral/30">
-            →
-          </span>
-        </button>
-      </SectionCard>
 
       {/* Installer playbook */}
       <SectionCard
@@ -221,34 +88,24 @@ export function OverviewTab({
           />
         </div>
 
-        <div className="mt-5 rounded-xl bg-slate-50 border border-slate-100 p-4">
-          <p className="text-sm font-semibold text-navy">
+        <div className="mt-5 rounded-xl bg-slate-50 border border-slate-100 p-4 sm:p-5">
+          <p className="text-sm font-semibold text-navy mb-3">
             Common myths, busted
           </p>
-          <ul className="mt-2 space-y-1.5 text-sm text-slate-600 leading-relaxed">
-            <Myth>
-              <span className="line-through opacity-50">
-                &ldquo;Heat pumps don&rsquo;t work in cold weather.&rdquo;
-              </span>{" "}
-              Modern air-source units run efficiently down to −15°C. The Nordic
-              countries run on them.
-            </Myth>
-            <Myth>
-              <span className="line-through opacity-50">
-                &ldquo;You need a south-facing roof for solar.&rdquo;
-              </span>{" "}
-              East and west work fine — you just generate at different times of
-              day. South is best, but it&rsquo;s not the only game in town.
-            </Myth>
-            <Myth>
-              <span className="line-through opacity-50">
-                &ldquo;Batteries pay for themselves in a few years.&rdquo;
-              </span>{" "}
-              Battery payback is 8–12 years for most homes. They make sense for
-              resilience, time-of-use tariffs, and EV charging — less so as a
-              pure savings play.
-            </Myth>
-          </ul>
+          <div className="space-y-3">
+            <Myth
+              myth="Heat pumps don&rsquo;t work in cold weather."
+              truth="Modern air-source units run efficiently down to −15°C. The Nordic countries run on them."
+            />
+            <Myth
+              myth="You need a south-facing roof for solar."
+              truth="East and west work fine — you just generate at different times of day. South is best, but it&rsquo;s not the only game in town."
+            />
+            <Myth
+              myth="Batteries pay for themselves in a few years."
+              truth="Battery payback is 8–12 years for most homes. They make sense for resilience, time-of-use tariffs, and EV charging — less so as a pure savings play."
+            />
+          </div>
         </div>
       </SectionCard>
     </div>
@@ -409,118 +266,9 @@ function Chip({
   );
 }
 
-// ─── Recommendation card ────────────────────────────────────────────────────
-
-function RecCard({
-  kind,
-  title,
-  verdict,
-  tone,
-  headline,
-  costLine,
-  selected,
-  onToggle,
-  onJump,
-  disabled,
-  disabledHint,
-}: {
-  kind: "heatpump" | "solar" | "battery";
-  title: string;
-  verdict: string;
-  tone: "green" | "amber" | "red" | "slate";
-  headline: string;
-  costLine: string;
-  selected: boolean;
-  onToggle: (on: boolean) => void;
-  onJump?: () => void;
-  disabled?: boolean;
-  disabledHint?: string;
-}) {
-  const icon =
-    kind === "heatpump" ? (
-      <Flame className="w-5 h-5" />
-    ) : kind === "solar" ? (
-      <Sun className="w-5 h-5" />
-    ) : (
-      <Battery className="w-5 h-5" />
-    );
-
-  const verdictTone =
-    tone === "green"
-      ? "text-emerald-700 bg-emerald-100"
-      : tone === "amber"
-        ? "text-amber-800 bg-amber-100"
-        : tone === "red"
-          ? "text-red-700 bg-red-100"
-          : "text-slate-600 bg-slate-100";
-
-  return (
-    <div
-      className={`rounded-2xl border p-4 transition-all flex flex-col ${
-        disabled
-          ? "border-slate-200 bg-slate-50/40 opacity-60"
-          : selected
-            ? "border-coral/40 bg-coral-pale/30"
-            : "border-slate-200 bg-white"
-      }`}
-    >
-      {/* Top strip: icon + title left, verdict pill right.
-          Verdict on its own row prevents the pill clipping the title at
-          narrow widths (the symptom we saw on the 2-col breakpoint where
-          "Heat pump" was getting truncated by the RECOMMENDED chip). */}
-      <div className="flex items-center justify-between gap-2 mb-3">
-        <span className="inline-flex items-center gap-2 min-w-0">
-          <span className="shrink-0 inline-flex items-center justify-center w-9 h-9 rounded-xl bg-white text-coral shadow-sm border border-slate-100">
-            {icon}
-          </span>
-          <span className="text-sm font-semibold text-navy truncate">
-            {title}
-          </span>
-        </span>
-        <span
-          className={`shrink-0 text-[10px] font-bold uppercase tracking-wider rounded-full px-2 py-0.5 whitespace-nowrap ${verdictTone}`}
-        >
-          {verdict}
-        </span>
-      </div>
-
-      <p className="text-lg font-bold text-navy leading-tight">{headline}</p>
-      <p className="mt-2 text-xs text-slate-600 leading-relaxed flex-1">
-        {costLine}
-      </p>
-
-      <div className="mt-4 flex items-center justify-between gap-3">
-        <label
-          className={`inline-flex items-center gap-2 text-xs font-medium ${
-            disabled ? "text-slate-400 cursor-not-allowed" : "text-navy cursor-pointer"
-          }`}
-          title={disabled ? disabledHint : undefined}
-        >
-          <input
-            type="checkbox"
-            checked={selected}
-            disabled={disabled}
-            onChange={(e) => onToggle(e.target.checked)}
-            className="h-4 w-4 rounded border-slate-300 text-coral accent-coral disabled:cursor-not-allowed"
-          />
-          Include in my plan
-        </label>
-        {onJump && (
-          <button
-            type="button"
-            onClick={onJump}
-            className="text-xs font-semibold text-coral hover:underline whitespace-nowrap"
-          >
-            See details →
-          </button>
-        )}
-      </div>
-      {disabled && disabledHint && (
-        <p className="mt-2 text-[11px] text-slate-500 italic">{disabledHint}</p>
-      )}
-    </div>
-  );
-}
+// RecCard removed — recommendation tiles are now rendered by the
+// shell-level RecommendationStrip component (visible across every tab,
+// not just Overview).
 
 // ─── Playbook items ─────────────────────────────────────────────────────────
 
@@ -546,11 +294,35 @@ function PlaybookItem({
   );
 }
 
-function Myth({ children }: { children: React.ReactNode }) {
+function Myth({ myth, truth }: { myth: string; truth: string }) {
+  // Pattern: the myth is shown clearly with a red X chip, then the truth
+  // is shown alongside with a green check chip. The previous version
+  // strikethrough'd the myth text at 50% opacity which made it
+  // genuinely impossible to read for most users (it's also not a
+  // safe pattern semantically — strikethrough has no consistent
+  // meaning across screen readers).
   return (
-    <li className="flex items-start gap-2">
-      <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
-      <span>{children}</span>
-    </li>
+    <div className="flex items-start gap-3 rounded-lg bg-white p-3 border border-slate-100">
+      <div className="shrink-0 flex flex-col items-center gap-1.5 pt-0.5">
+        <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-red-100 text-red-600">
+          <X className="w-3.5 h-3.5" />
+        </span>
+        <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-100 text-emerald-600">
+          <CheckCircle2 className="w-3.5 h-3.5" />
+        </span>
+      </div>
+      <div className="flex-1 min-w-0 space-y-1.5">
+        <p className="text-sm text-slate-500">
+          <span className="font-semibold text-slate-700">Myth: </span>
+          &ldquo;
+          <span dangerouslySetInnerHTML={{ __html: myth }} />
+          &rdquo;
+        </p>
+        <p className="text-sm text-navy leading-relaxed">
+          <span className="font-semibold text-emerald-700">Truth: </span>
+          <span dangerouslySetInnerHTML={{ __html: truth }} />
+        </p>
+      </div>
+    </div>
   );
 }
