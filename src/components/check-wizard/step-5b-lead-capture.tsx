@@ -264,7 +264,7 @@ export function Step5bLeadCapture() {
               )}
             </button>
 
-            <p className="mt-3 text-[11px] text-slate-500 text-center leading-relaxed">
+            <p className="mt-3 text-xs text-slate-500 text-center leading-relaxed">
               By continuing you agree to our privacy policy. We&rsquo;ll never spam
               you or share your details without permission.
             </p>
