@@ -220,7 +220,7 @@ function SolarCard({ state }: { state: Loadable<BuildingInsightsResponse> }) {
     return (
       <CardShell icon={<Sun className="w-4 h-4" />} title="Solar potential">
         <p className="text-sm text-slate-500">{state.data.reason}</p>
-        <p className="mt-2 text-xs text-slate-400">
+        <p className="mt-2 text-xs text-slate-500">
           We&rsquo;ll still size a system for you from climate data.
         </p>
       </CardShell>
@@ -337,7 +337,7 @@ function EpcCard({ state }: { state: Loadable<EpcByAddressResponse> }) {
           </Row>
         )}
       </dl>
-      <p className="mt-3 text-[11px] text-slate-500">
+      <p className="mt-3 text-xs text-slate-500">
         Matched by {state.data.matchMethod === "uprn" ? "UPRN (exact)" : "postcode + address"}.
       </p>
       {stale && (
