@@ -438,11 +438,11 @@ function NumberInputRow({
           min={min}
           step={step}
           onChange={(e) => onChange(Number(e.target.value))}
-          className="h-9 w-28 rounded-lg border border-[var(--border)] bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-coral/30"
+          className="h-9 w-28 rounded-lg border border-[var(--border)] bg-white px-3 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-coral"
         />
         <span className="text-xs text-slate-500">{unit}</span>
       </div>
-      {help && <p className="mt-1 text-[11px] text-slate-500">{help}</p>}
+      {help && <p className="mt-1 text-xs text-slate-500">{help}</p>}
     </div>
   );
 }
@@ -467,7 +467,7 @@ function SelectRow({
         <select
           value={value}
           onChange={(e) => onChange(Number(e.target.value))}
-          className="h-9 w-28 rounded-lg border border-[var(--border)] bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-coral/30"
+          className="h-9 w-28 rounded-lg border border-[var(--border)] bg-white px-3 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-coral"
         >
           {options.map((o) => (
             <option key={o} value={o}>
@@ -476,7 +476,7 @@ function SelectRow({
           ))}
         </select>
       </div>
-      {help && <p className="mt-1 text-[11px] text-slate-500">{help}</p>}
+      {help && <p className="mt-1 text-xs text-slate-500">{help}</p>}
     </div>
   );
 }
@@ -494,7 +494,7 @@ function ReadOnlyRow({
     <div>
       <label className="text-xs font-semibold text-navy">{label}</label>
       <div className="mt-1 text-sm text-slate-700">{value}</div>
-      {help && <p className="mt-1 text-[11px] text-slate-500">{help}</p>}
+      {help && <p className="mt-1 text-xs text-slate-500">{help}</p>}
     </div>
   );
 }
@@ -518,7 +518,7 @@ function Stat({
         : "text-navy";
   return (
     <div>
-      <p className="text-[11px] uppercase tracking-wider text-slate-500">{label}</p>
+      <p className="text-xs uppercase tracking-wider text-slate-500">{label}</p>
       <p
         className={`mt-1 text-lg font-semibold ${colour} transition-opacity ${
           loading ? "opacity-50" : "opacity-100"

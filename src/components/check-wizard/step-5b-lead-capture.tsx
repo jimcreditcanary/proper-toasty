@@ -4,7 +4,7 @@
 // Gates the report behind an email so we can follow up and so the
 // installer-matching business model has real contact details to work with.
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useId, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -31,6 +31,9 @@ export function Step5bLeadCapture() {
   );
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Stable id linking the error message to the form via aria-describedby
+  // so screen readers announce the error in context with the form.
+  const errorId = useId();
 
   // If the user has already captured their email in a previous session
   // (rehydrated from localStorage), auto-advance to the report rather
@@ -116,9 +119,9 @@ export function Step5bLeadCapture() {
           <p className="text-xs font-semibold uppercase tracking-wider text-coral mb-2">
             Your report is ready
           </p>
-          <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-navy leading-tight">
+          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-navy leading-tight">
             One last step — where should we send it?
-          </h2>
+          </h1>
           <p className="mt-3 text-sm text-slate-600 max-w-lg">
             We&rsquo;ve run the full pre-survey on{" "}
             <span className="font-medium text-navy">{addr}</span>. Before you see it,
@@ -183,6 +186,7 @@ export function Step5bLeadCapture() {
           <form
             onSubmit={submit}
             className="rounded-2xl border border-[var(--border)] bg-white p-6 shadow-sm"
+            aria-describedby={error ? errorId : undefined}
           >
             <div className="inline-flex items-center gap-2 h-7 px-3 rounded-full bg-coral-pale text-coral text-[11px] font-semibold uppercase tracking-wider mb-4">
               <Mail className="w-3.5 h-3.5" /> Email my report
@@ -201,7 +205,7 @@ export function Step5bLeadCapture() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
-                className="mt-1 w-full h-11 rounded-lg border border-[var(--border)] bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-coral/30 focus:border-coral"
+                className="mt-1 w-full h-11 rounded-lg border border-[var(--border)] bg-white px-3 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-coral focus-visible:border-coral"
                 autoComplete="email"
                 autoFocus
               />
@@ -214,7 +218,7 @@ export function Step5bLeadCapture() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="So we can say hello"
-                className="mt-1 w-full h-11 rounded-lg border border-[var(--border)] bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-coral/30 focus:border-coral"
+                className="mt-1 w-full h-11 rounded-lg border border-[var(--border)] bg-white px-3 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-coral focus-visible:border-coral"
                 autoComplete="given-name"
               />
             </label>
@@ -233,7 +237,11 @@ export function Step5bLeadCapture() {
             </div>
 
             {error && (
-              <p className="mt-4 text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
+              <p
+                id={errorId}
+                role="alert"
+                className="mt-4 text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2"
+              >
                 {error}
               </p>
             )}
@@ -256,7 +264,7 @@ export function Step5bLeadCapture() {
               )}
             </button>
 
-            <p className="mt-3 text-[11px] text-slate-500 text-center leading-relaxed">
+            <p className="mt-3 text-xs text-slate-500 text-center leading-relaxed">
               By continuing you agree to our privacy policy. We&rsquo;ll never spam
               you or share your details without permission.
             </p>

@@ -326,7 +326,7 @@ function InstallerTile({
                 {installer.distanceKm}km
               </span>
             )}
-            <span className="text-xs text-slate-400">
+            <span className="text-xs text-slate-500">
               {installer.certificationBody} · {installer.certificationNumber}
             </span>
           </div>

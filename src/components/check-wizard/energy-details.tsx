@@ -169,7 +169,8 @@ export function EnergyDetailsCard({
             if (f) void handleFile(f);
           }}
           aria-busy={uploadState.kind === "processing"}
-          className={`w-full rounded-lg border-2 border-dashed transition-colors px-4 py-6 text-center cursor-pointer select-none ${
+          aria-label="Upload your energy bill — drag a JPG, PNG or PDF here, or press Enter to choose a file"
+          className={`w-full rounded-lg border-2 border-dashed transition-colors px-4 py-6 text-center cursor-pointer select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-coral focus-visible:ring-offset-2 ${
             uploadState.kind === "processing"
               ? "border-coral/30 bg-coral-pale/40 opacity-60 cursor-not-allowed"
               : dragOver
@@ -256,7 +257,7 @@ export function EnergyDetailsCard({
         </div>
       )}
 
-      <p className="mt-5 text-[11px] text-slate-500">
+      <p className="mt-5 text-xs text-slate-500">
         We don&rsquo;t save your bill image. The figures above feed our cost-savings
         calculation.
       </p>
@@ -374,9 +375,11 @@ function FuelDetailForm({
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <Field label="Provider">
           <select
+            required
+            aria-required="true"
             value={t.provider ?? ""}
             onChange={(e) => setProvider(e.target.value || null)}
-            className="w-full h-10 px-3 rounded-lg border border-[var(--border)] bg-white text-sm text-navy focus:outline-none focus:ring-2 focus:ring-coral focus:border-transparent appearance-none"
+            className="w-full h-10 px-3 rounded-lg border border-[var(--border)] bg-white text-sm text-navy focus:outline-none focus-visible:ring-2 focus-visible:ring-coral focus-visible:border-transparent appearance-none"
             style={{
               backgroundImage:
                 "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236B7266' stroke-width='2'><path stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'/></svg>\")",
@@ -465,7 +468,7 @@ function FuelDetailForm({
           the supplier table rather than the Ofgem fallback. Tells the user
           where the numbers came from + when the table was last reviewed. */}
       {t.source === "manual_estimate" && t.provider && (
-        <p className="mt-2 text-[11px] text-slate-500 italic">
+        <p className="mt-2 text-xs text-slate-500 italic">
           Rates seeded from {t.provider}&rsquo;s published standard variable
           tariff (reviewed {supplierTariff.lastReviewed}). Edit if your bill
           shows different.
@@ -482,7 +485,7 @@ function FuelDetailForm({
             Are you on {t.provider}&rsquo;s{" "}
             {supplierTariff.electricity.touTariffName ?? "smart"} tariff?
           </p>
-          <p className="mt-1 text-[11px] text-slate-500 leading-relaxed">
+          <p className="mt-1 text-xs text-slate-500 leading-relaxed">
             Time-of-Use tariffs charge less overnight (
             {supplierTariff.electricity.offPeakRatePencePerKWh}p/kWh) — useful
             for batteries and EVs.
@@ -519,6 +522,7 @@ function FuelDetailForm({
         <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
           <Field label="Unit rate" unit="p/kWh">
             <NumberInput
+              required
               value={t.unitRatePencePerKWh}
               onChange={(v) => update({ unitRatePencePerKWh: v })}
               placeholder="25.18"
@@ -527,6 +531,7 @@ function FuelDetailForm({
           </Field>
           <Field label="Standing charge" unit="p/day">
             <NumberInput
+              required
               value={t.standingChargePencePerDay}
               onChange={(v) => update({ standingChargePencePerDay: v })}
               placeholder="41.59"
@@ -535,6 +540,7 @@ function FuelDetailForm({
           </Field>
           <Field label="Annual usage" unit="kWh">
             <NumberInput
+              required
               value={t.estimatedAnnualUsageKWh}
               onChange={(v) => update({ estimatedAnnualUsageKWh: v })}
               placeholder={fuel === "electricity" ? "3200" : "12000"}
@@ -601,7 +607,7 @@ function Field({
     <label className="block">
       <span className="block text-[11px] font-semibold text-[var(--muted-brand)] mb-1">
         {label}
-        {unit && <span className="font-normal text-slate-400"> · {unit}</span>}
+        {unit && <span className="font-normal text-slate-500"> · {unit}</span>}
       </span>
       {children}
     </label>
@@ -612,18 +618,22 @@ function TextInput({
   value,
   onChange,
   placeholder,
+  required,
 }: {
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
+  required?: boolean;
 }) {
   return (
     <input
       type="text"
+      required={required}
+      aria-required={required ? true : undefined}
       value={value}
       placeholder={placeholder}
       onChange={(e) => onChange(e.target.value)}
-      className="w-full h-10 px-3 rounded-lg border border-[var(--border)] bg-white text-sm text-navy focus:outline-none focus:ring-2 focus:ring-coral focus:border-transparent"
+      className="w-full h-10 px-3 rounded-lg border border-[var(--border)] bg-white text-sm text-navy focus:outline-none focus-visible:ring-2 focus-visible:ring-coral focus-visible:border-transparent"
     />
   );
 }
@@ -633,11 +643,13 @@ function NumberInput({
   onChange,
   placeholder,
   step,
+  required,
 }: {
   value: number | null;
   onChange: (v: number | null) => void;
   placeholder?: string;
   step?: number;
+  required?: boolean;
 }) {
   return (
     <input
@@ -645,13 +657,15 @@ function NumberInput({
       inputMode="decimal"
       min={0}
       step={step}
+      required={required}
+      aria-required={required ? true : undefined}
       value={value ?? ""}
       placeholder={placeholder}
       onChange={(e) => {
         const v = e.target.value === "" ? null : Number(e.target.value);
         onChange(v != null && Number.isFinite(v) && v >= 0 ? v : null);
       }}
-      className="w-full h-10 px-3 rounded-lg border border-[var(--border)] bg-white text-sm text-navy focus:outline-none focus:ring-2 focus:ring-coral focus:border-transparent"
+      className="w-full h-10 px-3 rounded-lg border border-[var(--border)] bg-white text-sm text-navy focus:outline-none focus-visible:ring-2 focus-visible:ring-coral focus-visible:border-transparent"
     />
   );
 }

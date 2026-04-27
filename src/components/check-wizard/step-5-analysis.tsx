@@ -104,9 +104,9 @@ export function Step5Analysis() {
 
   return (
     <div className="max-w-xl mx-auto w-full text-center">
-      <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-navy">
+      <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-navy">
         Running the analysis
-      </h2>
+      </h1>
       <p className="mt-3 text-slate-600">
         This usually takes 20–40 seconds. Keep this tab open.
       </p>
