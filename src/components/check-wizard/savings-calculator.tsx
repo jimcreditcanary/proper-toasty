@@ -438,7 +438,7 @@ function NumberInputRow({
           min={min}
           step={step}
           onChange={(e) => onChange(Number(e.target.value))}
-          className="h-9 w-28 rounded-lg border border-[var(--border)] bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-coral/30"
+          className="h-9 w-28 rounded-lg border border-[var(--border)] bg-white px-3 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-coral"
         />
         <span className="text-xs text-slate-500">{unit}</span>
       </div>
@@ -467,7 +467,7 @@ function SelectRow({
         <select
           value={value}
           onChange={(e) => onChange(Number(e.target.value))}
-          className="h-9 w-28 rounded-lg border border-[var(--border)] bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-coral/30"
+          className="h-9 w-28 rounded-lg border border-[var(--border)] bg-white px-3 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-coral"
         >
           {options.map((o) => (
             <option key={o} value={o}>
