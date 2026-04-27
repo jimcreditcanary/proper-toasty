@@ -16,7 +16,7 @@
 // same source-of-truth: when the user toggles solar off in the savings
 // tab, battery flips off too and the Solar tab shows it as inactive.
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useRef, useState, type ReactNode } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -106,6 +106,16 @@ export function ReportShell() {
     }
   }
 
+  // Refs to each tab button so keyboard arrow nav can move focus to the
+  // newly-selected tab as required by the ARIA tab pattern.
+  const tabRefs = useRef<Record<ReportTabKey, HTMLButtonElement | null>>({
+    overview: null,
+    savings: null,
+    heatpump: null,
+    solar: null,
+    book: null,
+  });
+
   const initialSelection: ReportSelection = useMemo(() => {
     if (!a) return { hasSolar: true, hasBattery: true, hasHeatPump: true };
     const solarOk = a.eligibility?.solar?.rating !== "Not recommended";
@@ -173,56 +183,95 @@ export function ReportShell() {
       </header>
 
       <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-6 lg:gap-8">
-        {/* Left rail nav (collapses to top tabs on mobile) */}
-        <nav
+        {/* Left rail nav — proper ARIA tab pattern.
+            role=tablist groups the tabs; each button is role=tab with
+            aria-selected + aria-controls pointing at its panel. Arrow
+            keys move focus between tabs (Home/End jump to first/last).
+            Roving tabindex (tabindex=0 only on the active tab; -1 on
+            the rest) means Tab moves out of the tablist into the panel
+            instead of cycling through all five tabs. */}
+        <div
+          role="tablist"
           aria-label="Report sections"
-          className="lg:sticky lg:top-20 lg:self-start"
+          aria-orientation="vertical"
+          className="lg:sticky lg:top-20 lg:self-start flex lg:flex-col gap-1 -mx-3 sm:mx-0 px-3 sm:px-0 overflow-x-auto lg:overflow-visible"
+          onKeyDown={(e) => {
+            const idx = TABS.findIndex((t) => t.key === tab);
+            if (idx < 0) return;
+            let next = idx;
+            if (e.key === "ArrowDown" || e.key === "ArrowRight") next = (idx + 1) % TABS.length;
+            else if (e.key === "ArrowUp" || e.key === "ArrowLeft") next = (idx - 1 + TABS.length) % TABS.length;
+            else if (e.key === "Home") next = 0;
+            else if (e.key === "End") next = TABS.length - 1;
+            else return;
+            e.preventDefault();
+            const nextKey = TABS[next].key;
+            setTab(nextKey);
+            // Move focus to the newly-selected tab — required for the
+            // ARIA tab pattern so the user's keyboard focus follows the
+            // selection.
+            tabRefs.current[nextKey]?.focus();
+          }}
         >
-          <ul className="flex lg:flex-col gap-1 -mx-3 sm:mx-0 px-3 sm:px-0 overflow-x-auto lg:overflow-visible">
-            {TABS.map((t) => {
-              const active = tab === t.key;
-              return (
-                <li key={t.key} className="shrink-0 lg:w-full">
-                  <button
-                    type="button"
-                    onClick={() => setTab(t.key)}
-                    aria-current={active ? "page" : undefined}
-                    className={`group flex items-center gap-2.5 w-full text-left px-3 py-2.5 rounded-xl transition-colors ${
-                      active
-                        ? "bg-coral-pale text-coral-dark"
-                        : "text-slate-600 hover:bg-slate-100 hover:text-navy"
+          {TABS.map((t) => {
+            const active = tab === t.key;
+            return (
+              <button
+                key={t.key}
+                ref={(el) => {
+                  tabRefs.current[t.key] = el;
+                }}
+                type="button"
+                role="tab"
+                id={`tab-${t.key}`}
+                aria-selected={active}
+                aria-controls={`tabpanel-${t.key}`}
+                tabIndex={active ? 0 : -1}
+                onClick={() => setTab(t.key)}
+                className={`shrink-0 lg:w-full group flex items-center gap-2.5 text-left px-3 py-2.5 rounded-xl transition-colors ${
+                  active
+                    ? "bg-coral-pale text-coral-dark"
+                    : "text-slate-600 hover:bg-slate-100 hover:text-navy"
+                }`}
+              >
+                <span
+                  className={`shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-lg ${
+                    active
+                      ? "bg-white text-coral"
+                      : "bg-slate-100 text-slate-500 group-hover:bg-white"
+                  }`}
+                  aria-hidden="true"
+                >
+                  {t.icon}
+                </span>
+                <span className="min-w-0">
+                  <span
+                    className={`block text-sm font-semibold leading-tight ${
+                      active ? "text-coral-dark" : "text-navy"
                     }`}
                   >
-                    <span
-                      className={`shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-lg ${
-                        active
-                          ? "bg-white text-coral"
-                          : "bg-slate-100 text-slate-500 group-hover:bg-white"
-                      }`}
-                    >
-                      {t.icon}
-                    </span>
-                    <span className="min-w-0">
-                      <span
-                        className={`block text-sm font-semibold leading-tight ${
-                          active ? "text-coral-dark" : "text-navy"
-                        }`}
-                      >
-                        {t.label}
-                      </span>
-                      <span className="hidden lg:block text-[11px] text-slate-500 mt-0.5 leading-tight">
-                        {t.blurb}
-                      </span>
-                    </span>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        </nav>
+                    {t.label}
+                  </span>
+                  <span className="hidden lg:block text-[11px] text-slate-500 mt-0.5 leading-tight">
+                    {t.blurb}
+                  </span>
+                </span>
+              </button>
+            );
+          })}
+        </div>
 
-        {/* Content column */}
-        <div className="min-w-0 space-y-6">
+        {/* Content column — each tab's body is a tabpanel referenced by
+            the tab's aria-controls. tabIndex=0 makes the panel itself
+            focusable so keyboard users can scroll without first tabbing
+            through every link inside. */}
+        <div
+          className="min-w-0 space-y-6"
+          role="tabpanel"
+          id={`tabpanel-${tab}`}
+          aria-labelledby={`tab-${tab}`}
+          tabIndex={0}
+        >
           {tab === "overview" && (
             <OverviewTab
               analysis={a}

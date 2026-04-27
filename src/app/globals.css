@@ -196,3 +196,35 @@ h1, h2, h3 {
   text-transform: uppercase;
   color: var(--coral);
 }
+
+/* WCAG 2.3.3 — honour the user's reduced-motion preference globally.
+   Cuts every CSS transition / animation / scroll-behavior down to a
+   minimum so spinners, hover lifts, smooth scrolls, etc. all become
+   instant for users who've asked the OS for less motion. We override
+   * and use !important to reach Tailwind's animate-spin / transition-*
+   utility classes which are otherwise specificity-equal. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* WCAG 2.4.7 — explicit focus-visible ring on every keyboard-focused
+   element. Tailwind's default focus rings only fire on the `:focus`
+   selector which lights up on click too — annoying for mouse users.
+   `focus-visible` is keyboard-only. We give every focusable element
+   a strong outline so keyboard users always see where they are.
+   Components that set their own `focus-visible:ring-*` classes win
+   the cascade because they're more specific. */
+@layer base {
+  *:focus-visible {
+    outline: 2px solid var(--coral);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+}

@@ -111,22 +111,35 @@ export function Step5Analysis() {
         This usually takes 20–40 seconds. Keep this tab open.
       </p>
 
-      <div className="mt-12 rounded-2xl border border-slate-200 bg-white p-10 shadow-sm min-h-[200px] flex flex-col items-center justify-center">
+      {/* role=status + aria-live=polite means screen readers will read out
+          the rotating progress messages as they change. role=alert on the
+          error state gives it more urgency (announced immediately, may
+          interrupt other speech). The Loader2 icons get aria-hidden — they
+          carry no info beyond the text alongside them. */}
+      <div
+        className="mt-12 rounded-2xl border border-slate-200 bg-white p-10 shadow-sm min-h-[200px] flex flex-col items-center justify-center"
+        role={stage === "error" ? "alert" : "status"}
+        aria-live={stage === "error" ? "assertive" : "polite"}
+        aria-atomic="true"
+      >
         {stage === "running" && (
           <>
-            <Loader2 className="w-10 h-10 text-coral animate-spin mb-4" />
+            <Loader2 className="w-10 h-10 text-coral animate-spin mb-4" aria-hidden="true" />
             <p className="text-sm font-medium text-navy">{MESSAGES[messageIdx]}</p>
+            <span className="sr-only">
+              Analysis in progress. This typically takes 20 to 40 seconds.
+            </span>
           </>
         )}
         {stage === "done" && (
           <>
-            <CheckCircle2 className="w-10 h-10 text-emerald-500 mb-4" />
+            <CheckCircle2 className="w-10 h-10 text-emerald-500 mb-4" aria-hidden="true" />
             <p className="text-sm font-medium text-navy">Done. Preparing your report…</p>
           </>
         )}
         {stage === "error" && (
           <>
-            <AlertCircle className="w-10 h-10 text-red-500 mb-4" />
+            <AlertCircle className="w-10 h-10 text-red-500 mb-4" aria-hidden="true" />
             <p className="text-sm font-medium text-navy">Something went wrong</p>
             <p className="mt-2 text-xs text-slate-500 max-w-sm">{error}</p>
             <button
