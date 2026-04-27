@@ -321,11 +321,24 @@ function Field({
   icon?: React.ReactNode;
   children: React.ReactNode;
 }) {
+  // If the label ends with " *", treat the asterisk as visual-only —
+  // the matching `<input required>` already announces the field as
+  // required to screen readers, so we don't want them to also hear
+  // "asterisk" appended to the label.
+  const trimmed = label.replace(/\s*\*\s*$/, "");
+  const showStar = trimmed !== label;
   return (
     <label className="block">
       <span className="block text-xs font-semibold text-navy mb-1.5 inline-flex items-center gap-1.5">
         {icon}
-        {label}
+        <span>
+          {trimmed}
+          {showStar && (
+            <span className="text-coral ml-0.5" aria-hidden="true">
+              *
+            </span>
+          )}
+        </span>
       </span>
       {children}
     </label>

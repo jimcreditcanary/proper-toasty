@@ -189,7 +189,12 @@ export function Step5bLeadCapture() {
             </div>
 
             <label className="block">
-              <span className="text-xs font-semibold text-navy">Email address *</span>
+              <span className="text-xs font-semibold text-navy">
+                Email address
+                <span className="text-coral ml-0.5" aria-hidden="true">
+                  *
+                </span>
+              </span>
               <input
                 type="email"
                 required

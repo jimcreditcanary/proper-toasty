@@ -96,6 +96,17 @@ function StepWrapper() {
 export function CheckWizard() {
   return (
     <CheckWizardProvider>
+      {/* Skip link — visually hidden by default, shown on keyboard focus
+          (first Tab press lands here). Lets screen reader / keyboard
+          users jump past the sticky header straight into the wizard
+          content rather than tabbing through the header chrome on
+          every step. */}
+      <a
+        href="#wizard-main"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[60] focus:bg-coral focus:text-white focus:font-semibold focus:text-sm focus:px-4 focus:py-2 focus:rounded-lg focus:shadow-lg"
+      >
+        Skip to main content
+      </a>
       <header className="bg-cream/80 backdrop-blur-md border-b border-[var(--border)] sticky top-0 z-50">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
           <Link href="/" className="flex items-center shrink-0">
@@ -109,7 +120,7 @@ export function CheckWizard() {
           </span>
         </div>
       </header>
-      <main className="flex-1 bg-gradient-to-b from-cream-deep to-cream">
+      <main id="wizard-main" tabIndex={-1} className="flex-1 bg-gradient-to-b from-cream-deep to-cream">
         <StepWrapper />
       </main>
     </CheckWizardProvider>
