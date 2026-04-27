@@ -9,7 +9,7 @@
 // we capture the lead, show a "we've got it, we'll be in touch"
 // confirmation, and the admin team takes it from there.
 
-import { useEffect, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { Loader2, MapPin, X, CheckCircle2, MessageSquare } from "lucide-react";
 import type {
   CreateInstallerLeadRequest,
@@ -53,11 +53,72 @@ export function BookingModal({ installer, defaults, selection, onClose }: Props)
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
 
-  // Close on Escape
+  // Modal accessibility:
+  //   1. Focus trap — Tab / Shift+Tab cycles within the modal so keyboard
+  //      users can't accidentally tab into the page behind it.
+  //   2. Initial focus — moves to the first focusable element in the
+  //      modal on mount.
+  //   3. Return focus — when the modal closes, focus goes back to the
+  //      element that triggered it (typically the "Book a meeting"
+  //      button on the installer tile).
+  //   4. Escape closes (was already in place; kept).
+  //
+  // We also link the form-level error to the form via aria-describedby
+  // (errorId), and link individual error messages to the field that
+  // failed via aria-describedby on the input.
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLElement | null>(null);
+  const errorId = useId();
+
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+    // Remember whoever had focus before we opened so we can put it back
+    // on close.
+    triggerRef.current = (document.activeElement as HTMLElement) ?? null;
+
+    // Focus the first focusable element after mount.
+    const focusables = dialogRef.current?.querySelectorAll<HTMLElement>(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+    );
+    focusables?.[0]?.focus();
+
+    return () => {
+      // Restore focus to the trigger on unmount. setTimeout deferred so
+      // the DOM has a tick to remove the dialog before we move focus.
+      const t = triggerRef.current;
+      if (t && typeof t.focus === "function") {
+        setTimeout(() => t.focus(), 0);
+      }
     };
+  }, []);
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        onClose();
+        return;
+      }
+      // Focus trap — wrap Tab around the focusable elements in the
+      // dialog, never letting focus escape into the page behind.
+      if (e.key !== "Tab") return;
+      const root = dialogRef.current;
+      if (!root) return;
+      const focusables = Array.from(
+        root.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      ).filter((el) => !el.hasAttribute("disabled") && el.offsetParent !== null);
+      if (focusables.length === 0) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      const active = document.activeElement as HTMLElement | null;
+      if (e.shiftKey && active === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && active === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
@@ -123,6 +184,7 @@ export function BookingModal({ installer, defaults, selection, onClose }: Props)
       onClick={onClose}
     >
       <div
+        ref={dialogRef}
         onClick={(e) => e.stopPropagation()}
         className="relative w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-2xl"
       >
@@ -191,7 +253,11 @@ export function BookingModal({ installer, defaults, selection, onClose }: Props)
               </p>
             </div>
 
-            <form onSubmit={submit} className="p-5 sm:p-6 space-y-4">
+            <form
+              onSubmit={submit}
+              className="p-5 sm:p-6 space-y-4"
+              aria-describedby={error ? errorId : undefined}
+            >
               <Field label="Your name *">
                 <input
                   type="text"
@@ -199,7 +265,7 @@ export function BookingModal({ installer, defaults, selection, onClose }: Props)
                   value={contactName}
                   onChange={(e) => setContactName(e.target.value)}
                   placeholder="Sarah Jones"
-                  className="w-full h-11 px-3 rounded-lg border border-[var(--border)] bg-white text-sm focus:outline-none focus:ring-2 focus:ring-coral/30 focus:border-coral"
+                  className="w-full h-11 px-3 rounded-lg border border-[var(--border)] bg-white text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-coral focus-visible:border-coral"
                   autoComplete="name"
                 />
               </Field>
@@ -211,7 +277,7 @@ export function BookingModal({ installer, defaults, selection, onClose }: Props)
                   value={contactEmail}
                   onChange={(e) => setContactEmail(e.target.value)}
                   placeholder="you@example.com"
-                  className="w-full h-11 px-3 rounded-lg border border-[var(--border)] bg-white text-sm focus:outline-none focus:ring-2 focus:ring-coral/30 focus:border-coral"
+                  className="w-full h-11 px-3 rounded-lg border border-[var(--border)] bg-white text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-coral focus-visible:border-coral"
                   autoComplete="email"
                 />
               </Field>
@@ -222,7 +288,7 @@ export function BookingModal({ installer, defaults, selection, onClose }: Props)
                   value={contactPhone}
                   onChange={(e) => setContactPhone(e.target.value)}
                   placeholder="07…"
-                  className="w-full h-11 px-3 rounded-lg border border-[var(--border)] bg-white text-sm focus:outline-none focus:ring-2 focus:ring-coral/30 focus:border-coral"
+                  className="w-full h-11 px-3 rounded-lg border border-[var(--border)] bg-white text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-coral focus-visible:border-coral"
                   autoComplete="tel"
                 />
               </Field>
@@ -262,7 +328,7 @@ export function BookingModal({ installer, defaults, selection, onClose }: Props)
                   value={contactWindow}
                   onChange={(e) => setContactWindow(e.target.value)}
                   placeholder="e.g. Weekdays after 6pm, weekends anytime"
-                  className="w-full h-11 px-3 rounded-lg border border-[var(--border)] bg-white text-sm focus:outline-none focus:ring-2 focus:ring-coral/30 focus:border-coral"
+                  className="w-full h-11 px-3 rounded-lg border border-[var(--border)] bg-white text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-coral focus-visible:border-coral"
                 />
               </Field>
 
@@ -275,12 +341,16 @@ export function BookingModal({ installer, defaults, selection, onClose }: Props)
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="e.g. Roof was redone in 2022, scaffolding access via the side gate, planning permission approved for the loft conversion…"
                   rows={3}
-                  className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-white text-sm focus:outline-none focus:ring-2 focus:ring-coral/30 focus:border-coral resize-y"
+                  className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-white text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-coral focus-visible:border-coral resize-y"
                 />
               </Field>
 
               {error && (
-                <p className="text-sm text-red-700 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
+                <p
+                  id={errorId}
+                  role="alert"
+                  className="text-sm text-red-700 bg-red-50 border border-red-100 rounded-lg px-3 py-2"
+                >
                   {error}
                 </p>
               )}

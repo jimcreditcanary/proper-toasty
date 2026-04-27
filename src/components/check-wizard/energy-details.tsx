@@ -169,7 +169,8 @@ export function EnergyDetailsCard({
             if (f) void handleFile(f);
           }}
           aria-busy={uploadState.kind === "processing"}
-          className={`w-full rounded-lg border-2 border-dashed transition-colors px-4 py-6 text-center cursor-pointer select-none ${
+          aria-label="Upload your energy bill — drag a JPG, PNG or PDF here, or press Enter to choose a file"
+          className={`w-full rounded-lg border-2 border-dashed transition-colors px-4 py-6 text-center cursor-pointer select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-coral focus-visible:ring-offset-2 ${
             uploadState.kind === "processing"
               ? "border-coral/30 bg-coral-pale/40 opacity-60 cursor-not-allowed"
               : dragOver
