@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
 import { Logo } from "@/components/logo";
 import { CheckWizardProvider, useCheckWizard } from "./context";
@@ -75,6 +76,27 @@ function CurrentStep() {
   }
 }
 
+// Per-step page titles — better for browser tabs, history entries, and
+// screen-reader users (each step gets a clear context when it loads).
+const STEP_TITLES: Record<CheckStep, string> = {
+  address: "Find your address — Propertoasty",
+  preview: "Confirm your home — Propertoasty",
+  questions: "A few quick questions — Propertoasty",
+  floorplan: "Upload your floorplan — Propertoasty",
+  analysis: "Running your check — Propertoasty",
+  lead_capture: "Where should we send your report? — Propertoasty",
+  report: "Your home report — Propertoasty",
+};
+
+function PageTitleSync() {
+  const { step } = useCheckWizard();
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    document.title = STEP_TITLES[step] ?? "Heat pump & solar check — Propertoasty";
+  }, [step]);
+  return null;
+}
+
 // Two width modes. The report uses the wide layout (max-w-7xl, same as
 // the header) so its left-nav + 5 tabs have room to breathe AND the
 // content edges line up vertically with the brand mark in the header.
@@ -96,6 +118,7 @@ function StepWrapper() {
 export function CheckWizard() {
   return (
     <CheckWizardProvider>
+      <PageTitleSync />
       {/* Skip link — visually hidden by default, shown on keyboard focus
           (first Tab press lands here). Lets screen reader / keyboard
           users jump past the sticky header straight into the wizard
