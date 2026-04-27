@@ -3,7 +3,7 @@
 // Lightweight — just confirms what they did and tells them what to expect.
 // No CTAs (they're already on our site).
 
-import { escapeHtml } from "../resend";
+import { escapeHtml } from "../client";
 
 export interface HomeownerEmailInput {
   homeownerName: string;

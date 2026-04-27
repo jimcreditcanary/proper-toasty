@@ -4,7 +4,7 @@ import {
   CreateInstallerLeadRequestSchema,
   type CreateInstallerLeadResponse,
 } from "@/lib/schemas/installers";
-import { sendEmail, type SendEmailResult } from "@/lib/email/resend";
+import { sendEmail, type SendEmailResult } from "@/lib/email/client";
 import { signLeadAckToken } from "@/lib/email/tokens";
 import { buildInstallerEmail } from "@/lib/email/templates/booking-installer";
 import { buildHomeownerEmail } from "@/lib/email/templates/booking-homeowner";

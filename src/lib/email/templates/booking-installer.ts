@@ -5,7 +5,7 @@
 // is a magic link that updates the lead status to installer_acknowledged
 // (no installer auth required — the token is HMAC-signed).
 
-import { escapeHtml } from "../resend";
+import { escapeHtml } from "../client";
 
 export interface InstallerEmailInput {
   installerCompanyName: string;
