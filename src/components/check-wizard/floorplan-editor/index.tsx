@@ -565,9 +565,9 @@ export function FloorplanEditor({
           <div className="shrink-0 inline-flex items-center justify-center w-10 h-10 rounded-xl bg-coral-pale text-coral">
             {cfg.icon}
           </div>
-          <h3 className="text-xl sm:text-2xl font-bold tracking-tight text-navy">
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-navy">
             {cfg.title}
-          </h3>
+          </h1>
         </div>
         <p className="text-sm text-slate-600 leading-relaxed">
           {cfg.body}
@@ -1411,7 +1411,7 @@ function StageExample({ stage }: { stage: Stage }) {
   if (stage === "doors") {
     return (
       <div className="hidden sm:flex shrink-0 flex-col items-center gap-0.5">
-        <svg viewBox="0 0 30 30" className="w-8 h-8">
+        <svg viewBox="0 0 30 30" className="w-8 h-8" aria-hidden="true">
           <circle cx="15" cy="15" r="10" fill="white" stroke="#f59e0b" strokeWidth="2" />
           <path d="M 8 15 A 7 7 0 0 1 22 15" fill="none" stroke="#f59e0b" strokeWidth="1.5" />
         </svg>
@@ -1422,7 +1422,7 @@ function StageExample({ stage }: { stage: Stage }) {
   if (stage === "radiators") {
     return (
       <div className="hidden sm:flex shrink-0 flex-col items-center gap-0.5">
-        <svg viewBox="0 0 40 14" className="w-12 h-4">
+        <svg viewBox="0 0 40 14" className="w-12 h-4" aria-hidden="true">
           <rect x="0" y="0" width="40" height="14" rx="2" fill="#ef6c4f" />
           {[10, 20, 30].map((x) => (
             <line key={x} x1={x} y1="0" x2={x} y2="14" stroke="white" strokeOpacity="0.5" />
@@ -1435,7 +1435,7 @@ function StageExample({ stage }: { stage: Stage }) {
   if (stage === "stairs") {
     return (
       <div className="hidden sm:flex shrink-0 flex-col items-center gap-0.5">
-        <svg viewBox="0 0 30 30" className="w-8 h-8">
+        <svg viewBox="0 0 30 30" className="w-8 h-8" aria-hidden="true">
           <rect x="2" y="2" width="26" height="26" fill="#cbd5e1" stroke="#64748b" />
           {[8, 14, 20].map((y) => (
             <line key={y} x1="2" y1={y} x2="28" y2={y} stroke="#64748b" strokeWidth="1" />
@@ -1451,7 +1451,7 @@ function StageExample({ stage }: { stage: Stage }) {
   if (stage === "walls") {
     return (
       <div className="hidden sm:flex shrink-0 flex-col items-center gap-0.5">
-        <svg viewBox="0 0 30 16" className="w-10 h-5">
+        <svg viewBox="0 0 30 16" className="w-10 h-5" aria-hidden="true">
           <path d="M 2 8 L 28 8" stroke="#1e293b" strokeWidth="5" strokeLinecap="round" />
         </svg>
         <span className="text-[10px] text-slate-500">Wall</span>
@@ -1461,7 +1461,7 @@ function StageExample({ stage }: { stage: Stage }) {
   if (stage === "outdoor") {
     return (
       <div className="hidden sm:flex shrink-0 flex-col items-center gap-0.5">
-        <svg viewBox="0 0 30 20" className="w-10 h-6">
+        <svg viewBox="0 0 30 20" className="w-10 h-6" aria-hidden="true">
           <polygon
             points="2,18 8,4 22,4 28,18"
             fill="#86efac30"

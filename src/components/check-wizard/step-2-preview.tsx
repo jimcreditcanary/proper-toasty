@@ -107,7 +107,7 @@ export function Step2Preview() {
   return (
     <div className="max-w-4xl mx-auto w-full">
       <div className="text-center mb-6">
-        <h2 className="text-3xl sm:text-4xl text-navy">Is this your home?</h2>
+        <h1 className="text-3xl sm:text-4xl text-navy">Is this your home?</h1>
       </div>
 
       {/* Side-by-side: compact satellite + address card with inline CTAs so the

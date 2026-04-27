@@ -326,9 +326,9 @@ export function Step4Floorplan() {
     <div className="max-w-5xl mx-auto w-full">
       {showPageHeader && (
         <div className="text-center mb-6 sm:mb-8">
-          <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-navy">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-navy">
             Upload &amp; annotate your floorplan
-          </h2>
+          </h1>
           <p className="mt-2 text-sm text-slate-600 max-w-xl mx-auto">
             Drop your floorplan, then trace the walls, doors, outdoor space, stairs and
             radiators. We&rsquo;ll suggest where the heat pump and hot water cylinder go.

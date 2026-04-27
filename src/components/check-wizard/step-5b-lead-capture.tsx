@@ -119,9 +119,9 @@ export function Step5bLeadCapture() {
           <p className="text-xs font-semibold uppercase tracking-wider text-coral mb-2">
             Your report is ready
           </p>
-          <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-navy leading-tight">
+          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-navy leading-tight">
             One last step — where should we send it?
-          </h2>
+          </h1>
           <p className="mt-3 text-sm text-slate-600 max-w-lg">
             We&rsquo;ve run the full pre-survey on{" "}
             <span className="font-medium text-navy">{addr}</span>. Before you see it,

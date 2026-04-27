@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import { Fraunces } from "next/font/google";
@@ -56,6 +56,17 @@ export const metadata: Metadata = {
   },
 };
 
+// Next 14+ requires viewport / themeColor to be exported separately from
+// metadata. Lighthouse's meta-viewport audit needs the device-width
+// initial-scale=1 declaration; theme-color helps the OS render the
+// browser chrome with our brand cream.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  themeColor: "#FAF7F2",
+  colorScheme: "light",
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -63,7 +74,8 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      lang="en"
+      lang="en-GB"
+      dir="ltr"
       className={`${GeistSans.variable} ${GeistMono.variable} ${fraunces.variable} h-full`}
     >
       <head>

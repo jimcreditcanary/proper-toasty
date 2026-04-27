@@ -60,7 +60,7 @@ export function Step3Questions() {
   return (
     <div className="max-w-2xl mx-auto w-full">
       <div className="text-center mb-10">
-        <h2 className="text-3xl sm:text-4xl text-navy">A few quick questions</h2>
+        <h1 className="text-3xl sm:text-4xl text-navy">A few quick questions</h1>
         <p className="mt-3 text-slate-600">
           Takes about 30 seconds. Your report will cover{" "}
           <span className="font-semibold text-navy">heat pump, solar and battery</span>{" "}

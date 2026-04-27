@@ -193,7 +193,7 @@ export function BookingModal({ installer, defaults, selection, onClose }: Props)
           type="button"
           onClick={onClose}
           aria-label="Close"
-          className="absolute top-3 right-3 inline-flex items-center justify-center w-8 h-8 rounded-full bg-white text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition-colors"
+          className="absolute top-2 right-2 inline-flex items-center justify-center w-11 h-11 rounded-full bg-white text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition-colors"
         >
           <X className="w-4 h-4" />
         </button>
