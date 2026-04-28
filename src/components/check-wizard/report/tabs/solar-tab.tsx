@@ -1,6 +1,6 @@
 "use client";
 
-// Solar tab — visual + simple breakdown.
+// Solar tab — visual + sizing controls.
 //
 // Hero: satellite image with the optimal solar panel layout drawn over
 // the top. We TILE panels per roof segment (using the segment's
@@ -11,32 +11,24 @@
 // proper grid that matches what an installer would actually fit.
 //
 // Below the hero:
-//   - Plain-English breakdown card (yearly/monthly toggle)
+//   - Roof segments table (direction / pitch / area / sunshine)
 //   - Battery sizing (3 / 5 / 10 kWh tiles)
 //
 // Sizing state (panelCount + batteryKwh) lives at the shell level so
 // changes here propagate to the Savings tab and the persistent
-// recommendation strip.
+// recommendation strip. Estimated install £ in the hero comes from the
+// pure-front-end calc module (no API call).
+//
+// The "Your bill, in plain English" breakdown card was removed when
+// the savings calculator API was retired (Apr 2026) — it'll come back
+// once the new front-end calc engine ships.
 
 import Image from "next/image";
-import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  AlertCircle,
-  Battery,
-  Compass,
-  Loader2,
-  Sun,
-  Zap,
-} from "lucide-react";
+import { useMemo } from "react";
+import { Battery, Compass, Sun, Zap } from "lucide-react";
 import type { AnalyseResponse } from "@/lib/schemas/analyse";
 import type { FuelTariff } from "@/lib/schemas/bill";
-import type { SavingsCalculateResult } from "@/lib/schemas/savings";
-import { FINANCE_DEFAULTS } from "@/lib/config/finance";
-import {
-  computeCostBreakdown,
-  computeScenarios,
-  monthlyLoanPayment,
-} from "@/lib/savings/plan";
+import { computeCost } from "@/lib/savings/calc";
 import type { ReportSelection } from "../report-shell";
 import {
   describeAzimuth,
@@ -45,7 +37,6 @@ import {
   VerdictBadge,
   type VerdictTone,
 } from "../shared";
-import { EnergyBreakdownCard, type BreakdownData } from "../breakdown-card";
 
 interface Props {
   analysis: AnalyseResponse;
@@ -81,63 +72,6 @@ export function SolarTab({
   const panelCount = selection.panelCount;
   const batteryKwh = selection.batteryKwh;
 
-  // ─── Pull live savings from the calculator API for the breakdown ──────
-  const [calc, setCalc] = useState<SavingsCalculateResult | null>(null);
-  const [calcLoading, setCalcLoading] = useState(false);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      void run();
-    }, 250);
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    selection.hasSolar,
-    selection.hasBattery,
-    selection.hasHeatPump,
-    panelCount,
-    batteryKwh,
-  ]);
-
-  async function run() {
-    setCalcLoading(true);
-    try {
-      const res = await fetch("/api/savings/calculate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          analysis,
-          electricityTariff,
-          gasTariff,
-          inputs: {
-            hasSolar: selection.hasSolar,
-            hasBattery: selection.hasBattery,
-            hasHeatPump: selection.hasHeatPump,
-            batteryKwh,
-            years: FINANCE_DEFAULTS.defaultYears,
-            exportPrice: FINANCE_DEFAULTS.defaultExportPrice,
-            solarLoanTermYears: FINANCE_DEFAULTS.defaultSolarLoanTermYears,
-            batteryLoanTermYears: FINANCE_DEFAULTS.defaultBatteryLoanTermYears,
-          },
-        }),
-      });
-      const json = (await res.json()) as SavingsCalculateResult;
-      setCalc(json);
-    } catch (e) {
-      setCalc({
-        ok: false,
-        request: calc?.request ?? ({} as SavingsCalculateResult["request"]),
-        response: null,
-        error: e instanceof Error ? e.message : "Network error",
-      });
-    } finally {
-      setCalcLoading(false);
-    }
-  }
-
   // Roof segment data for the panel overlay (used by PanelOverlay below).
   const segmentLayouts = useMemo(
     () => buildSegmentLayouts(analysis, panelCount),
@@ -150,101 +84,24 @@ export function SolarTab({
     return analysis.solar.data.solarPotential.maxArrayPanelsCount ?? 24;
   }, [analysis.solar]);
 
-  // ─── Breakdown data ────────────────────────────────────────────────────
-  const breakdown = useMemo<BreakdownData | null>(() => {
-    const rows = calc?.response;
-    if (!rows || rows.length === 0) return null;
-    const y1 = rows.slice(0, 12);
-
-    const annualBill = y1.reduce((acc, r) => acc + r.BAU_Total, 0);
-    const annualKwh = Math.round(
-      y1.reduce(
-        (acc, r) => acc + r.CurrentElectricityKwh + r.CurrentGasKwh,
-        0,
-      ),
-    );
-    const solarKwhYear = selection.hasSolar
-      ? Math.round(y1.reduce((acc, r) => acc + r.SolarGeneration_kWh, 0))
-      : null;
-    const exportKwhYear = selection.hasSolar
-      ? Math.round(y1.reduce((acc, r) => acc + r.ExportToGrid_kWh, 0))
-      : null;
-    const exportRevenueYear = selection.hasSolar
-      ? y1.reduce((acc, r) => acc + r.Selected_ExportRevenue, 0)
-      : null;
-    const billsOnly = y1.reduce(
-      (acc, r) => acc + (r.Total_Monthly_Bill - r.Selected_TotalFinanceCost),
-      0,
-    );
-
-    // Use our own finance maths (PMT) on the net upfront for consistency.
-    const breakdownCost = computeCostBreakdown(
+  // Estimated combined upfront cost (used in the hero callout) — same
+  // source of truth as the Savings tab. Pure derivation from analysis +
+  // selection, no API call.
+  const totalUpfront = useMemo(
+    () =>
+      computeCost({
+        analysis,
+        electricityTariff: electricityTariff ?? null,
+        gasTariff: gasTariff ?? null,
+        selection,
+      }).netUpfront,
+    [
       analysis,
-      {
-        hasSolar: selection.hasSolar,
-        hasBattery: selection.hasBattery,
-        hasHeatPump: selection.hasHeatPump,
-        panelCount,
-        batteryKwh,
-      },
-      exportRevenueYear ?? 0,
-      exportKwhYear ?? 0,
-    );
-    const finMonthly = monthlyLoanPayment(
-      breakdownCost.netUpfront,
-      FINANCE_DEFAULTS.solarLoanAprPct,
-      FINANCE_DEFAULTS.defaultSolarLoanTermYears,
-    );
-
-    return {
-      annualBill,
-      annualKwh,
-      solarKwhYear,
-      exportKwhYear,
-      exportRevenueYear,
-      postUpgradeAnnualBill: billsOnly,
-      financeMonthly: finMonthly,
-      financeAnnual: finMonthly * 12,
-      // Net annual position for the FINANCE scenario (most common chosen
-      // path). Negative = better off, positive = worse off.
-      netAnnualPosition: billsOnly + finMonthly * 12 - annualBill,
-    };
-  }, [
-    calc,
-    selection.hasSolar,
-    selection.hasBattery,
-    selection.hasHeatPump,
-    panelCount,
-    batteryKwh,
-    analysis,
-  ]);
-
-  // Estimated combined upfront cost (used in callouts) — same source of
-  // truth as Savings tab.
-  const totalUpfront = useMemo(() => {
-    const bd = computeCostBreakdown(
-      analysis,
-      {
-        hasSolar: selection.hasSolar,
-        hasBattery: selection.hasBattery,
-        hasHeatPump: selection.hasHeatPump,
-        panelCount,
-        batteryKwh,
-      },
-      breakdown?.exportRevenueYear ?? 0,
-      breakdown?.exportKwhYear ?? 0,
-    );
-    return bd.netUpfront;
-  }, [
-    analysis,
-    selection.hasSolar,
-    selection.hasBattery,
-    selection.hasHeatPump,
-    panelCount,
-    batteryKwh,
-    breakdown?.exportRevenueYear,
-    breakdown?.exportKwhYear,
-  ]);
+      electricityTariff,
+      gasTariff,
+      selection,
+    ],
+  );
 
   return (
     <div className="space-y-6">
@@ -333,11 +190,6 @@ export function SolarTab({
                   {fmtGbp(totalUpfront, { compact: true })}
                 </strong>
               </Row>
-              <Row label="Year 1 export earnings">
-                <strong className="text-emerald-700">
-                  +{fmtGbp(breakdown?.exportRevenueYear ?? 0, { compact: true })}
-                </strong>
-              </Row>
               {finance.paybackYearsRange && (
                 <Row label="Pays for itself in">
                   <strong className="text-emerald-700">
@@ -350,30 +202,6 @@ export function SolarTab({
           </div>
         </div>
       </SectionCard>
-
-      {/* Breakdown — same format on Savings tab. Yearly/monthly toggle. */}
-      {calcLoading && !breakdown ? (
-        <SectionCard>
-          <div className="flex items-center justify-center gap-2 py-12 text-sm text-slate-500">
-            <Loader2 className="w-4 h-4 animate-spin" />
-            Working out your numbers…
-          </div>
-        </SectionCard>
-      ) : calc?.ok === false ? (
-        <SectionCard>
-          <div className="text-sm text-red-600 flex items-start gap-2">
-            <AlertCircle className="w-4 h-4 mt-0.5" />
-            <span>Couldn&rsquo;t calculate live savings — {calc.error}</span>
-          </div>
-        </SectionCard>
-      ) : breakdown ? (
-        <EnergyBreakdownCard
-          title="Your bill, in plain English"
-          subtitle="Read it top to bottom. Toggle between yearly and monthly figures."
-          data={breakdown}
-          showFinance
-        />
-      ) : null}
 
       {/* Roof segments table */}
       {analysis.solar.coverage === true &&
