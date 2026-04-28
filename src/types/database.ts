@@ -1110,6 +1110,78 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["report_tokens"]["Insert"]>;
         Relationships: [];
       };
+      // Migration 032 — installer booking foundations
+      installer_availability: {
+        Row: {
+          id: string;
+          installer_id: number;
+          // 0=Sun, 1=Mon, ..., 6=Sat (matches JS Date.getDay())
+          day_of_week: number;
+          // Wall-clock Europe/London — `time` columns serialise as 'HH:MM:SS'
+          start_time: string;
+          end_time: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          installer_id: number;
+          day_of_week: number;
+          start_time: string;
+          end_time: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["installer_availability"]["Insert"]>;
+        Relationships: [];
+      };
+      installer_meetings: {
+        Row: {
+          id: string;
+          installer_id: number;
+          installer_lead_id: string | null;
+          homeowner_lead_id: string | null;
+          // Absolute UTC instant the meeting starts
+          scheduled_at: string;
+          duration_min: number;
+          travel_buffer_min: number;
+          contact_name: string;
+          contact_email: string;
+          contact_phone: string;
+          notes: string | null;
+          google_event_id: string | null;
+          google_calendar_id: string | null;
+          invite_sent_at: string | null;
+          status: "booked" | "cancelled" | "completed" | "no_show";
+          cancelled_at: string | null;
+          cancellation_reason: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          installer_id: number;
+          installer_lead_id?: string | null;
+          homeowner_lead_id?: string | null;
+          scheduled_at: string;
+          duration_min?: number;
+          travel_buffer_min?: number;
+          contact_name: string;
+          contact_email: string;
+          contact_phone: string;
+          notes?: string | null;
+          google_event_id?: string | null;
+          google_calendar_id?: string | null;
+          invite_sent_at?: string | null;
+          status?: "booked" | "cancelled" | "completed" | "no_show";
+          cancelled_at?: string | null;
+          cancellation_reason?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["installer_meetings"]["Insert"]>;
+        Relationships: [];
+      };
     };
     Views: {
       [_ in never]: never;
