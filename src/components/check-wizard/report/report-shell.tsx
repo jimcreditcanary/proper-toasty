@@ -25,9 +25,11 @@ import {
   CalendarDays,
   Flame,
   Home as HomeIcon,
+  Mail,
   PoundSterling,
   Sun,
 } from "lucide-react";
+import { ShareReportModal } from "./share-modal";
 import { useCheckWizard } from "../context";
 import type { AnalyseResponse } from "@/lib/schemas/analyse";
 import type { FloorplanAnalysis } from "@/lib/schemas/floorplan";
@@ -78,6 +80,7 @@ export interface ReportSelection {
 export function ReportShell() {
   const { state, reset, back, goTo } = useCheckWizard();
   const [tab, setTab] = useState<ReportTabKey>("overview");
+  const [shareOpen, setShareOpen] = useState(false);
   const a = state.analysis;
   const addr = state.address;
 
@@ -302,8 +305,8 @@ export function ReportShell() {
           />
         )}
 
-        {/* Footer controls — Back / Start over */}
-        <div className="flex items-center justify-between pt-4 border-t border-slate-200 mt-8">
+        {/* Footer controls — Back / Share / Start over */}
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-slate-200 mt-8">
           <button
             type="button"
             onClick={back}
@@ -311,6 +314,14 @@ export function ReportShell() {
           >
             <ArrowLeft className="w-4 h-4" />
             Back to floorplan
+          </button>
+          <button
+            type="button"
+            onClick={() => setShareOpen(true)}
+            className="inline-flex items-center gap-2 h-11 px-5 rounded-full bg-coral hover:bg-coral-dark text-white font-semibold text-sm shadow-sm"
+          >
+            <Mail className="w-4 h-4" />
+            Email or share this report
           </button>
           <button
             type="button"
@@ -332,6 +343,28 @@ export function ReportShell() {
           generated {new Date().toLocaleDateString("en-GB")}.
         </p>
       </div>
+
+      {shareOpen && (
+        <ShareReportModal
+          defaults={{
+            homeownerEmail: state.leadEmail,
+            homeownerName: state.leadName,
+            homeownerLeadId: state.leadId,
+            propertyAddress: addr.formattedAddress,
+            propertyPostcode: addr.postcode,
+            propertyUprn: addr.uprn,
+            propertyLatitude: addr.latitude,
+            propertyLongitude: addr.longitude,
+            analysisSnapshot: {
+              analysis: a,
+              floorplanAnalysis: state.floorplanAnalysis,
+              electricityTariff: state.electricityTariff,
+              gasTariff: state.gasTariff,
+            },
+          }}
+          onClose={() => setShareOpen(false)}
+        />
+      )}
     </div>
   );
 }

@@ -1047,6 +1047,50 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["installer_leads"]["Insert"]>;
         Relationships: [];
       };
+      report_tokens: {
+        Row: {
+          id: string;
+          token: string;
+          homeowner_lead_id: string | null;
+          recipient_email: string;
+          forwarded_by_email: string | null;
+          kind: "self" | "forward";
+          analysis_snapshot: Json;
+          property_address: string | null;
+          property_postcode: string | null;
+          property_uprn: string | null;
+          property_latitude: number | null;
+          property_longitude: number | null;
+          created_at: string;
+          expires_at: string;
+          first_viewed_at: string | null;
+          last_viewed_at: string | null;
+          view_count: number;
+          email_message_id: string | null;
+        };
+        Insert: {
+          id?: string;
+          token: string;
+          homeowner_lead_id?: string | null;
+          recipient_email: string;
+          forwarded_by_email?: string | null;
+          kind: "self" | "forward";
+          analysis_snapshot: Json;
+          property_address?: string | null;
+          property_postcode?: string | null;
+          property_uprn?: string | null;
+          property_latitude?: number | null;
+          property_longitude?: number | null;
+          created_at?: string;
+          expires_at: string;
+          first_viewed_at?: string | null;
+          last_viewed_at?: string | null;
+          view_count?: number;
+          email_message_id?: string | null;
+        };
+        Update: Partial<Database["public"]["Tables"]["report_tokens"]["Insert"]>;
+        Relationships: [];
+      };
     };
     Views: {
       [_ in never]: never;

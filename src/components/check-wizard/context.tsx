@@ -46,12 +46,34 @@ interface CheckWizardContextValue {
 
 const CheckWizardContext = createContext<CheckWizardContextValue | null>(null);
 
-export function CheckWizardProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(reducer, INITIAL_STATE);
-  const [step, setStep] = useState<CheckStep>("address");
+export function CheckWizardProvider({
+  children,
+  // Optional initial state overrides — used by the public report viewer
+  // (/r/[token]) which hydrates from a server-loaded snapshot rather
+  // than localStorage. When supplied we skip localStorage entirely so
+  // the share-link session can't accidentally pollute the user's own
+  // wizard state.
+  initialState,
+  initialStep,
+  disablePersistence,
+}: {
+  children: ReactNode;
+  initialState?: Partial<CheckWizardState>;
+  initialStep?: CheckStep;
+  disablePersistence?: boolean;
+}) {
+  const [state, dispatch] = useReducer(
+    reducer,
+    initialState ? { ...INITIAL_STATE, ...initialState } : INITIAL_STATE,
+  );
+  const [step, setStep] = useState<CheckStep>(initialStep ?? "address");
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
+    if (disablePersistence) {
+      setHydrated(true);
+      return;
+    }
     if (typeof window === "undefined") return;
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
@@ -68,9 +90,10 @@ export function CheckWizardProvider({ children }: { children: ReactNode }) {
       // ignore — treat as no saved state
     }
     setHydrated(true);
-  }, []);
+  }, [disablePersistence]);
 
   useEffect(() => {
+    if (disablePersistence) return;
     if (!hydrated || typeof window === "undefined") return;
     try {
       localStorage.setItem(
@@ -80,7 +103,7 @@ export function CheckWizardProvider({ children }: { children: ReactNode }) {
     } catch {
       // ignore — probably quota
     }
-  }, [state, step, hydrated]);
+  }, [state, step, hydrated, disablePersistence]);
 
   const update = useCallback((patch: Partial<CheckWizardState>) => {
     dispatch({ type: "UPDATE", patch });
