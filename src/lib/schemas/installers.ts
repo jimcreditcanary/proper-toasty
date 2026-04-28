@@ -87,7 +87,12 @@ export const CreateInstallerLeadRequestSchema = z.object({
   // Contact
   contactEmail: z.string().email("Please enter a valid email"),
   contactName: z.string().trim().min(1, "Please tell us your name").max(120),
-  contactPhone: z.string().trim().max(40).optional().nullable(),
+  // Phone is required from PR B.2 onwards — booking flow needs a number
+  // the homeowner can be reached on quickly. Server accepts any 7+ digit
+  // string; the form enforces UK-mobile shape via UK_MOBILE_REGEX.
+  contactPhone: z.string().trim().min(7, "Mobile number is required").max(40),
+  // Preferred contact method/window — kept for backward compat with the
+  // pre-B.2 form. The new booking modal doesn't send them.
   preferredContactMethod: z
     .enum(["email", "phone", "whatsapp", "any"])
     .optional()
@@ -106,6 +111,17 @@ export const CreateInstallerLeadRequestSchema = z.object({
   propertyLatitude: z.number().optional().nullable(),
   propertyLongitude: z.number().optional().nullable(),
   analysisSnapshot: z.unknown().optional().nullable(),
+  // Meeting envelope — present when the booking modal completed slot
+  // selection. The create route inserts a matching `installer_meetings`
+  // row alongside the lead.
+  meeting: z
+    .object({
+      scheduledAtUtc: z.string().datetime("Invalid slot timestamp"),
+      durationMin: z.number().int().positive().default(60),
+      travelBufferMin: z.number().int().min(0).default(30),
+    })
+    .optional()
+    .nullable(),
 });
 export type CreateInstallerLeadRequest = z.infer<
   typeof CreateInstallerLeadRequestSchema

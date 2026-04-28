@@ -157,7 +157,11 @@ export async function POST(req: Request) {
 
   // 2. Insert the lead with a placeholder ack token (we sign it once we
   // have the row's id, then update). status='new' lifecycle, notification
-  // status defaults to 'pending'.
+  // status defaults to 'pending'. If the booking modal supplied a
+  // `meeting` envelope (slot was picked) we set status='visit_booked'
+  // and write the timestamp to visit_booked_for so the lead row
+  // reflects the scheduled state from the start.
+  const hasMeeting = input.meeting != null;
   const { data: inserted, error: insertError } = await admin
     .from("installer_leads")
     .insert({
@@ -178,7 +182,8 @@ export async function POST(req: Request) {
       property_latitude: input.propertyLatitude ?? null,
       property_longitude: input.propertyLongitude ?? null,
       analysis_snapshot: (input.analysisSnapshot ?? null) as never,
-      status: "new",
+      status: hasMeeting ? "visit_booked" : "new",
+      visit_booked_for: hasMeeting ? input.meeting!.scheduledAtUtc : null,
     })
     .select("id")
     .single();
@@ -189,6 +194,34 @@ export async function POST(req: Request) {
       { ok: false, error: "Could not save your booking" },
       { status: 500 },
     );
+  }
+
+  // 2a. If a slot was chosen, also write a row into installer_meetings.
+  // We don't fail the whole request if this errors — the lead's already
+  // saved with visit_booked_for set, so the admin team can chase via
+  // that. Logged so we notice if it's a recurring problem.
+  if (hasMeeting && input.meeting) {
+    const { error: meetingError } = await admin
+      .from("installer_meetings")
+      .insert({
+        installer_id: input.installerId,
+        installer_lead_id: inserted.id,
+        homeowner_lead_id: input.homeownerLeadId ?? null,
+        scheduled_at: input.meeting.scheduledAtUtc,
+        duration_min: input.meeting.durationMin,
+        travel_buffer_min: input.meeting.travelBufferMin,
+        contact_name: input.contactName ?? "Homeowner",
+        contact_email: input.contactEmail.trim().toLowerCase(),
+        contact_phone: input.contactPhone,
+        notes: input.notes ?? null,
+        status: "booked",
+      });
+    if (meetingError) {
+      console.error(
+        "[installer-leads] meeting insert failed (lead saved without it)",
+        meetingError,
+      );
+    }
   }
 
   // 3. Sign the ack token + build the URL, then fire both emails in parallel.
