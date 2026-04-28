@@ -236,14 +236,15 @@ export function BookingModal({ installer, defaults, selection, onClose }: Props)
               >
                 {installer.companyName}
               </h2>
-              {(installer.postcode || installer.county) && (
+              {(installer.postcode || installer.distanceKm != null) && (
                 <p className="mt-1 text-xs text-slate-500 inline-flex items-center gap-1">
                   <MapPin className="w-3 h-3" />
-                  {[installer.county, installer.postcode]
-                    .filter(Boolean)
-                    .join(" · ")}
+                  {installer.postcode && `Based in ${installer.postcode}`}
+                  {installer.postcode &&
+                    installer.distanceKm != null &&
+                    " · "}
                   {installer.distanceKm != null &&
-                    ` · ${installer.distanceKm}km from you`}
+                    `${Math.round(installer.distanceKm * 0.621371 * 10) / 10} miles away`}
                 </p>
               )}
               <p className="mt-3 text-sm text-slate-600 leading-relaxed">

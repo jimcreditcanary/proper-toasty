@@ -422,46 +422,58 @@ function InstallerTile({
   const hasCheckatrade =
     installer.checkatradeScore != null && installer.checkatradeScore > 0;
 
+  // Distance in miles, one decimal. Server returns km; client converts
+  // for presentation so the API doesn't need a duplicate field.
+  const distanceMiles =
+    installer.distanceKm != null
+      ? Math.round(installer.distanceKm * 0.621371 * 10) / 10
+      : null;
+
+  // Single location line: "Based in {postcode} · 1.6 miles away".
+  // Postcode-only (no town lookup) per spec — postcodes.io would add
+  // an API hop we don't need. Distance follows directly so the user
+  // sees the relevant info in one read.
+  const locationParts: string[] = [];
+  if (installer.postcode) locationParts.push(`Based in ${installer.postcode}`);
+  if (distanceMiles != null) locationParts.push(`${distanceMiles} miles away`);
+
   return (
     <div
       className={`rounded-xl border ${installer.contactedByMe ? "border-emerald-200 bg-white" : "border-slate-200 bg-white hover:border-coral/30 hover:shadow-sm"} p-4 sm:p-5 transition-all flex flex-col`}
     >
-      {/* Top: name + distance */}
-      <div className="flex items-start justify-between gap-3 mb-2">
-        <div className="min-w-0">
-          <h3 className="text-base font-bold text-navy leading-tight">
-            {installer.companyName}
-          </h3>
-          {(installer.county || installer.postcode) && (
-            <p className="mt-0.5 text-xs text-slate-500 inline-flex items-center gap-1">
-              <MapPin className="w-3 h-3" />
-              {[installer.county, installer.postcode]
-                .filter(Boolean)
-                .join(" · ")}
-            </p>
-          )}
-        </div>
-        {installer.distanceKm != null && (
-          <span className="shrink-0 inline-flex items-center text-xs font-semibold text-slate-600 bg-slate-100 rounded-full px-2 py-0.5">
-            {installer.distanceKm}km
-          </span>
+      {/* Top: name + location/distance combined */}
+      <div className="mb-3">
+        <h3 className="text-base font-bold text-navy leading-tight">
+          {installer.companyName}
+        </h3>
+        {locationParts.length > 0 && (
+          <p className="mt-1 text-xs text-slate-500 inline-flex items-center gap-1">
+            <MapPin className="w-3.5 h-3.5 text-slate-400" />
+            {locationParts.join(" · ")}
+          </p>
         )}
       </div>
 
-      {/* Cert badges + years in business */}
+      {/* Trust signals — labelled rows for clarity rather than icon-only pills.
+          Order: certifying body → BUS (only when yes) → trading since →
+          Checkatrade reviews. */}
       <div className="flex flex-wrap items-center gap-1.5 mb-3">
-        <CertBadge body={installer.certificationBody} />
+        <LabelledBadge
+          icon={<Award className="w-3 h-3" />}
+          label="Certified by"
+          value={installer.certificationBody}
+          tone={certTone(installer.certificationBody)}
+        />
         {installer.busRegistered && (
-          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2 py-0.5">
+          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-full px-2 py-0.5">
             <ShieldCheck className="w-3 h-3" />
-            BUS
+            BUS Certified
           </span>
         )}
-        {installer.yearsInBusiness != null && installer.yearsInBusiness > 0 && (
+        {installer.incorporationYear && (
           <span className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-600 bg-slate-100 rounded-full px-2 py-0.5">
             <Clock className="w-3 h-3" />
-            {installer.yearsInBusiness} year{installer.yearsInBusiness === 1 ? "" : "s"}
-            {installer.incorporationYear ? ` · since ${installer.incorporationYear}` : ""}
+            Trading since {installer.incorporationYear}
           </span>
         )}
         {hasCheckatrade && (
@@ -474,12 +486,18 @@ function InstallerTile({
         )}
       </div>
 
-      {/* Capability chips */}
-      {!compact && (
-        <div className="flex flex-wrap items-center gap-1.5 mb-3">
-          {capChips.map((c, i) => (
-            <CapChip key={i} icon={c.icon} label={c.label} />
-          ))}
+      {/* Areas of focus — explicit header above the capability chips so
+          the user knows what they're looking at. */}
+      {!compact && capChips.length > 0 && (
+        <div className="mb-3">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-1.5">
+            Areas of focus
+          </p>
+          <div className="flex flex-wrap items-center gap-1.5">
+            {capChips.map((c, i) => (
+              <CapChip key={i} icon={c.icon} label={c.label} />
+            ))}
+          </div>
         </div>
       )}
 
@@ -543,28 +561,47 @@ function InstallerTile({
 
 // ─── Atoms ──────────────────────────────────────────────────────────────────
 
-// Map the certification body to a coloured pill so the user can tell
-// at a glance which scheme an installer belongs to. Defaults to a
-// neutral grey for anything we don't have a colour for.
-function CertBadge({ body }: { body: string }) {
-  const cls =
-    body === "NICEIC"
-      ? "bg-blue-50 text-blue-800 border-blue-200"
-      : body === "NAPIT"
-        ? "bg-emerald-50 text-emerald-800 border-emerald-200"
-        : body === "MCS"
-          ? "bg-coral-pale text-coral-dark border-coral/40"
-          : body === "RECC"
-            ? "bg-violet-50 text-violet-800 border-violet-200"
-            : body === "HIES"
-              ? "bg-amber-50 text-amber-800 border-amber-200"
-              : "bg-slate-50 text-slate-700 border-slate-200";
+// Tone classes for the certifying body — used by the LabelledBadge so
+// the body name still gets a recognisable colour without losing the
+// "Certified by:" label.
+function certTone(body: string): string {
+  switch (body) {
+    case "NICEIC":
+      return "bg-blue-50 text-blue-800 border-blue-200";
+    case "NAPIT":
+      return "bg-emerald-50 text-emerald-800 border-emerald-200";
+    case "MCS":
+      return "bg-coral-pale text-coral-dark border-coral/40";
+    case "RECC":
+      return "bg-violet-50 text-violet-800 border-violet-200";
+    case "HIES":
+      return "bg-amber-50 text-amber-800 border-amber-200";
+    default:
+      return "bg-slate-50 text-slate-700 border-slate-200";
+  }
+}
+
+// "Certified by: NAPIT" style badge — explicit label + value rather
+// than icon-only so non-technical users understand what the colour
+// means without needing to hover.
+function LabelledBadge({
+  icon,
+  label,
+  value,
+  tone,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  tone: string;
+}) {
   return (
     <span
-      className={`inline-flex items-center gap-1 text-[11px] font-semibold rounded-full px-2 py-0.5 border ${cls}`}
+      className={`inline-flex items-center gap-1 text-[11px] font-semibold rounded-full pl-2 pr-2 py-0.5 border ${tone}`}
     >
-      <Award className="w-3 h-3" />
-      {body}
+      {icon}
+      <span className="font-medium opacity-80">{label}:</span>
+      <span>{value}</span>
     </span>
   );
 }
