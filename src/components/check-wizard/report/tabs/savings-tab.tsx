@@ -32,8 +32,14 @@ import {
   deriveCurve,
   deriveHeadline,
 } from "@/lib/savings/derive";
+import {
+  BATTERY_COST_PER_KWH,
+  computeCostBreakdown,
+  monthlyLoanPayment,
+} from "@/lib/savings/plan";
 import type { YesNoUnsure } from "../../types";
 import type { ReportSelection } from "../report-shell";
+import { EnergyBreakdownCard, type BreakdownData } from "../breakdown-card";
 import { SectionCard, fmtGbp } from "../shared";
 import { BigAnnualBillChart, BigSavingsCurveChart } from "../big-charts";
 
@@ -46,12 +52,6 @@ interface Props {
   financingPreference: YesNoUnsure | null;
 }
 
-// Battery cost benchmark: ~£700/kWh for a fully-installed lithium battery
-// system in the UK (covers the cells, inverter, install, commissioning).
-// Used for the "pay up front" upfront cost — finance scenarios use the
-// loan payments straight from the calculator API.
-const BATTERY_COST_PER_KWH = 700;
-
 const DEBOUNCE_MS = 300;
 
 type ScenarioKey = "donothing" | "payup" | "finance";
@@ -61,13 +61,12 @@ export function SavingsTab({
   electricityTariff,
   gasTariff,
   selection,
-  setSelection,
   financingPreference,
 }: Props) {
   const [years] = useState(FINANCE_DEFAULTS.defaultYears);
-  const [batteryKwh, setBatteryKwh] = useState<number>(
-    FINANCE_DEFAULTS.defaultBatteryKwh,
-  );
+  // batteryKwh + panelCount come from the shell-level selection — the
+  // Solar tab owns the sizing controls so changes propagate everywhere.
+  const batteryKwh = selection.batteryKwh;
   const [activeScenario, setActiveScenario] = useState<ScenarioKey>(() =>
     financingPreference === "no" ? "payup" : "finance",
   );
@@ -188,58 +187,39 @@ export function SavingsTab({
   //   = Total install
   //   - BUS grant (heat pump only)
   //   = Net upfront cost
-  const costBreakdown = useMemo(() => {
-    // Heat pump: prefer the gross figure (post-grant range midpoint + grant
-    // back), so the breakdown shows install → grant → net. Fall back to
-    // adding £7,500 to the post-grant range midpoint.
-    const hpRange = analysis.finance.heatPump.estimatedNetInstallCostRangeGBP;
-    const hpNet = hpRange ? (hpRange[0] + hpRange[1]) / 2 : 0;
-    const busGrant = analysis.eligibility.heatPump.estimatedGrantGBP;
-    const hpGross = hpNet + busGrant;
-
-    const solarCost = analysis.finance.solar.installCostGBP ?? 0;
-    const batteryCost = batteryKwh * BATTERY_COST_PER_KWH;
-
-    const hpLine = selection.hasHeatPump ? hpGross : 0;
-    const hpGrant = selection.hasHeatPump ? busGrant : 0;
-    const solarLine = selection.hasSolar ? solarCost : 0;
-    const batteryLine = selection.hasBattery ? batteryCost : 0;
-
-    const grossTotal = hpLine + solarLine + batteryLine;
-    const netUpfront = grossTotal - hpGrant;
-
-    return {
-      hpGross: hpLine,
-      hpGrant,
-      solarCost: solarLine,
-      batteryCost: batteryLine,
-      grossTotal,
-      netUpfront,
-    };
-  }, [
-    selection.hasHeatPump,
-    selection.hasSolar,
-    selection.hasBattery,
-    batteryKwh,
-    analysis.finance.heatPump.estimatedNetInstallCostRangeGBP,
-    analysis.finance.solar.installCostGBP,
-    analysis.eligibility.heatPump.estimatedGrantGBP,
-  ]);
-
-  // Standard amortisation (PMT formula). Loan principal × rate ×
-  // (1+r)^n / ((1+r)^n − 1). Returns 0 if the loan is zero.
-  function monthlyLoanPayment(
-    principal: number,
-    annualAprPct: number,
-    termYears: number,
-  ): number {
-    if (principal <= 0) return 0;
-    const r = annualAprPct / 100 / 12;
-    const n = termYears * 12;
-    if (r === 0) return principal / n;
-    const factor = Math.pow(1 + r, n);
-    return (principal * r * factor) / (factor - 1);
-  }
+  // Single source of truth — same util that the Solar tab + recommendation
+  // strip use, so changing battery size on the Solar tab updates the
+  // breakdown here. `hpGrant` was renamed `busGrant` in the util; aliased
+  // back below to keep the existing JSX rendering happy.
+  const costBreakdownRaw = useMemo(
+    () =>
+      computeCostBreakdown(
+        analysis,
+        {
+          hasSolar: selection.hasSolar,
+          hasBattery: selection.hasBattery,
+          hasHeatPump: selection.hasHeatPump,
+          panelCount: selection.panelCount,
+          batteryKwh,
+        },
+        scenarios?.exportRevenueY1 ?? 0,
+        scenarios?.exportKwhY1 ?? 0,
+      ),
+    [
+      analysis,
+      selection.hasSolar,
+      selection.hasBattery,
+      selection.hasHeatPump,
+      selection.panelCount,
+      batteryKwh,
+      scenarios?.exportRevenueY1,
+      scenarios?.exportKwhY1,
+    ],
+  );
+  const costBreakdown = {
+    ...costBreakdownRaw,
+    hpGrant: costBreakdownRaw.busGrant,
+  };
 
   const financeMonthly = monthlyLoanPayment(
     costBreakdown.netUpfront,
@@ -271,14 +251,69 @@ export function SavingsTab({
   const noTechSelected =
     !selection.hasSolar && !selection.hasBattery && !selection.hasHeatPump;
 
+  // Build the BreakdownData object the EnergyBreakdownCard consumes.
+  // Same shape + values as the Solar tab's breakdown so the user sees
+  // identical figures across both pages.
+  const breakdownData = useMemo<BreakdownData | null>(() => {
+    if (!rows || !rows.length) return null;
+    const y1 = rows.slice(0, 12);
+    const annualBill = y1.reduce((acc, r) => acc + r.BAU_Total, 0);
+    const annualKwh = Math.round(
+      y1.reduce(
+        (acc, r) => acc + r.CurrentElectricityKwh + r.CurrentGasKwh,
+        0,
+      ),
+    );
+    const solarKwhYear = selection.hasSolar
+      ? Math.round(y1.reduce((acc, r) => acc + r.SolarGeneration_kWh, 0))
+      : null;
+    const exportKwhYear = selection.hasSolar
+      ? Math.round(y1.reduce((acc, r) => acc + r.ExportToGrid_kWh, 0))
+      : null;
+    const exportRevenueYear = selection.hasSolar
+      ? y1.reduce((acc, r) => acc + r.Selected_ExportRevenue, 0)
+      : null;
+    return {
+      annualBill,
+      annualKwh,
+      solarKwhYear,
+      exportKwhYear,
+      exportRevenueYear,
+      postUpgradeAnnualBill: payUpAnnual,
+      financeMonthly,
+      financeAnnual: financeMonthly * 12,
+      // Net annual position for whichever scenario the user is viewing.
+      netAnnualPosition:
+        activeScenario === "finance"
+          ? financeAnnual - annualBill
+          : payUpAnnual - annualBill,
+    };
+  }, [
+    rows,
+    selection.hasSolar,
+    payUpAnnual,
+    financeAnnual,
+    financeMonthly,
+    activeScenario,
+  ]);
+
   return (
     <div className="space-y-6">
-      {/* Tech toggles + battery slider used to live here. They're now
-          redundant with the persistent recommendation strip in the
-          report shell — keeping a duplicate set of toggles confused
-          users about which one was source-of-truth. The battery sizing
-          slider moved to the Solar & battery tab where the rest of the
-          battery decision-making lives. */}
+      {/* The plain-English breakdown — same component used on Solar tab.
+          Shows whichever scenario the user has active in "Three ways to
+          think about it" below. */}
+      {!noTechSelected && breakdownData && (
+        <EnergyBreakdownCard
+          title="Your bill, in plain English"
+          subtitle={
+            activeScenario === "finance"
+              ? "Read it top to bottom — finance scenario."
+              : "Read it top to bottom — pay-up-front scenario."
+          }
+          data={breakdownData}
+          showFinance={activeScenario === "finance"}
+        />
+      )}
 
       {/* The three scenarios */}
       <SectionCard

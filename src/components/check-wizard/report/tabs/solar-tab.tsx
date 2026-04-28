@@ -1,51 +1,61 @@
 "use client";
 
-// Solar tab — visual sell + battery sizing.
+// Solar tab — visual + simple breakdown.
 //
-// Hero: the satellite image of the property with the optimal solar panel
-// layout drawn over the top. We use Google Solar API's per-panel data
-// (lat/lng + orientation) and project to pixels via the same
-// lat/lng → static-map pixel maths the editor uses. A slider underneath
-// lets the curious consumer see the layout for fewer panels too — useful
-// when budget is tight.
+// Hero: satellite image with the optimal solar panel layout drawn over
+// the top. We TILE panels per roof segment (using the segment's
+// bounding box + azimuth) rather than projecting Google's per-panel
+// lat/lng coords — Google's per-panel data clusters multiple panels at
+// near-identical positions so projecting them produces overlapping
+// stacks of rectangles. Tiling within the segment bounds gives us a
+// proper grid that matches what an installer would actually fit.
 //
-// (PR 2.5 will layer Google's DataLayers TIFF as a richer "wow" image
-// behind the SVG overlay. For now the static satellite + clean SVG
-// overlay is shippable and free of extra API costs.)
+// Below the hero:
+//   - Plain-English breakdown card (yearly/monthly toggle)
+//   - Battery sizing (3 / 5 / 10 kWh tiles)
 //
-// Below the hero: roof segment table, generation chart, simple battery
-// comparison ("how big should I go?").
+// Sizing state (panelCount + batteryKwh) lives at the shell level so
+// changes here propagate to the Savings tab and the persistent
+// recommendation strip.
 
 import Image from "next/image";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  AlertCircle,
   Battery,
   Compass,
-  Info,
+  Loader2,
   Sun,
-  TrendingUp,
   Zap,
 } from "lucide-react";
 import type { AnalyseResponse } from "@/lib/schemas/analyse";
+import type { FuelTariff } from "@/lib/schemas/bill";
+import type { SavingsCalculateResult } from "@/lib/schemas/savings";
+import { FINANCE_DEFAULTS } from "@/lib/config/finance";
+import {
+  computeCostBreakdown,
+  computeScenarios,
+  monthlyLoanPayment,
+} from "@/lib/savings/plan";
 import type { ReportSelection } from "../report-shell";
 import {
-  FactRow,
-  SectionCard,
-  VerdictBadge,
   describeAzimuth,
   fmtGbp,
+  SectionCard,
+  VerdictBadge,
   type VerdictTone,
 } from "../shared";
+import { EnergyBreakdownCard, type BreakdownData } from "../breakdown-card";
 
 interface Props {
   analysis: AnalyseResponse;
   satelliteUrl: string;
   selection: ReportSelection;
   setSelection: (s: ReportSelection) => void;
+  electricityTariff?: FuelTariff | null;
+  gasTariff?: FuelTariff | null;
 }
 
-// Google Static Maps tile size — must match the imagery API call in
-// report-shell.tsx so panel coords project into the right pixel space.
 const STATIC_MAP_W = 640;
 const STATIC_MAP_H = 360;
 const STATIC_MAP_ZOOM = 20;
@@ -55,6 +65,8 @@ export function SolarTab({
   satelliteUrl,
   selection,
   setSelection,
+  electricityTariff,
+  gasTariff,
 }: Props) {
   const solar = analysis.eligibility.solar;
   const finance = analysis.finance.solar;
@@ -66,63 +78,184 @@ export function SolarTab({
         : "red";
 
   const recommendedPanels = solar.recommendedPanels ?? null;
-  const [panelCount, setPanelCount] = useState<number>(
-    recommendedPanels ?? 12,
-  );
-  const [batteryKwh, setBatteryKwh] = useState<number>(5);
+  const panelCount = selection.panelCount;
+  const batteryKwh = selection.batteryKwh;
 
-  // Pull per-panel positions from Google Solar API (only available when
-  // the building has coverage). The API returns a panel for each layout
-  // permutation it considered; we pick the slice for the user's chosen
-  // panel count.
-  //
-  // Defensive — Google sometimes returns panels without orientation/center
-  // (the schema marks both as optional). We coerce them through a strict
-  // SolarPanelLite shape and skip any malformed rows up front.
-  const panelData = useMemo(() => {
-    if (analysis.solar.coverage !== true) return null;
-    const sp = analysis.solar.data.solarPotential;
-    const center = analysis.solar.data.center;
-    if (!sp || !center) return null;
-    const cleaned: SolarPanelLite[] = (sp.solarPanels ?? [])
-      .filter(
-        (
-          p,
-        ): p is { center: { latitude: number; longitude: number }; orientation?: "LANDSCAPE" | "PORTRAIT" } =>
-          p.center != null &&
-          typeof p.center.latitude === "number" &&
-          typeof p.center.longitude === "number",
-      )
-      .map((p) => ({
-        center: { latitude: p.center.latitude, longitude: p.center.longitude },
-        orientation: p.orientation,
-      }));
-    return {
-      panels: cleaned,
-      panelW: sp.panelWidthMeters ?? 1.05,
-      panelH: sp.panelHeightMeters ?? 1.88,
-      centerLat: center.latitude,
-      centerLng: center.longitude,
-      maxPanels: sp.maxArrayPanelsCount ?? 0,
+  // ─── Pull live savings from the calculator API for the breakdown ──────
+  const [calc, setCalc] = useState<SavingsCalculateResult | null>(null);
+  const [calcLoading, setCalcLoading] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      void run();
+    }, 250);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    selection.hasSolar,
+    selection.hasBattery,
+    selection.hasHeatPump,
+    panelCount,
+    batteryKwh,
+  ]);
+
+  async function run() {
+    setCalcLoading(true);
+    try {
+      const res = await fetch("/api/savings/calculate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          analysis,
+          electricityTariff,
+          gasTariff,
+          inputs: {
+            hasSolar: selection.hasSolar,
+            hasBattery: selection.hasBattery,
+            hasHeatPump: selection.hasHeatPump,
+            batteryKwh,
+            years: FINANCE_DEFAULTS.defaultYears,
+            exportPrice: FINANCE_DEFAULTS.defaultExportPrice,
+            solarLoanTermYears: FINANCE_DEFAULTS.defaultSolarLoanTermYears,
+            batteryLoanTermYears: FINANCE_DEFAULTS.defaultBatteryLoanTermYears,
+          },
+        }),
+      });
+      const json = (await res.json()) as SavingsCalculateResult;
+      setCalc(json);
+    } catch (e) {
+      setCalc({
+        ok: false,
+        request: calc?.request ?? ({} as SavingsCalculateResult["request"]),
+        response: null,
+        error: e instanceof Error ? e.message : "Network error",
+      });
+    } finally {
+      setCalcLoading(false);
+    }
+  }
+
+  // Roof segment data for the panel overlay (used by PanelOverlay below).
+  const segmentLayouts = useMemo(
+    () => buildSegmentLayouts(analysis, panelCount),
+    [analysis, panelCount],
+  );
+
+  // Maximum panels the roof can fit (cap on the slider).
+  const maxPanels = useMemo(() => {
+    if (analysis.solar.coverage !== true) return 24;
+    return analysis.solar.data.solarPotential.maxArrayPanelsCount ?? 24;
   }, [analysis.solar]);
 
-  const panelsToRender = useMemo(() => {
-    if (!panelData) return [];
-    return panelData.panels.slice(0, panelCount);
-  }, [panelData, panelCount]);
+  // ─── Breakdown data ────────────────────────────────────────────────────
+  const breakdown = useMemo<BreakdownData | null>(() => {
+    const rows = calc?.response;
+    if (!rows || rows.length === 0) return null;
+    const y1 = rows.slice(0, 12);
+
+    const annualBill = y1.reduce((acc, r) => acc + r.BAU_Total, 0);
+    const annualKwh = Math.round(
+      y1.reduce(
+        (acc, r) => acc + r.CurrentElectricityKwh + r.CurrentGasKwh,
+        0,
+      ),
+    );
+    const solarKwhYear = selection.hasSolar
+      ? Math.round(y1.reduce((acc, r) => acc + r.SolarGeneration_kWh, 0))
+      : null;
+    const exportKwhYear = selection.hasSolar
+      ? Math.round(y1.reduce((acc, r) => acc + r.ExportToGrid_kWh, 0))
+      : null;
+    const exportRevenueYear = selection.hasSolar
+      ? y1.reduce((acc, r) => acc + r.Selected_ExportRevenue, 0)
+      : null;
+    const billsOnly = y1.reduce(
+      (acc, r) => acc + (r.Total_Monthly_Bill - r.Selected_TotalFinanceCost),
+      0,
+    );
+
+    // Use our own finance maths (PMT) on the net upfront for consistency.
+    const breakdownCost = computeCostBreakdown(
+      analysis,
+      {
+        hasSolar: selection.hasSolar,
+        hasBattery: selection.hasBattery,
+        hasHeatPump: selection.hasHeatPump,
+        panelCount,
+        batteryKwh,
+      },
+      exportRevenueYear ?? 0,
+      exportKwhYear ?? 0,
+    );
+    const finMonthly = monthlyLoanPayment(
+      breakdownCost.netUpfront,
+      FINANCE_DEFAULTS.solarLoanAprPct,
+      FINANCE_DEFAULTS.defaultSolarLoanTermYears,
+    );
+
+    return {
+      annualBill,
+      annualKwh,
+      solarKwhYear,
+      exportKwhYear,
+      exportRevenueYear,
+      postUpgradeAnnualBill: billsOnly,
+      financeMonthly: finMonthly,
+      financeAnnual: finMonthly * 12,
+      // Net annual position for the FINANCE scenario (most common chosen
+      // path). Negative = better off, positive = worse off.
+      netAnnualPosition: billsOnly + finMonthly * 12 - annualBill,
+    };
+  }, [
+    calc,
+    selection.hasSolar,
+    selection.hasBattery,
+    selection.hasHeatPump,
+    panelCount,
+    batteryKwh,
+    analysis,
+  ]);
+
+  // Estimated combined upfront cost (used in callouts) — same source of
+  // truth as Savings tab.
+  const totalUpfront = useMemo(() => {
+    const bd = computeCostBreakdown(
+      analysis,
+      {
+        hasSolar: selection.hasSolar,
+        hasBattery: selection.hasBattery,
+        hasHeatPump: selection.hasHeatPump,
+        panelCount,
+        batteryKwh,
+      },
+      breakdown?.exportRevenueYear ?? 0,
+      breakdown?.exportKwhYear ?? 0,
+    );
+    return bd.netUpfront;
+  }, [
+    analysis,
+    selection.hasSolar,
+    selection.hasBattery,
+    selection.hasHeatPump,
+    panelCount,
+    batteryKwh,
+    breakdown?.exportRevenueYear,
+    breakdown?.exportKwhYear,
+  ]);
 
   return (
     <div className="space-y-6">
       {/* HERO — satellite + panel overlay */}
       <SectionCard
         title="Your roof, with solar panels"
-        subtitle="A scaled overlay of the optimal layout. Slide to see fewer panels if you're working to a tighter budget."
+        subtitle="A scaled overlay of where panels would sit. Slide to try fewer panels if you're working to a tighter budget."
         icon={<Sun className="w-5 h-5" />}
         rightSlot={<VerdictBadge tone={tone} label={solar.rating} />}
       >
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-          {/* Visual */}
           <div className="lg:col-span-2">
             <div
               className="relative w-full overflow-hidden rounded-xl border border-slate-200 bg-slate-100"
@@ -130,20 +263,14 @@ export function SolarTab({
             >
               <Image
                 src={satelliteUrl}
-                alt="Satellite view with solar panel layout"
+                alt="Satellite view of your property with solar panel layout"
                 fill
                 sizes="(max-width: 1024px) 100vw, 60vw"
                 className="object-cover"
                 unoptimized
               />
-              {panelData ? (
-                <PanelOverlay
-                  panels={panelsToRender}
-                  panelWMeters={panelData.panelW}
-                  panelHMeters={panelData.panelH}
-                  centerLat={panelData.centerLat}
-                  centerLng={panelData.centerLng}
-                />
+              {segmentLayouts.length > 0 ? (
+                <PanelOverlay layouts={segmentLayouts} />
               ) : (
                 <div className="absolute inset-0 flex items-center justify-center bg-slate-900/40 text-white text-sm">
                   Panel layout preview unavailable for this address.
@@ -151,12 +278,10 @@ export function SolarTab({
               )}
             </div>
             <p className="mt-2 text-xs text-slate-500">
-              Layout from satellite imagery analysis. Final positions confirmed
-              by your installer on the day.
+              Final positions confirmed by your installer on the day.
             </p>
           </div>
 
-          {/* Sizing controls */}
           <div className="lg:col-span-1 space-y-5">
             {recommendedPanels && (
               <div className="rounded-xl bg-coral-pale/40 border border-coral/30 p-4">
@@ -176,7 +301,7 @@ export function SolarTab({
             <div>
               <div className="flex items-baseline justify-between mb-1">
                 <label className="text-sm font-medium text-navy">
-                  Try a different size
+                  Panel count
                 </label>
                 <span className="text-sm font-semibold text-coral-dark tabular-nums">
                   {panelCount} panels
@@ -185,52 +310,77 @@ export function SolarTab({
               <input
                 type="range"
                 min={4}
-                max={panelData?.maxPanels ?? 24}
+                max={maxPanels}
                 step={1}
                 value={panelCount}
-                onChange={(e) => setPanelCount(Number(e.target.value))}
+                onChange={(e) =>
+                  setSelection({
+                    ...selection,
+                    panelCount: Number(e.target.value),
+                  })
+                }
                 className="w-full accent-coral"
+                aria-label="Number of solar panels"
               />
               <p className="mt-1 text-xs text-slate-500">
-                Roof can fit up to {panelData?.maxPanels ?? "—"} panels at the
-                installer&rsquo;s default spacing.
+                Roof can fit up to {maxPanels} panels.
               </p>
             </div>
 
-            {finance.installCostGBP != null && (
-              <dl className="space-y-1 pt-3 border-t border-slate-200">
-                <FactRow label="Estimated install cost">
-                  {fmtGbp(finance.installCostGBP, { compact: true })}
-                </FactRow>
-                {finance.annualSavingsRangeGBP && (
-                  <FactRow label="Year 1 saving">
-                    {fmtGbp(finance.annualSavingsRangeGBP[0], {
-                      compact: true,
-                    })}
-                    –
-                    {fmtGbp(finance.annualSavingsRangeGBP[1], {
-                      compact: true,
-                    })}
-                  </FactRow>
-                )}
-                {finance.paybackYearsRange && (
-                  <FactRow label="Payback">
+            <div className="pt-3 border-t border-slate-200 space-y-1.5 text-sm">
+              <Row label="Estimated install">
+                <strong className="text-navy">
+                  {fmtGbp(totalUpfront, { compact: true })}
+                </strong>
+              </Row>
+              <Row label="Year 1 export earnings">
+                <strong className="text-emerald-700">
+                  +{fmtGbp(breakdown?.exportRevenueYear ?? 0, { compact: true })}
+                </strong>
+              </Row>
+              {finance.paybackYearsRange && (
+                <Row label="Pays for itself in">
+                  <strong className="text-emerald-700">
                     {finance.paybackYearsRange[0]}–{finance.paybackYearsRange[1]}{" "}
                     years
-                  </FactRow>
-                )}
-              </dl>
-            )}
+                  </strong>
+                </Row>
+              )}
+            </div>
           </div>
         </div>
       </SectionCard>
 
-      {/* Roof segments */}
+      {/* Breakdown — same format on Savings tab. Yearly/monthly toggle. */}
+      {calcLoading && !breakdown ? (
+        <SectionCard>
+          <div className="flex items-center justify-center gap-2 py-12 text-sm text-slate-500">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            Working out your numbers…
+          </div>
+        </SectionCard>
+      ) : calc?.ok === false ? (
+        <SectionCard>
+          <div className="text-sm text-red-600 flex items-start gap-2">
+            <AlertCircle className="w-4 h-4 mt-0.5" />
+            <span>Couldn&rsquo;t calculate live savings — {calc.error}</span>
+          </div>
+        </SectionCard>
+      ) : breakdown ? (
+        <EnergyBreakdownCard
+          title="Your bill, in plain English"
+          subtitle="Read it top to bottom. Toggle between yearly and monthly figures."
+          data={breakdown}
+          showFinance
+        />
+      ) : null}
+
+      {/* Roof segments table */}
       {analysis.solar.coverage === true &&
         analysis.solar.data.solarPotential.roofSegmentStats && (
           <SectionCard
             title="Your roof, segment by segment"
-            subtitle="South-facing surfaces generate the most. East and west work fine — they just generate at different times of day."
+            subtitle="South-facing surfaces generate the most. East and west work too — they just generate at different times of day."
             icon={<Compass className="w-5 h-5" />}
           >
             <div className="overflow-x-auto -mx-1">
@@ -286,63 +436,31 @@ export function SolarTab({
 
       {/* Battery sizing */}
       <SectionCard
-        title="Add a battery?"
+        title="How big a battery?"
         subtitle="Solar without a battery means you only use what you make during the day. A battery stores the rest for the evening."
         icon={<Battery className="w-5 h-5" />}
       >
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
           <BatteryOption
             kwh={3}
-            cost={2100}
             description="Light use — backup for evening lights and TV."
             active={batteryKwh === 3}
-            onSelect={() => setBatteryKwh(3)}
+            onSelect={() => setSelection({ ...selection, batteryKwh: 3 })}
           />
           <BatteryOption
             kwh={5}
-            cost={3500}
             description="Sweet spot for most UK homes — covers an evening and overnight standby."
             active={batteryKwh === 5}
-            onSelect={() => setBatteryKwh(5)}
+            onSelect={() => setSelection({ ...selection, batteryKwh: 5 })}
             highlight="Most popular"
           />
           <BatteryOption
             kwh={10}
-            cost={6500}
             description="EV chargers, heat pumps, or working from home — bigger draws all day."
             active={batteryKwh === 10}
-            onSelect={() => setBatteryKwh(10)}
+            onSelect={() => setSelection({ ...selection, batteryKwh: 10 })}
           />
         </div>
-
-        <div className="mt-4 rounded-lg bg-slate-50 border border-slate-100 p-4 text-sm text-slate-600 leading-relaxed">
-          <p className="inline-flex items-start gap-2">
-            <Info className="w-4 h-4 mt-0.5 shrink-0 text-slate-400" />
-            <span>
-              Battery payback is long — typically 8–12 years on its own. Most
-              buyers add one for resilience (power cuts, EV charging) or to
-              soak up overnight off-peak rates. The Savings tab models the
-              numbers if you want to play with the inputs.
-            </span>
-          </p>
-        </div>
-
-        {!selection.hasBattery && (
-          <button
-            type="button"
-            onClick={() =>
-              setSelection({
-                ...selection,
-                hasSolar: true,
-                hasBattery: true,
-              })
-            }
-            className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-coral hover:underline"
-          >
-            <TrendingUp className="w-4 h-4" />
-            Add a battery to my plan
-          </button>
-        )}
       </SectionCard>
 
       {/* Reason / blocker explanation if not Excellent/Good */}
@@ -360,97 +478,38 @@ export function SolarTab({
   );
 }
 
-// ─── Panel overlay ──────────────────────────────────────────────────────────
+// ─── Atoms ──────────────────────────────────────────────────────────────────
 
-interface SolarPanelLite {
-  center: { latitude: number; longitude: number };
-  orientation?: "LANDSCAPE" | "PORTRAIT";
-}
-
-function PanelOverlay({
-  panels,
-  panelWMeters,
-  panelHMeters,
-  centerLat,
-  centerLng,
+function Row({
+  label,
+  children,
 }: {
-  panels: SolarPanelLite[];
-  panelWMeters: number;
-  panelHMeters: number;
-  centerLat: number;
-  centerLng: number;
+  label: string;
+  children: React.ReactNode;
 }) {
-  // Web Mercator metres-per-pixel at the static-map zoom level. At zoom 20
-  // and the building's latitude this is roughly 0.15 m/pixel. Formula:
-  //   metresPerPixel = 156543.03392 * cos(lat) / 2^zoom
-  const metresPerPixel = useMemo(
-    () =>
-      (156543.03392 * Math.cos((centerLat * Math.PI) / 180)) /
-      Math.pow(2, STATIC_MAP_ZOOM),
-    [centerLat],
-  );
-
-  // Project a panel's lat/lng to pixel offsets from the image centre.
-  const project = (lat: number, lng: number) => {
-    const dLat = lat - centerLat;
-    const dLng = lng - centerLng;
-    const yMeters = -dLat * 111_320; // 1° lat ≈ 111.32 km
-    const xMeters = dLng * 111_320 * Math.cos((centerLat * Math.PI) / 180);
-    return {
-      x: STATIC_MAP_W / 2 + xMeters / metresPerPixel,
-      y: STATIC_MAP_H / 2 + yMeters / metresPerPixel,
-    };
-  };
-
-  const panelW = panelWMeters / metresPerPixel;
-  const panelH = panelHMeters / metresPerPixel;
-
   return (
-    <svg
-      viewBox={`0 0 ${STATIC_MAP_W} ${STATIC_MAP_H}`}
-      className="absolute inset-0 w-full h-full"
-      preserveAspectRatio="xMidYMid slice"
-    >
-      {panels.map((p, i) => {
-        const { x, y } = project(p.center.latitude, p.center.longitude);
-        const isPortrait = p.orientation === "PORTRAIT";
-        const w = isPortrait ? panelW : panelH;
-        const h = isPortrait ? panelH : panelW;
-        return (
-          <rect
-            key={i}
-            x={x - w / 2}
-            y={y - h / 2}
-            width={w}
-            height={h}
-            fill="#1e3a8a"
-            fillOpacity={0.85}
-            stroke="#60a5fa"
-            strokeWidth={0.5}
-          />
-        );
-      })}
-    </svg>
+    <div className="flex items-baseline justify-between gap-3 text-sm">
+      <span className="text-slate-500">{label}</span>
+      <span className="text-right">{children}</span>
+    </div>
   );
 }
-
-// ─── Battery option ─────────────────────────────────────────────────────────
 
 function BatteryOption({
   kwh,
-  cost,
   description,
   active,
   highlight,
   onSelect,
 }: {
   kwh: number;
-  cost: number;
   description: string;
   active: boolean;
   highlight?: string;
   onSelect: () => void;
 }) {
+  // Battery cost benchmark — 5 kWh ≈ £3,500 installed.
+  const cost = kwh * 700;
   return (
     <button
       type="button"
@@ -474,5 +533,199 @@ function BatteryOption({
         {description}
       </p>
     </button>
+  );
+}
+
+// ─── Panel overlay — segment-based grid tiling ──────────────────────────────
+//
+// Earlier version projected each Google panel's lat/lng to pixels, but
+// the API returns multiple panels at near-identical coords (clustered
+// at the segment centroid) which made them stack visually. This version
+// derives a tidy grid PER SEGMENT from the segment's bounding box +
+// azimuth + the panels-per-segment count for the chosen config.
+
+interface SegmentLayout {
+  // Top-left corner in image pixels
+  x: number;
+  y: number;
+  // Width + height of the segment area in image pixels
+  width: number;
+  height: number;
+  // Rotation in degrees (azimuth aligned)
+  rotationDeg: number;
+  panelCount: number;
+  // Panel physical dims in metres
+  panelWMeters: number;
+  panelHMeters: number;
+  // Pixels per metre at this zoom
+  metresPerPixel: number;
+}
+
+function buildSegmentLayouts(
+  analysis: AnalyseResponse,
+  panelCount: number,
+): SegmentLayout[] {
+  if (analysis.solar.coverage !== true) return [];
+  const sp = analysis.solar.data.solarPotential;
+  const center = analysis.solar.data.center;
+  if (!sp || !center) return [];
+
+  const segments = sp.roofSegmentStats ?? [];
+  const configs = sp.solarPanelConfigs ?? [];
+  if (segments.length === 0) return [];
+
+  // Pick the config whose panelsCount is closest to (but not above) the
+  // user's chosen count. If none qualifies, take the smallest.
+  const sorted = [...configs].sort((a, b) => a.panelsCount - b.panelsCount);
+  const chosen =
+    sorted
+      .filter((c) => c.panelsCount <= panelCount)
+      .sort((a, b) => b.panelsCount - a.panelsCount)[0] ??
+    sorted[0] ??
+    null;
+
+  // Without a chosen config, distribute evenly across segments.
+  // Schema marks segmentIndex/panelsCount as optional; filter + coerce.
+  const perSegment: { segmentIndex: number; panelCount: number }[] = chosen
+    ? (chosen.roofSegmentSummaries ?? [])
+        .filter(
+          (s): s is { segmentIndex: number; panelsCount: number } =>
+            typeof s.segmentIndex === "number" &&
+            typeof s.panelsCount === "number",
+        )
+        .map((s) => ({
+          segmentIndex: s.segmentIndex,
+          panelCount: s.panelsCount,
+        }))
+    : segments.slice(0, 2).map((_, i) => ({
+        segmentIndex: i,
+        panelCount: Math.ceil(panelCount / Math.min(segments.length, 2)),
+      }));
+
+  // Web Mercator metres-per-pixel at zoom 20.
+  const metresPerPixel =
+    (156543.03392 * Math.cos((center.latitude * Math.PI) / 180)) /
+    Math.pow(2, STATIC_MAP_ZOOM);
+
+  const project = (lat: number, lng: number) => {
+    const dLat = lat - center.latitude;
+    const dLng = lng - center.longitude;
+    const yMeters = -dLat * 111_320;
+    const xMeters = dLng * 111_320 * Math.cos((center.latitude * Math.PI) / 180);
+    return {
+      x: STATIC_MAP_W / 2 + xMeters / metresPerPixel,
+      y: STATIC_MAP_H / 2 + yMeters / metresPerPixel,
+    };
+  };
+
+  const panelW = sp.panelWidthMeters ?? 1.05;
+  const panelH = sp.panelHeightMeters ?? 1.88;
+
+  const layouts: SegmentLayout[] = [];
+  for (const { segmentIndex, panelCount: segPanelCount } of perSegment) {
+    const seg = segments[segmentIndex];
+    if (!seg) continue;
+    if (segPanelCount <= 0) continue;
+    const bb = seg.boundingBox;
+    if (!bb || !bb.sw || !bb.ne) continue;
+
+    const sw = project(bb.sw.latitude, bb.sw.longitude);
+    const ne = project(bb.ne.latitude, bb.ne.longitude);
+    const x = Math.min(sw.x, ne.x);
+    const y = Math.min(sw.y, ne.y);
+    const width = Math.abs(ne.x - sw.x);
+    const height = Math.abs(ne.y - sw.y);
+    if (width < 5 || height < 5) continue; // too small to render
+
+    layouts.push({
+      x,
+      y,
+      width,
+      height,
+      // Azimuth is the roof's downhill direction in degrees from north
+      // (0=N, 180=S). Panels point that direction. We rotate the grid
+      // by (azimuth − 180) so on a south-facing roof rotation = 0.
+      rotationDeg: ((seg.azimuthDegrees ?? 180) - 180) % 360,
+      panelCount: segPanelCount,
+      panelWMeters: panelW,
+      panelHMeters: panelH,
+      metresPerPixel,
+    });
+  }
+
+  return layouts;
+}
+
+function PanelOverlay({ layouts }: { layouts: SegmentLayout[] }) {
+  return (
+    <svg
+      viewBox={`0 0 ${STATIC_MAP_W} ${STATIC_MAP_H}`}
+      className="absolute inset-0 w-full h-full"
+      preserveAspectRatio="xMidYMid slice"
+    >
+      {layouts.map((l, idx) => (
+        <SegmentGrid key={idx} layout={l} />
+      ))}
+    </svg>
+  );
+}
+
+function SegmentGrid({ layout }: { layout: SegmentLayout }) {
+  const { x, y, width, height, panelCount, panelWMeters, panelHMeters, metresPerPixel } =
+    layout;
+
+  // Panel size in pixels.
+  const panelW = panelWMeters / metresPerPixel; // short dim
+  const panelH = panelHMeters / metresPerPixel; // long dim
+
+  // Tile within the segment bounds. Try portrait first (panels with long
+  // axis vertical = parallel to roof slope), and pack as many as fit.
+  // Then trim to the requested panelCount.
+  const gap = Math.max(1, panelW * 0.1); // 10% of panel width as inter-panel gap
+  const stepX = panelW + gap;
+  const stepY = panelH + gap;
+
+  const cols = Math.max(1, Math.floor(width / stepX));
+  const rows = Math.max(1, Math.floor(height / stepY));
+  const fitTotal = cols * rows;
+  const renderCount = Math.min(panelCount, fitTotal);
+
+  // Centre the grid in the bounding box.
+  const usedW = cols * stepX - gap;
+  const usedH = Math.ceil(renderCount / cols) * stepY - gap;
+  const startX = x + (width - usedW) / 2;
+  const startY = y + (height - usedH) / 2;
+
+  const panels: { px: number; py: number }[] = [];
+  for (let i = 0; i < renderCount; i++) {
+    const r = Math.floor(i / cols);
+    const c = i % cols;
+    panels.push({
+      px: startX + c * stepX,
+      py: startY + r * stepY,
+    });
+  }
+
+  // Rotation pivot: centre of the bounding box.
+  const cx = x + width / 2;
+  const cy = y + height / 2;
+
+  return (
+    <g transform={`rotate(${layout.rotationDeg} ${cx} ${cy})`}>
+      {panels.map((p, i) => (
+        <rect
+          key={i}
+          x={p.px}
+          y={p.py}
+          width={panelW}
+          height={panelH}
+          fill="#1e3a8a"
+          fillOpacity={0.85}
+          stroke="#60a5fa"
+          strokeWidth={0.5}
+          rx={0.5}
+        />
+      ))}
+    </g>
   );
 }

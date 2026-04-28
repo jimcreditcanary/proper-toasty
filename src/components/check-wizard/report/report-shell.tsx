@@ -59,14 +59,20 @@ const TABS: TabDef[] = [
   { key: "book", label: "Book a site visit", icon: <CalendarDays className="w-4 h-4" /> },
 ];
 
-// Selection state for the "what should we cost up?" toggles. Lives at
-// the shell level so the Overview / Savings / Solar tabs all read from
-// the same source. Battery is a slave to solar (deselect solar → battery
-// auto-off) per the spec.
+// Selection state — lives at the shell level so Overview / Savings /
+// Solar tabs all read from + write to the same store. Battery is a
+// slave to solar (deselect solar → battery auto-off) per the spec.
+//
+// `panelCount` and `batteryKwh` are sizing inputs that affect the cost
+// breakdown across every tab. Changing battery from 5 to 10 kWh on the
+// Solar tab updates the cost on the Savings tab and the recommendation
+// strip — single source of truth.
 export interface ReportSelection {
   hasSolar: boolean;
   hasBattery: boolean;
   hasHeatPump: boolean;
+  panelCount: number;
+  batteryKwh: number;
 }
 
 export function ReportShell() {
@@ -94,13 +100,24 @@ export function ReportShell() {
   });
 
   const initialSelection: ReportSelection = useMemo(() => {
-    if (!a) return { hasSolar: true, hasBattery: true, hasHeatPump: true };
+    if (!a)
+      return {
+        hasSolar: true,
+        hasBattery: true,
+        hasHeatPump: true,
+        panelCount: 12,
+        batteryKwh: 5,
+      };
     const solarOk = a.eligibility?.solar?.rating !== "Not recommended";
     const hpOk = a.eligibility?.heatPump?.verdict !== "blocked";
     return {
       hasSolar: solarOk,
       hasBattery: solarOk, // battery follows solar at startup
       hasHeatPump: hpOk,
+      // Sizing defaults — recommended panel count from analysis, 5 kWh
+      // battery (the most-popular size for UK homes).
+      panelCount: a.eligibility?.solar?.recommendedPanels ?? 12,
+      batteryKwh: 5,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -271,6 +288,8 @@ export function ReportShell() {
             satelliteUrl={satelliteUrl}
             selection={selection}
             setSelection={setSelection}
+            electricityTariff={state.electricityTariff}
+            gasTariff={state.gasTariff}
           />
         )}
         {tab === "book" && (
