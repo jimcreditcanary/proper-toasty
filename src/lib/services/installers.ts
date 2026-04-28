@@ -53,7 +53,11 @@ export interface NearbyResult {
 
 type InstallerRow = Database["public"]["Tables"]["installers"]["Row"];
 
-function rowToCard(row: InstallerRow, distanceKm: number | null): InstallerCard {
+function rowToCard(
+  row: InstallerRow,
+  distanceKm: number | null,
+  contactedByMe: boolean,
+): InstallerCard {
   const addrParts = [
     row.address_line_1,
     row.address_line_2,
@@ -69,6 +73,10 @@ function rowToCard(row: InstallerRow, distanceKm: number | null): InstallerCard 
     row.cap_exhaust_air_heat_pump ||
     row.cap_solar_assisted_heat_pump ||
     row.cap_gas_absorption_heat_pump;
+
+  const incorporationYear = row.incorporation_date
+    ? Number(row.incorporation_date.slice(0, 4))
+    : null;
 
   return {
     id: row.id,
@@ -88,6 +96,13 @@ function rowToCard(row: InstallerRow, distanceKm: number | null): InstallerCard 
     distanceKm: distanceKm != null ? Math.round(distanceKm * 10) / 10 : null,
     reviewsScore: Number(row.reviews_score) || 0,
     reviewsCount: row.reviews_count,
+    yearsInBusiness: row.years_in_business ?? null,
+    incorporationYear,
+    checkatradeScore:
+      row.checkatrade_score != null ? Number(row.checkatrade_score) : null,
+    checkatradeReviewCount: row.checkatrade_review_count ?? null,
+    checkatradeUrl: row.checkatrade_url,
+    contactedByMe,
   };
 }
 
@@ -169,8 +184,26 @@ export async function findNearby(
   const end = start + req.pageSize;
   const page = rowsWithDistance.slice(start, end);
 
+  // Build a Set of installer ids the user has already booked a visit
+  // with — used to flag the tile so the UI can move it into the
+  // "contacted" section above the main grid.
+  let contactedIds = new Set<number>();
+  if (req.homeownerLeadId) {
+    const { data: leads, error: leadErr } = await admin
+      .from("installer_leads")
+      .select("installer_id")
+      .eq("homeowner_lead_id", req.homeownerLeadId);
+    if (leadErr) {
+      console.warn("[installers/nearby] contacted lookup failed", leadErr.message);
+    } else {
+      contactedIds = new Set((leads ?? []).map((l) => l.installer_id));
+    }
+  }
+
   return {
-    installers: page.map(({ row, distanceKm }) => rowToCard(row, distanceKm)),
+    installers: page.map(({ row, distanceKm }) =>
+      rowToCard(row, distanceKm, contactedIds.has(row.id)),
+    ),
     totalCount,
   };
 }

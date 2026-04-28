@@ -879,6 +879,16 @@ export interface Database {
           technology_sub_type: string | null;
           raw_regions_covered: string | null;
           raw_technologies: string | null;
+          // Migration 031 — Companies House + Checkatrade enrichment
+          incorporation_date: string | null;
+          years_in_business: number | null;
+          companies_house_fetched_at: string | null;
+          companies_house_status: string | null;
+          checkatrade_score: number | null;
+          checkatrade_review_count: number | null;
+          checkatrade_url: string | null;
+          checkatrade_fetched_at: string | null;
+          checkatrade_status: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -936,6 +946,15 @@ export interface Database {
           technology_sub_type?: string | null;
           raw_regions_covered?: string | null;
           raw_technologies?: string | null;
+          incorporation_date?: string | null;
+          years_in_business?: number | null;
+          companies_house_fetched_at?: string | null;
+          companies_house_status?: string | null;
+          checkatrade_score?: number | null;
+          checkatrade_review_count?: number | null;
+          checkatrade_url?: string | null;
+          checkatrade_fetched_at?: string | null;
+          checkatrade_status?: string | null;
           created_at?: string;
           updated_at?: string;
         };

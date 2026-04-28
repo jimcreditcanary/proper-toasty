@@ -33,6 +33,19 @@ export const InstallerCardSchema = z.object({
   // Reviews — placeholder for the future build
   reviewsScore: z.number().min(0).max(5),
   reviewsCount: z.number().int().min(0),
+
+  // Migration 031 enrichments
+  yearsInBusiness: z.number().int().nullable(),
+  incorporationYear: z.number().int().nullable(),
+  // Checkatrade — null = no review data (yet, or never matched)
+  checkatradeScore: z.number().min(0).max(5).nullable(),
+  checkatradeReviewCount: z.number().int().min(0).nullable(),
+  checkatradeUrl: z.string().nullable(),
+
+  // Whether the current homeowner has already booked a meeting with
+  // this installer (used to move the tile into the "contacted" section
+  // above the main grid).
+  contactedByMe: z.boolean(),
 });
 export type InstallerCard = z.infer<typeof InstallerCardSchema>;
 
@@ -51,6 +64,9 @@ export const NearbyInstallersRequestSchema = z.object({
   // Search radius cap in km — defaults to 80 (covers most of England
   // from anywhere). Set higher if the user has no installers nearby.
   maxDistanceKm: z.number().positive().max(500).default(80),
+  // Optional homeowner_lead_id so the response can flag installers
+  // the user has already booked a meeting with (contactedByMe=true).
+  homeownerLeadId: z.string().uuid().optional().nullable(),
 });
 export type NearbyInstallersRequest = z.infer<typeof NearbyInstallersRequestSchema>;
 

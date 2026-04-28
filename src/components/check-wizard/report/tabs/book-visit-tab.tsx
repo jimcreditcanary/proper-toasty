@@ -1,27 +1,42 @@
 "use client";
 
-// Book a site visit tab — live directory of MCS-certified installers,
-// distance-ranked from the user's address.
+// Book a site visit tab — 2-column grid of MCS-certified installers.
 //
-// Powered by /api/installers/nearby (Haversine) and the
-// public.installers table (5,630 rows, scraped from mcscertified.com).
+// Layout (top → bottom):
+//   - Filter pills (read-only — toggles live in Overview / Savings tabs)
+//   - "Already contacted" section (if any) — installers the homeowner
+//     has already booked a meeting with, shown above the main grid
+//     with a status pill so the user can see "yes, sent" at a glance
+//   - Main 2-column grid (5 rows = 10 tiles per page)
+//   - Pagination
 //
-// Each tile has a "Book a meeting" button that opens BookingModal,
-// which posts to /api/installer-leads/create. We don't email the
-// installer yet — that fan-out happens in PR 4. For now the lead is
-// captured in installer_leads with status='new'.
+// Each tile shows:
+//   - Company name
+//   - Cert body badge (NICEIC / NAPIT / MCS / RECC etc) + BUS pill
+//   - Distance from the user
+//   - Years in business (from Companies House enrichment)
+//   - Reviews (Checkatrade — fetched lazy on tile render, 90-day cached)
+//   - Capability chips (HP / Solar / Battery)
+//   - Phone + website if available
+//   - "Book a meeting" CTA — or status pill if already contacted
 
 import { useEffect, useMemo, useState } from "react";
 import {
+  Award,
   Battery,
+  Calendar,
+  CalendarDays,
+  CheckCircle2,
   ChevronLeft,
   ChevronRight,
-  CalendarDays,
+  Clock,
   ExternalLink,
   Flame,
+  Globe,
   Loader2,
   MapPin,
   Phone,
+  ShieldCheck,
   Star,
   Sun,
 } from "lucide-react";
@@ -53,22 +68,24 @@ export function BookVisitTab({
   selection,
 }: Props) {
   const { state } = useCheckWizard();
-
   const [page, setPage] = useState(1);
   const [data, setData] = useState<NearbyInstallersResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [bookingFor, setBookingFor] = useState<InstallerCard | null>(null);
 
-  // Compose the request from the user's selection. Battery on its own
-  // doesn't make sense as a search filter (every solar installer fits
-  // batteries) — collapse into solar+battery if the user only ticked
-  // battery.
+  // Visible installer mutations — lets the lazy Checkatrade refresh
+  // patch scores into the UI without re-fetching the whole list.
+  const [reviewPatches, setReviewPatches] = useState<
+    Record<number, { score: number | null; count: number | null; url: string | null }>
+  >({});
+
+  // Battery alone isn't a valid filter — collapse into solar+battery
+  // if the user only ticked battery.
   const wantsSolar = selection.hasSolar || selection.hasBattery;
   const wantsBattery = selection.hasBattery;
   const wantsHeatPump = selection.hasHeatPump;
   const filterKey = `${wantsHeatPump}-${wantsSolar}-${wantsBattery}`;
 
-  // Reset to page 1 whenever the filter changes.
   useEffect(() => {
     setPage(1);
   }, [filterKey]);
@@ -90,6 +107,9 @@ export function BookVisitTab({
             page,
             pageSize: PAGE_SIZE,
             maxDistanceKm: 80,
+            // Pass the homeowner_lead_id so the API can flag installers
+            // we've already booked a meeting with → contacted section.
+            homeownerLeadId: state.leadId ?? null,
           }),
         });
         const json = (await res.json()) as NearbyInstallersResponse;
@@ -113,7 +133,66 @@ export function BookVisitTab({
     return () => {
       cancelled = true;
     };
-  }, [latitude, longitude, wantsHeatPump, wantsSolar, wantsBattery, page]);
+  }, [latitude, longitude, wantsHeatPump, wantsSolar, wantsBattery, page, state.leadId]);
+
+  // Fire Checkatrade refresh for the visible tiles (90-day cache lives
+  // server-side; this just kicks the cron-by-render).
+  useEffect(() => {
+    const ids = (data?.installers ?? [])
+      .filter((i) => i.checkatradeScore == null)
+      .map((i) => i.id);
+    if (ids.length === 0) return;
+    void (async () => {
+      try {
+        const res = await fetch("/api/installers/checkatrade-refresh", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ids }),
+        });
+        if (!res.ok) return;
+        const json = (await res.json()) as {
+          ok?: boolean;
+          results?: Array<{
+            id: number;
+            checkatradeScore: number | null;
+            checkatradeReviewCount: number | null;
+            checkatradeUrl: string | null;
+          }>;
+        };
+        if (!json.ok || !json.results) return;
+        const patches: typeof reviewPatches = {};
+        for (const r of json.results) {
+          patches[r.id] = {
+            score: r.checkatradeScore,
+            count: r.checkatradeReviewCount,
+            url: r.checkatradeUrl,
+          };
+        }
+        setReviewPatches((prev) => ({ ...prev, ...patches }));
+      } catch {
+        // best-effort — silent
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data?.installers]);
+
+  // Apply patches + split into contacted vs available.
+  const { contacted, available } = useMemo(() => {
+    const list = (data?.installers ?? []).map((i) => {
+      const p = reviewPatches[i.id];
+      if (!p) return i;
+      return {
+        ...i,
+        checkatradeScore: p.score,
+        checkatradeReviewCount: p.count,
+        checkatradeUrl: p.url ?? i.checkatradeUrl,
+      };
+    });
+    return {
+      contacted: list.filter((i) => i.contactedByMe),
+      available: list.filter((i) => !i.contactedByMe),
+    };
+  }, [data?.installers, reviewPatches]);
 
   const totalPages = useMemo(() => {
     if (!data) return 1;
@@ -129,7 +208,7 @@ export function BookVisitTab({
         subtitle={`Sorted by distance. Filtered to specialists in ${techPhrase}.`}
         icon={<MapPin className="w-5 h-5" />}
       >
-        {/* Filter pills (read-only — toggles live in the Overview / Savings tabs) */}
+        {/* Filter pills (read-only) */}
         <div className="flex flex-wrap items-center gap-2 mb-5 -mt-1">
           <span className="text-xs text-slate-500 mr-1">Filtering by:</span>
           {wantsHeatPump && (
@@ -180,14 +259,42 @@ export function BookVisitTab({
           </div>
         ) : data ? (
           <>
+            {/* Already contacted — pinned above the grid so the user
+                can see what they've already done at a glance. */}
+            {contacted.length > 0 && (
+              <div className="mb-6 rounded-xl border border-emerald-200 bg-emerald-50/50 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wider text-emerald-800 mb-3 inline-flex items-center gap-1.5">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  Already contacted
+                </p>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                  {contacted.map((i) => (
+                    <InstallerTile
+                      key={i.id}
+                      installer={i}
+                      onBook={() => setBookingFor(i)}
+                      compact
+                    />
+                  ))}
+                </div>
+                <p className="mt-3 text-xs text-slate-600">
+                  We&rsquo;ll let you know when {contacted.length === 1 ? "they get" : "they get"} back to you.
+                  Future versions of this page will show meeting status,
+                  proposals received, and let you compare quotes side-by-side.
+                </p>
+              </div>
+            )}
+
             <p className="text-xs text-slate-500 mb-3">
               {data.totalCount.toLocaleString()} installer
               {data.totalCount === 1 ? "" : "s"} match — showing{" "}
               {(page - 1) * PAGE_SIZE + 1}–
               {Math.min(page * PAGE_SIZE, data.totalCount)}
             </p>
-            <div className="space-y-3">
-              {data.installers.map((i) => (
+
+            {/* The 2-column grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
+              {available.map((i) => (
                 <InstallerTile
                   key={i.id}
                   installer={i}
@@ -196,7 +303,6 @@ export function BookVisitTab({
               ))}
             </div>
 
-            {/* Pagination */}
             {totalPages > 1 && (
               <div className="mt-5 flex items-center justify-between">
                 <button
@@ -226,7 +332,7 @@ export function BookVisitTab({
         ) : null}
       </SectionCard>
 
-      {/* What to ask checklist (kept from the placeholder version) */}
+      {/* What to ask checklist */}
       <SectionCard
         title="What to ask an installer when they call"
         subtitle="A quick checklist so you know you're getting the right kind of quote."
@@ -293,9 +399,11 @@ export function BookVisitTab({
 function InstallerTile({
   installer,
   onBook,
+  compact,
 }: {
   installer: InstallerCard;
   onBook: () => void;
+  compact?: boolean;
 }) {
   const capChips: { icon: React.ReactNode; label: string }[] = [];
   if (installer.capHeatPump)
@@ -311,90 +419,155 @@ function InstallerTile({
       label: "Battery",
     });
 
-  return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5 hover:border-coral/30 hover:shadow-sm transition-all">
-      <div className="flex flex-col sm:flex-row sm:items-start gap-4">
-        {/* Identity + meta */}
-        <div className="flex-1 min-w-0">
-          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-            <h4 className="text-base font-bold text-navy leading-tight">
-              {installer.companyName}
-            </h4>
-            {installer.distanceKm != null && (
-              <span className="text-xs text-slate-500 inline-flex items-center gap-1">
-                <MapPin className="w-3 h-3" />
-                {installer.distanceKm}km
-              </span>
-            )}
-            <span className="text-xs text-slate-500">
-              {installer.certificationBody} · {installer.certificationNumber}
-            </span>
-          </div>
+  const hasCheckatrade =
+    installer.checkatradeScore != null && installer.checkatradeScore > 0;
 
+  return (
+    <div
+      className={`rounded-xl border ${installer.contactedByMe ? "border-emerald-200 bg-white" : "border-slate-200 bg-white hover:border-coral/30 hover:shadow-sm"} p-4 sm:p-5 transition-all flex flex-col`}
+    >
+      {/* Top: name + distance */}
+      <div className="flex items-start justify-between gap-3 mb-2">
+        <div className="min-w-0">
+          <h3 className="text-base font-bold text-navy leading-tight">
+            {installer.companyName}
+          </h3>
           {(installer.county || installer.postcode) && (
-            <p className="mt-1 text-xs text-slate-500">
+            <p className="mt-0.5 text-xs text-slate-500 inline-flex items-center gap-1">
+              <MapPin className="w-3 h-3" />
               {[installer.county, installer.postcode]
                 .filter(Boolean)
                 .join(" · ")}
             </p>
           )}
-
-          {/* Capability chips */}
-          <div className="mt-3 flex flex-wrap items-center gap-1.5">
-            {capChips.map((c, i) => (
-              <CapChip key={i} icon={c.icon} label={c.label} />
-            ))}
-            {installer.reviewsScore > 0 && installer.reviewsCount > 0 && (
-              <span className="inline-flex items-center gap-1 text-xs text-amber-700 font-medium ml-1">
-                <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
-                {installer.reviewsScore.toFixed(1)} ({installer.reviewsCount})
-              </span>
-            )}
-          </div>
-
-          {/* Phone link if we have one */}
-          {installer.telephone && (
-            <p className="mt-3 text-xs text-slate-600 inline-flex items-center gap-1">
-              <Phone className="w-3 h-3" />
-              <a
-                href={`tel:${installer.telephone}`}
-                className="hover:text-navy hover:underline"
-              >
-                {installer.telephone}
-              </a>
-              {installer.website && (
-                <>
-                  <span className="text-slate-300 mx-1.5">·</span>
-                  <a
-                    href={installer.website}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-0.5 hover:text-navy hover:underline"
-                  >
-                    Website
-                    <ExternalLink className="w-3 h-3" />
-                  </a>
-                </>
-              )}
-            </p>
-          )}
         </div>
+        {installer.distanceKm != null && (
+          <span className="shrink-0 inline-flex items-center text-xs font-semibold text-slate-600 bg-slate-100 rounded-full px-2 py-0.5">
+            {installer.distanceKm}km
+          </span>
+        )}
+      </div>
 
-        {/* CTA */}
-        <button
-          type="button"
-          onClick={onBook}
-          className="shrink-0 inline-flex items-center justify-center gap-2 h-11 px-5 rounded-full bg-coral hover:bg-coral-dark text-white font-semibold text-sm shadow-sm transition-colors w-full sm:w-auto"
-        >
-          <CalendarDays className="w-4 h-4" />
-          Book a meeting
-        </button>
+      {/* Cert badges + years in business */}
+      <div className="flex flex-wrap items-center gap-1.5 mb-3">
+        <CertBadge body={installer.certificationBody} />
+        {installer.busRegistered && (
+          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2 py-0.5">
+            <ShieldCheck className="w-3 h-3" />
+            BUS
+          </span>
+        )}
+        {installer.yearsInBusiness != null && installer.yearsInBusiness > 0 && (
+          <span className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-600 bg-slate-100 rounded-full px-2 py-0.5">
+            <Clock className="w-3 h-3" />
+            {installer.yearsInBusiness} year{installer.yearsInBusiness === 1 ? "" : "s"}
+            {installer.incorporationYear ? ` · since ${installer.incorporationYear}` : ""}
+          </span>
+        )}
+        {hasCheckatrade && (
+          <span className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-800 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5">
+            <Star className="w-3 h-3 fill-amber-500 text-amber-500" />
+            {installer.checkatradeScore!.toFixed(1)}
+            {installer.checkatradeReviewCount != null &&
+              ` · ${installer.checkatradeReviewCount} reviews`}
+          </span>
+        )}
+      </div>
+
+      {/* Capability chips */}
+      {!compact && (
+        <div className="flex flex-wrap items-center gap-1.5 mb-3">
+          {capChips.map((c, i) => (
+            <CapChip key={i} icon={c.icon} label={c.label} />
+          ))}
+        </div>
+      )}
+
+      {/* Contact */}
+      {!compact && (installer.telephone || installer.website) && (
+        <p className="text-xs text-slate-600 inline-flex flex-wrap items-center gap-2 mb-3">
+          {installer.telephone && (
+            <a
+              href={`tel:${installer.telephone}`}
+              className="inline-flex items-center gap-1 hover:text-navy hover:underline"
+            >
+              <Phone className="w-3 h-3" />
+              {installer.telephone}
+            </a>
+          )}
+          {installer.telephone && installer.website && (
+            <span className="text-slate-300">·</span>
+          )}
+          {installer.website && (
+            <a
+              href={installer.website}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 hover:text-navy hover:underline"
+            >
+              <Globe className="w-3 h-3" />
+              Website
+              <ExternalLink className="w-2.5 h-2.5" />
+            </a>
+          )}
+        </p>
+      )}
+
+      {/* CTA — book or status */}
+      <div className="mt-auto">
+        {installer.contactedByMe ? (
+          <div className="flex items-center justify-between gap-3">
+            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2.5 py-1">
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              Booking sent
+            </span>
+            <span className="text-xs text-slate-500 inline-flex items-center gap-1">
+              <Calendar className="w-3 h-3" />
+              Awaiting reply
+            </span>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={onBook}
+            className="w-full inline-flex items-center justify-center gap-2 h-11 px-5 rounded-full bg-coral hover:bg-coral-dark text-white font-semibold text-sm shadow-sm transition-colors"
+          >
+            <CalendarDays className="w-4 h-4" />
+            Book a meeting
+          </button>
+        )}
       </div>
     </div>
   );
 }
 
 // ─── Atoms ──────────────────────────────────────────────────────────────────
+
+// Map the certification body to a coloured pill so the user can tell
+// at a glance which scheme an installer belongs to. Defaults to a
+// neutral grey for anything we don't have a colour for.
+function CertBadge({ body }: { body: string }) {
+  const cls =
+    body === "NICEIC"
+      ? "bg-blue-50 text-blue-800 border-blue-200"
+      : body === "NAPIT"
+        ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+        : body === "MCS"
+          ? "bg-coral-pale text-coral-dark border-coral/40"
+          : body === "RECC"
+            ? "bg-violet-50 text-violet-800 border-violet-200"
+            : body === "HIES"
+              ? "bg-amber-50 text-amber-800 border-amber-200"
+              : "bg-slate-50 text-slate-700 border-slate-200";
+  return (
+    <span
+      className={`inline-flex items-center gap-1 text-[11px] font-semibold rounded-full px-2 py-0.5 border ${cls}`}
+    >
+      <Award className="w-3 h-3" />
+      {body}
+    </span>
+  );
+}
 
 function CapChip({
   icon,
@@ -445,4 +618,3 @@ function describeTech(hp: boolean, solar: boolean, battery: boolean): string {
   if (parts.length === 2) return `${parts[0]} and ${parts[1]}`;
   return `${parts.slice(0, -1).join(", ")}, and ${parts[parts.length - 1]}`;
 }
-
