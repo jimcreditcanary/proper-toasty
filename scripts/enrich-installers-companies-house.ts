@@ -99,27 +99,38 @@ async function main() {
     Date.now() - STALE_AFTER_DAYS * 24 * 60 * 60 * 1000,
   ).toISOString();
 
-  // Supabase/PostgREST caps `.select()` at 1,000 rows by default — we have
-  // ~4,900 installers with company numbers, so bump the limit explicitly.
-  let q = supabase
-    .from("installers")
-    .select("id, company_number, companies_house_fetched_at")
-    .not("company_number", "is", null)
-    .order("id", { ascending: true })
-    .limit(20000);
-
-  if (!REFRESH) {
-    q = q.or(
-      `companies_house_fetched_at.is.null,companies_house_fetched_at.lt.${staleCutoff}`,
-    );
+  // Supabase/PostgREST enforces `max-rows` (default 1,000) server-side, so
+  // even an explicit `.limit(20000)` gets capped. Page through with
+  // `.range()` until we get a short page.
+  type CandidateRow = {
+    id: number;
+    company_number: string | null;
+    companies_house_fetched_at: string | null;
+  };
+  const PAGE = 1000;
+  const all: CandidateRow[] = [];
+  for (let from = 0; ; from += PAGE) {
+    let q = supabase
+      .from("installers")
+      .select("id, company_number, companies_house_fetched_at")
+      .not("company_number", "is", null)
+      .order("id", { ascending: true })
+      .range(from, from + PAGE - 1);
+    if (!REFRESH) {
+      q = q.or(
+        `companies_house_fetched_at.is.null,companies_house_fetched_at.lt.${staleCutoff}`,
+      );
+    }
+    const { data: page, error } = await q;
+    if (error) {
+      console.error("query failed:", error.message);
+      process.exit(1);
+    }
+    const rows = page ?? [];
+    all.push(...rows);
+    if (rows.length < PAGE) break;
   }
-
-  const { data: rows, error } = await q;
-  if (error) {
-    console.error("query failed:", error.message);
-    process.exit(1);
-  }
-  const work = LIMIT > 0 ? (rows ?? []).slice(0, LIMIT) : (rows ?? []);
+  const work = LIMIT > 0 ? all.slice(0, LIMIT) : all;
   console.log(
     `📦 ${work.length.toLocaleString()} installer(s) to enrich${REFRESH ? " (--refresh)" : ""}${LIMIT > 0 ? ` (--limit ${LIMIT})` : ""}`,
   );
