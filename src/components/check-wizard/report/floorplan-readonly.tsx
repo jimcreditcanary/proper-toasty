@@ -30,11 +30,20 @@ interface Props {
   analysis: FloorplanAnalysis;
   imageUrl: string | null;
   // When true, fades the underlying photo out and shows the canonical
-  // drawing only — same default as the editor's "adjust" stage.
+  // drawing only. When false, the photo is fully visible underneath
+  // the annotations (useful for AI-detected layouts where the user
+  // hasn't drawn anything themselves and the photo is the source of
+  // truth). If unset, picks based on whether the analysis was
+  // AI-autorunned: drawn → canonical, AI'd → photo-visible.
   canonical?: boolean;
 }
 
-export function FloorplanReadOnly({ analysis, imageUrl, canonical = true }: Props) {
+export function FloorplanReadOnly({ analysis, imageUrl, canonical }: Props) {
+  // Default behaviour: show the photo when AI auto-detected the layout
+  // (the photo IS the truth), hide it when the user drew their own
+  // annotations (the drawing is the truth, the photo would just clutter
+  // the read-only render).
+  const hidePhoto = canonical ?? !analysis.aiAutorun;
   // Prefer refined geometry if Claude has cleaned things up — otherwise
   // fall back to the raw user-drawn shapes.
   const walls =
@@ -64,7 +73,7 @@ export function FloorplanReadOnly({ analysis, imageUrl, canonical = true }: Prop
           unoptimized
         />
       )}
-      {imageUrl && canonical && (
+      {imageUrl && hidePhoto && (
         <div className="absolute inset-0 bg-cream/80" aria-hidden />
       )}
 
