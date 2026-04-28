@@ -99,10 +99,14 @@ async function main() {
     Date.now() - STALE_AFTER_DAYS * 24 * 60 * 60 * 1000,
   ).toISOString();
 
+  // Supabase/PostgREST caps `.select()` at 1,000 rows by default — we have
+  // ~4,900 installers with company numbers, so bump the limit explicitly.
   let q = supabase
     .from("installers")
     .select("id, company_number, companies_house_fetched_at")
-    .not("company_number", "is", null);
+    .not("company_number", "is", null)
+    .order("id", { ascending: true })
+    .limit(20000);
 
   if (!REFRESH) {
     q = q.or(
