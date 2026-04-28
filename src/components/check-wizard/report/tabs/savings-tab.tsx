@@ -138,29 +138,31 @@ export function SavingsTab({
   );
   const curve = useMemo(() => (rows ? deriveCurve(rows) : []), [rows]);
 
-  // Derive the three scenarios from the API rows.
+  // Derive everything we need from the API rows + a proper PMT-based
+  // finance calculation we own end-to-end.
+  //
+  // The Octopus API includes its own finance maths in Total_Monthly_Bill
+  // but we don't fully trust it (the heat-pump grant treatment is
+  // opaque, and users were getting payback figures of "0.5 months"
+  // which made no sense). So we use the API's BAU bills + export
+  // revenue figures, and apply our own amortisation on the post-grant
+  // upfront cost so the 6.9% / 10y promise is verifiable arithmetic.
   const scenarios = useMemo(() => {
     if (!rows || !rows.length) return null;
     const year1 = rows.slice(0, 12);
 
-    // Do nothing — sum BAU.
+    // Do-nothing baseline — BAU bills.
     const doNothingAnnual = year1.reduce((acc, r) => acc + r.BAU_Total, 0);
 
-    // Finance scenario — already includes loan payments in Total_Monthly_Bill.
-    const financeAnnual = year1.reduce(
-      (acc, r) => acc + r.Total_Monthly_Bill,
+    // Strip finance out of the API's "selected" bill so we have a pure
+    // bill-after-upgrades figure (no double-counting our own loan calc).
+    const billsOnlyAnnual = year1.reduce(
+      (acc, r) => acc + (r.Total_Monthly_Bill - r.Selected_TotalFinanceCost),
       0,
     );
 
-    // Pay up front — same as finance but back out the loan payments.
-    const totalFinanceCostY1 = year1.reduce(
-      (acc, r) => acc + r.Selected_TotalFinanceCost,
-      0,
-    );
-    const payUpAnnual = financeAnnual - totalFinanceCostY1;
-
-    // Export revenue — solar you generated but didn't use, sold to the grid.
-    // Surfaced separately because it's the question users ask most often.
+    // Export revenue is INSIDE Total_Monthly_Bill (it's already netted off).
+    // Surface separately because users want to see it called out.
     const exportRevenueY1 = year1.reduce(
       (acc, r) => acc + r.Selected_ExportRevenue,
       0,
@@ -172,31 +174,48 @@ export function SavingsTab({
 
     return {
       doNothingAnnual,
-      financeAnnual,
-      payUpAnnual,
-      totalFinanceCostY1,
+      billsOnlyAnnual,
       exportRevenueY1,
       exportKwhY1,
     };
   }, [rows]);
 
-  // Upfront cost — only matters for the Pay-up-front scenario, but we
-  // surface it everywhere for clarity. Uses the midpoint of the heat-pump
-  // post-grant range, the solar install cost, and a flat £/kWh battery
-  // benchmark.
-  const upfrontCost = useMemo(() => {
-    let total = 0;
-    if (selection.hasHeatPump) {
-      const range = analysis.finance.heatPump.estimatedNetInstallCostRangeGBP;
-      if (range) total += (range[0] + range[1]) / 2;
-    }
-    if (selection.hasSolar) {
-      total += analysis.finance.solar.installCostGBP ?? 0;
-    }
-    if (selection.hasBattery) {
-      total += batteryKwh * BATTERY_COST_PER_KWH;
-    }
-    return total;
+  // Cost breakdown — the user wants this as a transparent line-item
+  // calculation, not buried in a black-box "post-grant range".
+  //   Heat pump install (gross)
+  //   Solar install
+  //   Battery install (size × £/kWh)
+  //   = Total install
+  //   - BUS grant (heat pump only)
+  //   = Net upfront cost
+  const costBreakdown = useMemo(() => {
+    // Heat pump: prefer the gross figure (post-grant range midpoint + grant
+    // back), so the breakdown shows install → grant → net. Fall back to
+    // adding £7,500 to the post-grant range midpoint.
+    const hpRange = analysis.finance.heatPump.estimatedNetInstallCostRangeGBP;
+    const hpNet = hpRange ? (hpRange[0] + hpRange[1]) / 2 : 0;
+    const busGrant = analysis.eligibility.heatPump.estimatedGrantGBP;
+    const hpGross = hpNet + busGrant;
+
+    const solarCost = analysis.finance.solar.installCostGBP ?? 0;
+    const batteryCost = batteryKwh * BATTERY_COST_PER_KWH;
+
+    const hpLine = selection.hasHeatPump ? hpGross : 0;
+    const hpGrant = selection.hasHeatPump ? busGrant : 0;
+    const solarLine = selection.hasSolar ? solarCost : 0;
+    const batteryLine = selection.hasBattery ? batteryCost : 0;
+
+    const grossTotal = hpLine + solarLine + batteryLine;
+    const netUpfront = grossTotal - hpGrant;
+
+    return {
+      hpGross: hpLine,
+      hpGrant,
+      solarCost: solarLine,
+      batteryCost: batteryLine,
+      grossTotal,
+      netUpfront,
+    };
   }, [
     selection.hasHeatPump,
     selection.hasSolar,
@@ -204,7 +223,50 @@ export function SavingsTab({
     batteryKwh,
     analysis.finance.heatPump.estimatedNetInstallCostRangeGBP,
     analysis.finance.solar.installCostGBP,
+    analysis.eligibility.heatPump.estimatedGrantGBP,
   ]);
+
+  // Standard amortisation (PMT formula). Loan principal × rate ×
+  // (1+r)^n / ((1+r)^n − 1). Returns 0 if the loan is zero.
+  function monthlyLoanPayment(
+    principal: number,
+    annualAprPct: number,
+    termYears: number,
+  ): number {
+    if (principal <= 0) return 0;
+    const r = annualAprPct / 100 / 12;
+    const n = termYears * 12;
+    if (r === 0) return principal / n;
+    const factor = Math.pow(1 + r, n);
+    return (principal * r * factor) / (factor - 1);
+  }
+
+  const financeMonthly = monthlyLoanPayment(
+    costBreakdown.netUpfront,
+    FINANCE_DEFAULTS.solarLoanAprPct, // 6.9%
+    FINANCE_DEFAULTS.defaultSolarLoanTermYears, // 10y
+  );
+  const financeTotalCost = financeMonthly * 12 * FINANCE_DEFAULTS.defaultSolarLoanTermYears;
+
+  // Per-scenario annual cost.
+  const billsOnlyAnnual = scenarios?.billsOnlyAnnual ?? 0;
+  const payUpAnnual = billsOnlyAnnual; // bills only; upfront paid at year 0
+  const financeAnnual = billsOnlyAnnual + financeMonthly * 12;
+
+  // Per-scenario payback.
+  // Pay-up-front: year N where Σ(annual saving vs BAU) ≥ net upfront cost.
+  // Annual saving = doNothing - billsOnly. Assume constant saving
+  // (in reality it grows with energy inflation but the API gives us the
+  // first-year figure; close enough for headline).
+  const annualBillSaving = scenarios
+    ? scenarios.doNothingAnnual - billsOnlyAnnual
+    : 0;
+  const payUpPaybackYears =
+    annualBillSaving > 0 && costBreakdown.netUpfront > 0
+      ? costBreakdown.netUpfront / annualBillSaving
+      : null;
+
+  // (upfront cost lives in costBreakdown.netUpfront — single source of truth)
 
   const noTechSelected =
     !selection.hasSolar && !selection.hasBattery && !selection.hasHeatPump;
@@ -242,7 +304,7 @@ export function SavingsTab({
               estimates on the Heat Pump and Solar tabs still apply.
             </span>
           </div>
-        ) : scenarios && headline ? (
+        ) : scenarios ? (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4">
             <ScenarioCard
               kind="donothing"
@@ -254,6 +316,7 @@ export function SavingsTab({
               annualSavings={null}
               upfrontCost={null}
               monthlyFinance={null}
+              paybackYears={null}
               loading={loading}
             />
             <ScenarioCard
@@ -262,12 +325,11 @@ export function SavingsTab({
               onSelect={() => setActiveScenario("payup")}
               title="Pay up front"
               tagline="Lower bills from day one"
-              annualBill={scenarios.payUpAnnual}
-              annualSavings={
-                scenarios.doNothingAnnual - scenarios.payUpAnnual
-              }
-              upfrontCost={upfrontCost}
+              annualBill={payUpAnnual}
+              annualSavings={annualBillSaving}
+              upfrontCost={costBreakdown.netUpfront}
               monthlyFinance={null}
+              paybackYears={payUpPaybackYears}
               loading={loading}
             />
             <ScenarioCard
@@ -276,44 +338,172 @@ export function SavingsTab({
               onSelect={() => setActiveScenario("finance")}
               title="Finance over 10 years"
               tagline="Spread the cost · 6.9% APR"
-              annualBill={scenarios.financeAnnual}
+              annualBill={financeAnnual}
               annualSavings={
-                scenarios.doNothingAnnual - scenarios.financeAnnual
+                scenarios.doNothingAnnual - financeAnnual
               }
               upfrontCost={null}
-              monthlyFinance={scenarios.totalFinanceCostY1 / 12}
+              monthlyFinance={financeMonthly}
+              paybackYears={null}
+              financeTotalCost={financeTotalCost}
               loading={loading}
             />
           </div>
         ) : null}
 
-        {!noTechSelected && headline && (
+        {!noTechSelected && scenarios && (
           <div className="mt-5 rounded-xl bg-slate-50 border border-slate-100 p-4 text-sm text-slate-600 leading-relaxed">
-            <p>
-              <strong className="text-navy">Year 1 savings:</strong>{" "}
-              {fmtGbp(headline.year1Savings)} — that&rsquo;s about{" "}
-              <strong className="text-navy">
-                {fmtGbp(headline.avgMonthlySavings)}
-              </strong>{" "}
-              less per month than carrying on as you are.
-              {headline.paybackYears != null && (
-                <>
-                  {" "}
-                  At this rate, the upgrades pay for themselves in around{" "}
-                  <strong className="text-emerald-700">
-                    {headline.paybackYears.toFixed(1)} years
-                  </strong>
-                  .
-                </>
-              )}
-            </p>
+            {activeScenario === "donothing" ? (
+              <p>
+                Carrying on as you are means about{" "}
+                <strong className="text-navy">
+                  {fmtGbp(scenarios.doNothingAnnual / 12)}/month
+                </strong>{" "}
+                in energy bills today, and that figure tends to drift up 4–6%
+                a year. Pick another scenario to see what changes.
+              </p>
+            ) : activeScenario === "payup" ? (
+              <p>
+                Pay the{" "}
+                <strong className="text-navy">
+                  {fmtGbp(costBreakdown.netUpfront, { compact: true })}
+                </strong>{" "}
+                up front and your monthly bill drops to about{" "}
+                <strong className="text-navy">
+                  {fmtGbp(payUpAnnual / 12)}
+                </strong>
+                . You&rsquo;d save roughly{" "}
+                <strong className="text-emerald-700">
+                  {fmtGbp(annualBillSaving, { compact: true })}/year
+                </strong>{" "}
+                on bills.
+                {payUpPaybackYears != null && (
+                  <>
+                    {" "}
+                    The upgrades pay for themselves in about{" "}
+                    <strong className="text-emerald-700">
+                      {payUpPaybackYears.toFixed(1)} years
+                    </strong>{" "}
+                    of bill savings, then it&rsquo;s pure profit.
+                  </>
+                )}
+              </p>
+            ) : (
+              <p>
+                Spread the cost over 10 years at 6.9% APR — that&rsquo;s{" "}
+                <strong className="text-navy">
+                  {fmtGbp(financeMonthly)}/month
+                </strong>{" "}
+                in loan payments, on top of your post-upgrade bill of{" "}
+                <strong className="text-navy">{fmtGbp(payUpAnnual / 12)}</strong>
+                . Total monthly cost:{" "}
+                <strong className="text-navy">
+                  {fmtGbp(financeAnnual / 12)}
+                </strong>{" "}
+                vs your current{" "}
+                <strong className="text-navy">
+                  {fmtGbp(scenarios.doNothingAnnual / 12)}
+                </strong>
+                .{" "}
+                {financeAnnual < scenarios.doNothingAnnual ? (
+                  <>
+                    You&rsquo;re{" "}
+                    <strong className="text-emerald-700">
+                      {fmtGbp(
+                        (scenarios.doNothingAnnual - financeAnnual) / 12,
+                      )}
+                      /month better off
+                    </strong>{" "}
+                    from day one. After year 10 the loan&rsquo;s paid off and
+                    you keep the full bill saving.
+                  </>
+                ) : (
+                  <>
+                    You&rsquo;re{" "}
+                    <strong className="text-amber-700">
+                      {fmtGbp(
+                        (financeAnnual - scenarios.doNothingAnnual) / 12,
+                      )}
+                      /month worse off
+                    </strong>{" "}
+                    until the loan&rsquo;s paid off in year 10 — then you&rsquo;re
+                    all upside.
+                  </>
+                )}
+              </p>
+            )}
             <p className="mt-2 text-xs text-slate-500">
               Includes export earnings from solar you don&rsquo;t use
-              yourself (called out below), energy-bill inflation, and
-              supplier standing charges. Doesn&rsquo;t include planning
-              fees or any electrical-panel upgrades — your installer
-              will price those in the formal quote.
+              yourself, energy-bill inflation, and supplier standing
+              charges. Doesn&rsquo;t include planning fees or any
+              electrical-panel upgrades — your installer will price those
+              in the formal quote.
             </p>
+          </div>
+        )}
+
+        {/* Cost breakdown — explicit line-item view of what makes up
+            the upfront figure. The user wanted transparent maths. */}
+        {!noTechSelected && (
+          <div className="mt-3 rounded-xl border border-slate-200 bg-white p-4">
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3">
+              How the upfront cost adds up
+            </p>
+            <dl className="text-sm space-y-1.5">
+              {selection.hasHeatPump && (
+                <BreakdownRow
+                  label="Heat pump install"
+                  value={fmtGbp(costBreakdown.hpGross, { compact: true })}
+                />
+              )}
+              {selection.hasSolar && (
+                <BreakdownRow
+                  label="Solar install"
+                  value={fmtGbp(costBreakdown.solarCost, { compact: true })}
+                />
+              )}
+              {selection.hasBattery && (
+                <BreakdownRow
+                  label={`Battery (${batteryKwh} kWh)`}
+                  value={fmtGbp(costBreakdown.batteryCost, { compact: true })}
+                />
+              )}
+              <div className="border-t border-slate-100 my-2" />
+              {costBreakdown.hpGrant > 0 && (
+                <BreakdownRow
+                  label="BUS grant (heat pump)"
+                  value={`−${fmtGbp(costBreakdown.hpGrant, { compact: true })}`}
+                  positive
+                />
+              )}
+              {scenarios && scenarios.exportRevenueY1 > 1 && (
+                <BreakdownRow
+                  label="Year-1 export earnings"
+                  value={`−${fmtGbp(scenarios.exportRevenueY1, { compact: true })}`}
+                  positive
+                  hint="Solar you sell to the grid in year 1"
+                />
+              )}
+              <div className="border-t border-slate-100 my-2" />
+              <BreakdownRow
+                label="Net upfront cost"
+                value={fmtGbp(costBreakdown.netUpfront, { compact: true })}
+                strong
+              />
+              {scenarios && scenarios.exportRevenueY1 > 1 && (
+                <BreakdownRow
+                  label="After year-1 export earnings"
+                  value={fmtGbp(
+                    Math.max(
+                      0,
+                      costBreakdown.netUpfront - scenarios.exportRevenueY1,
+                    ),
+                    { compact: true },
+                  )}
+                  hint="Roughly what you'd be out of pocket end of year 1 (pay-up-front scenario)"
+                />
+              )}
+            </dl>
           </div>
         )}
 
@@ -389,6 +579,8 @@ function ScenarioCard({
   annualSavings,
   upfrontCost,
   monthlyFinance,
+  paybackYears,
+  financeTotalCost,
   loading,
 }: {
   kind: "donothing" | "payup" | "finance";
@@ -400,10 +592,11 @@ function ScenarioCard({
   annualSavings: number | null;
   upfrontCost: number | null;
   monthlyFinance: number | null;
+  paybackYears: number | null;
+  financeTotalCost?: number;
   loading: boolean;
 }) {
   const monthly = annualBill / 12;
-  const monthlyPositive = monthlyFinance != null;
   const wrapper = active
     ? "border-coral bg-coral-pale/40 ring-2 ring-coral/30"
     : "border-slate-200 bg-white hover:border-slate-300";
@@ -450,10 +643,26 @@ function ScenarioCard({
               </span>
             </Row>
           )}
-          {monthlyPositive && (
-            <Row label="Loan payment (incl. above)">
+          {paybackYears != null && (
+            <Row label="Pays for itself in">
+              <span className="font-semibold text-emerald-700">
+                {paybackYears < 1
+                  ? `${(paybackYears * 12).toFixed(0)} months`
+                  : `${paybackYears.toFixed(1)} years`}
+              </span>
+            </Row>
+          )}
+          {monthlyFinance != null && (
+            <Row label="Loan payment (in monthly)">
               <span className="font-medium text-coral-dark">
-                {fmtGbp(monthlyFinance!, { compact: true })}/mo
+                {fmtGbp(monthlyFinance, { compact: true })}/mo
+              </span>
+            </Row>
+          )}
+          {financeTotalCost != null && (
+            <Row label="Total cost over 10y">
+              <span className="font-medium text-navy">
+                {fmtGbp(financeTotalCost, { compact: true })}
               </span>
             </Row>
           )}
@@ -467,6 +676,39 @@ function ScenarioCard({
         </div>
       )}
     </button>
+  );
+}
+
+// One-line item in the cost breakdown card.
+function BreakdownRow({
+  label,
+  value,
+  hint,
+  positive,
+  strong,
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+  positive?: boolean;
+  strong?: boolean;
+}) {
+  const labelCls = strong ? "text-navy font-semibold" : "text-slate-600";
+  const valueCls = strong
+    ? "text-navy font-bold tabular-nums"
+    : positive
+      ? "text-emerald-700 font-semibold tabular-nums"
+      : "text-navy font-medium tabular-nums";
+  return (
+    <div className="flex items-baseline justify-between gap-3">
+      <div className="min-w-0">
+        <dt className={`text-sm ${labelCls}`}>{label}</dt>
+        {hint && (
+          <span className="block text-xs text-slate-500 mt-0.5">{hint}</span>
+        )}
+      </div>
+      <dd className={`text-sm ${valueCls}`}>{value}</dd>
+    </div>
   );
 }
 
