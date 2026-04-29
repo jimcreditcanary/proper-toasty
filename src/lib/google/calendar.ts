@@ -53,12 +53,82 @@ function readConfig(): CalendarConfig | null {
   const rawKey = process.env.GOOGLE_CALENDAR_SA_PRIVATE_KEY;
   const calendarId = process.env.GOOGLE_CALENDAR_ID;
   if (!clientEmail || !rawKey || !calendarId) return null;
-  // Vercel + .env.local both store the key with literal `\n` escape
-  // sequences. Expand to real newlines so the JWT signer can parse
-  // the PEM block. If the key already has real newlines this is a
-  // no-op.
-  const privateKey = rawKey.replace(/\\n/g, "\n");
-  return { clientEmail, privateKey, calendarId };
+  return {
+    clientEmail,
+    privateKey: normalisePrivateKey(rawKey),
+    calendarId,
+  };
+}
+
+/**
+ * Coerce a service-account private key into the shape the JWT signer
+ * expects, regardless of how it was stored:
+ *
+ *   - Strip leading/trailing whitespace + surrounding quotes (a common
+ *     paste mistake on Vercel — pasting with the JSON quotes still in).
+ *   - Expand literal `\n` escape sequences to real newlines (Vercel
+ *     stores them literally; dotenv expands them automatically in dev).
+ *   - Normalise CRLF → LF so a Windows clipboard paste doesn't break
+ *     the PEM body parser.
+ *   - Ensure exactly one trailing newline — the OpenSSL parser is
+ *     fussy and 1E08010C is what it throws when even the trailing
+ *     newline is missing.
+ *
+ * Exported so the debug endpoint can run the same logic and confirm
+ * the resulting key is well-formed.
+ */
+export function normalisePrivateKey(raw: string): string {
+  let v = raw.trim();
+  // Strip a single matched pair of surrounding quotes — `"..."` or `'...'`.
+  if (
+    (v.startsWith('"') && v.endsWith('"')) ||
+    (v.startsWith("'") && v.endsWith("'"))
+  ) {
+    v = v.slice(1, -1);
+  }
+  // Expand `\n` escape sequences to real newlines. No-op when the
+  // value already has real newlines (dotenv expanded them, or the
+  // value was pasted as multi-line in a Vercel textarea).
+  v = v.replace(/\\n/g, "\n");
+  // Normalise CRLF → LF so a Windows-clipboard paste still parses.
+  v = v.replace(/\r\n/g, "\n");
+  // Trailing newline is mandatory for OpenSSL.
+  if (!v.endsWith("\n")) v = `${v}\n`;
+  return v;
+}
+
+/**
+ * Lightweight introspection of the configured private key for the
+ * /api/_debug/calendar-auth endpoint. Never includes any actual key
+ * material — only counts and the leading / trailing 30 characters of
+ * the literal PEM markers (which are publicly known and present in
+ * every key).
+ */
+export function describePrivateKeyShape(raw: string): {
+  rawLength: number;
+  normalisedLength: number;
+  hasBeginMarker: boolean;
+  hasEndMarker: boolean;
+  realNewlines: number;
+  literalBackslashN: number;
+  surroundedByQuotes: boolean;
+  trailingNewline: boolean;
+} {
+  const trimmed = raw.trim();
+  const surroundedByQuotes =
+    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+    (trimmed.startsWith("'") && trimmed.endsWith("'"));
+  const normalised = normalisePrivateKey(raw);
+  return {
+    rawLength: raw.length,
+    normalisedLength: normalised.length,
+    hasBeginMarker: normalised.includes("-----BEGIN PRIVATE KEY-----"),
+    hasEndMarker: normalised.includes("-----END PRIVATE KEY-----"),
+    realNewlines: (normalised.match(/\n/g) ?? []).length,
+    literalBackslashN: (raw.match(/\\n/g) ?? []).length,
+    surroundedByQuotes,
+    trailingNewline: normalised.endsWith("\n"),
+  };
 }
 
 function getClient(): { client: calendar_v3.Calendar; config: CalendarConfig } | null {

@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   buildHomeownerEvent,
   buildInstallerEvent,
+  describePrivateKeyShape,
+  normalisePrivateKey,
 } from "../calendar";
 
 const HOMEOWNER_BASE = {
@@ -125,5 +127,79 @@ describe("buildInstallerEvent", () => {
   it("falls back to a placeholder when no report link given", () => {
     const ev = buildInstallerEvent({ ...INSTALLER_BASE, reportLinkUrl: null });
     expect(ev.description).toContain("installer portal");
+  });
+});
+
+// ─── PEM normalisation ──────────────────────────────────────────────────
+//
+// These tests cover every shape we've actually seen in the wild on
+// Vercel + .env.local. The OpenSSL "decoder unsupported" error
+// (1E08010C) is the symptom — these pin down the inputs we accept.
+
+describe("normalisePrivateKey", () => {
+  const PEM_BODY =
+    "MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQ";
+
+  it("expands literal \\n escape sequences to real newlines", () => {
+    const raw = `-----BEGIN PRIVATE KEY-----\\n${PEM_BODY}\\n-----END PRIVATE KEY-----\\n`;
+    const out = normalisePrivateKey(raw);
+    expect(out).toContain("\n"); // real newline now present
+    expect(out).not.toContain("\\n"); // literal escape sequence gone
+    expect(out.startsWith("-----BEGIN PRIVATE KEY-----\n")).toBe(true);
+    expect(out.endsWith("-----END PRIVATE KEY-----\n")).toBe(true);
+  });
+
+  it("leaves real-newline keys alone (no double-escaping)", () => {
+    const raw = `-----BEGIN PRIVATE KEY-----\n${PEM_BODY}\n-----END PRIVATE KEY-----\n`;
+    expect(normalisePrivateKey(raw)).toBe(raw);
+  });
+
+  it("strips a single pair of surrounding double quotes", () => {
+    const raw = `"-----BEGIN PRIVATE KEY-----\n${PEM_BODY}\n-----END PRIVATE KEY-----\n"`;
+    const out = normalisePrivateKey(raw);
+    expect(out.startsWith("-----BEGIN")).toBe(true);
+    expect(out.endsWith("-----\n")).toBe(true);
+  });
+
+  it("strips a single pair of surrounding single quotes", () => {
+    const raw = `'-----BEGIN PRIVATE KEY-----\n${PEM_BODY}\n-----END PRIVATE KEY-----\n'`;
+    expect(normalisePrivateKey(raw).startsWith("-----BEGIN")).toBe(true);
+  });
+
+  it("normalises CRLF to LF", () => {
+    const raw = `-----BEGIN PRIVATE KEY-----\r\n${PEM_BODY}\r\n-----END PRIVATE KEY-----\r\n`;
+    const out = normalisePrivateKey(raw);
+    expect(out).not.toContain("\r");
+    expect(out.split("\n").length).toBe(4);
+  });
+
+  it("appends a trailing newline if missing", () => {
+    const raw = `-----BEGIN PRIVATE KEY-----\n${PEM_BODY}\n-----END PRIVATE KEY-----`;
+    const out = normalisePrivateKey(raw);
+    expect(out.endsWith("\n")).toBe(true);
+  });
+});
+
+describe("describePrivateKeyShape", () => {
+  it("flags well-formed keys correctly", () => {
+    const raw = `-----BEGIN PRIVATE KEY-----\\nABC\\n-----END PRIVATE KEY-----\\n`;
+    const shape = describePrivateKeyShape(raw);
+    expect(shape.hasBeginMarker).toBe(true);
+    expect(shape.hasEndMarker).toBe(true);
+    expect(shape.literalBackslashN).toBe(3);
+    expect(shape.realNewlines).toBeGreaterThan(0);
+    expect(shape.surroundedByQuotes).toBe(false);
+  });
+
+  it("flags surrounding quotes as a problem indicator", () => {
+    const raw = `"-----BEGIN PRIVATE KEY-----\\nABC\\n-----END PRIVATE KEY-----\\n"`;
+    expect(describePrivateKeyShape(raw).surroundedByQuotes).toBe(true);
+  });
+
+  it("flags missing BEGIN marker", () => {
+    const raw = `not-a-pem-block`;
+    const shape = describePrivateKeyShape(raw);
+    expect(shape.hasBeginMarker).toBe(false);
+    expect(shape.hasEndMarker).toBe(false);
   });
 });
