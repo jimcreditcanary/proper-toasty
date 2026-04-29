@@ -76,7 +76,12 @@ function buildAcknowledgeUrl(leadId: string, token: string): string {
     "https://propertoasty.com";
   // VERCEL_URL omits the protocol — add it.
   const normalised = base.startsWith("http") ? base : `https://${base}`;
-  return `${normalised.replace(/\/+$/, "")}/installer/acknowledge?lead=${encodeURIComponent(leadId)}&token=${encodeURIComponent(token)}`;
+  // Point at the API verifier — it checks the HMAC, updates the lead
+  // row, then redirects to /installer/acknowledge?state=... so the
+  // installer sees the friendly confirmation page. Hitting the public
+  // page directly (the previous bug) shows "invalid" because there's
+  // no `state` param.
+  return `${normalised.replace(/\/+$/, "")}/api/installer-leads/acknowledge?lead=${encodeURIComponent(leadId)}&token=${encodeURIComponent(token)}`;
 }
 
 function deriveNotificationStatus(
