@@ -1150,6 +1150,7 @@ export interface Database {
           contact_phone: string;
           notes: string | null;
           google_event_id: string | null;
+          google_installer_event_id: string | null;
           google_calendar_id: string | null;
           invite_sent_at: string | null;
           status: "booked" | "cancelled" | "completed" | "no_show";
@@ -1171,6 +1172,7 @@ export interface Database {
           contact_phone: string;
           notes?: string | null;
           google_event_id?: string | null;
+          google_installer_event_id?: string | null;
           google_calendar_id?: string | null;
           invite_sent_at?: string | null;
           status?: "booked" | "cancelled" | "completed" | "no_show";

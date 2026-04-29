@@ -8,21 +8,29 @@ import { sendEmail, type SendEmailResult } from "@/lib/email/client";
 import { signLeadAckToken } from "@/lib/email/tokens";
 import { buildInstallerEmail } from "@/lib/email/templates/booking-installer";
 import { buildHomeownerEmail } from "@/lib/email/templates/booking-homeowner";
+import {
+  insertHomeownerEvent,
+  insertInstallerEvent,
+  type CalendarResult,
+} from "@/lib/google/calendar";
 import type { Database } from "@/types/database";
 
 // POST /api/installer-leads/create
 //
 // Captures a "book a site visit" submission from the report tab.
-// Inserts into public.installer_leads, then fires two emails:
-//   1. To the installer — full details + magic-link "I'll take this lead"
-//   2. To the homeowner — confirmation that we've passed it along
+// Inserts into public.installer_leads, optionally inserts a row into
+// public.installer_meetings (when a slot was picked), then fires:
+//   1. Installer email — full details + magic-link "I'll take this lead"
+//   2. Homeowner email — branded confirmation with installer contact
+//   3. Google Calendar invite to the homeowner (1hr)
+//   4. Google Calendar invite to the installer (1hr + 30min travel buffers)
 //
-// Email failures don't fail the request — the lead is captured either
-// way, just marked notification_status='failed' / 'skipped' for the
-// admin team to chase manually.
+// All four side-effects fail soft — the lead is captured even if every
+// notification fails. Notification failures are logged + persisted to
+// the lead row so admin can chase manually.
 
 export const runtime = "nodejs";
-export const maxDuration = 30; // emails add latency
+export const maxDuration = 60; // emails + 2 Google API calls add latency
 
 type InstallerRow = Database["public"]["Tables"]["installers"]["Row"];
 
@@ -254,6 +262,10 @@ export async function POST(req: Request) {
 
   const reportFacts = extractReportFacts(input.analysisSnapshot);
 
+  const meetingStartUtc = input.meeting?.scheduledAtUtc ?? null;
+  const meetingDurationMin = input.meeting?.durationMin ?? null;
+  const travelBufferMin = input.meeting?.travelBufferMin ?? null;
+
   const installerEmail = installer.email
     ? buildInstallerEmail({
         installerCompanyName: installer.company_name,
@@ -265,6 +277,9 @@ export async function POST(req: Request) {
         notes: input.notes ?? null,
         propertyAddress: input.propertyAddress ?? null,
         propertyPostcode: input.propertyPostcode ?? null,
+        meetingStartUtc,
+        meetingDurationMin,
+        travelBufferMin,
         wantsHeatPump: input.wantsHeatPump,
         wantsSolar: input.wantsSolar,
         wantsBattery: input.wantsBattery,
@@ -284,12 +299,30 @@ export async function POST(req: Request) {
     installerTelephone: installer.telephone,
     installerWebsite: installer.website,
     propertyAddress: input.propertyAddress ?? null,
+    meetingStartUtc,
+    meetingDurationMin,
     wantsHeatPump: input.wantsHeatPump,
     wantsSolar: input.wantsSolar,
     wantsBattery: input.wantsBattery,
   });
 
-  const [installerResult, homeownerResult] = await Promise.all([
+  // Notifications fan-out: 2 transactional emails + 2 calendar invites.
+  // Calendar invites only fire when a meeting was scheduled (no point
+  // for the legacy "request callback" path) and only when we actually
+  // have email addresses to invite. All four are best-effort —
+  // failures are logged + persisted but never bubble back as a 500.
+  const skippedCalendar: CalendarResult = {
+    ok: false,
+    skipped: true,
+    reason: "no meeting scheduled",
+  };
+
+  const [
+    installerResult,
+    homeownerResult,
+    homeownerCalendarResult,
+    installerCalendarResult,
+  ] = await Promise.all([
     installerEmail && installer.email
       ? sendEmail({
           to: installer.email,
@@ -317,7 +350,74 @@ export async function POST(req: Request) {
         { name: "lead_id", value: inserted.id },
       ],
     }),
+    meetingStartUtc && meetingDurationMin
+      ? insertHomeownerEvent({
+          meetingStartUtc,
+          meetingDurationMin,
+          homeownerEmail: input.contactEmail.trim(),
+          homeownerName: input.contactName ?? "Homeowner",
+          installerCompanyName: installer.company_name,
+          installerEmail: installer.email,
+          installerTelephone: installer.telephone,
+          propertyAddress: input.propertyAddress ?? null,
+          propertyPostcode: input.propertyPostcode ?? null,
+          wantsHeatPump: input.wantsHeatPump,
+          wantsSolar: input.wantsSolar,
+          wantsBattery: input.wantsBattery,
+        })
+      : Promise.resolve(skippedCalendar),
+    meetingStartUtc &&
+    meetingDurationMin &&
+    travelBufferMin != null &&
+    installer.email
+      ? insertInstallerEvent({
+          meetingStartUtc,
+          meetingDurationMin,
+          travelBufferMin,
+          installerEmail: installer.email,
+          installerCompanyName: installer.company_name,
+          homeownerName: input.contactName ?? "Homeowner",
+          homeownerEmail: input.contactEmail.trim(),
+          homeownerPhone: input.contactPhone,
+          propertyAddress: input.propertyAddress ?? null,
+          propertyPostcode: input.propertyPostcode ?? null,
+          wantsHeatPump: input.wantsHeatPump,
+          wantsSolar: input.wantsSolar,
+          wantsBattery: input.wantsBattery,
+        })
+      : Promise.resolve(skippedCalendar),
   ]);
+
+  // Persist calendar event IDs back to the meeting row so we can
+  // cancel both events from one place when the homeowner / installer
+  // portal lets users do that.
+  if (
+    hasMeeting &&
+    (homeownerCalendarResult.ok || installerCalendarResult.ok)
+  ) {
+    const { error: calUpdateError } = await admin
+      .from("installer_meetings")
+      .update({
+        google_event_id: homeownerCalendarResult.ok
+          ? homeownerCalendarResult.eventId
+          : null,
+        google_installer_event_id: installerCalendarResult.ok
+          ? installerCalendarResult.eventId
+          : null,
+        google_calendar_id: process.env.GOOGLE_CALENDAR_ID ?? null,
+        invite_sent_at:
+          homeownerCalendarResult.ok || installerCalendarResult.ok
+            ? new Date().toISOString()
+            : null,
+      })
+      .eq("installer_lead_id", inserted.id);
+    if (calUpdateError) {
+      console.error(
+        "[installer-leads] meeting calendar id update failed",
+        calUpdateError,
+      );
+    }
+  }
 
   // 4. Persist notification outcome + token. If the installer email went,
   // also bump the lifecycle status to sent_to_installer.

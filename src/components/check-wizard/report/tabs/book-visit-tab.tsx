@@ -72,6 +72,10 @@ export function BookVisitTab({
   const [data, setData] = useState<NearbyInstallersResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [bookingFor, setBookingFor] = useState<InstallerCard | null>(null);
+  // Bumped when a booking completes so the installer list re-fetches
+  // and the just-booked tile moves into the "Already contacted" section
+  // without the user having to manually refresh.
+  const [bookingsVersion, setBookingsVersion] = useState(0);
 
   // Visible installer mutations — lets the lazy Checkatrade refresh
   // patch scores into the UI without re-fetching the whole list.
@@ -133,7 +137,7 @@ export function BookVisitTab({
     return () => {
       cancelled = true;
     };
-  }, [latitude, longitude, wantsHeatPump, wantsSolar, wantsBattery, page, state.leadId]);
+  }, [latitude, longitude, wantsHeatPump, wantsSolar, wantsBattery, page, state.leadId, bookingsVersion]);
 
   // Fire Checkatrade refresh for the visible tiles (90-day cache lives
   // server-side; this just kicks the cron-by-render).
@@ -388,6 +392,7 @@ export function BookVisitTab({
             },
           }}
           onClose={() => setBookingFor(null)}
+          onBooked={() => setBookingsVersion((v) => v + 1)}
         />
       )}
     </div>

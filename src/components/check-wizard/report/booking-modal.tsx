@@ -61,6 +61,12 @@ interface Props {
     hasBattery: boolean;
   };
   onClose: () => void;
+  /**
+   * Fired once the booking has successfully been saved. Lets the parent
+   * re-fetch the installer list so the just-booked tile moves into the
+   * "Already contacted" section without a manual refresh.
+   */
+  onBooked?: () => void;
 }
 
 type Step = "slot" | "form" | "done";
@@ -70,6 +76,7 @@ export function BookingModal({
   defaults,
   selection,
   onClose,
+  onBooked,
 }: Props) {
   // ─── Step state ────────────────────────────────────────────────────
   const [step, setStep] = useState<Step>("slot");
@@ -266,6 +273,8 @@ export function BookingModal({
         throw new Error(data?.error ?? `Couldn't save (${res.status})`);
       }
       setStep("done");
+      // Tell the parent the directory list is now stale.
+      onBooked?.();
     } catch (err) {
       setSubmitError(
         err instanceof Error
