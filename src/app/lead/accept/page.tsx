@@ -73,11 +73,13 @@ type State =
       kind: "needs-credits";
       facts: BookingFacts;
       creditsHave: number;
+      currentEmail: string;
     }
   | {
       kind: "ready";
       facts: BookingFacts;
       creditsHave: number;
+      currentEmail: string;
     };
 
 async function loadState(leadId: string, token: string): Promise<State> {
@@ -181,6 +183,19 @@ async function loadState(leadId: string, token: string): Promise<State> {
       credits: number;
       blocked: boolean;
     }>();
+  // Diagnostic log — visible in Vercel logs every page render. Tells us
+  // which auth user the page sees, alongside their public.users row.
+  console.log("[lead/accept] gate decision", {
+    leadId,
+    auth_user_id: user.id,
+    auth_email: user.email,
+    public_users_id: profile?.id,
+    public_email: profile?.email,
+    role: profile?.role,
+    credits: profile?.credits,
+    blocked: profile?.blocked,
+  });
+
   if (!profile) {
     return { kind: "error", message: "Account not found" };
   }
@@ -199,6 +214,7 @@ async function loadState(leadId: string, token: string): Promise<State> {
       kind: "needs-credits",
       facts,
       creditsHave: profile.credits,
+      currentEmail: profile.email,
     };
   }
 
@@ -206,6 +222,7 @@ async function loadState(leadId: string, token: string): Promise<State> {
     kind: "ready",
     facts,
     creditsHave: profile.credits,
+    currentEmail: profile.email,
   };
 }
 
@@ -300,7 +317,7 @@ function renderState(state: State) {
 function ReadyForm({
   state,
 }: {
-  state: { facts: BookingFacts; creditsHave: number };
+  state: { facts: BookingFacts; creditsHave: number; currentEmail: string };
 }) {
   const { facts } = state;
   const slot = formatSlot(facts.scheduledAt);
@@ -313,6 +330,7 @@ function ReadyForm({
   return (
     <>
       <Header pillText="Accept this lead" title={facts.installerName} />
+      <SignedInPill email={state.currentEmail} credits={state.creditsHave} />
       <BookingFactsCard facts={facts} slot={slot} wants={wants} />
 
       <p className="text-sm text-slate-600 leading-relaxed mb-3">
@@ -435,7 +453,7 @@ function NeedsInstallerRole({
 function NeedsCredits({
   state,
 }: {
-  state: { facts: BookingFacts; creditsHave: number };
+  state: { facts: BookingFacts; creditsHave: number; currentEmail: string };
 }) {
   const slot = formatSlot(state.facts.scheduledAt);
   const wants = listWants(
@@ -447,6 +465,7 @@ function NeedsCredits({
   return (
     <>
       <Header pillText="Top up to accept" title={state.facts.installerName} />
+      <SignedInPill email={state.currentEmail} credits={state.creditsHave} />
       <BookingFactsCard facts={state.facts} slot={slot} wants={wants} />
 
       <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 mb-4 text-sm leading-relaxed">
@@ -475,6 +494,29 @@ function NeedsCredits({
 }
 
 // ─── Shared chrome ────────────────────────────────────────────────────
+
+// Surface the currently-signed-in account so testers can immediately
+// spot account-mismatch issues (e.g. they're logged in as a different
+// auth user than the one they SQL-updated). Visible on the gate views
+// where the credit balance matters.
+function SignedInPill({
+  email,
+  credits,
+}: {
+  email: string;
+  credits: number;
+}) {
+  return (
+    <div className="rounded-lg bg-slate-50 border border-slate-200 px-3 py-2 mb-4 text-xs text-slate-600 leading-relaxed">
+      Signed in as <strong className="text-navy">{email}</strong>{" "}
+      <span className="text-slate-400">·</span>{" "}
+      Balance:{" "}
+      <strong className={credits >= 5 ? "text-emerald-700" : "text-amber-700"}>
+        {credits} credit{credits === 1 ? "" : "s"}
+      </strong>
+    </div>
+  );
+}
 
 function Header({ pillText, title }: { pillText: string; title: string }) {
   return (
