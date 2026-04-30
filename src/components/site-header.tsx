@@ -33,7 +33,18 @@ export function SiteHeader({
   return (
     <header className="bg-white/80 backdrop-blur-md border-b border-slate-200 sticky top-0 z-50">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
-        <Link href={email ? "/dashboard" : "/"} className="flex items-center">
+        <Link
+          href={
+            !email
+              ? "/"
+              : role === "admin"
+                ? "/admin"
+                : role === "installer"
+                  ? "/installer"
+                  : "/dashboard"
+          }
+          className="flex items-center"
+        >
           <Logo size="sm" variant="light" />
         </Link>
         {!email && (
@@ -66,9 +77,21 @@ export function SiteHeader({
               <DropdownMenuContent align="end" className="w-56 bg-white border-slate-200 text-slate-900">
                 <div className="px-2 py-1.5 text-xs text-slate-500">{email}</div>
                 <DropdownMenuSeparator className="bg-slate-200" />
-                <DropdownMenuItem render={<Link href="/dashboard" />} className="text-slate-500 hover:text-slate-900 focus:text-slate-900 focus:bg-slate-100">
-                  Dashboard
-                </DropdownMenuItem>
+                {/* Role-aware home link — admins land in /admin, installers
+                    in /installer, everyone else in the legacy /dashboard. */}
+                {role === "admin" ? (
+                  <DropdownMenuItem render={<Link href="/admin" />} className="text-slate-500 hover:text-slate-900 focus:text-slate-900 focus:bg-slate-100">
+                    Admin portal
+                  </DropdownMenuItem>
+                ) : role === "installer" ? (
+                  <DropdownMenuItem render={<Link href="/installer" />} className="text-slate-500 hover:text-slate-900 focus:text-slate-900 focus:bg-slate-100">
+                    Installer portal
+                  </DropdownMenuItem>
+                ) : (
+                  <DropdownMenuItem render={<Link href="/dashboard" />} className="text-slate-500 hover:text-slate-900 focus:text-slate-900 focus:bg-slate-100">
+                    Dashboard
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem render={<Link href="/check" />} className="text-slate-500 hover:text-slate-900 focus:text-slate-900 focus:bg-slate-100">
                   New check
                 </DropdownMenuItem>

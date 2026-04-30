@@ -15,7 +15,7 @@ export interface Database {
           email: string;
           credits: number;
           api_key: string | null;
-          role: string;
+          role: "admin" | "user" | "installer";
           blocked: boolean;
           created_at: string;
           updated_at: string;
@@ -25,7 +25,7 @@ export interface Database {
           email: string;
           credits?: number;
           api_key?: string | null;
-          role?: string;
+          role?: "admin" | "user" | "installer";
           blocked?: boolean;
           created_at?: string;
           updated_at?: string;
@@ -35,7 +35,7 @@ export interface Database {
           email?: string;
           credits?: number;
           api_key?: string | null;
-          role?: string;
+          role?: "admin" | "user" | "installer";
           blocked?: boolean;
           created_at?: string;
           updated_at?: string;

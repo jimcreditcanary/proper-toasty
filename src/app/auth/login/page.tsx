@@ -35,6 +35,17 @@ function AuthPageInner() {
   const router = useRouter();
   const supabase = createClient();
 
+  // Flash messages from URL params — set by the auth callback,
+  // password reset flow, and middleware (blocked users).
+  const flashError = searchParams.get("error");
+  const resetOk = searchParams.get("reset") === "ok";
+  const flashMessage =
+    flashError === "blocked"
+      ? "Your account has been blocked. Email hello@propertoasty.com if you think this is a mistake."
+      : flashError === "auth_failed"
+        ? "Sign-in didn't go through. Try again or reset your password."
+        : null;
+
   function switchTab(t: "signin" | "signup") {
     setTab(t);
     setError(null);
@@ -56,8 +67,35 @@ function AuthPageInner() {
       return;
     }
 
-    const redirect = searchParams.get("redirect") || "/dashboard";
-    router.push(redirect);
+    // If the original deep-link gave us a `redirect`, honour it.
+    // Otherwise let the auth callback's role-based router pick: send
+    // to /auth/callback with no `next` — actually we never hit the
+    // callback on a password sign-in, so do the role lookup here.
+    const explicitRedirect = searchParams.get("redirect");
+    if (explicitRedirect) {
+      router.push(explicitRedirect);
+      return;
+    }
+    // Look up role for first-time landing.
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (user) {
+      const { data: profile } = await supabase
+        .from("users")
+        .select("role")
+        .eq("id", user.id)
+        .maybeSingle<{ role: string | null }>();
+      const target =
+        profile?.role === "admin"
+          ? "/admin"
+          : profile?.role === "installer"
+            ? "/installer"
+            : "/dashboard";
+      router.push(target);
+    } else {
+      router.push("/dashboard");
+    }
   }
 
   async function handleSignup(e: React.FormEvent) {
@@ -152,6 +190,16 @@ function AuthPageInner() {
                 Sign in to your account to continue
               </p>
             </div>
+            {resetOk && (
+              <div className="rounded-xl bg-emerald-50 border border-emerald-200 px-3 py-2 text-sm text-emerald-800 mb-4">
+                Password updated. Sign in with the new one.
+              </div>
+            )}
+            {flashMessage && !error && (
+              <div className="rounded-xl bg-amber-50 border border-amber-200 px-3 py-2 text-sm text-amber-800 mb-4">
+                {flashMessage}
+              </div>
+            )}
             <form onSubmit={handleSignin} className="space-y-4">
               {error && (
                 <div className="rounded-xl bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700">
@@ -171,7 +219,15 @@ function AuthPageInner() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="password" className="text-slate-500">Password</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="password" className="text-slate-500">Password</Label>
+                  <Link
+                    href="/auth/forgot-password"
+                    className="text-xs font-medium text-coral hover:text-coral-dark"
+                  >
+                    Forgot?
+                  </Link>
+                </div>
                 <Input
                   id="password"
                   type="password"
@@ -198,7 +254,7 @@ function AuthPageInner() {
             <div className="text-center mb-6">
               <h1 className="text-xl font-semibold text-slate-900">Create an account</h1>
               <p className="text-sm text-slate-500 mt-1">
-                Start verifying invoices in seconds
+                Sign in to access your reports and bookings.
               </p>
             </div>
             <form onSubmit={handleSignup} className="space-y-4">
