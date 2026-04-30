@@ -740,10 +740,13 @@ function ConfirmationView({
       <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-emerald-100 text-emerald-600 mb-4">
         <CheckCircle2 className="w-7 h-7" />
       </div>
-      <h2 className="text-xl font-bold text-navy">You&rsquo;re booked in</h2>
+      <h2 className="text-xl font-bold text-navy">Request sent</h2>
       <p className="mt-2 text-sm text-slate-600 leading-relaxed">
-        We&rsquo;ll send a calendar invite and confirmation email to{" "}
-        <strong className="text-navy">{contactEmail}</strong> shortly.
+        We&rsquo;ve emailed{" "}
+        <strong className="text-navy">{installer.companyName}</strong> with
+        your slot. They have 24 hours to confirm — we&rsquo;ll email{" "}
+        <strong className="text-navy">{contactEmail}</strong> the moment they
+        do, with a calendar invite.
       </p>
 
       {/* Summary card — same layout the user will see in the

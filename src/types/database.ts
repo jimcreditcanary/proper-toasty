@@ -889,6 +889,9 @@ export interface Database {
           checkatrade_url: string | null;
           checkatrade_fetched_at: string | null;
           checkatrade_status: string | null;
+          // Migration 037 — installer-configurable visit length + travel buffer
+          meeting_duration_min: number;
+          travel_buffer_min: number;
           created_at: string;
           updated_at: string;
         };
@@ -1153,7 +1156,7 @@ export interface Database {
           google_installer_event_id: string | null;
           google_calendar_id: string | null;
           invite_sent_at: string | null;
-          status: "booked" | "cancelled" | "completed" | "no_show";
+          status: "pending" | "booked" | "cancelled" | "completed" | "no_show";
           cancelled_at: string | null;
           cancellation_reason: string | null;
           created_at: string;
@@ -1175,7 +1178,7 @@ export interface Database {
           google_installer_event_id?: string | null;
           google_calendar_id?: string | null;
           invite_sent_at?: string | null;
-          status?: "booked" | "cancelled" | "completed" | "no_show";
+          status?: "pending" | "booked" | "cancelled" | "completed" | "no_show";
           cancelled_at?: string | null;
           cancellation_reason?: string | null;
           created_at?: string;

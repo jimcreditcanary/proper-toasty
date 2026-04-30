@@ -19,9 +19,9 @@ export default async function AcknowledgePage({
   let tone: "ok" | "warn" | "error";
   switch (state) {
     case "ok":
-      title = "You're all set — they know you've got it";
+      title = "Lead accepted — calendar invite on its way";
       body =
-        "Thanks for picking this lead up. The homeowner has been told you'll be in touch within a couple of working days. The original email has their contact details — just hit Reply to get the conversation going.";
+        "We've added the visit to your Google Calendar (with travel buffers) and emailed the homeowner to confirm. Their full contact details are in your inbox — just hit Reply to start the conversation.";
       tone = "ok";
       break;
     case "invalid":

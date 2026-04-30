@@ -6,33 +6,41 @@ import {
 } from "@/lib/schemas/installers";
 import { sendEmail, type SendEmailResult } from "@/lib/email/client";
 import { signLeadAckToken } from "@/lib/email/tokens";
-import { buildInstallerEmail } from "@/lib/email/templates/booking-installer";
-import { buildHomeownerEmail } from "@/lib/email/templates/booking-homeowner";
-import {
-  insertHomeownerEvent,
-  insertInstallerEvent,
-  type CalendarResult,
-} from "@/lib/google/calendar";
+import { buildPendingInstallerEmail } from "@/lib/email/templates/booking-pending-installer";
+import { buildPendingHomeownerEmail } from "@/lib/email/templates/booking-pending-homeowner";
 import type { Database } from "@/types/database";
 
 // POST /api/installer-leads/create
 //
 // Captures a "book a site visit" submission from the report tab.
-// Inserts into public.installer_leads, optionally inserts a row into
-// public.installer_meetings (when a slot was picked), then fires:
-//   1. Installer email — full details + magic-link "I'll take this lead"
-//   2. Homeowner email — branded confirmation with installer contact
-//   3. Google Calendar invite to the homeowner (1hr)
-//   4. Google Calendar invite to the installer (1hr + 30min travel buffers)
+// New flow (PR C3 — credit-gated booking):
 //
-// All four side-effects fail soft — the lead is captured even if every
+//   1. Insert installer_leads row (status = 'new')
+//   2. Insert installer_meetings row (status = 'pending') — holds the
+//      slot but doesn't fire calendar invites yet
+//   3. Send the homeowner a "request pending" email — sets the
+//      "we'll email you when they confirm" expectation
+//   4. Send the installer a "new lead" notification with bare-minimum
+//      info (postcode area, tech, slot) + magic-link "Accept this
+//      lead" CTA. Full contact details are unlocked on accept.
+//
+// Calendar invites + the confirmed emails fire from
+// /api/installer-leads/acknowledge once the installer accepts.
+// 24h auto-release + reminder email are scheduled cron work (next PR).
+//
+// All side-effects fail soft — the lead row is captured even if every
 // notification fails. Notification failures are logged + persisted to
 // the lead row so admin can chase manually.
 
 export const runtime = "nodejs";
-export const maxDuration = 60; // emails + 2 Google API calls add latency
+export const maxDuration = 30; // emails
 
 type InstallerRow = Database["public"]["Tables"]["installers"]["Row"];
+
+// Cost in credits the installer pays to accept this lead. Will become
+// admin-configurable in C1; for now it's a constant here so the
+// pending-installer email can show "5 credits" in the CTA.
+const LEAD_ACCEPT_COST_CREDITS = 5;
 
 interface ReportFacts {
   hpVerdict: string | null;
@@ -77,11 +85,22 @@ function buildAcknowledgeUrl(leadId: string, token: string): string {
   // VERCEL_URL omits the protocol — add it.
   const normalised = base.startsWith("http") ? base : `https://${base}`;
   // Point at the API verifier — it checks the HMAC, updates the lead
-  // row, then redirects to /installer/acknowledge?state=... so the
-  // installer sees the friendly confirmation page. Hitting the public
-  // page directly (the previous bug) shows "invalid" because there's
-  // no `state` param.
+  // + meeting rows, fires the calendar invites + confirmed emails,
+  // then redirects to /installer/acknowledge?state=... so the
+  // installer sees a friendly confirmation page.
   return `${normalised.replace(/\/+$/, "")}/api/installer-leads/acknowledge?lead=${encodeURIComponent(leadId)}&token=${encodeURIComponent(token)}`;
+}
+
+// Truncate a postcode to its outward code ("SW1A 1AA" → "SW1A") for
+// the area-only display in the pending-installer email — preserves
+// privacy until the installer accepts.
+function postcodeArea(postcode: string | null): string | null {
+  if (!postcode) return null;
+  const trimmed = postcode.trim().toUpperCase();
+  if (trimmed.length === 0) return null;
+  // Outward code is everything before the first space.
+  const outward = trimmed.split(/\s+/)[0];
+  return outward.length > 0 ? outward : null;
 }
 
 function deriveNotificationStatus(
@@ -98,8 +117,6 @@ function deriveNotificationStatus(
   if (installerOk && homeownerOk) return "sent";
   if (installerOk && !homeownerOk) return "installer_only";
   if (!installerOk && homeownerOk) return "homeowner_only";
-  // Both failed — distinguish "skipped" (provider not set up) from
-  // "failed" (provider returned an error).
   const bothSkipped =
     !installerResult.ok &&
     "skipped" in installerResult &&
@@ -133,13 +150,20 @@ export async function POST(req: Request) {
   }
 
   const input = parsed.data;
+  if (!input.meeting) {
+    return NextResponse.json<CreateInstallerLeadResponse>(
+      { ok: false, error: "A meeting slot must be picked before booking" },
+      { status: 400 },
+    );
+  }
+
   const admin = createAdminClient();
 
-  // 1. Verify the installer exists + pull contact + name for the email.
+  // 1. Verify the installer exists + pull contact + visit settings.
   const { data: installer, error: lookupError } = await admin
     .from("installers")
     .select(
-      "id, company_name, email, telephone, website, postcode, county",
+      "id, company_name, email, telephone, website, postcode, county, meeting_duration_min, travel_buffer_min",
     )
     .eq("id", input.installerId)
     .maybeSingle<
@@ -152,6 +176,8 @@ export async function POST(req: Request) {
         | "website"
         | "postcode"
         | "county"
+        | "meeting_duration_min"
+        | "travel_buffer_min"
       >
     >();
   if (lookupError) {
@@ -168,13 +194,12 @@ export async function POST(req: Request) {
     );
   }
 
-  // 2. Insert the lead with a placeholder ack token (we sign it once we
-  // have the row's id, then update). status='new' lifecycle, notification
-  // status defaults to 'pending'. If the booking modal supplied a
-  // `meeting` envelope (slot was picked) we set status='visit_booked'
-  // and write the timestamp to visit_booked_for so the lead row
-  // reflects the scheduled state from the start.
-  const hasMeeting = input.meeting != null;
+  const meetingDurationMin = installer.meeting_duration_min ?? 60;
+  const travelBufferMin = installer.travel_buffer_min ?? 30;
+
+  // 2. Insert the lead row (status starts at 'new'; bumps to
+  // 'sent_to_installer' once the notification email goes through).
+  // visit_booked_for is left null for now — only set on accept.
   const { data: inserted, error: insertError } = await admin
     .from("installer_leads")
     .insert({
@@ -195,8 +220,7 @@ export async function POST(req: Request) {
       property_latitude: input.propertyLatitude ?? null,
       property_longitude: input.propertyLongitude ?? null,
       analysis_snapshot: (input.analysisSnapshot ?? null) as never,
-      status: hasMeeting ? "visit_booked" : "new",
-      visit_booked_for: hasMeeting ? input.meeting!.scheduledAtUtc : null,
+      status: "new",
     })
     .select("id")
     .single();
@@ -209,42 +233,36 @@ export async function POST(req: Request) {
     );
   }
 
-  // 2a. If a slot was chosen, also write a row into installer_meetings.
-  // We don't fail the whole request if this errors — the lead's already
-  // saved with visit_booked_for set, so the admin team can chase via
-  // that. Logged so we notice if it's a recurring problem.
-  if (hasMeeting && input.meeting) {
-    const { error: meetingError } = await admin
-      .from("installer_meetings")
-      .insert({
-        installer_id: input.installerId,
-        installer_lead_id: inserted.id,
-        homeowner_lead_id: input.homeownerLeadId ?? null,
-        scheduled_at: input.meeting.scheduledAtUtc,
-        duration_min: input.meeting.durationMin,
-        travel_buffer_min: input.meeting.travelBufferMin,
-        contact_name: input.contactName ?? "Homeowner",
-        contact_email: input.contactEmail.trim().toLowerCase(),
-        contact_phone: input.contactPhone,
-        notes: input.notes ?? null,
-        status: "booked",
-      });
-    if (meetingError) {
-      console.error(
-        "[installer-leads] meeting insert failed (lead saved without it)",
-        meetingError,
-      );
-    }
+  // 3. Insert the meeting row at status='pending'. Slot is held while
+  // we wait for the installer to accept. Duration + buffer come from
+  // the installer's record (config in PR I2), not the client payload.
+  const { error: meetingError } = await admin
+    .from("installer_meetings")
+    .insert({
+      installer_id: input.installerId,
+      installer_lead_id: inserted.id,
+      homeowner_lead_id: input.homeownerLeadId ?? null,
+      scheduled_at: input.meeting.scheduledAtUtc,
+      duration_min: meetingDurationMin,
+      travel_buffer_min: travelBufferMin,
+      contact_name: input.contactName ?? "Homeowner",
+      contact_email: input.contactEmail.trim().toLowerCase(),
+      contact_phone: input.contactPhone,
+      notes: input.notes ?? null,
+      status: "pending",
+    });
+  if (meetingError) {
+    console.error(
+      "[installer-leads] meeting insert failed (lead saved without it)",
+      meetingError,
+    );
   }
 
-  // 3. Sign the ack token + build the URL, then fire both emails in parallel.
+  // 4. Sign the ack token + build the URL.
   let acknowledgeToken: string;
   try {
     acknowledgeToken = signLeadAckToken(inserted.id);
   } catch (e) {
-    // INSTALLER_LEAD_ACK_SECRET not set — skip notifications entirely
-    // and mark the lead so admin can chase manually. The booking is
-    // already saved, so we still return ok=true to the user.
     console.warn(
       "[installer-leads] ack secret missing — skipping notifications:",
       e instanceof Error ? e.message : e,
@@ -265,69 +283,40 @@ export async function POST(req: Request) {
   }
   const acknowledgeUrl = buildAcknowledgeUrl(inserted.id, acknowledgeToken);
 
+  // 5. Build emails. PENDING flavour for both — confirmed flavour
+  // fires from the acknowledge route once the installer accepts.
   const reportFacts = extractReportFacts(input.analysisSnapshot);
 
-  const meetingStartUtc = input.meeting?.scheduledAtUtc ?? null;
-  const meetingDurationMin = input.meeting?.durationMin ?? null;
-  const travelBufferMin = input.meeting?.travelBufferMin ?? null;
-
   const installerEmail = installer.email
-    ? buildInstallerEmail({
+    ? buildPendingInstallerEmail({
         installerCompanyName: installer.company_name,
-        homeownerName: input.contactName ?? "A homeowner",
-        homeownerEmail: input.contactEmail.trim(),
-        homeownerPhone: input.contactPhone ?? null,
-        preferredContactMethod: input.preferredContactMethod ?? null,
-        preferredContactWindow: input.preferredContactWindow ?? null,
-        notes: input.notes ?? null,
-        propertyAddress: input.propertyAddress ?? null,
-        propertyPostcode: input.propertyPostcode ?? null,
-        meetingStartUtc,
+        propertyPostcodeArea: postcodeArea(input.propertyPostcode ?? null),
+        meetingStartUtc: input.meeting.scheduledAtUtc,
         meetingDurationMin,
         travelBufferMin,
         wantsHeatPump: input.wantsHeatPump,
         wantsSolar: input.wantsSolar,
         wantsBattery: input.wantsBattery,
         hpVerdict: reportFacts.hpVerdict,
-        hpGrantGbp: reportFacts.hpGrantGbp,
-        hpSystemKw: reportFacts.hpSystemKw,
         solarRating: reportFacts.solarRating,
-        solarKwp: reportFacts.solarKwp,
         acknowledgeUrl,
+        creditCost: LEAD_ACCEPT_COST_CREDITS,
       })
     : null;
 
-  const homeownerEmail = buildHomeownerEmail({
+  const homeownerEmail = buildPendingHomeownerEmail({
     homeownerName: input.contactName ?? "there",
     installerCompanyName: installer.company_name,
     installerEmail: installer.email,
     installerTelephone: installer.telephone,
-    installerWebsite: installer.website,
     propertyAddress: input.propertyAddress ?? null,
-    meetingStartUtc,
-    meetingDurationMin,
+    meetingStartUtc: input.meeting.scheduledAtUtc,
     wantsHeatPump: input.wantsHeatPump,
     wantsSolar: input.wantsSolar,
     wantsBattery: input.wantsBattery,
   });
 
-  // Notifications fan-out: 2 transactional emails + 2 calendar invites.
-  // Calendar invites only fire when a meeting was scheduled (no point
-  // for the legacy "request callback" path) and only when we actually
-  // have email addresses to invite. All four are best-effort —
-  // failures are logged + persisted but never bubble back as a 500.
-  const skippedCalendar: CalendarResult = {
-    ok: false,
-    skipped: true,
-    reason: "no meeting scheduled",
-  };
-
-  const [
-    installerResult,
-    homeownerResult,
-    homeownerCalendarResult,
-    installerCalendarResult,
-  ] = await Promise.all([
+  const [installerResult, homeownerResult] = await Promise.all([
     installerEmail && installer.email
       ? sendEmail({
           to: installer.email,
@@ -336,7 +325,7 @@ export async function POST(req: Request) {
           text: installerEmail.text,
           replyTo: input.contactEmail.trim(),
           tags: [
-            { name: "kind", value: "booking_installer" },
+            { name: "kind", value: "booking_pending_installer" },
             { name: "lead_id", value: inserted.id },
           ],
         })
@@ -351,87 +340,18 @@ export async function POST(req: Request) {
       html: homeownerEmail.html,
       text: homeownerEmail.text,
       tags: [
-        { name: "kind", value: "booking_homeowner" },
+        { name: "kind", value: "booking_pending_homeowner" },
         { name: "lead_id", value: inserted.id },
       ],
     }),
-    meetingStartUtc && meetingDurationMin
-      ? insertHomeownerEvent({
-          meetingStartUtc,
-          meetingDurationMin,
-          homeownerEmail: input.contactEmail.trim(),
-          homeownerName: input.contactName ?? "Homeowner",
-          installerCompanyName: installer.company_name,
-          installerEmail: installer.email,
-          installerTelephone: installer.telephone,
-          propertyAddress: input.propertyAddress ?? null,
-          propertyPostcode: input.propertyPostcode ?? null,
-          wantsHeatPump: input.wantsHeatPump,
-          wantsSolar: input.wantsSolar,
-          wantsBattery: input.wantsBattery,
-        })
-      : Promise.resolve(skippedCalendar),
-    meetingStartUtc &&
-    meetingDurationMin &&
-    travelBufferMin != null &&
-    installer.email
-      ? insertInstallerEvent({
-          meetingStartUtc,
-          meetingDurationMin,
-          travelBufferMin,
-          installerEmail: installer.email,
-          installerCompanyName: installer.company_name,
-          homeownerName: input.contactName ?? "Homeowner",
-          homeownerEmail: input.contactEmail.trim(),
-          homeownerPhone: input.contactPhone,
-          propertyAddress: input.propertyAddress ?? null,
-          propertyPostcode: input.propertyPostcode ?? null,
-          wantsHeatPump: input.wantsHeatPump,
-          wantsSolar: input.wantsSolar,
-          wantsBattery: input.wantsBattery,
-        })
-      : Promise.resolve(skippedCalendar),
   ]);
 
-  // Persist calendar event IDs back to the meeting row so we can
-  // cancel both events from one place when the homeowner / installer
-  // portal lets users do that.
-  if (
-    hasMeeting &&
-    (homeownerCalendarResult.ok || installerCalendarResult.ok)
-  ) {
-    const { error: calUpdateError } = await admin
-      .from("installer_meetings")
-      .update({
-        google_event_id: homeownerCalendarResult.ok
-          ? homeownerCalendarResult.eventId
-          : null,
-        google_installer_event_id: installerCalendarResult.ok
-          ? installerCalendarResult.eventId
-          : null,
-        google_calendar_id: process.env.GOOGLE_CALENDAR_ID ?? null,
-        invite_sent_at:
-          homeownerCalendarResult.ok || installerCalendarResult.ok
-            ? new Date().toISOString()
-            : null,
-      })
-      .eq("installer_lead_id", inserted.id);
-    if (calUpdateError) {
-      console.error(
-        "[installer-leads] meeting calendar id update failed",
-        calUpdateError,
-      );
-    }
-  }
-
-  // 4. Persist notification outcome + token. If the installer email went,
-  // also bump the lifecycle status to sent_to_installer.
+  // 6. Persist notification outcome + token.
   const notificationStatus = deriveNotificationStatus(
     installerResult,
     homeownerResult,
   );
-  const lifecycleStatus =
-    installerResult.ok ? "sent_to_installer" : "new";
+  const lifecycleStatus = installerResult.ok ? "sent_to_installer" : "new";
   const installerError =
     installerResult.ok || ("skipped" in installerResult && installerResult.skipped)
       ? null

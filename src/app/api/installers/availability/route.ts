@@ -30,10 +30,12 @@ import {
 export const runtime = "nodejs";
 
 const WINDOW_DAYS = 28;
-const SLOT_DURATION_MIN = 60;
 const SLOT_INTERVAL_MIN = 30;
-const TRAVEL_BUFFER_MIN = 30;
 const MIN_LEAD_MINUTES = 60;
+// Hard fallbacks if the installer record is missing the columns for
+// some reason — same defaults the migration backfills with.
+const FALLBACK_DURATION_MIN = 60;
+const FALLBACK_BUFFER_MIN = 30;
 
 export async function POST(req: Request) {
   let raw: unknown;
@@ -61,12 +63,20 @@ export async function POST(req: Request) {
   const { installerId } = parsed.data;
   const admin = createAdminClient();
 
-  // Fetch availability + existing meetings in parallel — both are
-  // small reads keyed on installer_id with covering indexes.
+  // Fetch installer settings + availability + existing meetings in
+  // parallel. All three are tiny reads keyed on installer_id.
   const windowEnd = new Date();
   windowEnd.setDate(windowEnd.getDate() + WINDOW_DAYS + 1); // +1 day slack
 
-  const [availResult, meetingsResult] = await Promise.all([
+  const [installerResult, availResult, meetingsResult] = await Promise.all([
+    admin
+      .from("installers")
+      .select("meeting_duration_min, travel_buffer_min")
+      .eq("id", installerId)
+      .maybeSingle<{
+        meeting_duration_min: number;
+        travel_buffer_min: number;
+      }>(),
     admin
       .from("installer_availability")
       .select("day_of_week, start_time, end_time")
@@ -75,7 +85,9 @@ export async function POST(req: Request) {
       .from("installer_meetings")
       .select("scheduled_at, duration_min, travel_buffer_min")
       .eq("installer_id", installerId)
-      .eq("status", "booked")
+      // Pending + booked both hold the slot — only confirmed cancellations
+      // / completions / no-shows are released back to bookable.
+      .in("status", ["pending", "booked"])
       .gte("scheduled_at", new Date().toISOString())
       .lte("scheduled_at", windowEnd.toISOString()),
   ]);
@@ -95,6 +107,11 @@ export async function POST(req: Request) {
     );
   }
 
+  const slotDurationMin =
+    installerResult.data?.meeting_duration_min ?? FALLBACK_DURATION_MIN;
+  const travelBufferMin =
+    installerResult.data?.travel_buffer_min ?? FALLBACK_BUFFER_MIN;
+
   const availability: AvailabilityBlock[] = (availResult.data ?? []).map((r) => ({
     dayOfWeek: r.day_of_week,
     startTime: r.start_time,
@@ -111,9 +128,9 @@ export async function POST(req: Request) {
 
   const slots = generateSlots(availability, existingMeetings, {
     windowDays: WINDOW_DAYS,
-    slotDurationMin: SLOT_DURATION_MIN,
+    slotDurationMin,
     slotIntervalMin: SLOT_INTERVAL_MIN,
-    travelBufferMin: TRAVEL_BUFFER_MIN,
+    travelBufferMin,
     minLeadMinutes: MIN_LEAD_MINUTES,
   });
 

@@ -1,27 +1,27 @@
-// Email sent to the homeowner once the installer ACCEPTS their booking.
+// Email sent to the homeowner immediately after they request a booking.
 //
-// Pairs with booking-pending-homeowner.ts (sent at request time). This
-// is the "great news, confirmed" email — explicitly different from
-// the pending one so the user can see at a glance which state they're
-// in.
+// New flow (PR C3): the booking is NOT confirmed yet — it's "pending"
+// until the installer accepts. This email manages expectations:
+//   - We've sent the request to {company}
+//   - They have 24 hours to confirm
+//   - You'll get a calendar invite the moment they accept
+//   - If they don't accept, we'll suggest other installers
 //
-// Calendar invite is sent in parallel via Google Calendar API; this
-// email mentions it's coming. Installer contact info included for
-// any post-confirmation changes.
+// Tone: warm + clear, no premature "you're booked!" language. The
+// confirmed email (booking-confirmed-homeowner.ts) lands once the
+// installer accepts.
 
 import { escapeHtml } from "../client";
 
-export interface ConfirmedHomeownerEmailInput {
+export interface PendingHomeownerEmailInput {
   homeownerName: string;
   installerCompanyName: string;
   installerEmail: string | null;
   installerTelephone: string | null;
-  installerWebsite: string | null;
   // Property
   propertyAddress: string | null;
-  // Confirmed slot
+  // Requested slot
   meetingStartUtc: string;
-  meetingDurationMin: number;
   // What they asked about
   wantsHeatPump: boolean;
   wantsSolar: boolean;
@@ -60,7 +60,7 @@ function formatSlot(utcIso: string): { dayLabel: string; timeLabel: string; long
   return { dayLabel, timeLabel, longDateLabel: `${dayLabel} at ${timeLabel}` };
 }
 
-export function buildHomeownerEmail(input: ConfirmedHomeownerEmailInput): {
+export function buildPendingHomeownerEmail(input: PendingHomeownerEmailInput): {
   subject: string;
   html: string;
   text: string;
@@ -69,30 +69,24 @@ export function buildHomeownerEmail(input: ConfirmedHomeownerEmailInput): {
   const firstName = input.homeownerName.split(" ")[0];
   const slot = formatSlot(input.meetingStartUtc);
 
-  const subject = `Confirmed — ${input.installerCompanyName} accepted your booking for ${slot.longDateLabel}`;
+  const subject = `Booking request sent to ${input.installerCompanyName}`;
 
   const text = [
     `Hi ${firstName},`,
     ``,
-    `Great news — ${input.installerCompanyName} has accepted your booking. You're confirmed for ${slot.longDateLabel} (UK time) for a ${input.meetingDurationMin}-minute site survey.`,
+    `We've sent your booking request to ${input.installerCompanyName} for ${slot.longDateLabel} (UK time). They have 24 hours to confirm.`,
     ``,
-    `Booking summary:`,
-    `  Company: ${input.installerCompanyName}`,
-    input.propertyAddress ? `  Address for survey: ${input.propertyAddress}` : "",
-    `  Date: ${slot.dayLabel}`,
-    `  Time: ${slot.timeLabel} (UK time)`,
-    `  What you asked about: ${wants}`,
+    `What you asked about: ${wants}.`,
+    input.propertyAddress ? `Address: ${input.propertyAddress}` : "",
     ``,
-    `A Google Calendar invite is on its way to your inbox separately — should land within a minute or two. If it's not there, check your spam folder.`,
+    `What happens next:`,
+    `  - Most installers respond within a few hours.`,
+    `  - The moment they accept, we'll send a confirmation email and a Google Calendar invite for the visit.`,
+    `  - If they can't take the slot, we'll let you know and suggest other installers from your report.`,
     ``,
-    `Need to change or cancel? Contact ${input.installerCompanyName} directly:`,
+    `Need to chase or change anything? Contact ${input.installerCompanyName} directly:`,
     input.installerEmail ? `  Email: ${input.installerEmail}` : "",
     input.installerTelephone ? `  Phone: ${input.installerTelephone}` : "",
-    input.installerWebsite ? `  Website: ${input.installerWebsite}` : "",
-    ``,
-    `Reminder — get three quotes if you can. Even great installers vary 20–30% in price for the same kit. The Book a site visit tab on your report has more sitting there.`,
-    ``,
-    `If anything goes wrong, just reply to this email and we'll help.`,
     ``,
     `— The Propertoasty team`,
   ]
@@ -104,25 +98,35 @@ export function buildHomeownerEmail(input: ConfirmedHomeownerEmailInput): {
 <body style="margin:0;padding:0;background:#faf6ef;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#0f172a;">
   <div style="max-width:600px;margin:0 auto;padding:24px 16px;">
     <div style="background:#ffffff;border-radius:14px;padding:24px;border:1px solid #e2e8f0;">
-      <p style="font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#10b981;margin:0 0 6px;">
-        Booking confirmed
+      <p style="font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#a16207;margin:0 0 6px;">
+        Booking pending
       </p>
       <h1 style="font-size:22px;line-height:1.25;font-weight:700;color:#0b3140;margin:0 0 12px;">
-        Hi ${escapeHtml(firstName)} — ${escapeHtml(input.installerCompanyName)} has accepted
+        Hi ${escapeHtml(firstName)} — your request is with ${escapeHtml(input.installerCompanyName)}
       </h1>
       <p style="font-size:15px;line-height:1.55;color:#475569;margin:0 0 20px;">
-        You're confirmed for <strong style="color:#0b3140;">${escapeHtml(slot.longDateLabel)}</strong>
-        for a ${input.meetingDurationMin}-minute site survey.
+        You've requested <strong style="color:#0b3140;">${escapeHtml(slot.longDateLabel)}</strong>
+        for a site survey covering ${escapeHtml(wants)}. We've passed it to
+        the installer — they have <strong style="color:#0b3140;">24 hours</strong>
+        to confirm.
       </p>
 
-      <div style="background:#ecfdf5;border:1px solid #6ee7b7;border-radius:10px;padding:16px;margin:0 0 20px;">
-        <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#065f46;margin:0 0 8px;">
-          Your booking
+      <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:16px;margin:0 0 20px;">
+        <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#92400e;margin:0 0 8px;">
+          What you've requested
         </p>
         <table cellpadding="0" cellspacing="0" border="0" style="font-size:14px;color:#0f172a;width:100%;">
           <tr>
-            <td style="padding:3px 12px 3px 0;color:#64748b;width:120px;">Company</td>
+            <td style="padding:3px 12px 3px 0;color:#64748b;width:120px;">Installer</td>
             <td style="padding:3px 0;font-weight:600;">${escapeHtml(input.installerCompanyName)}</td>
+          </tr>
+          <tr>
+            <td style="padding:3px 12px 3px 0;color:#64748b;">Date</td>
+            <td style="padding:3px 0;font-weight:600;">${escapeHtml(slot.dayLabel)}</td>
+          </tr>
+          <tr>
+            <td style="padding:3px 12px 3px 0;color:#64748b;">Time</td>
+            <td style="padding:3px 0;font-weight:600;">${escapeHtml(slot.timeLabel)} <span style="font-weight:400;color:#64748b;">(UK time)</span></td>
           </tr>
           ${
             input.propertyAddress
@@ -133,31 +137,32 @@ export function buildHomeownerEmail(input: ConfirmedHomeownerEmailInput): {
               : ""
           }
           <tr>
-            <td style="padding:3px 12px 3px 0;color:#64748b;">Date</td>
-            <td style="padding:3px 0;font-weight:600;">${escapeHtml(slot.dayLabel)}</td>
-          </tr>
-          <tr>
-            <td style="padding:3px 12px 3px 0;color:#64748b;">Time</td>
-            <td style="padding:3px 0;font-weight:600;">${escapeHtml(slot.timeLabel)} <span style="font-weight:400;color:#64748b;">(UK time)</span></td>
-          </tr>
-          <tr>
             <td style="padding:3px 12px 3px 0;color:#64748b;">Discussing</td>
             <td style="padding:3px 0;">${escapeHtml(wants)}</td>
           </tr>
         </table>
       </div>
 
-      <p style="font-size:14px;line-height:1.55;color:#475569;margin:0 0 20px;">
-        A Google Calendar invite is on its way to your inbox separately
-        — should land within a minute or two. If it's not there, check
-        your spam folder.
-      </p>
+      <div style="background:#f1f5f9;border-radius:10px;padding:16px;margin:0 0 20px;">
+        <p style="font-size:13px;font-weight:600;color:#0b3140;margin:0 0 8px;">
+          What happens next
+        </p>
+        <p style="font-size:13px;color:#475569;line-height:1.55;margin:0 0 6px;">
+          • Most installers respond within a few hours — max 24 hours.
+        </p>
+        <p style="font-size:13px;color:#475569;line-height:1.55;margin:0 0 6px;">
+          • The moment they accept, we'll send a confirmation email and a Google Calendar invite for the visit.
+        </p>
+        <p style="font-size:13px;color:#475569;line-height:1.55;margin:0;">
+          • If they can't take the slot, we'll let you know so you can pick another installer from your report.
+        </p>
+      </div>
 
       ${
-        input.installerEmail || input.installerTelephone || input.installerWebsite
+        input.installerEmail || input.installerTelephone
           ? `<div style="background:#f1f5f9;border:1px solid #e2e8f0;border-radius:10px;padding:14px 16px;margin:0 0 20px;">
         <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#475569;margin:0 0 8px;">
-          Need to change or cancel?
+          Need to chase or change?
         </p>
         <p style="font-size:13px;color:#475569;margin:0 0 8px;line-height:1.5;">
           Contact ${escapeHtml(input.installerCompanyName)} directly:
@@ -169,34 +174,20 @@ export function buildHomeownerEmail(input: ConfirmedHomeownerEmailInput): {
         }
         ${
           input.installerTelephone
-            ? `<p style="font-size:13px;color:#0f172a;margin:0 0 4px;">📞 <a href="tel:${escapeHtml(input.installerTelephone)}" style="color:#0f172a;text-decoration:none;">${escapeHtml(input.installerTelephone)}</a></p>`
-            : ""
-        }
-        ${
-          input.installerWebsite
-            ? `<p style="font-size:13px;color:#0f172a;margin:0;">🌐 <a href="${escapeHtml(input.installerWebsite)}" style="color:#ef6c4f;text-decoration:none;">${escapeHtml(input.installerWebsite)}</a></p>`
+            ? `<p style="font-size:13px;color:#0f172a;margin:0;">📞 <a href="tel:${escapeHtml(input.installerTelephone)}" style="color:#0f172a;text-decoration:none;">${escapeHtml(input.installerTelephone)}</a></p>`
             : ""
         }
       </div>`
           : ""
       }
 
-      <p style="font-size:14px;line-height:1.55;color:#475569;margin:0 0 16px;">
-        <strong style="color:#0b3140;">A friendly nudge:</strong> get three
-        quotes if you can. Even great installers vary 20–30% in price for
-        the same kit. The Book a site visit tab on your report has more
-        ready when you are.
-      </p>
-
       <p style="font-size:13px;color:#64748b;line-height:1.55;margin:0;">
-        Anything goes wrong with this installer — they don't show, the
-        quote feels off, anything — just reply to this email and we'll
-        help sort it.
+        Anything go wrong — they don't reply, the slot doesn't work, anything — just reply to this email and we'll help.
       </p>
     </div>
 
     <p style="font-size:11px;color:#94a3b8;text-align:center;margin:16px 0 0;line-height:1.5;">
-      You're getting this because you booked a site visit through Propertoasty.
+      You're getting this because you requested a site visit through Propertoasty.
     </p>
   </div>
 </body>
