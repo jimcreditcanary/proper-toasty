@@ -9,11 +9,9 @@ import {
 } from "@/lib/email/client";
 import { buildHomeownerEmail } from "@/lib/email/templates/booking-homeowner";
 import { buildInstallerEmail } from "@/lib/email/templates/booking-installer";
-import {
-  insertHomeownerEvent,
-  insertInstallerEvent,
-  type CalendarResult,
-} from "@/lib/google/calendar";
+// Bookings-calendar event inserts are intentionally disabled — see
+// the long comment in section 5 of the POST handler. The
+// calendar.ts module remains for future re-use under DWD.
 import { buildIcs, icsToBase64 } from "@/lib/email/ics";
 import { LEAD_ACCEPT_COST_CREDITS } from "@/lib/booking/credits";
 import type { Database } from "@/types/database";
@@ -384,94 +382,33 @@ export async function POST(req: Request) {
     // their calendar invite + emails.
   }
 
-  // 5. Calendar invites + confirmed emails. Skip calendar if no
-  // meeting row (legacy edge case). Verbose logging so missing
-  // invites are easy to diagnose in Vercel logs.
+  // 5. Calendar invites are delivered by ICS attachments on the
+  // confirmed emails (built below). We DON'T also create events on
+  // the bookings calendar — testers reported duplicate entries when
+  // the bookings calendar was secondary on their personal Google
+  // account, since events on a calendar you own bleed into your main
+  // calendar feed. The `installer_meetings` table is the audit
+  // trail; the upcoming admin "all bookings" view will surface it.
+  //
+  // The calendar.ts module + GOOGLE_CALENDAR_* env vars stay in place
+  // — we'll re-enable bookings-calendar inserts when we move to a
+  // dedicated Workspace account that nobody's personal calendar
+  // subscribes to.
   const reportFacts = extractReportFacts(lead.analysis_snapshot);
 
-  const skippedCalendar: CalendarResult = {
-    ok: false,
-    skipped: true,
-    reason: "no meeting row",
-  };
-
-  let homeownerCalendarResult: CalendarResult = skippedCalendar;
-  let installerCalendarResult: CalendarResult = skippedCalendar;
-
+  // Mark the meeting row's invite_sent_at so admin can see when
+  // notifications fired, even though we no longer track Google event
+  // IDs (those live on the bookings calendar in the future).
   if (meeting) {
-    console.log("[ack] firing calendar inserts", {
-      leadId,
-      meetingId: meeting.id,
-      scheduledAt: meeting.scheduled_at,
-      hasInstallerEmail: Boolean(installer.email),
-    });
-
-    const [hRes, iRes] = await Promise.all([
-      insertHomeownerEvent({
-        meetingStartUtc: meeting.scheduled_at,
-        meetingDurationMin: meeting.duration_min,
-        homeownerEmail: lead.contact_email,
-        homeownerName: lead.contact_name ?? "Homeowner",
-        installerCompanyName: installer.company_name,
-        installerEmail: installer.email,
-        installerTelephone: installer.telephone,
-        propertyAddress: lead.property_address,
-        propertyPostcode: lead.property_postcode,
-        wantsHeatPump: lead.wants_heat_pump,
-        wantsSolar: lead.wants_solar,
-        wantsBattery: lead.wants_battery,
-      }),
-      installer.email
-        ? insertInstallerEvent({
-            meetingStartUtc: meeting.scheduled_at,
-            meetingDurationMin: meeting.duration_min,
-            travelBufferMin: meeting.travel_buffer_min,
-            installerEmail: installer.email,
-            installerCompanyName: installer.company_name,
-            homeownerName: lead.contact_name ?? "Homeowner",
-            homeownerEmail: lead.contact_email,
-            homeownerPhone: lead.contact_phone ?? "",
-            propertyAddress: lead.property_address,
-            propertyPostcode: lead.property_postcode,
-            wantsHeatPump: lead.wants_heat_pump,
-            wantsSolar: lead.wants_solar,
-            wantsBattery: lead.wants_battery,
-          })
-        : Promise.resolve<CalendarResult>({
-            ok: false,
-            skipped: true,
-            reason: "installer has no email on file",
-          }),
-    ]);
-    homeownerCalendarResult = hRes;
-    installerCalendarResult = iRes;
-
-    console.log("[ack] calendar results", {
-      homeowner: homeownerCalendarResult.ok
-        ? { ok: true, eventId: homeownerCalendarResult.eventId }
-        : { ok: false, ...("skipped" in homeownerCalendarResult && homeownerCalendarResult.skipped ? { skipped: true, reason: homeownerCalendarResult.reason } : { error: "error" in homeownerCalendarResult ? homeownerCalendarResult.error : "unknown" }) },
-      installer: installerCalendarResult.ok
-        ? { ok: true, eventId: installerCalendarResult.eventId }
-        : { ok: false, ...("skipped" in installerCalendarResult && installerCalendarResult.skipped ? { skipped: true, reason: installerCalendarResult.reason } : { error: "error" in installerCalendarResult ? installerCalendarResult.error : "unknown" }) },
-    });
-
-    if (homeownerCalendarResult.ok || installerCalendarResult.ok) {
-      const { error: calUpdateErr } = await admin
-        .from("installer_meetings")
-        .update({
-          google_event_id: homeownerCalendarResult.ok
-            ? homeownerCalendarResult.eventId
-            : null,
-          google_installer_event_id: installerCalendarResult.ok
-            ? installerCalendarResult.eventId
-            : null,
-          google_calendar_id: process.env.GOOGLE_CALENDAR_ID ?? null,
-          invite_sent_at: now,
-        })
-        .eq("id", meeting.id);
-      if (calUpdateErr) {
-        console.error("[ack] meeting calendar id update failed", calUpdateErr);
-      }
+    const { error: inviteUpdateErr } = await admin
+      .from("installer_meetings")
+      .update({ invite_sent_at: now })
+      .eq("id", meeting.id);
+    if (inviteUpdateErr) {
+      console.error(
+        "[ack] meeting invite_sent_at update failed",
+        inviteUpdateErr,
+      );
     }
   }
 
