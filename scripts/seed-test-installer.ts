@@ -16,11 +16,10 @@
 // state.
 //
 // Usage:
-//   npx tsx scripts/seed-test-installer.ts
+//   npx tsx --env-file=.env.local scripts/seed-test-installer.ts
 //
-// Env required:
-//   NEXT_PUBLIC_SUPABASE_URL
-//   SUPABASE_SERVICE_ROLE_KEY
+// (tsx's --env-file flag loads NEXT_PUBLIC_SUPABASE_URL and
+// SUPABASE_SERVICE_ROLE_KEY from your local .env.local.)
 
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "../src/types/database";
@@ -160,6 +159,24 @@ async function main() {
   } else {
     console.log("✓ no pre-existing user — F2 signup will be fresh");
   }
+
+  // Verify the row really exists by reading it back. If for some
+  // reason the upsert silently dropped (RLS, role, project mismatch,
+  // anything weird), we want a noisy failure here rather than the
+  // user confusedly hitting a 404 on the prefill URL.
+  const { data: verify, error: verifyErr } = await admin
+    .from("installers")
+    .select("id, company_name, company_number, email, user_id")
+    .eq("id", TEST_INSTALLER_ID)
+    .maybeSingle();
+  if (verifyErr || !verify) {
+    console.error(
+      "✗ verification read failed — the row may not have persisted:",
+      verifyErr?.message ?? "no row returned",
+    );
+    process.exit(1);
+  }
+  console.log("✓ verified installer row in DB", verify);
 
   console.log("\n──────────────── Done ────────────────\n");
   console.log("Test it:");

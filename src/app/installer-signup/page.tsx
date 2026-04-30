@@ -25,7 +25,7 @@
 import Link from "next/link";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { Logo } from "@/components/logo";
-import { ShieldCheck, Building2 } from "lucide-react";
+import { Building2 } from "lucide-react";
 import { ClaimSignupForm } from "./signup-form";
 import { ClaimSearch } from "./search";
 import type { Database } from "@/types/database";
@@ -111,11 +111,7 @@ export default async function InstallerSignupPage({ searchParams }: PageProps) {
           <Link href="/" className="inline-block mb-6">
             <Logo size="md" variant="light" />
           </Link>
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-coral/10 text-coral px-3 py-1 text-[11px] font-semibold uppercase tracking-wider">
-            <ShieldCheck className="w-3.5 h-3.5" />
-            Installer signup
-          </span>
-          <h1 className="mt-3 text-2xl sm:text-3xl font-bold text-navy leading-tight">
+          <h1 className="text-2xl sm:text-3xl font-bold text-navy leading-tight">
             {prefill
               ? `Claim ${prefill.companyName}`
               : "Find your MCS-listed company"}
