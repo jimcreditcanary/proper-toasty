@@ -539,16 +539,7 @@ function InstallerTile({
       {/* CTA — book or status */}
       <div className="mt-auto">
         {installer.contactedByMe ? (
-          <div className="flex items-center justify-between gap-3">
-            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2.5 py-1">
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              Booking sent
-            </span>
-            <span className="text-xs text-slate-500 inline-flex items-center gap-1">
-              <Calendar className="w-3 h-3" />
-              Awaiting reply
-            </span>
-          </div>
+          <ContactedStatusRow status={installer.contactedStatus} />
         ) : (
           <button
             type="button"
@@ -560,6 +551,71 @@ function InstallerTile({
           </button>
         )}
       </div>
+    </div>
+  );
+}
+
+// Status pill + secondary line for the contacted tile.
+//
+//   pending  — "Booking sent · Awaiting reply"
+//   booked   — "Visit confirmed · Calendar invite sent"
+//   taken    — "Lead accepted · Awaiting reschedule"
+//   declined — "Installer declined · Pick someone else"
+function ContactedStatusRow({
+  status,
+}: {
+  status: InstallerCard["contactedStatus"];
+}) {
+  const config: {
+    pillCls: string;
+    pillIcon: React.ReactNode;
+    pillText: string;
+    detailIcon: React.ReactNode;
+    detailText: string;
+  } =
+    status === "booked"
+      ? {
+          pillCls: "text-emerald-700 bg-emerald-50 border-emerald-200",
+          pillIcon: <CheckCircle2 className="w-3.5 h-3.5" />,
+          pillText: "Visit confirmed",
+          detailIcon: <Calendar className="w-3 h-3" />,
+          detailText: "Calendar invite sent",
+        }
+      : status === "taken"
+        ? {
+            pillCls: "text-emerald-700 bg-emerald-50 border-emerald-200",
+            pillIcon: <CheckCircle2 className="w-3.5 h-3.5" />,
+            pillText: "Lead accepted",
+            detailIcon: <Clock className="w-3 h-3" />,
+            detailText: "Awaiting reschedule",
+          }
+        : status === "declined"
+          ? {
+              pillCls: "text-slate-700 bg-slate-50 border-slate-200",
+              pillIcon: <CheckCircle2 className="w-3.5 h-3.5" />,
+              pillText: "Installer declined",
+              detailIcon: <Calendar className="w-3 h-3" />,
+              detailText: "Pick another installer",
+            }
+          : {
+              pillCls: "text-emerald-700 bg-emerald-50 border-emerald-200",
+              pillIcon: <CheckCircle2 className="w-3.5 h-3.5" />,
+              pillText: "Booking sent",
+              detailIcon: <Calendar className="w-3 h-3" />,
+              detailText: "Awaiting reply",
+            };
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <span
+        className={`inline-flex items-center gap-1.5 text-xs font-semibold border rounded-full px-2.5 py-1 ${config.pillCls}`}
+      >
+        {config.pillIcon}
+        {config.pillText}
+      </span>
+      <span className="text-xs text-slate-500 inline-flex items-center gap-1">
+        {config.detailIcon}
+        {config.detailText}
+      </span>
     </div>
   );
 }

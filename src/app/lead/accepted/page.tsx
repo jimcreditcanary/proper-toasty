@@ -1,6 +1,11 @@
-// Landing page the installer sees after clicking the magic link in
-// their booking-notification email. The /api/installer-leads/acknowledge
-// endpoint redirects here with ?state=ok|invalid|expired|error.
+// Landing page the installer sees after their accept / reschedule /
+// decline action runs. The /api/installer-leads/acknowledge endpoint
+// redirects here with ?state=ok|reschedule|declined|invalid|expired|error.
+//
+// Copy avoids naming any specific calendar product — installers may
+// be on Outlook, Apple Calendar, Fastmail, anything that opens an
+// ICS attachment. We say "your calendar" and let the email do the
+// rest.
 
 import Link from "next/link";
 
@@ -19,9 +24,21 @@ export default async function AcknowledgePage({
   let tone: "ok" | "warn" | "error";
   switch (state) {
     case "ok":
-      title = "Lead accepted — calendar invite on its way";
+      title = "Slot booked — calendar invite on its way";
       body =
-        "We've added the visit to your Google Calendar (with travel buffers) and emailed the homeowner to confirm. Their full contact details are in your inbox — just hit Reply to start the conversation.";
+        "We've sent a calendar invite to your inbox (covering your visit + travel buffers either side) and emailed the homeowner to confirm. Their full contact details are in your inbox — just hit Reply to start the conversation.";
+      tone = "ok";
+      break;
+    case "reschedule":
+      title = "Lead accepted — get in touch to fix a new time";
+      body =
+        "We've emailed the homeowner to let them know you've taken the lead but the original slot doesn't work. Their full contact details are in your inbox — call or reply to that email and sort a new time directly.";
+      tone = "ok";
+      break;
+    case "declined":
+      title = "Lead declined";
+      body =
+        "Got it — we've let the homeowner know you can't take this one and pointed them at other MCS-certified installers nearby. Nothing's been charged.";
       tone = "ok";
       break;
     case "invalid":
@@ -40,7 +57,7 @@ export default async function AcknowledgePage({
     default:
       title = "Something went wrong on our end";
       body =
-        "We couldn't process that acknowledge click. The booking is safe — reply to the original email and we'll make sure it's marked as picked up.";
+        "We couldn't process that click. The booking is safe — reply to the original email and we'll make sure it's marked correctly.";
       tone = "error";
       break;
   }

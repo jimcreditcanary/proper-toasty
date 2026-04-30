@@ -46,6 +46,15 @@ export const InstallerCardSchema = z.object({
   // this installer (used to move the tile into the "contacted" section
   // above the main grid).
   contactedByMe: z.boolean(),
+  // Friendly status for the contacted tile — null when not contacted.
+  //   "pending"   — request sent, installer hasn't responded yet
+  //   "booked"    — installer accepted, slot confirmed
+  //   "taken"     — installer accepted but cancelled the slot
+  //                 (rescheduling — they'll reach out directly)
+  //   "declined"  — installer declined / closed
+  contactedStatus: z
+    .enum(["pending", "booked", "taken", "declined"])
+    .nullable(),
 });
 export type InstallerCard = z.infer<typeof InstallerCardSchema>;
 

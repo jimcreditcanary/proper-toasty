@@ -90,7 +90,9 @@ function extractReportFacts(snapshot: unknown): ReportFacts {
   };
 }
 
-function landingUrl(state: "ok" | "invalid" | "expired" | "error" | "declined"): string {
+function landingUrl(
+  state: "ok" | "reschedule" | "invalid" | "expired" | "error" | "declined",
+): string {
   return `/lead/accepted?state=${state}`;
 }
 
@@ -425,7 +427,10 @@ export async function POST(req: Request) {
     await sendRescheduleEmails({ lead, meeting, installer, reportFacts, leadId });
   }
 
-  return NextResponse.redirect(new URL(landingUrl("ok"), url), 303);
+  return NextResponse.redirect(
+    new URL(landingUrl(action === "accept" ? "ok" : "reschedule"), url),
+    303,
+  );
 }
 
 // ─── action=decline ────────────────────────────────────────────────────

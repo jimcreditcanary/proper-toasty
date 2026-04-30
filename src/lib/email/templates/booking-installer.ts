@@ -5,8 +5,9 @@
 // the accept CTA (already done) and surfaces the full homeowner
 // contact + property info that was hidden in the pending email.
 //
-// The Google Calendar invite for the visit (with travel buffers) is
-// inserted in parallel via the Calendar API; this email mentions it.
+// A calendar invite (.ics) is attached to this email so the
+// installer's calendar of choice can pick it up — works on Gmail,
+// Outlook, Apple Calendar, anything else that opens ICS.
 
 import { escapeHtml } from "../client";
 
@@ -96,7 +97,7 @@ export function buildInstallerEmail(input: ConfirmedInstallerEmailInput): {
     `You've accepted ${input.homeownerName}'s site visit booking.`,
     ``,
     `Slot: ${slot.longDateLabel} (UK time)`,
-    `${input.meetingDurationMin}-min visit + ${input.travelBufferMin}-min travel buffer either side. Both windows have been added to your Google Calendar — accept the invite to confirm.`,
+    `${input.meetingDurationMin}-min visit + ${input.travelBufferMin}-min travel buffer either side. A calendar invite is attached — open it to add the block to your calendar.`,
     ``,
     `How to reach ${input.homeownerName.split(" ")[0]}:`,
     `  Email: ${input.homeownerEmail}`,

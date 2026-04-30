@@ -57,6 +57,7 @@ function rowToCard(
   row: InstallerRow,
   distanceKm: number | null,
   contactedByMe: boolean,
+  contactedStatus: InstallerCard["contactedStatus"] = null,
 ): InstallerCard {
   const addrParts = [
     row.address_line_1,
@@ -103,6 +104,7 @@ function rowToCard(
     checkatradeReviewCount: row.checkatrade_review_count ?? null,
     checkatradeUrl: row.checkatrade_url,
     contactedByMe,
+    contactedStatus,
   };
 }
 
@@ -184,26 +186,65 @@ export async function findNearby(
   const end = start + req.pageSize;
   const page = rowsWithDistance.slice(start, end);
 
-  // Build a Set of installer ids the user has already booked a visit
-  // with — used to flag the tile so the UI can move it into the
-  // "contacted" section above the main grid.
-  let contactedIds = new Set<number>();
+  // Build a map from installer id → friendly contacted status, used
+  // to move the tile into the "contacted" section above the main
+  // grid AND to label what state the booking's in (pending / booked /
+  // taken-no-slot / declined). If the homeowner has multiple leads
+  // with the same installer (rebookings, etc.) we keep the most
+  // advanced status.
+  const contactedStatusByInstaller = new Map<
+    number,
+    InstallerCard["contactedStatus"]
+  >();
   if (req.homeownerLeadId) {
     const { data: leads, error: leadErr } = await admin
       .from("installer_leads")
-      .select("installer_id")
+      .select("installer_id, status")
       .eq("homeowner_lead_id", req.homeownerLeadId);
     if (leadErr) {
       console.warn("[installers/nearby] contacted lookup failed", leadErr.message);
     } else {
-      contactedIds = new Set((leads ?? []).map((l) => l.installer_id));
+      const friendlyStatus = (
+        s: string | null,
+      ): InstallerCard["contactedStatus"] => {
+        switch (s) {
+          case "visit_booked":
+          case "visit_completed":
+          case "closed_won":
+            return "booked";
+          case "installer_acknowledged":
+            return "taken";
+          case "cancelled":
+          case "closed_lost":
+            return "declined";
+          // 'new' / 'sent_to_installer' / null
+          default:
+            return "pending";
+        }
+      };
+      // Pick the "best" status when multiple leads exist for one
+      // installer — booked > taken > pending > declined.
+      const rank: Record<NonNullable<InstallerCard["contactedStatus"]>, number> = {
+        booked: 4,
+        taken: 3,
+        pending: 2,
+        declined: 1,
+      };
+      for (const l of leads ?? []) {
+        const next = friendlyStatus(l.status);
+        const existing = contactedStatusByInstaller.get(l.installer_id);
+        if (!existing || rank[next!] > rank[existing!]) {
+          contactedStatusByInstaller.set(l.installer_id, next);
+        }
+      }
     }
   }
 
   return {
-    installers: page.map(({ row, distanceKm }) =>
-      rowToCard(row, distanceKm, contactedIds.has(row.id)),
-    ),
+    installers: page.map(({ row, distanceKm }) => {
+      const status = contactedStatusByInstaller.get(row.id) ?? null;
+      return rowToCard(row, distanceKm, status !== null, status);
+    }),
     totalCount,
   };
 }

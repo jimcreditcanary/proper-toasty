@@ -5,9 +5,9 @@
 // the pending one so the user can see at a glance which state they're
 // in.
 //
-// Calendar invite is sent in parallel via Google Calendar API; this
-// email mentions it's coming. Installer contact info included for
-// any post-confirmation changes.
+// A calendar invite is attached as an .ics file (universal — works
+// in Gmail, Outlook, Apple Calendar, anything). Installer contact
+// info included for any post-confirmation changes.
 
 import { escapeHtml } from "../client";
 
@@ -83,7 +83,7 @@ export function buildHomeownerEmail(input: ConfirmedHomeownerEmailInput): {
     `  Time: ${slot.timeLabel} (UK time)`,
     `  What you asked about: ${wants}`,
     ``,
-    `A Google Calendar invite is on its way to your inbox separately — should land within a minute or two. If it's not there, check your spam folder.`,
+    `A calendar invite is attached to this email — open it to add the visit to your calendar (Gmail, Outlook, Apple Calendar, anything works).`,
     ``,
     `Need to change or cancel? Contact ${input.installerCompanyName} directly:`,
     input.installerEmail ? `  Email: ${input.installerEmail}` : "",
@@ -148,9 +148,9 @@ export function buildHomeownerEmail(input: ConfirmedHomeownerEmailInput): {
       </div>
 
       <p style="font-size:14px;line-height:1.55;color:#475569;margin:0 0 20px;">
-        A Google Calendar invite is on its way to your inbox separately
-        — should land within a minute or two. If it's not there, check
-        your spam folder.
+        A calendar invite is attached to this email — click it to add
+        the visit to your calendar. Works with Gmail, Outlook, Apple
+        Calendar, and anywhere else that opens .ics files.
       </p>
 
       ${

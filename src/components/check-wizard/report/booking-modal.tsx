@@ -743,10 +743,10 @@ function ConfirmationView({
       <h2 className="text-xl font-bold text-navy">Request sent</h2>
       <p className="mt-2 text-sm text-slate-600 leading-relaxed">
         We&rsquo;ve emailed{" "}
-        <strong className="text-navy">{installer.companyName}</strong> with
-        your slot. They have 24 hours to confirm — we&rsquo;ll email{" "}
-        <strong className="text-navy">{contactEmail}</strong> the moment they
-        do, with a calendar invite.
+        <strong className="text-navy">{installer.companyName}</strong>
+        {" "}with your slot. They have 24 hours to confirm — we&rsquo;ll
+        email <strong className="text-navy">{contactEmail}</strong>
+        {" "}the moment they do, with a calendar invite.
       </p>
 
       {/* Summary card — same layout the user will see in the

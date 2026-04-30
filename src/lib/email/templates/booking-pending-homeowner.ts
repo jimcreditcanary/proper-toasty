@@ -81,7 +81,7 @@ export function buildPendingHomeownerEmail(input: PendingHomeownerEmailInput): {
     ``,
     `What happens next:`,
     `  - Most installers respond within a few hours.`,
-    `  - The moment they accept, we'll send a confirmation email and a Google Calendar invite for the visit.`,
+    `  - The moment they accept, we'll send a confirmation email with a calendar invite attached.`,
     `  - If they can't take the slot, we'll let you know and suggest other installers from your report.`,
     ``,
     `Need to chase or change anything? Contact ${input.installerCompanyName} directly:`,
@@ -151,7 +151,7 @@ export function buildPendingHomeownerEmail(input: PendingHomeownerEmailInput): {
           • Most installers respond within a few hours — max 24 hours.
         </p>
         <p style="font-size:13px;color:#475569;line-height:1.55;margin:0 0 6px;">
-          • The moment they accept, we'll send a confirmation email and a Google Calendar invite for the visit.
+          • The moment they accept, we'll send a confirmation email with a calendar invite attached.
         </p>
         <p style="font-size:13px;color:#475569;line-height:1.55;margin:0;">
           • If they can't take the slot, we'll let you know so you can pick another installer from your report.
