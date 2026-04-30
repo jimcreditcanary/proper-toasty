@@ -14,6 +14,7 @@ import { buildDeclinedHomeownerEmail } from "@/lib/email/templates/booking-decli
 import { buildIcs, icsToBase64 } from "@/lib/email/ics";
 import { LEAD_ACCEPT_COST_CREDITS } from "@/lib/booking/credits";
 import { findNearby } from "@/lib/services/installers";
+import { resolveInstallerProfile } from "@/lib/installer-claim/resolve-profile";
 import type { Database } from "@/types/database";
 
 const FROM_EMAIL =
@@ -226,12 +227,20 @@ export async function POST(req: Request) {
       >(),
     admin
       .from("installers")
-      .select("id, company_name, email, telephone, website, postcode")
+      .select(
+        "id, company_name, email, telephone, website, postcode, user_id",
+      )
       .eq("id", lead.installer_id)
       .maybeSingle<
         Pick<
           InstallerRow,
-          "id" | "company_name" | "email" | "telephone" | "website" | "postcode"
+          | "id"
+          | "company_name"
+          | "email"
+          | "telephone"
+          | "website"
+          | "postcode"
+          | "user_id"
         >
       >(),
   ]);
@@ -285,33 +294,21 @@ export async function POST(req: Request) {
   }
 
   // ── Identify the user account whose credits cover this lead ─────
-  // Email match between installers.email and users.email. Until F2
-  // installer claim ships, this is the only binding we have. If
-  // there's no match, push them back to the page which renders the
-  // "claim your profile" CTA.
-  const installerEmail = installer.email?.toLowerCase().trim() ?? null;
-  if (!installerEmail) {
-    console.warn("[ack] installer has no email — can't attribute credits", {
+  // F2 priority: installers.user_id binding (durable). Falls back to
+  // email match (installers.email ↔ users.email) for legacy /
+  // unclaimed installers. If neither matches, push them back to the
+  // accept page which renders the "claim your profile" CTA.
+  const profile = await resolveInstallerProfile({
+    admin,
+    boundUserId: installer.user_id ?? null,
+    fallbackEmail: installer.email,
+  });
+  if (!profile || profile.blocked) {
+    console.warn("[ack] no matching user account for installer", {
       leadId,
       installerId: installer.id,
-    });
-    return NextResponse.redirect(new URL(backToAcceptUrl(leadId, token), url), 303);
-  }
-  const { data: profile } = await admin
-    .from("users")
-    .select("id, email, credits, blocked")
-    .ilike("email", installerEmail)
-    .limit(1)
-    .maybeSingle<{
-      id: string;
-      email: string;
-      credits: number;
-      blocked: boolean;
-    }>();
-  if (!profile || profile.blocked) {
-    console.warn("[ack] no matching user account for installer email", {
-      leadId,
-      installerEmail,
+      hasBoundUserId: installer.user_id != null,
+      hasEmail: !!installer.email,
     });
     return NextResponse.redirect(new URL(backToAcceptUrl(leadId, token), url), 303);
   }
@@ -319,6 +316,7 @@ export async function POST(req: Request) {
     console.warn("[ack] insufficient credits at submit", {
       userId: profile.id,
       credits: profile.credits,
+      via: profile.via,
     });
     return NextResponse.redirect(new URL(backToAcceptUrl(leadId, token), url), 303);
   }

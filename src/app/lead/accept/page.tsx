@@ -50,6 +50,7 @@ import {
 import { createAdminClient } from "@/lib/supabase/admin";
 import { verifyLeadAckToken } from "@/lib/email/tokens";
 import { LEAD_ACCEPT_COST_CREDITS } from "@/lib/booking/credits";
+import { resolveInstallerProfile } from "@/lib/installer-claim/resolve-profile";
 import type { Database } from "@/types/database";
 
 export const dynamic = "force-dynamic";
@@ -61,6 +62,7 @@ type InstallerRow = Database["public"]["Tables"]["installers"]["Row"];
 interface BookingFacts {
   leadId: string;
   token: string;
+  installerId: number;
   installerName: string;
   installerEmail: string | null;
   postcodeArea: string | null;
@@ -144,9 +146,11 @@ async function loadState(leadId: string, token: string): Promise<State> {
       >(),
     admin
       .from("installers")
-      .select("id, company_name, email")
+      .select("id, company_name, email, user_id")
       .eq("id", lead.installer_id)
-      .maybeSingle<Pick<InstallerRow, "id" | "company_name" | "email">>(),
+      .maybeSingle<
+        Pick<InstallerRow, "id" | "company_name" | "email" | "user_id">
+      >(),
   ]);
 
   if (!meetingResult.data || !installerResult.data) {
@@ -156,6 +160,7 @@ async function loadState(leadId: string, token: string): Promise<State> {
   const facts: BookingFacts = {
     leadId,
     token,
+    installerId: installerResult.data.id,
     installerName: installerResult.data.company_name,
     installerEmail: installerResult.data.email,
     postcodeArea: postcodeArea(lead.property_postcode),
@@ -183,27 +188,24 @@ async function loadState(leadId: string, token: string): Promise<State> {
     return { kind: "already-declined", facts };
   }
 
-  // ── Identify the installer's user account by email match ─────────
-  // If installer.email is empty (legacy data) we can't bind. Fall
-  // back to "needs claim" — they'll have to sign up before we can
-  // attribute credits to anyone.
-  const installerEmail =
-    installerResult.data.email?.toLowerCase().trim() ?? null;
-  if (!installerEmail) {
-    return { kind: "needs-claim", facts };
-  }
-
-  const { data: profile } = await admin
-    .from("users")
-    .select("id, email, credits, blocked")
-    .ilike("email", installerEmail)
-    .limit(1)
-    .maybeSingle<{
-      id: string;
-      email: string;
-      credits: number;
-      blocked: boolean;
-    }>();
+  // ── Identify the installer's user account ────────────────────────
+  // Two paths in priority order:
+  //
+  //   1. F2 binding: installers.user_id is set after the installer
+  //      claims their profile via /installer-signup. This is the
+  //      durable, intended attribution.
+  //
+  //   2. Email-match fallback: installers.email matches users.email.
+  //      Bridge for unclaimed installers / test data — kept until
+  //      F2 has rolled out for a few weeks then dropped.
+  //
+  // If neither matches, render the "claim your profile" CTA so the
+  // installer can sign up before accepting.
+  const profile = await resolveInstallerProfile({
+    admin,
+    boundUserId: installerResult.data.user_id ?? null,
+    fallbackEmail: installerResult.data.email,
+  });
 
   if (!profile || profile.blocked) {
     return { kind: "needs-claim", facts };
@@ -211,9 +213,9 @@ async function loadState(leadId: string, token: string): Promise<State> {
 
   console.log("[lead/accept] gate decision", {
     leadId,
-    installerEmail,
     matched_user_id: profile.id,
     matched_user_email: profile.email,
+    via: profile.via,
     credits: profile.credits,
   });
 
@@ -438,32 +440,32 @@ function NeedsClaim({ state }: { state: { facts: BookingFacts } }) {
     facts.wantsSolar,
     facts.wantsBattery,
   );
-  const signupQuery = facts.installerEmail
-    ? `?tab=signup&email=${encodeURIComponent(facts.installerEmail)}`
-    : "?tab=signup";
+  // Deep-link to the F2 signup page with the installer ID baked in,
+  // so they don't have to search for themselves. Email pre-fill is
+  // appended when we have one on file.
+  const signupQs = new URLSearchParams({ id: String(facts.installerId) });
+  if (facts.installerEmail) signupQs.set("email", facts.installerEmail);
   return (
     <>
       <Header pillText="Claim your installer profile" title={facts.installerName} />
       <BookingFactsCard facts={facts} slot={slot} wants={wants} />
 
       <p className="text-sm text-slate-600 leading-relaxed mb-4">
-        We don&rsquo;t have a Propertoasty account on file for{" "}
-        <strong className="text-navy">
-          {facts.installerEmail ?? "this installer"}
-        </strong>
-        . Sign up using that email to claim your profile and accept
-        leads.
+        Looks like nobody&rsquo;s claimed{" "}
+        <strong className="text-navy">{facts.installerName}</strong>{" "}
+        on Propertoasty yet. Set up your account in under a minute and
+        come back to accept this lead.
       </p>
 
       <Link
-        href={`/auth/login${signupQuery}`}
+        href={`/installer-signup?${signupQs.toString()}`}
         className="w-full inline-flex items-center justify-center gap-2 h-12 rounded-full bg-coral hover:bg-coral-dark text-white font-semibold text-sm shadow-sm transition-colors"
       >
-        Sign up to claim
+        Claim your profile
       </Link>
       <p className="mt-2 mb-4 text-[11px] text-slate-500 text-center">
-        Use the email this lead was sent to so we match you to the
-        right installer record.
+        We&rsquo;ve already linked this signup to your MCS record.
+        You just need to confirm your email and set a password.
       </p>
 
       <p className="text-xs text-slate-500 mb-2 text-center">

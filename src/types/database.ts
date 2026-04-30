@@ -892,6 +892,9 @@ export interface Database {
           // Migration 037 — installer-configurable visit length + travel buffer
           meeting_duration_min: number;
           travel_buffer_min: number;
+          // Migration 039 — F2 installer claim binding
+          user_id: string | null;
+          claimed_at: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -958,6 +961,9 @@ export interface Database {
           checkatrade_url?: string | null;
           checkatrade_fetched_at?: string | null;
           checkatrade_status?: string | null;
+          // Migration 039 — F2 installer claim binding
+          user_id?: string | null;
+          claimed_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
