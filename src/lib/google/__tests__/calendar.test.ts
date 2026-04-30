@@ -29,11 +29,9 @@ describe("buildHomeownerEvent", () => {
     expect(ev.start?.timeZone).toBe("Europe/London");
   });
 
-  it("only invites the homeowner — installer is mentioned in title only", () => {
+  it("does not include attendees (DWD limitation — invites go via ICS)", () => {
     const ev = buildHomeownerEvent(HOMEOWNER_BASE);
-    expect(ev.attendees).toEqual([
-      { email: "sarah@example.com", displayName: "Sarah Jones" },
-    ]);
+    expect(ev.attendees).toBeUndefined();
     expect(ev.summary).toContain("Eden Solar UK Ltd");
   });
 
@@ -82,11 +80,9 @@ describe("buildInstallerEvent", () => {
     expect(ev.end?.dateTime).toBe("2026-05-04T10:30:00.000Z");
   });
 
-  it("invites only the installer", () => {
+  it("does not include attendees (DWD limitation — invites go via ICS)", () => {
     const ev = buildInstallerEvent(INSTALLER_BASE);
-    expect(ev.attendees).toEqual([
-      { email: "hello@edensolar.co.uk", displayName: "Eden Solar UK Ltd" },
-    ]);
+    expect(ev.attendees).toBeUndefined();
   });
 
   it("summary includes homeowner name + postcode", () => {

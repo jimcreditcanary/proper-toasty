@@ -256,7 +256,12 @@ export function buildHomeownerEvent(
     location: input.propertyAddress ?? input.propertyPostcode ?? undefined,
     start: { dateTime: start.toISOString(), timeZone: TIMEZONE },
     end: { dateTime: end.toISOString(), timeZone: TIMEZONE },
-    attendees: [{ email: input.homeownerEmail, displayName: input.homeownerName }],
+    // No attendees — service-account auth without Domain-Wide
+    // Delegation can't invite attendees (`Service accounts cannot
+    // invite attendees without DWD` error). Calendar invites for
+    // attendees go via ICS attachments on the confirmed emails
+    // instead. The events still land on the bookings calendar as a
+    // Propertoasty-side audit trail.
     reminders: { useDefault: true },
   };
 }
@@ -313,12 +318,9 @@ export function buildInstallerEvent(
     location: input.propertyAddress ?? input.propertyPostcode ?? undefined,
     start: { dateTime: start.toISOString(), timeZone: TIMEZONE },
     end: { dateTime: end.toISOString(), timeZone: TIMEZONE },
-    attendees: [
-      {
-        email: input.installerEmail,
-        displayName: input.installerCompanyName,
-      },
-    ],
+    // See homeowner event — no attendees because service-account auth
+    // can't invite without DWD. ICS attachment on the confirmed
+    // installer email handles their actual calendar entry.
     reminders: { useDefault: true },
   };
 }
@@ -354,9 +356,9 @@ async function insertEvent(
   try {
     const res = await handle.client.events.insert({
       calendarId: handle.config.calendarId,
-      // 'all' = email all attendees with the standard Google invite.
-      // 'externalOnly' / 'none' wouldn't actually deliver to the user.
-      sendUpdates: "all",
+      // No attendees on the event (DWD limitation) so sendUpdates is
+      // a no-op anyway. Set to 'none' to avoid Google warning logs.
+      sendUpdates: "none",
       requestBody: event,
     });
     const id = res.data.id;

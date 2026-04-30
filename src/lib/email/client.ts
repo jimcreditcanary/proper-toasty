@@ -23,6 +23,17 @@
 
 import { ServerClient } from "postmark";
 
+export interface SendEmailAttachment {
+  /** Filename the recipient sees */
+  name: string;
+  /** Base64-encoded contents */
+  contentBase64: string;
+  /** MIME type. For ICS calendar invites: `text/calendar; method=REQUEST; charset=utf-8` */
+  contentType: string;
+  /** Optional ContentID for inline (image-style) attachments. We don't use this for ICS. */
+  contentId?: string;
+}
+
 export interface SendEmailInput {
   to: string;
   subject: string;
@@ -36,6 +47,8 @@ export interface SendEmailInput {
   // so we use the FIRST tag value. Everything else goes into Metadata
   // (a string→string map) which is also queryable in their dashboard.
   tags?: { name: string; value: string }[];
+  // Optional attachments — ICS calendar invites etc.
+  attachments?: SendEmailAttachment[];
 }
 
 export type SendEmailResult =
@@ -101,6 +114,19 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
 
   const { tag, metadata } = metadataFromTags(input.tags);
 
+  // Postmark's Attachment type wants ContentID as string (not
+  // optional / undefined). Use null for non-inline attachments —
+  // that's the documented "no Content-ID" sentinel.
+  const attachments =
+    input.attachments && input.attachments.length > 0
+      ? input.attachments.map((a) => ({
+          Name: a.name,
+          Content: a.contentBase64,
+          ContentType: a.contentType,
+          ContentID: a.contentId ?? null,
+        }))
+      : undefined;
+
   try {
     const res = await client.sendEmail({
       From: input.from ?? formatFrom(),
@@ -113,6 +139,7 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
       Tag: tag,
       Metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
       MessageStream: MESSAGE_STREAM,
+      Attachments: attachments,
     });
 
     // Postmark returns ErrorCode 0 on success. Anything else is a failure.

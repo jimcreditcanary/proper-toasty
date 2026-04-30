@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { verifyLeadAckToken } from "@/lib/email/tokens";
-import { sendEmail, type SendEmailResult } from "@/lib/email/client";
+import {
+  sendEmail,
+  type SendEmailAttachment,
+  type SendEmailResult,
+} from "@/lib/email/client";
 import { buildHomeownerEmail } from "@/lib/email/templates/booking-homeowner";
 import { buildInstallerEmail } from "@/lib/email/templates/booking-installer";
 import {
@@ -9,7 +13,11 @@ import {
   insertInstallerEvent,
   type CalendarResult,
 } from "@/lib/google/calendar";
+import { buildIcs, icsToBase64 } from "@/lib/email/ics";
 import type { Database } from "@/types/database";
+
+const FROM_EMAIL =
+  process.env.EMAIL_FROM_ADDRESS ?? "bookings@propertoasty.com";
 
 // POST /api/installer-leads/acknowledge
 //   form fields: lead=<uuid>, token=<hmac>
@@ -393,6 +401,45 @@ export async function POST(req: Request) {
         })
       : null;
 
+  // Build ICS attachments for both confirmed emails. The homeowner
+  // gets a 1hr event, the installer gets a 2hr block (1hr meeting +
+  // travel buffers either side). Each ICS file gets a stable UID so
+  // updates / cancellations later can supersede the right event.
+  const wantsList = listWants(
+    lead.wants_heat_pump,
+    lead.wants_solar,
+    lead.wants_battery,
+  );
+
+  const homeownerIcsAttachment: SendEmailAttachment | null = meeting
+    ? buildHomeownerIcsAttachment({
+        leadId,
+        meeting,
+        installerName: installer.company_name,
+        installerEmail: installer.email,
+        homeownerName: lead.contact_name ?? "Homeowner",
+        homeownerEmail: lead.contact_email,
+        propertyAddress: lead.property_address,
+        wantsList,
+      })
+    : null;
+
+  const installerIcsAttachment: SendEmailAttachment | null =
+    meeting && installer.email
+      ? buildInstallerIcsAttachment({
+          leadId,
+          meeting,
+          installerName: installer.company_name,
+          installerEmail: installer.email,
+          homeownerName: lead.contact_name ?? "Homeowner",
+          homeownerEmail: lead.contact_email,
+          homeownerPhone: lead.contact_phone ?? "",
+          propertyAddress: lead.property_address,
+          propertyPostcode: lead.property_postcode,
+          wantsList,
+        })
+      : null;
+
   const [homeownerEmailResult, installerEmailResult] = await Promise.all([
     homeownerEmail
       ? sendEmail({
@@ -404,6 +451,7 @@ export async function POST(req: Request) {
             { name: "kind", value: "booking_confirmed_homeowner" },
             { name: "lead_id", value: leadId },
           ],
+          attachments: homeownerIcsAttachment ? [homeownerIcsAttachment] : undefined,
         })
       : Promise.resolve<SendEmailResult>({
           ok: false,
@@ -421,6 +469,7 @@ export async function POST(req: Request) {
             { name: "kind", value: "booking_confirmed_installer" },
             { name: "lead_id", value: leadId },
           ],
+          attachments: installerIcsAttachment ? [installerIcsAttachment] : undefined,
         })
       : Promise.resolve<SendEmailResult>({
           ok: false,
@@ -447,4 +496,129 @@ export async function POST(req: Request) {
   });
 
   return NextResponse.redirect(new URL(landingUrl("ok"), url), 303);
+}
+
+// ─── ICS helpers ────────────────────────────────────────────────────────
+
+function listWants(hp: boolean, solar: boolean, battery: boolean): string {
+  const parts: string[] = [];
+  if (hp) parts.push("a heat pump");
+  if (solar) parts.push("solar PV");
+  if (battery) parts.push("a battery");
+  if (parts.length === 0) return "energy upgrades";
+  if (parts.length === 1) return parts[0];
+  if (parts.length === 2) return `${parts[0]} and ${parts[1]}`;
+  return `${parts.slice(0, -1).join(", ")}, and ${parts[parts.length - 1]}`;
+}
+
+function buildHomeownerIcsAttachment(args: {
+  leadId: string;
+  meeting: { id: string; scheduled_at: string; duration_min: number };
+  installerName: string;
+  installerEmail: string | null;
+  homeownerName: string;
+  homeownerEmail: string;
+  propertyAddress: string | null;
+  wantsList: string;
+}): SendEmailAttachment {
+  const start = new Date(args.meeting.scheduled_at);
+  const end = new Date(start.getTime() + args.meeting.duration_min * 60_000);
+  const description = [
+    `Site survey with ${args.installerName} for ${args.wantsList}.`,
+    "",
+    "How to get the best out of your installer:",
+    "• Have your last energy bill handy — they'll want recent kWh figures.",
+    "• Walk them through every room they'll work in (loft / garage / cupboards).",
+    "• Ask them to flag anything that surprised them about your property.",
+    "",
+    "Things to bring up:",
+    "• MCS certification number on the quote.",
+    "• Warranty length on labour AND kit (5+ years labour, 7+ on kit).",
+    "• Specific make + model — never accept a vague \"a 5 kW system\" line.",
+    "• Whether they handle DNO notification + planning permission.",
+    args.installerEmail ? `\nNeed to change or cancel? Email ${args.installerEmail}.` : "",
+  ]
+    .filter((l) => l !== null)
+    .join("\n");
+
+  const ics = buildIcs({
+    uid: `lead-${args.leadId}-homeowner@propertoasty.com`,
+    startUtc: start,
+    endUtc: end,
+    summary: `Site survey with ${args.installerName}`,
+    description,
+    location: args.propertyAddress,
+    organiserEmail: FROM_EMAIL,
+    organiserName: "Propertoasty",
+    attendeeEmail: args.homeownerEmail,
+    attendeeName: args.homeownerName,
+  });
+
+  return {
+    name: "site-survey.ics",
+    contentBase64: icsToBase64(ics),
+    contentType: "text/calendar; method=REQUEST; charset=utf-8",
+  };
+}
+
+function buildInstallerIcsAttachment(args: {
+  leadId: string;
+  meeting: {
+    id: string;
+    scheduled_at: string;
+    duration_min: number;
+    travel_buffer_min: number;
+  };
+  installerName: string;
+  installerEmail: string;
+  homeownerName: string;
+  homeownerEmail: string;
+  homeownerPhone: string;
+  propertyAddress: string | null;
+  propertyPostcode: string | null;
+  wantsList: string;
+}): SendEmailAttachment {
+  const meetingStart = new Date(args.meeting.scheduled_at);
+  const start = new Date(
+    meetingStart.getTime() - args.meeting.travel_buffer_min * 60_000,
+  );
+  const end = new Date(
+    meetingStart.getTime() +
+      (args.meeting.duration_min + args.meeting.travel_buffer_min) * 60_000,
+  );
+  const description = [
+    `Site survey for ${args.wantsList} via Propertoasty.`,
+    `${args.meeting.duration_min}-min visit + ${args.meeting.travel_buffer_min}-min travel buffer either side (this event covers the full block).`,
+    "",
+    "Homeowner contact:",
+    `  Name: ${args.homeownerName}`,
+    `  Email: ${args.homeownerEmail}`,
+    `  Phone: ${args.homeownerPhone}`,
+    "",
+    args.propertyAddress ? `Address: ${args.propertyAddress}` : "",
+    args.propertyPostcode && !args.propertyAddress
+      ? `Postcode: ${args.propertyPostcode}`
+      : "",
+  ]
+    .filter((l) => l !== null && l !== "")
+    .join("\n");
+
+  const ics = buildIcs({
+    uid: `lead-${args.leadId}-installer@propertoasty.com`,
+    startUtc: start,
+    endUtc: end,
+    summary: `Site survey: ${args.homeownerName}${args.propertyPostcode ? ` (${args.propertyPostcode})` : ""}`,
+    description,
+    location: args.propertyAddress ?? args.propertyPostcode,
+    organiserEmail: FROM_EMAIL,
+    organiserName: "Propertoasty",
+    attendeeEmail: args.installerEmail,
+    attendeeName: args.installerName,
+  });
+
+  return {
+    name: "site-survey.ics",
+    contentBase64: icsToBase64(ics),
+    contentType: "text/calendar; method=REQUEST; charset=utf-8",
+  };
 }

@@ -72,7 +72,10 @@ export function buildPendingInstallerEmail(input: PendingInstallerEmailInput): {
   const slot = formatSlot(input.meetingStartUtc);
   const area = input.propertyPostcodeArea ?? "your area";
 
-  const subject = `New lead — ${wants} in ${area}, ${slot.longDateLabel}`;
+  // Plain transactional subject — keeps M365 / Outlook spam filters
+  // happy. Earlier "New lead — pending your acceptance" copy got
+  // flagged because of the marketing-style urgency words.
+  const subject = `Site visit request, ${slot.longDateLabel} (${area})`;
 
   const reportSummary: string[] = [];
   if (input.wantsHeatPump && input.hpVerdict) {
@@ -83,99 +86,98 @@ export function buildPendingInstallerEmail(input: PendingInstallerEmailInput): {
   }
 
   const text = [
-    `New lead waiting for you on Propertoasty.`,
+    `Hi from Propertoasty,`,
     ``,
-    `Slot requested: ${slot.longDateLabel} (UK time)`,
-    `Area: ${area}`,
-    `Wants: ${wants}`,
-    `Visit length: ${input.meetingDurationMin} min + ${input.travelBufferMin}-min travel buffer either side`,
-    reportSummary.length ? `From their pre-survey: ${reportSummary.join(", ")}` : "",
+    `A homeowner has requested a site visit through your Propertoasty profile.`,
     ``,
-    `Cost to accept: ${input.creditCost} credit${input.creditCost === 1 ? "" : "s"}`,
+    `When: ${slot.longDateLabel} (UK time)`,
+    `Where: ${area} (full address shared after you confirm)`,
+    `Topic: ${wants}`,
+    `Duration: ${input.meetingDurationMin} minutes (${input.travelBufferMin} min travel buffer either side)`,
+    reportSummary.length ? `Pre-survey: ${reportSummary.join(", ")}` : "",
     ``,
-    `The homeowner's name, address, email and phone unlock when you accept.`,
-    `If you don't accept within 24 hours we'll release the slot and notify them.`,
-    ``,
-    `Accept this lead:`,
+    `To confirm, please follow this link:`,
     input.acknowledgeUrl,
     ``,
-    `— The Propertoasty team`,
+    `Confirming uses ${input.creditCost} credit${input.creditCost === 1 ? "" : "s"} from your account. The homeowner's full contact details will then be shared with you.`,
+    ``,
+    `If you can't take this visit, no need to do anything — the request will lapse after 24 hours.`,
+    ``,
+    `Thanks,`,
+    `The Propertoasty team`,
   ]
     .filter((l) => l != null && l !== "")
     .join("\n");
 
+  // HTML body — deliberately plain. Single neutral container, no
+  // coloured pills, single CTA, no "unlock"/"now"/"act" urgency
+  // language. M365's Defender flagged the previous version as
+  // promotional; this version reads as transactional.
   const html = `<!doctype html>
 <html lang="en">
-<body style="margin:0;padding:0;background:#faf6ef;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#0f172a;">
+<body style="margin:0;padding:0;background:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#0f172a;">
   <div style="max-width:600px;margin:0 auto;padding:24px 16px;">
-    <div style="background:#ffffff;border-radius:14px;padding:24px;border:1px solid #e2e8f0;">
-      <p style="font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#ef6c4f;margin:0 0 6px;">
-        New lead — pending your acceptance
-      </p>
-      <h1 style="font-size:22px;line-height:1.2;font-weight:700;color:#0b3140;margin:0 0 12px;">
-        ${escapeHtml(wants[0].toUpperCase() + wants.slice(1))} in ${escapeHtml(area)}
-      </h1>
-      <p style="font-size:14px;line-height:1.5;color:#475569;margin:0 0 20px;">
-        A homeowner has requested a site visit. Accept to unlock their
-        contact details + the full pre-survey report — they're added
-        to your calendar automatically.
-      </p>
+    <p style="font-size:14px;line-height:1.55;color:#0f172a;margin:0 0 14px;">
+      Hi from Propertoasty,
+    </p>
+    <p style="font-size:14px;line-height:1.55;color:#0f172a;margin:0 0 18px;">
+      A homeowner has requested a site visit through your Propertoasty profile.
+    </p>
 
-      <div style="background:#fef7f3;border:1px solid #fbcec0;border-radius:10px;padding:16px;margin:0 0 20px;">
-        <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#7a3a25;margin:0 0 8px;">
-          Slot requested
-        </p>
-        <p style="font-size:18px;font-weight:700;color:#0b3140;margin:0 0 6px;">
-          ${escapeHtml(slot.longDateLabel)} <span style="font-size:13px;font-weight:400;color:#64748b;">(UK time)</span>
-        </p>
-        <p style="font-size:13px;color:#475569;margin:0;line-height:1.5;">
-          ${input.meetingDurationMin}-min visit + ${input.travelBufferMin}-min travel buffer either side.
-        </p>
-      </div>
+    <table cellpadding="0" cellspacing="0" border="0" style="font-size:14px;color:#0f172a;line-height:1.6;margin:0 0 18px;">
+      <tr>
+        <td style="padding:2px 16px 2px 0;color:#64748b;width:100px;">When</td>
+        <td style="padding:2px 0;">${escapeHtml(slot.longDateLabel)} (UK time)</td>
+      </tr>
+      <tr>
+        <td style="padding:2px 16px 2px 0;color:#64748b;">Where</td>
+        <td style="padding:2px 0;">${escapeHtml(area)} (full address shared after you confirm)</td>
+      </tr>
+      <tr>
+        <td style="padding:2px 16px 2px 0;color:#64748b;">Topic</td>
+        <td style="padding:2px 0;">${escapeHtml(wants)}</td>
+      </tr>
+      <tr>
+        <td style="padding:2px 16px 2px 0;color:#64748b;">Duration</td>
+        <td style="padding:2px 0;">${input.meetingDurationMin} minutes (${input.travelBufferMin} min travel either side)</td>
+      </tr>
+      ${reportSummary
+        .map(
+          (s) => `<tr>
+        <td style="padding:2px 16px 2px 0;color:#64748b;">Pre-survey</td>
+        <td style="padding:2px 0;">${escapeHtml(s)}</td>
+      </tr>`,
+        )
+        .join("")}
+    </table>
 
-      <div style="background:#f1f5f9;border:1px solid #e2e8f0;border-radius:10px;padding:14px 16px;margin:0 0 20px;">
-        <table cellpadding="0" cellspacing="0" border="0" style="font-size:14px;color:#0f172a;width:100%;">
-          <tr>
-            <td style="padding:3px 12px 3px 0;color:#64748b;width:120px;">Area</td>
-            <td style="padding:3px 0;font-weight:600;">${escapeHtml(area)}</td>
-          </tr>
-          <tr>
-            <td style="padding:3px 12px 3px 0;color:#64748b;">Wants</td>
-            <td style="padding:3px 0;">${escapeHtml(wants)}</td>
-          </tr>
-          ${reportSummary
-            .map(
-              (s) => `<tr>
-            <td style="padding:3px 12px 3px 0;color:#64748b;">Insight</td>
-            <td style="padding:3px 0;color:#475569;">${escapeHtml(s)}</td>
-          </tr>`,
-            )
-            .join("")}
-          <tr>
-            <td style="padding:3px 12px 3px 0;color:#64748b;">Cost</td>
-            <td style="padding:3px 0;font-weight:600;color:#7a3a25;">${input.creditCost} credit${input.creditCost === 1 ? "" : "s"}</td>
-          </tr>
-        </table>
-      </div>
+    <p style="font-size:14px;line-height:1.55;color:#0f172a;margin:0 0 14px;">
+      To confirm, please follow this link:
+    </p>
+    <p style="font-size:14px;line-height:1.55;margin:0 0 18px;">
+      <a href="${escapeHtml(input.acknowledgeUrl)}" style="color:#0b3140;">
+        ${escapeHtml(input.acknowledgeUrl)}
+      </a>
+    </p>
 
-      <div style="margin:24px 0;text-align:center;">
-        <a href="${escapeHtml(input.acknowledgeUrl)}"
-           style="display:inline-block;background:#ef6c4f;color:#ffffff;font-weight:600;font-size:14px;padding:13px 26px;border-radius:999px;text-decoration:none;">
-          Accept this lead
-        </a>
-        <p style="font-size:12px;color:#64748b;margin:10px 0 0;">
-          One click to unlock contact details + add to your calendar.
-        </p>
-      </div>
+    <p style="font-size:14px;line-height:1.55;color:#0f172a;margin:0 0 14px;">
+      Confirming uses ${input.creditCost} credit${input.creditCost === 1 ? "" : "s"} from your account.
+      The homeowner's full contact details will then be shared with you.
+    </p>
+    <p style="font-size:14px;line-height:1.55;color:#0f172a;margin:0 0 18px;">
+      If you can&rsquo;t take this visit, you don&rsquo;t need to do anything &mdash;
+      the request will lapse after 24 hours.
+    </p>
 
-      <p style="font-size:13px;color:#64748b;line-height:1.5;margin:0;">
-        If you don't accept within 24 hours we'll release the slot and
-        let the homeowner pick a different installer.
-      </p>
-    </div>
+    <p style="font-size:14px;line-height:1.55;color:#0f172a;margin:0 0 6px;">
+      Thanks,
+    </p>
+    <p style="font-size:14px;line-height:1.55;color:#0f172a;margin:0;">
+      The Propertoasty team
+    </p>
 
-    <p style="font-size:11px;color:#94a3b8;text-align:center;margin:16px 0 0;line-height:1.5;">
-      Sent by Propertoasty · ${escapeHtml(input.installerCompanyName)} is on our MCS-certified directory.
+    <p style="font-size:11px;color:#94a3b8;margin:24px 0 0;line-height:1.5;">
+      ${escapeHtml(input.installerCompanyName)} is listed on our MCS-certified installer directory.
     </p>
   </div>
 </body>
