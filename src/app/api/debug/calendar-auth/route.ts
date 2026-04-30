@@ -1,8 +1,12 @@
-// GET /api/_debug/calendar-auth
+// GET /api/debug/calendar-auth
 //
 // Diagnostic endpoint to introspect the Google Calendar service-account
 // configuration without leaking the private key. Use to debug "decoder
 // unsupported" / "invalid PEM" errors after deploying.
+//
+// (Originally lived under /api/_debug/ but Next.js App Router treats
+// folders prefixed with `_` as private and excludes them from
+// routing. Moved out so the endpoint is actually reachable.)
 //
 // Returns a structured shape report describing what's in the env var
 // (length, markers, newline counts) and whether a JWT auth attempt
