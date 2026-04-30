@@ -3,7 +3,7 @@
 //
 // Lives under /lead/* (not /installer/*) so the installer-portal
 // layout's role-gate redirect doesn't block unauthenticated
-// magic-link access. The HMAC token in the URL is the only auth.
+// magic-link access. Auth checks happen here on the page.
 //
 // ── Why an interstitial page? ──────────────────────────────────────────
 // Outlook / Microsoft Defender / most corporate email security
@@ -17,16 +17,21 @@
 // Fix: GET this page renders a friendly summary + an "Accept this
 // lead" button. The button submits a POST to
 // /api/installer-leads/acknowledge which is where the actual work
-// happens. Email scanners don't submit forms, so the lead stays
-// pending until a real human clicks.
+// happens. Email scanners don't submit forms.
 //
-// Token verification still runs server-side here so we can render a
-// "link expired / invalid" state without making any DB writes.
+// ── Gates the accept button on (in order) ─────────────────────────────
+//   1. HMAC token validates
+//   2. Caller is signed in
+//   3. Caller has `installer` (or `admin`) role
+//   4. Caller has at least LEAD_ACCEPT_COST_CREDITS credits on file
+// Each gate renders its own friendly explainer + next-step CTA.
 
 import Link from "next/link";
 import { CalendarDays, MapPin, ShieldCheck, Zap } from "lucide-react";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient as createServerClient } from "@/lib/supabase/server";
 import { verifyLeadAckToken } from "@/lib/email/tokens";
+import { LEAD_ACCEPT_COST_CREDITS } from "@/lib/booking/credits";
 import type { Database } from "@/types/database";
 
 export const dynamic = "force-dynamic";
@@ -35,8 +40,7 @@ type LeadRow = Database["public"]["Tables"]["installer_leads"]["Row"];
 type MeetingRow = Database["public"]["Tables"]["installer_meetings"]["Row"];
 type InstallerRow = Database["public"]["Tables"]["installers"]["Row"];
 
-interface PageState {
-  kind: "ok";
+interface BookingFacts {
   leadId: string;
   token: string;
   installerName: string;
@@ -51,10 +55,30 @@ interface PageState {
 }
 
 type State =
-  | PageState
   | { kind: "invalid" }
   | { kind: "expired" }
-  | { kind: "error"; message: string };
+  | { kind: "error"; message: string }
+  | { kind: "already-accepted"; facts: BookingFacts }
+  | {
+      kind: "needs-login";
+      facts: BookingFacts;
+      loginUrl: string;
+    }
+  | {
+      kind: "needs-installer-role";
+      facts: BookingFacts;
+      currentEmail: string;
+    }
+  | {
+      kind: "needs-credits";
+      facts: BookingFacts;
+      creditsHave: number;
+    }
+  | {
+      kind: "ready";
+      facts: BookingFacts;
+      creditsHave: number;
+    };
 
 async function loadState(leadId: string, token: string): Promise<State> {
   if (!verifyLeadAckToken(leadId, token)) {
@@ -90,9 +114,7 @@ async function loadState(leadId: string, token: string): Promise<State> {
   const [meetingResult, installerResult] = await Promise.all([
     admin
       .from("installer_meetings")
-      .select(
-        "id, scheduled_at, duration_min, travel_buffer_min, status",
-      )
+      .select("id, scheduled_at, duration_min, travel_buffer_min, status")
       .eq("installer_lead_id", leadId)
       .maybeSingle<
         Pick<
@@ -111,8 +133,7 @@ async function loadState(leadId: string, token: string): Promise<State> {
     return { kind: "error", message: "Booking details missing" };
   }
 
-  return {
-    kind: "ok",
+  const facts: BookingFacts = {
     leadId,
     token,
     installerName: installerResult.data.company_name,
@@ -125,6 +146,66 @@ async function loadState(leadId: string, token: string): Promise<State> {
     wantsBattery: lead.wants_battery,
     alreadyAccepted:
       meetingResult.data.status === "booked" || lead.status === "visit_booked",
+  };
+
+  if (facts.alreadyAccepted) {
+    return { kind: "already-accepted", facts };
+  }
+
+  // ── Auth gate ─────────────────────────────────────────────────────
+  // This must come AFTER the token / DB lookups so the link still
+  // tells the installer they DO have a real lead waiting — they just
+  // need to sign in first.
+  const supabase = await createServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    const next = `/lead/accept?lead=${encodeURIComponent(leadId)}&token=${encodeURIComponent(token)}`;
+    return {
+      kind: "needs-login",
+      facts,
+      loginUrl: `/auth/login?redirect=${encodeURIComponent(next)}`,
+    };
+  }
+
+  // ── Role + credits gate ──────────────────────────────────────────
+  const { data: profile } = await admin
+    .from("users")
+    .select("id, email, role, credits, blocked")
+    .eq("id", user.id)
+    .maybeSingle<{
+      id: string;
+      email: string;
+      role: "admin" | "user" | "installer";
+      credits: number;
+      blocked: boolean;
+    }>();
+  if (!profile) {
+    return { kind: "error", message: "Account not found" };
+  }
+  if (profile.blocked) {
+    return { kind: "error", message: "This account has been blocked" };
+  }
+  if (profile.role !== "installer" && profile.role !== "admin") {
+    return {
+      kind: "needs-installer-role",
+      facts,
+      currentEmail: profile.email,
+    };
+  }
+  if (profile.credits < LEAD_ACCEPT_COST_CREDITS) {
+    return {
+      kind: "needs-credits",
+      facts,
+      creditsHave: profile.credits,
+    };
+  }
+
+  return {
+    kind: "ready",
+    facts,
+    creditsHave: profile.credits,
   };
 }
 
@@ -189,82 +270,59 @@ export default async function AcceptPage({
   return (
     <main className="min-h-screen bg-gradient-to-b from-cream-deep to-cream flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-md rounded-2xl bg-white border border-[var(--border)] shadow-sm p-6 sm:p-8">
-        {state.kind === "ok" ? (
-          <AcceptForm state={state} />
-        ) : (
-          <ErrorState state={state} />
-        )}
+        {renderState(state)}
       </div>
     </main>
   );
 }
 
-function AcceptForm({ state }: { state: PageState }) {
-  const slot = formatSlot(state.scheduledAt);
-  const wants = listWants(
-    state.wantsHeatPump,
-    state.wantsSolar,
-    state.wantsBattery,
-  );
-
-  if (state.alreadyAccepted) {
-    return (
-      <div className="text-center">
-        <span className="inline-flex items-center justify-center w-14 h-14 rounded-full mb-5 text-xl font-bold bg-emerald-100 text-emerald-700">
-          ✓
-        </span>
-        <h1 className="text-xl sm:text-2xl font-bold text-navy leading-tight">
-          You&rsquo;ve already accepted this lead
-        </h1>
-        <p className="mt-3 text-sm text-slate-600 leading-relaxed">
-          The Google Calendar invite is already on its way and the
-          homeowner has been notified. Their contact details are in the
-          confirmation email we sent — just hit Reply to get the
-          conversation going.
-        </p>
-        <Link
-          href="/"
-          className="mt-6 inline-flex items-center justify-center h-11 px-5 rounded-full bg-coral hover:bg-coral-dark text-white font-semibold text-sm shadow-sm transition-colors"
-        >
-          Back to Propertoasty
-        </Link>
-      </div>
-    );
+function renderState(state: State) {
+  switch (state.kind) {
+    case "invalid":
+    case "expired":
+    case "error":
+      return <ErrorState state={state} />;
+    case "already-accepted":
+      return <AlreadyAccepted facts={state.facts} />;
+    case "needs-login":
+      return <NeedsLogin state={state} />;
+    case "needs-installer-role":
+      return <NeedsInstallerRole state={state} />;
+    case "needs-credits":
+      return <NeedsCredits state={state} />;
+    case "ready":
+      return <ReadyForm state={state} />;
   }
+}
+
+// ─── Ready (all gates passed) ──────────────────────────────────────────
+
+function ReadyForm({
+  state,
+}: {
+  state: { facts: BookingFacts; creditsHave: number };
+}) {
+  const { facts } = state;
+  const slot = formatSlot(facts.scheduledAt);
+  const wants = listWants(
+    facts.wantsHeatPump,
+    facts.wantsSolar,
+    facts.wantsBattery,
+  );
 
   return (
     <>
-      <div className="text-center mb-6">
-        <p className="text-xs font-semibold uppercase tracking-wider text-coral">
-          Accept this lead
-        </p>
-        <h1 className="mt-1 text-xl font-bold text-navy leading-tight">
-          {state.installerName}
-        </h1>
-      </div>
+      <Header pillText="Accept this lead" title={facts.installerName} />
+      <BookingFactsCard facts={facts} slot={slot} wants={wants} />
 
-      <div className="rounded-xl border border-coral/30 bg-coral-pale/40 p-4 mb-4 space-y-2">
-        <Row icon={<CalendarDays className="w-3.5 h-3.5" />} label="Slot">
-          <strong className="text-navy">{slot.longDateLabel}</strong>{" "}
-          <span className="text-slate-500">
-            ({state.durationMin} min visit + {state.travelBufferMin} min travel
-            either side)
-          </span>
-        </Row>
-        {state.postcodeArea && (
-          <Row icon={<MapPin className="w-3.5 h-3.5" />} label="Area">
-            {state.postcodeArea}
-          </Row>
-        )}
-        <Row icon={<Zap className="w-3.5 h-3.5" />} label="Wants">
-          {wants}
-        </Row>
-      </div>
-
-      <p className="text-sm text-slate-600 leading-relaxed mb-5">
-        When you accept, we&rsquo;ll add the visit to your Google Calendar
-        with the homeowner&rsquo;s full contact details, and email them the
-        confirmation.
+      <p className="text-sm text-slate-600 leading-relaxed mb-3">
+        When you accept, we&rsquo;ll add the visit to your calendar with the
+        homeowner&rsquo;s full contact details, debit{" "}
+        <strong className="text-navy">
+          {LEAD_ACCEPT_COST_CREDITS} credits
+        </strong>{" "}
+        from your balance ({state.creditsHave} remaining), and email the
+        homeowner to confirm.
       </p>
 
       <form
@@ -272,8 +330,8 @@ function AcceptForm({ state }: { state: PageState }) {
         method="POST"
         className="space-y-3"
       >
-        <input type="hidden" name="lead" value={state.leadId} />
-        <input type="hidden" name="token" value={state.token} />
+        <input type="hidden" name="lead" value={facts.leadId} />
+        <input type="hidden" name="token" value={facts.token} />
         <button
           type="submit"
           className="w-full inline-flex items-center justify-center gap-2 h-12 rounded-full bg-coral hover:bg-coral-dark text-white font-semibold text-sm shadow-sm transition-colors"
@@ -281,12 +339,183 @@ function AcceptForm({ state }: { state: PageState }) {
           <ShieldCheck className="w-4 h-4" />
           Accept this lead
         </button>
-        <p className="text-[11px] text-slate-500 text-center">
-          One click. Cost will be debited from your credit balance once
-          billing goes live.
-        </p>
       </form>
     </>
+  );
+}
+
+// ─── Already accepted (idempotent re-click) ───────────────────────────
+
+function AlreadyAccepted({ facts }: { facts: BookingFacts }) {
+  return (
+    <div className="text-center">
+      <span className="inline-flex items-center justify-center w-14 h-14 rounded-full mb-5 text-xl font-bold bg-emerald-100 text-emerald-700">
+        ✓
+      </span>
+      <h1 className="text-xl sm:text-2xl font-bold text-navy leading-tight">
+        You&rsquo;ve already accepted this lead
+      </h1>
+      <p className="mt-3 text-sm text-slate-600 leading-relaxed">
+        Calendar invite is already on its way and the homeowner has been
+        notified. Their contact details are in the confirmation email we
+        sent — just hit Reply to get the conversation going.
+      </p>
+      <p className="mt-2 text-xs text-slate-500">
+        Booking: {facts.installerName} · {formatSlot(facts.scheduledAt).longDateLabel}
+      </p>
+      <Link
+        href="/installer"
+        className="mt-6 inline-flex items-center justify-center h-11 px-5 rounded-full bg-coral hover:bg-coral-dark text-white font-semibold text-sm shadow-sm transition-colors"
+      >
+        Go to installer portal
+      </Link>
+    </div>
+  );
+}
+
+// ─── Gates ────────────────────────────────────────────────────────────
+
+function NeedsLogin({
+  state,
+}: {
+  state: { facts: BookingFacts; loginUrl: string };
+}) {
+  return (
+    <>
+      <Header pillText="Sign in to accept" title={state.facts.installerName} />
+      <p className="text-sm text-slate-600 leading-relaxed mb-5">
+        You&rsquo;ve got a lead waiting — please sign in to your installer
+        account to review the slot, debit credits, and confirm.
+      </p>
+      <Link
+        href={state.loginUrl}
+        className="w-full inline-flex items-center justify-center gap-2 h-12 rounded-full bg-coral hover:bg-coral-dark text-white font-semibold text-sm shadow-sm transition-colors"
+      >
+        Sign in to continue
+      </Link>
+      <p className="mt-3 text-[11px] text-slate-500 text-center">
+        We&rsquo;ll bring you straight back here once you&rsquo;re in.
+      </p>
+    </>
+  );
+}
+
+function NeedsInstallerRole({
+  state,
+}: {
+  state: { facts: BookingFacts; currentEmail: string };
+}) {
+  return (
+    <>
+      <Header
+        pillText="Verify your installer profile"
+        title={state.facts.installerName}
+      />
+      <p className="text-sm text-slate-600 leading-relaxed mb-5">
+        You&rsquo;re signed in as{" "}
+        <strong className="text-navy">{state.currentEmail}</strong>, but
+        your account isn&rsquo;t linked to an installer profile yet. Claim
+        your record by searching for your MCS number, company name or
+        company number — pre-fills everything we have on file.
+      </p>
+      <Link
+        href="/installer-signup"
+        className="w-full inline-flex items-center justify-center gap-2 h-12 rounded-full bg-coral hover:bg-coral-dark text-white font-semibold text-sm shadow-sm transition-colors"
+      >
+        Claim my installer profile
+      </Link>
+      <p className="mt-3 text-[11px] text-slate-500 text-center">
+        Approval takes a few minutes if we&rsquo;ve got you on file. Manual
+        review otherwise.
+      </p>
+    </>
+  );
+}
+
+function NeedsCredits({
+  state,
+}: {
+  state: { facts: BookingFacts; creditsHave: number };
+}) {
+  const slot = formatSlot(state.facts.scheduledAt);
+  const wants = listWants(
+    state.facts.wantsHeatPump,
+    state.facts.wantsSolar,
+    state.facts.wantsBattery,
+  );
+  const shortBy = LEAD_ACCEPT_COST_CREDITS - state.creditsHave;
+  return (
+    <>
+      <Header pillText="Top up to accept" title={state.facts.installerName} />
+      <BookingFactsCard facts={state.facts} slot={slot} wants={wants} />
+
+      <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 mb-4 text-sm leading-relaxed">
+        <p className="font-semibold text-amber-900">
+          You&rsquo;re {shortBy} credit{shortBy === 1 ? "" : "s"} short.
+        </p>
+        <p className="text-amber-900 mt-1">
+          Accepting a lead costs {LEAD_ACCEPT_COST_CREDITS} credits. You
+          currently have <strong>{state.creditsHave}</strong>. Top up below
+          and come straight back to this page to accept.
+        </p>
+      </div>
+
+      <Link
+        href="/installer/credits"
+        className="w-full inline-flex items-center justify-center gap-2 h-12 rounded-full bg-coral hover:bg-coral-dark text-white font-semibold text-sm shadow-sm transition-colors"
+      >
+        Buy credits
+      </Link>
+      <p className="mt-3 text-[11px] text-slate-500 text-center">
+        We&rsquo;ll hold the slot for you for 24 hours from when the
+        homeowner booked.
+      </p>
+    </>
+  );
+}
+
+// ─── Shared chrome ────────────────────────────────────────────────────
+
+function Header({ pillText, title }: { pillText: string; title: string }) {
+  return (
+    <div className="text-center mb-6">
+      <p className="text-xs font-semibold uppercase tracking-wider text-coral">
+        {pillText}
+      </p>
+      <h1 className="mt-1 text-xl font-bold text-navy leading-tight">
+        {title}
+      </h1>
+    </div>
+  );
+}
+
+function BookingFactsCard({
+  facts,
+  slot,
+  wants,
+}: {
+  facts: BookingFacts;
+  slot: { longDateLabel: string };
+  wants: string;
+}) {
+  return (
+    <div className="rounded-xl border border-coral/30 bg-coral-pale/40 p-4 mb-4 space-y-2">
+      <Row icon={<CalendarDays className="w-3.5 h-3.5" />} label="Slot">
+        <strong className="text-navy">{slot.longDateLabel}</strong>{" "}
+        <span className="text-slate-500">
+          ({facts.durationMin} min visit + {facts.travelBufferMin} min travel
+          either side)
+        </span>
+      </Row>
+      {facts.postcodeArea && (
+        <Row icon={<MapPin className="w-3.5 h-3.5" />} label="Area">
+          {facts.postcodeArea}
+        </Row>
+      )}
+      <Row icon={<Zap className="w-3.5 h-3.5" />} label="Wants">
+        {wants}
+      </Row>
+    </div>
   );
 }
 
@@ -317,7 +546,10 @@ function Row({
 function ErrorState({
   state,
 }: {
-  state: { kind: "invalid" } | { kind: "expired" } | { kind: "error"; message: string };
+  state:
+    | { kind: "invalid" }
+    | { kind: "expired" }
+    | { kind: "error"; message: string };
 }) {
   let title: string;
   let body: string;

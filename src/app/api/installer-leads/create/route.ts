@@ -8,6 +8,7 @@ import { sendEmail, type SendEmailResult } from "@/lib/email/client";
 import { signLeadAckToken } from "@/lib/email/tokens";
 import { buildPendingInstallerEmail } from "@/lib/email/templates/booking-pending-installer";
 import { buildPendingHomeownerEmail } from "@/lib/email/templates/booking-pending-homeowner";
+import { LEAD_ACCEPT_COST_CREDITS } from "@/lib/booking/credits";
 import type { Database } from "@/types/database";
 
 // POST /api/installer-leads/create
@@ -36,11 +37,6 @@ export const runtime = "nodejs";
 export const maxDuration = 30; // emails
 
 type InstallerRow = Database["public"]["Tables"]["installers"]["Row"];
-
-// Cost in credits the installer pays to accept this lead. Will become
-// admin-configurable in C1; for now it's a constant here so the
-// pending-installer email can show "5 credits" in the CTA.
-const LEAD_ACCEPT_COST_CREDITS = 5;
 
 interface ReportFacts {
   hpVerdict: string | null;

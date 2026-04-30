@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient as createServerClient } from "@/lib/supabase/server";
 import { verifyLeadAckToken } from "@/lib/email/tokens";
 import {
   sendEmail,
@@ -14,6 +15,7 @@ import {
   type CalendarResult,
 } from "@/lib/google/calendar";
 import { buildIcs, icsToBase64 } from "@/lib/email/ics";
+import { LEAD_ACCEPT_COST_CREDITS } from "@/lib/booking/credits";
 import type { Database } from "@/types/database";
 
 const FROM_EMAIL =
@@ -219,9 +221,10 @@ export async function POST(req: Request) {
     return NextResponse.redirect(new URL(landingUrl("error"), url), 303);
   }
 
-  // 3. If we've already fired the calendar invites for this meeting,
-  // re-clicking the link is a no-op — bump the timestamp so we know
-  // they came back, but don't double-send invites or emails.
+  // 3. Idempotent re-click — if the meeting is already booked AND
+  // calendar IDs are set, this is a duplicate submission (browser
+  // back / refresh / pre-fetcher chasing the redirect). Bump the
+  // timestamp and bail without firing anything again.
   const alreadyAccepted =
     meeting?.status === "booked" &&
     (meeting.google_event_id != null ||
@@ -239,7 +242,132 @@ export async function POST(req: Request) {
     return NextResponse.redirect(new URL(landingUrl("ok"), url), 303);
   }
 
-  // 4. Flip lead → visit_booked + meeting → booked.
+  // 4. Auth gate — installer must be signed in with installer or
+  // admin role. The page-level gate already covers most of this, but
+  // we re-check here so the API can't be POSTed to without auth
+  // (e.g. a shared link reaching a logged-out browser).
+  const supabase = await createServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    console.warn("[ack] unauthenticated POST — bouncing to login", { leadId });
+    const next = `/lead/accept?lead=${encodeURIComponent(leadId)}&token=${encodeURIComponent(token)}`;
+    const loginUrl = new URL(`/auth/login?redirect=${encodeURIComponent(next)}`, url);
+    return NextResponse.redirect(loginUrl, 303);
+  }
+
+  const { data: profile } = await admin
+    .from("users")
+    .select("id, role, credits, blocked")
+    .eq("id", user.id)
+    .maybeSingle<{
+      id: string;
+      role: "admin" | "user" | "installer";
+      credits: number;
+      blocked: boolean;
+    }>();
+  if (!profile || profile.blocked) {
+    console.warn("[ack] blocked or missing profile", {
+      userId: user.id,
+      blocked: profile?.blocked,
+    });
+    return NextResponse.redirect(new URL(landingUrl("error"), url), 303);
+  }
+  if (profile.role !== "installer" && profile.role !== "admin") {
+    console.warn("[ack] non-installer attempted accept", {
+      userId: user.id,
+      role: profile.role,
+    });
+    // Bounce back to the page — it'll render the "needs installer
+    // role" claim CTA.
+    const back = `/lead/accept?lead=${encodeURIComponent(leadId)}&token=${encodeURIComponent(token)}`;
+    return NextResponse.redirect(new URL(back, url), 303);
+  }
+  if (profile.credits < LEAD_ACCEPT_COST_CREDITS) {
+    console.warn("[ack] insufficient credits at submit", {
+      userId: user.id,
+      credits: profile.credits,
+    });
+    const back = `/lead/accept?lead=${encodeURIComponent(leadId)}&token=${encodeURIComponent(token)}`;
+    return NextResponse.redirect(new URL(back, url), 303);
+  }
+
+  // 5. Atomic claim of the meeting slot — `update WHERE status =
+  // 'pending'` returns 0 rows if another concurrent POST got there
+  // first. This is the fix for the duplicate-calendar-invite bug
+  // we saw in production: two near-simultaneous form submits both
+  // passed the alreadyAccepted check (neither had updated yet) and
+  // both fired the fan-out. Now only the first wins.
+  if (!meeting) {
+    console.warn(
+      "[ack] no meeting row found for lead — calendar invites cannot fire",
+      { leadId },
+    );
+  } else {
+    const { data: claimedRows, error: claimErr } = await admin
+      .from("installer_meetings")
+      .update({ status: "booked" })
+      .eq("id", meeting.id)
+      .eq("status", "pending")
+      .select("id");
+    if (claimErr) {
+      console.error("[ack] meeting CAS update failed", claimErr);
+      return NextResponse.redirect(new URL(landingUrl("error"), url), 303);
+    }
+    if (!claimedRows || claimedRows.length === 0) {
+      // Another request beat us to it — treat as already accepted
+      // by someone (likely a duplicate submit) and bail without
+      // re-firing.
+      console.log(
+        "[ack] CAS lost — meeting was already claimed by another request",
+        { leadId, meetingId: meeting.id },
+      );
+      await admin
+        .from("installer_leads")
+        .update({ acknowledge_clicked_at: now })
+        .eq("id", leadId);
+      return NextResponse.redirect(new URL(landingUrl("ok"), url), 303);
+    }
+  }
+
+  // 6. Atomic credit debit. If this fails (race between page-load
+  // check + this debit), roll the meeting back to pending so the
+  // slot doesn't get burned without payment.
+  const { data: debited, error: debitErr } = await admin.rpc("deduct_credits", {
+    p_user_id: user.id,
+    p_count: LEAD_ACCEPT_COST_CREDITS,
+  });
+  if (debitErr) {
+    console.error("[ack] credit debit RPC failed", debitErr);
+    // Roll back the CAS so the slot can be retried.
+    if (meeting) {
+      await admin
+        .from("installer_meetings")
+        .update({ status: "pending" })
+        .eq("id", meeting.id);
+    }
+    return NextResponse.redirect(new URL(landingUrl("error"), url), 303);
+  }
+  if (!debited) {
+    console.warn("[ack] credit debit returned false — rollback", {
+      userId: user.id,
+    });
+    if (meeting) {
+      await admin
+        .from("installer_meetings")
+        .update({ status: "pending" })
+        .eq("id", meeting.id);
+    }
+    const back = `/lead/accept?lead=${encodeURIComponent(leadId)}&token=${encodeURIComponent(token)}`;
+    return NextResponse.redirect(new URL(back, url), 303);
+  }
+  console.log("[ack] credits debited", {
+    userId: user.id,
+    cost: LEAD_ACCEPT_COST_CREDITS,
+  });
+
+  // 7. Flip lead → visit_booked.
   const { error: leadUpdateErr } = await admin
     .from("installer_leads")
     .update({
@@ -251,22 +379,9 @@ export async function POST(req: Request) {
     .eq("id", leadId);
   if (leadUpdateErr) {
     console.error("[ack] lead status update failed", leadUpdateErr);
-    return NextResponse.redirect(new URL(landingUrl("error"), url), 303);
-  }
-
-  if (meeting) {
-    const { error: meetingUpdateErr } = await admin
-      .from("installer_meetings")
-      .update({ status: "booked" })
-      .eq("id", meeting.id);
-    if (meetingUpdateErr) {
-      console.error("[ack] meeting status update failed", meetingUpdateErr);
-    }
-  } else {
-    console.warn(
-      "[ack] no meeting row found for lead — calendar invites cannot fire",
-      { leadId },
-    );
+    // Don't redirect on error here — the meeting + credit are
+    // already committed. Continue to the fan-out so the user gets
+    // their calendar invite + emails.
   }
 
   // 5. Calendar invites + confirmed emails. Skip calendar if no
