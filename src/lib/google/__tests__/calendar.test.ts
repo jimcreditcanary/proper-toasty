@@ -178,6 +178,36 @@ describe("normalisePrivateKey", () => {
     const out = normalisePrivateKey(raw);
     expect(out.endsWith("\n")).toBe(true);
   });
+
+  it("rebuilds line wrapping when the body arrived as one long line", () => {
+    // Real Vercel failure mode (Apr 2026): the env-var paste flow
+    // stripped every newline so the key arrived as
+    //   -----BEGIN PRIVATE KEY-----<base64body>-----END PRIVATE KEY-----
+    // OpenSSL throws 1E08010C on that. Normaliser must reconstruct.
+    const longBody =
+      "MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDCk3gYz88zmT4y4tcz" +
+      "tONg5rqJYNueBGkxxnOAQe0isJSDtBUxIFc5jyonMpHxsADMcjCCFmDzf0S6yxt9ZjP" +
+      "2NzOOBwrCUsDLYcSYmNZWASBfJHuGrl22P79oqzDnVIZU7zbAjl6u7HUMYBVfXtk4cc";
+    const raw = `-----BEGIN PRIVATE KEY-----${longBody}-----END PRIVATE KEY-----`;
+    const out = normalisePrivateKey(raw);
+    const lines = out.trim().split("\n");
+    // Header, several body lines (≤64 chars each), footer.
+    expect(lines[0]).toBe("-----BEGIN PRIVATE KEY-----");
+    expect(lines[lines.length - 1]).toBe("-----END PRIVATE KEY-----");
+    // Every body line should be ≤64 chars
+    for (let i = 1; i < lines.length - 1; i++) {
+      expect(lines[i].length).toBeLessThanOrEqual(64);
+    }
+    // The base64 body, joined back, equals the original body
+    expect(lines.slice(1, -1).join("")).toBe(longBody);
+  });
+
+  it("leaves a properly-wrapped key byte-identical after re-wrapping", () => {
+    const body64 = "A".repeat(64);
+    const raw = `-----BEGIN PRIVATE KEY-----\n${body64}\n${body64}\n-----END PRIVATE KEY-----\n`;
+    const out = normalisePrivateKey(raw);
+    expect(out).toBe(raw);
+  });
 });
 
 describe("describePrivateKeyShape", () => {

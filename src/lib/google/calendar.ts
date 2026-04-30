@@ -92,6 +92,31 @@ export function normalisePrivateKey(raw: string): string {
   v = v.replace(/\\n/g, "\n");
   // Normalise CRLF → LF so a Windows-clipboard paste still parses.
   v = v.replace(/\r\n/g, "\n");
+
+  // Some Vercel paste flows strip the newlines entirely — the value
+  // arrives as one giant line `-----BEGIN ...-----<body>-----END ...-----`.
+  // OpenSSL refuses to decode that (PEM bodies must be wrapped at 64
+  // chars per line) and you get error:1E08010C: DECODER unsupported.
+  //
+  // Reconstruct the canonical PEM shape: header line, base64 body
+  // wrapped at 64 chars, footer line, trailing newline. We do this
+  // unconditionally — if the key was already correctly formatted,
+  // splitting + re-wrapping produces the same byte sequence so it's
+  // a no-op.
+  const beginMatch = v.match(/-----BEGIN [^-]+-----/);
+  const endMatch = v.match(/-----END [^-]+-----/);
+  if (beginMatch && endMatch) {
+    const begin = beginMatch[0];
+    const end = endMatch[0];
+    const beginIdx = v.indexOf(begin);
+    const endIdx = v.indexOf(end);
+    // Strip ALL whitespace from the body to get pure base64, then
+    // re-wrap at 64 chars per line — the canonical PEM line length.
+    const body = v.slice(beginIdx + begin.length, endIdx).replace(/\s/g, "");
+    const wrapped = body.match(/.{1,64}/g)?.join("\n") ?? body;
+    v = `${begin}\n${wrapped}\n${end}\n`;
+  }
+
   // Trailing newline is mandatory for OpenSSL.
   if (!v.endsWith("\n")) v = `${v}\n`;
   return v;
