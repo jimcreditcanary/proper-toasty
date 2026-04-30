@@ -11,28 +11,31 @@ import {
 } from "@/lib/google/calendar";
 import type { Database } from "@/types/database";
 
-// GET /api/installer-leads/acknowledge?lead=<uuid>&token=<hmac>
+// POST /api/installer-leads/acknowledge
+//   form fields: lead=<uuid>, token=<hmac>
 //
-// New flow (PR C3): when the installer clicks "Accept this lead" in
-// their pending-installer email, we:
+// POST-only since PR C3.1: corporate email security scanners
+// (Outlook / Defender / Mimecast) GET every URL in incoming email
+// to scan for malware. With a GET endpoint here, the prefetch
+// auto-accepted leads before the installer's inbox even rendered.
+// The /lead/accept page is the GET-side: it shows a summary + an
+// "Accept this lead" button that POSTs to this route. Form
+// submission isn't something email scanners do.
 //
+// Flow on POST:
 //   1. Verify the HMAC token (rejects tampered links)
-//   2. Update lead status → 'visit_booked' (skipping the
-//      installer_acknowledged middle state — they're equivalent now)
-//   3. Update meeting status → 'booked' (releasing the slot from
-//      "pending" to "confirmed")
+//   2. Update lead status → 'visit_booked'
+//   3. Update meeting status → 'booked' (slot now confirmed)
 //   4. Insert two Google Calendar events (homeowner 1hr +
 //      installer-with-buffer)
 //   5. Send the confirmed-flavour emails to both parties
-//   6. Redirect to /installer/acknowledge?state=ok
+//   6. Redirect to /lead/accepted?state=ok
 //
-// Idempotent — clicking twice flips already-booked rows to themselves
-// and skips the calendar/email fan-out (we detect it via existing
-// google_event_id on the meeting row).
+// Idempotent — re-submitting the form on an already-accepted lead
+// returns ok without re-inserting events or re-sending emails.
 //
-// Verbose logging via [ack] prefix so the post-accept fan-out is
-// traceable in Vercel logs (we previously had to guess what fired
-// when the homeowner reported missing invites).
+// Verbose [ack] logging through the post-accept fan-out so missing
+// calendar invites are traceable in Vercel logs.
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -77,19 +80,48 @@ function extractReportFacts(snapshot: unknown): ReportFacts {
 }
 
 function landingUrl(state: "ok" | "invalid" | "expired" | "error" | "already"): string {
-  return `/installer/acknowledge?state=${state}`;
+  return `/lead/accepted?state=${state}`;
 }
 
-export async function GET(req: Request) {
+/**
+ * Read both form-encoded and JSON bodies — we accept the standard
+ * HTML form submit from /lead/accept, plus JSON if a future internal
+ * caller wants the same endpoint.
+ */
+async function readBody(
+  req: Request,
+): Promise<{ leadId: string | null; token: string | null }> {
+  const contentType = req.headers.get("content-type") ?? "";
+  if (contentType.includes("application/json")) {
+    try {
+      const json = (await req.json()) as { lead?: string; token?: string };
+      return { leadId: json.lead ?? null, token: json.token ?? null };
+    } catch {
+      return { leadId: null, token: null };
+    }
+  }
+  // Default to form-encoded (the /lead/accept page POSTs this).
+  try {
+    const form = await req.formData();
+    return {
+      leadId: typeof form.get("lead") === "string" ? (form.get("lead") as string) : null,
+      token:
+        typeof form.get("token") === "string" ? (form.get("token") as string) : null,
+    };
+  } catch {
+    return { leadId: null, token: null };
+  }
+}
+
+export async function POST(req: Request) {
   const url = new URL(req.url);
-  const leadId = url.searchParams.get("lead");
-  const token = url.searchParams.get("token");
+  const { leadId, token } = await readBody(req);
 
   if (!leadId || !token) {
-    return NextResponse.redirect(new URL(landingUrl("invalid"), url));
+    return NextResponse.redirect(new URL(landingUrl("invalid"), url), 303);
   }
   if (!verifyLeadAckToken(leadId, token)) {
-    return NextResponse.redirect(new URL(landingUrl("invalid"), url));
+    return NextResponse.redirect(new URL(landingUrl("invalid"), url), 303);
   }
 
   const admin = createAdminClient();
@@ -127,10 +159,10 @@ export async function GET(req: Request) {
 
   if (leadErr) {
     console.error("[ack] lead lookup failed", leadErr);
-    return NextResponse.redirect(new URL(landingUrl("error"), url));
+    return NextResponse.redirect(new URL(landingUrl("error"), url), 303);
   }
   if (!lead) {
-    return NextResponse.redirect(new URL(landingUrl("invalid"), url));
+    return NextResponse.redirect(new URL(landingUrl("invalid"), url), 303);
   }
 
   // 2. Look up the matching meeting + installer in parallel.
@@ -170,13 +202,13 @@ export async function GET(req: Request) {
   }
   if (installerResult.error) {
     console.error("[ack] installer lookup failed", installerResult.error);
-    return NextResponse.redirect(new URL(landingUrl("error"), url));
+    return NextResponse.redirect(new URL(landingUrl("error"), url), 303);
   }
   const meeting = meetingResult.data;
   const installer = installerResult.data;
   if (!installer) {
     console.error("[ack] installer row missing for lead", { leadId });
-    return NextResponse.redirect(new URL(landingUrl("error"), url));
+    return NextResponse.redirect(new URL(landingUrl("error"), url), 303);
   }
 
   // 3. If we've already fired the calendar invites for this meeting,
@@ -196,7 +228,7 @@ export async function GET(req: Request) {
       .from("installer_leads")
       .update({ acknowledge_clicked_at: now })
       .eq("id", leadId);
-    return NextResponse.redirect(new URL(landingUrl("ok"), url));
+    return NextResponse.redirect(new URL(landingUrl("ok"), url), 303);
   }
 
   // 4. Flip lead → visit_booked + meeting → booked.
@@ -211,7 +243,7 @@ export async function GET(req: Request) {
     .eq("id", leadId);
   if (leadUpdateErr) {
     console.error("[ack] lead status update failed", leadUpdateErr);
-    return NextResponse.redirect(new URL(landingUrl("error"), url));
+    return NextResponse.redirect(new URL(landingUrl("error"), url), 303);
   }
 
   if (meeting) {
@@ -414,5 +446,5 @@ export async function GET(req: Request) {
           : { error: "unknown" },
   });
 
-  return NextResponse.redirect(new URL(landingUrl("ok"), url));
+  return NextResponse.redirect(new URL(landingUrl("ok"), url), 303);
 }

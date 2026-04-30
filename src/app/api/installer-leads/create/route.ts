@@ -84,11 +84,15 @@ function buildAcknowledgeUrl(leadId: string, token: string): string {
     "https://propertoasty.com";
   // VERCEL_URL omits the protocol — add it.
   const normalised = base.startsWith("http") ? base : `https://${base}`;
-  // Point at the API verifier — it checks the HMAC, updates the lead
-  // + meeting rows, fires the calendar invites + confirmed emails,
-  // then redirects to /installer/acknowledge?state=... so the
-  // installer sees a friendly confirmation page.
-  return `${normalised.replace(/\/+$/, "")}/api/installer-leads/acknowledge?lead=${encodeURIComponent(leadId)}&token=${encodeURIComponent(token)}`;
+  // Point at the /lead/accept confirmation page — NOT the API
+  // endpoint directly. The page renders a summary + an "Accept" button
+  // that POSTs to /api/installer-leads/acknowledge. This dodges the
+  // email-scanner prefetch problem: corporate gateways (Outlook,
+  // Defender, Mimecast) GET every URL in incoming email to scan it,
+  // which auto-accepted leads when the API was on GET. Email scanners
+  // don't submit forms, so the lead stays pending until a human
+  // clicks the button.
+  return `${normalised.replace(/\/+$/, "")}/lead/accept?lead=${encodeURIComponent(leadId)}&token=${encodeURIComponent(token)}`;
 }
 
 // Truncate a postcode to its outward code ("SW1A 1AA" → "SW1A") for
