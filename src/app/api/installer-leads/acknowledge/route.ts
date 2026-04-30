@@ -257,10 +257,11 @@ export async function POST(req: Request) {
 
   const { data: profile } = await admin
     .from("users")
-    .select("id, role, credits, blocked")
+    .select("id, email, role, credits, blocked")
     .eq("id", user.id)
     .maybeSingle<{
       id: string;
+      email: string;
       role: "admin" | "user" | "installer";
       credits: number;
       blocked: boolean;
@@ -281,6 +282,23 @@ export async function POST(req: Request) {
     // role" claim CTA.
     const back = `/lead/accept?lead=${encodeURIComponent(leadId)}&token=${encodeURIComponent(token)}`;
     return NextResponse.redirect(new URL(back, url), 303);
+  }
+  // Installer-binding check — the logged-in user must own the
+  // installer record this lead was sent to. Same logic as the page-
+  // level gate, mirrored here as defence-in-depth (a hand-crafted
+  // POST could bypass the page check). Admins always pass.
+  if (profile.role !== "admin") {
+    const expectedEmail = installer.email?.toLowerCase().trim() ?? null;
+    const currentEmail = profile.email?.toLowerCase().trim() ?? "";
+    if (expectedEmail !== null && expectedEmail !== currentEmail) {
+      console.warn("[ack] wrong-account attempted accept", {
+        userId: user.id,
+        userEmail: profile.email,
+        expectedEmail,
+      });
+      const back = `/lead/accept?lead=${encodeURIComponent(leadId)}&token=${encodeURIComponent(token)}`;
+      return NextResponse.redirect(new URL(back, url), 303);
+    }
   }
   if (profile.credits < LEAD_ACCEPT_COST_CREDITS) {
     console.warn("[ack] insufficient credits at submit", {

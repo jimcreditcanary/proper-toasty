@@ -70,6 +70,12 @@ type State =
       currentEmail: string;
     }
   | {
+      kind: "wrong-account";
+      facts: BookingFacts;
+      currentEmail: string;
+      expectedEmail: string;
+    }
+  | {
       kind: "needs-credits";
       facts: BookingFacts;
       creditsHave: number;
@@ -126,9 +132,9 @@ async function loadState(leadId: string, token: string): Promise<State> {
       >(),
     admin
       .from("installers")
-      .select("id, company_name")
+      .select("id, company_name, email")
       .eq("id", lead.installer_id)
-      .maybeSingle<Pick<InstallerRow, "id" | "company_name">>(),
+      .maybeSingle<Pick<InstallerRow, "id" | "company_name" | "email">>(),
   ]);
 
   if (!meetingResult.data || !installerResult.data) {
@@ -209,6 +215,33 @@ async function loadState(leadId: string, token: string): Promise<State> {
       currentEmail: profile.email,
     };
   }
+
+  // ── Installer-binding check ──────────────────────────────────────
+  // The accept link can only be acted on by the specific installer it
+  // was emailed to. We verify by matching the logged-in user's email
+  // against the installer record's email. Until F2 (installer claim)
+  // gives us a proper user_id ↔ installer_id link, this is the only
+  // anti-impersonation guard we have. Admins always bypass (they can
+  // accept on behalf for support).
+  //
+  // Test installers without an email on file fall through (legacy data
+  // case). Once installer onboarding ships in F2, every installer will
+  // have a verified email + user binding.
+  const expectedEmail = installerResult.data.email?.toLowerCase().trim() ?? null;
+  const currentEmail = profile.email?.toLowerCase().trim() ?? "";
+  if (
+    profile.role !== "admin" &&
+    expectedEmail !== null &&
+    expectedEmail !== currentEmail
+  ) {
+    return {
+      kind: "wrong-account",
+      facts,
+      currentEmail: profile.email,
+      expectedEmail: installerResult.data.email ?? "",
+    };
+  }
+
   if (profile.credits < LEAD_ACCEPT_COST_CREDITS) {
     return {
       kind: "needs-credits",
@@ -305,6 +338,8 @@ function renderState(state: State) {
       return <NeedsLogin state={state} />;
     case "needs-installer-role":
       return <NeedsInstallerRole state={state} />;
+    case "wrong-account":
+      return <WrongAccount state={state} />;
     case "needs-credits":
       return <NeedsCredits state={state} />;
     case "ready":
@@ -445,6 +480,44 @@ function NeedsInstallerRole({
       <p className="mt-3 text-[11px] text-slate-500 text-center">
         Approval takes a few minutes if we&rsquo;ve got you on file. Manual
         review otherwise.
+      </p>
+    </>
+  );
+}
+
+function WrongAccount({
+  state,
+}: {
+  state: { facts: BookingFacts; currentEmail: string; expectedEmail: string };
+}) {
+  return (
+    <>
+      <Header
+        pillText="Wrong account"
+        title={state.facts.installerName}
+      />
+      <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 mb-4 text-sm leading-relaxed">
+        <p className="font-semibold text-amber-900">
+          This lead was sent to a different installer account.
+        </p>
+        <p className="text-amber-900 mt-2">
+          You&rsquo;re signed in as{" "}
+          <strong className="text-navy">{state.currentEmail}</strong>, but
+          this lead was emailed to{" "}
+          <strong className="text-navy">{state.expectedEmail}</strong>.
+        </p>
+        <p className="text-amber-900 mt-2">
+          Sign out and back in with that address to accept it.
+        </p>
+      </div>
+      <Link
+        href={`/auth/login?redirect=${encodeURIComponent(`/lead/accept?lead=${state.facts.leadId}&token=${state.facts.token}`)}`}
+        className="w-full inline-flex items-center justify-center gap-2 h-12 rounded-full bg-coral hover:bg-coral-dark text-white font-semibold text-sm shadow-sm transition-colors"
+      >
+        Sign in with the right account
+      </Link>
+      <p className="mt-3 text-[11px] text-slate-500 text-center">
+        Sign out from your current account first, then come back here.
       </p>
     </>
   );
