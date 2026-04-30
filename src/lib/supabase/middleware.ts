@@ -9,6 +9,15 @@ const ADMIN_PATH = "/admin";
 const INSTALLER_PATH = "/installer";
 const DASHBOARD_PATH = "/dashboard";
 
+// Strict prefix check — `/installer` matches `/installer` and
+// `/installer/anything` but NOT `/installer-signup`. Plain
+// `startsWith("/installer")` matches the public claim flow too,
+// which is wrong (it'd force login on a page designed for the
+// not-yet-registered).
+function isWithin(path: string, prefix: string): boolean {
+  return path === prefix || path.startsWith(prefix + "/");
+}
+
 export async function updateSession(request: NextRequest) {
   // Safety net: a Supabase auth confirmation can land on the wrong path
   // (e.g. `/` instead of `/auth/callback`) when the email's `redirect_to`
@@ -57,9 +66,9 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const isProtectedPath =
-    path.startsWith(DASHBOARD_PATH) ||
-    path.startsWith(ADMIN_PATH) ||
-    path.startsWith(INSTALLER_PATH);
+    isWithin(path, DASHBOARD_PATH) ||
+    isWithin(path, ADMIN_PATH) ||
+    isWithin(path, INSTALLER_PATH);
 
   // Unauthenticated request to a protected path → push to login.
   if (!user && isProtectedPath && !path.startsWith("/auth")) {
@@ -72,7 +81,7 @@ export async function updateSession(request: NextRequest) {
   // Logged in + hitting an admin or installer portal → enforce role.
   // We only do the DB lookup when it matters (the role-gated paths) so
   // every other request stays on the cheap auth-only path.
-  if (user && (path.startsWith(ADMIN_PATH) || path.startsWith(INSTALLER_PATH))) {
+  if (user && (isWithin(path, ADMIN_PATH) || isWithin(path, INSTALLER_PATH))) {
     const { data: profile } = await supabase
       .from("users")
       .select("role, blocked")
@@ -90,7 +99,7 @@ export async function updateSession(request: NextRequest) {
       return NextResponse.redirect(url);
     }
 
-    if (path.startsWith(ADMIN_PATH) && role !== "admin") {
+    if (isWithin(path, ADMIN_PATH) && role !== "admin") {
       // Installer trying to reach /admin → bounce to their portal.
       // Plain user trying to reach /admin → /dashboard (fallback).
       const url = request.nextUrl.clone();
@@ -99,7 +108,7 @@ export async function updateSession(request: NextRequest) {
     }
 
     if (
-      path.startsWith(INSTALLER_PATH) &&
+      isWithin(path, INSTALLER_PATH) &&
       role !== "installer" &&
       role !== "admin"
     ) {
