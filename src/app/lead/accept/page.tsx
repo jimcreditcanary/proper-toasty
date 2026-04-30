@@ -1,35 +1,53 @@
 // /lead/accept — confirmation page that the "Accept this lead"
 // link in the pending-installer email points at.
 //
-// Lives under /lead/* (not /installer/*) so the installer-portal
-// layout's role-gate redirect doesn't block unauthenticated
-// magic-link access. Auth checks happen here on the page.
+// PR-C3.2 redesign:
 //
-// ── Why an interstitial page? ──────────────────────────────────────────
-// Outlook / Microsoft Defender / most corporate email security
-// scanners pre-fetch every URL in incoming email to scan for malware.
-// They issue GET requests, sometimes multiple times. If our accept
-// endpoint did its work on GET, the lead would auto-accept the moment
-// the email arrived — bypassing the installer entirely. We've seen
-// this in production: confirmed-emails fired three times before the
-// installer's inbox even displayed the pending email.
+//   - No login required. The HMAC token in the URL is the auth — if
+//     you got the email, you have permission to act on this lead.
+//     Same trust model as any magic-link system.
 //
-// Fix: GET this page renders a friendly summary + an "Accept this
-// lead" button. The button submits a POST to
-// /api/installer-leads/acknowledge which is where the actual work
-// happens. Email scanners don't submit forms.
+//   - "The installer's account" is identified by email match between
+//     `installers.email` (where the lead was sent) and `users.email`.
+//     The user owning the matching email is whose credits get debited.
+//     Until F2 (proper claim flow) installs a real `installer.user_id`
+//     binding, this is the bridge.
 //
-// ── Gates the accept button on (in order) ─────────────────────────────
-//   1. HMAC token validates
-//   2. Caller is signed in
-//   3. Caller has `installer` (or `admin`) role
-//   4. Caller has at least LEAD_ACCEPT_COST_CREDITS credits on file
-// Each gate renders its own friendly explainer + next-step CTA.
+//   - Three distinct actions, three buttons. Each is a separate form
+//     POST so HTML alone routes the action — no JS required.
+//
+//       1. Accept the slot                  (action=accept)
+//          Calendar invite + confirmed emails fire as before.
+//
+//       2. Take the lead, reschedule        (action=reschedule)
+//          Same credit cost, but the meeting is cancelled (slot
+//          freed). Installer gets contact details via the confirmed
+//          email; homeowner gets a "they want to take it but
+//          rescheduling — here's how to reach them" note.
+//
+//       3. Decline                          (action=decline)
+//          No credit debit. Meeting + lead cancelled, slot freed.
+//          Homeowner gets a "they couldn't take this — here are X
+//          other installers nearby" email with a one-click link
+//          back to their report.
+//
+// ── Why an interstitial page? (still applies) ──────────────────────────
+// Outlook / Microsoft Defender / corporate email security gateways
+// pre-fetch every URL in incoming email. If our acknowledge endpoint
+// did its work on GET, the prefetch would auto-accept (or auto-decline)
+// before the installer even saw the email. Forms aren't auto-submitted
+// — that's how we stop the prefetch attack.
 
 import Link from "next/link";
-import { CalendarDays, MapPin, ShieldCheck, Zap } from "lucide-react";
+import {
+  CalendarDays,
+  Clock,
+  MapPin,
+  ShieldCheck,
+  XCircle,
+  Zap,
+} from "lucide-react";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createClient as createServerClient } from "@/lib/supabase/server";
 import { verifyLeadAckToken } from "@/lib/email/tokens";
 import { LEAD_ACCEPT_COST_CREDITS } from "@/lib/booking/credits";
 import type { Database } from "@/types/database";
@@ -44,6 +62,7 @@ interface BookingFacts {
   leadId: string;
   token: string;
   installerName: string;
+  installerEmail: string | null;
   postcodeArea: string | null;
   scheduledAt: string;
   durationMin: number;
@@ -51,7 +70,6 @@ interface BookingFacts {
   wantsHeatPump: boolean;
   wantsSolar: boolean;
   wantsBattery: boolean;
-  alreadyAccepted: boolean;
 }
 
 type State =
@@ -59,33 +77,28 @@ type State =
   | { kind: "expired" }
   | { kind: "error"; message: string }
   | { kind: "already-accepted"; facts: BookingFacts }
+  | { kind: "already-declined"; facts: BookingFacts }
   | {
-      kind: "needs-login";
+      // No user account exists with the installer's email — they need
+      // to sign up first. Decline is still available (free, no
+      // account needed).
+      kind: "needs-claim";
       facts: BookingFacts;
-      loginUrl: string;
     }
   | {
-      kind: "needs-installer-role";
+      // User exists but doesn't have enough credits. Top-up requires
+      // login (Stripe etc.); decline is still available.
+      kind: "needs-topup";
       facts: BookingFacts;
       currentEmail: string;
-    }
-  | {
-      kind: "wrong-account";
-      facts: BookingFacts;
-      currentEmail: string;
-      expectedEmail: string;
-    }
-  | {
-      kind: "needs-credits";
-      facts: BookingFacts;
       creditsHave: number;
-      currentEmail: string;
     }
   | {
+      // All three actions available.
       kind: "ready";
       facts: BookingFacts;
-      creditsHave: number;
       currentEmail: string;
+      creditsHave: number;
     };
 
 async function loadState(leadId: string, token: string): Promise<State> {
@@ -118,7 +131,6 @@ async function loadState(leadId: string, token: string): Promise<State> {
   }
   if (!lead) return { kind: "invalid" };
 
-  // Fetch meeting + installer in parallel.
   const [meetingResult, installerResult] = await Promise.all([
     admin
       .from("installer_meetings")
@@ -145,6 +157,7 @@ async function loadState(leadId: string, token: string): Promise<State> {
     leadId,
     token,
     installerName: installerResult.data.company_name,
+    installerEmail: installerResult.data.email,
     postcodeArea: postcodeArea(lead.property_postcode),
     scheduledAt: meetingResult.data.scheduled_at,
     durationMin: meetingResult.data.duration_min,
@@ -152,110 +165,72 @@ async function loadState(leadId: string, token: string): Promise<State> {
     wantsHeatPump: lead.wants_heat_pump,
     wantsSolar: lead.wants_solar,
     wantsBattery: lead.wants_battery,
-    alreadyAccepted:
-      meetingResult.data.status === "booked" || lead.status === "visit_booked",
   };
 
-  if (facts.alreadyAccepted) {
+  // ── Terminal states ──────────────────────────────────────────────
+  if (
+    meetingResult.data.status === "booked" ||
+    lead.status === "visit_booked" ||
+    lead.status === "installer_acknowledged"
+  ) {
     return { kind: "already-accepted", facts };
   }
-
-  // ── Auth gate ─────────────────────────────────────────────────────
-  // This must come AFTER the token / DB lookups so the link still
-  // tells the installer they DO have a real lead waiting — they just
-  // need to sign in first.
-  const supabase = await createServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    const next = `/lead/accept?lead=${encodeURIComponent(leadId)}&token=${encodeURIComponent(token)}`;
-    return {
-      kind: "needs-login",
-      facts,
-      loginUrl: `/auth/login?redirect=${encodeURIComponent(next)}`,
-    };
+  if (
+    meetingResult.data.status === "cancelled" ||
+    lead.status === "cancelled" ||
+    lead.status === "closed_lost"
+  ) {
+    return { kind: "already-declined", facts };
   }
 
-  // ── Role + credits gate ──────────────────────────────────────────
+  // ── Identify the installer's user account by email match ─────────
+  // If installer.email is empty (legacy data) we can't bind. Fall
+  // back to "needs claim" — they'll have to sign up before we can
+  // attribute credits to anyone.
+  const installerEmail =
+    installerResult.data.email?.toLowerCase().trim() ?? null;
+  if (!installerEmail) {
+    return { kind: "needs-claim", facts };
+  }
+
   const { data: profile } = await admin
     .from("users")
-    .select("id, email, role, credits, blocked")
-    .eq("id", user.id)
+    .select("id, email, credits, blocked")
+    .ilike("email", installerEmail)
+    .limit(1)
     .maybeSingle<{
       id: string;
       email: string;
-      role: "admin" | "user" | "installer";
       credits: number;
       blocked: boolean;
     }>();
-  // Diagnostic log — visible in Vercel logs every page render. Tells us
-  // which auth user the page sees, alongside their public.users row.
+
+  if (!profile || profile.blocked) {
+    return { kind: "needs-claim", facts };
+  }
+
   console.log("[lead/accept] gate decision", {
     leadId,
-    auth_user_id: user.id,
-    auth_email: user.email,
-    public_users_id: profile?.id,
-    public_email: profile?.email,
-    role: profile?.role,
-    credits: profile?.credits,
-    blocked: profile?.blocked,
+    installerEmail,
+    matched_user_id: profile.id,
+    matched_user_email: profile.email,
+    credits: profile.credits,
   });
-
-  if (!profile) {
-    return { kind: "error", message: "Account not found" };
-  }
-  if (profile.blocked) {
-    return { kind: "error", message: "This account has been blocked" };
-  }
-  if (profile.role !== "installer" && profile.role !== "admin") {
-    return {
-      kind: "needs-installer-role",
-      facts,
-      currentEmail: profile.email,
-    };
-  }
-
-  // ── Installer-binding check ──────────────────────────────────────
-  // The accept link can only be acted on by the specific installer it
-  // was emailed to. We verify by matching the logged-in user's email
-  // against the installer record's email. Until F2 (installer claim)
-  // gives us a proper user_id ↔ installer_id link, this is the only
-  // anti-impersonation guard we have. Admins always bypass (they can
-  // accept on behalf for support).
-  //
-  // Test installers without an email on file fall through (legacy data
-  // case). Once installer onboarding ships in F2, every installer will
-  // have a verified email + user binding.
-  const expectedEmail = installerResult.data.email?.toLowerCase().trim() ?? null;
-  const currentEmail = profile.email?.toLowerCase().trim() ?? "";
-  if (
-    profile.role !== "admin" &&
-    expectedEmail !== null &&
-    expectedEmail !== currentEmail
-  ) {
-    return {
-      kind: "wrong-account",
-      facts,
-      currentEmail: profile.email,
-      expectedEmail: installerResult.data.email ?? "",
-    };
-  }
 
   if (profile.credits < LEAD_ACCEPT_COST_CREDITS) {
     return {
-      kind: "needs-credits",
+      kind: "needs-topup",
       facts,
-      creditsHave: profile.credits,
       currentEmail: profile.email,
+      creditsHave: profile.credits,
     };
   }
 
   return {
     kind: "ready",
     facts,
-    creditsHave: profile.credits,
     currentEmail: profile.email,
+    creditsHave: profile.credits,
   };
 }
 
@@ -334,25 +309,23 @@ function renderState(state: State) {
       return <ErrorState state={state} />;
     case "already-accepted":
       return <AlreadyAccepted facts={state.facts} />;
-    case "needs-login":
-      return <NeedsLogin state={state} />;
-    case "needs-installer-role":
-      return <NeedsInstallerRole state={state} />;
-    case "wrong-account":
-      return <WrongAccount state={state} />;
-    case "needs-credits":
-      return <NeedsCredits state={state} />;
+    case "already-declined":
+      return <AlreadyDeclined facts={state.facts} />;
+    case "needs-claim":
+      return <NeedsClaim state={state} />;
+    case "needs-topup":
+      return <NeedsTopup state={state} />;
     case "ready":
-      return <ReadyForm state={state} />;
+      return <Ready state={state} />;
   }
 }
 
-// ─── Ready (all gates passed) ──────────────────────────────────────────
+// ─── Ready (all three actions) ────────────────────────────────────────
 
-function ReadyForm({
+function Ready({
   state,
 }: {
-  state: { facts: BookingFacts; creditsHave: number; currentEmail: string };
+  state: { facts: BookingFacts; currentEmail: string; creditsHave: number };
 }) {
   const { facts } = state;
   const slot = formatSlot(facts.scheduledAt);
@@ -364,40 +337,144 @@ function ReadyForm({
 
   return (
     <>
-      <Header pillText="Accept this lead" title={facts.installerName} />
+      <Header pillText="Lead waiting" title={facts.installerName} />
       <SignedInPill email={state.currentEmail} credits={state.creditsHave} />
       <BookingFactsCard facts={facts} slot={slot} wants={wants} />
 
-      <p className="text-sm text-slate-600 leading-relaxed mb-3">
-        When you accept, we&rsquo;ll add the visit to your calendar with the
-        homeowner&rsquo;s full contact details, debit{" "}
+      <p className="text-sm text-slate-600 leading-relaxed mb-4">
+        Three options. Accepting either way debits{" "}
         <strong className="text-navy">
           {LEAD_ACCEPT_COST_CREDITS} credits
         </strong>{" "}
-        from your balance ({state.creditsHave} remaining), and email the
-        homeowner to confirm.
+        and unlocks the homeowner&rsquo;s contact details.
       </p>
 
-      <form
-        action="/api/installer-leads/acknowledge"
-        method="POST"
-        className="space-y-3"
+      <ActionButton
+        action="accept"
+        leadId={facts.leadId}
+        token={facts.token}
+        primary
+        icon={<ShieldCheck className="w-4 h-4" />}
       >
-        <input type="hidden" name="lead" value={facts.leadId} />
-        <input type="hidden" name="token" value={facts.token} />
-        <button
-          type="submit"
-          className="w-full inline-flex items-center justify-center gap-2 h-12 rounded-full bg-coral hover:bg-coral-dark text-white font-semibold text-sm shadow-sm transition-colors"
-        >
-          <ShieldCheck className="w-4 h-4" />
-          Accept this lead
-        </button>
-      </form>
+        Accept this slot
+      </ActionButton>
+
+      <ActionButton
+        action="reschedule"
+        leadId={facts.leadId}
+        token={facts.token}
+        icon={<Clock className="w-4 h-4" />}
+      >
+        Take the lead, but reschedule
+      </ActionButton>
+
+      <p className="text-[11px] text-slate-500 leading-relaxed mt-1 mb-3 px-1">
+        Frees the slot. We send the homeowner your contact details so
+        you can sort a new time directly.
+      </p>
+
+      <DeclineButton leadId={facts.leadId} token={facts.token} />
     </>
   );
 }
 
-// ─── Already accepted (idempotent re-click) ───────────────────────────
+// ─── Needs top-up ─────────────────────────────────────────────────────
+
+function NeedsTopup({
+  state,
+}: {
+  state: { facts: BookingFacts; currentEmail: string; creditsHave: number };
+}) {
+  const { facts } = state;
+  const slot = formatSlot(facts.scheduledAt);
+  const wants = listWants(
+    facts.wantsHeatPump,
+    facts.wantsSolar,
+    facts.wantsBattery,
+  );
+  const shortBy = LEAD_ACCEPT_COST_CREDITS - state.creditsHave;
+  return (
+    <>
+      <Header pillText="Top up to accept" title={facts.installerName} />
+      <SignedInPill email={state.currentEmail} credits={state.creditsHave} />
+      <BookingFactsCard facts={facts} slot={slot} wants={wants} />
+
+      <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 mb-4 text-sm leading-relaxed">
+        <p className="font-semibold text-amber-900">
+          You&rsquo;re {shortBy} credit{shortBy === 1 ? "" : "s"} short.
+        </p>
+        <p className="text-amber-900 mt-1">
+          Accepting a lead costs {LEAD_ACCEPT_COST_CREDITS} credits.
+          Sign in to top up and come straight back to this page.
+        </p>
+      </div>
+
+      <Link
+        href="/installer/credits"
+        className="w-full inline-flex items-center justify-center gap-2 h-12 rounded-full bg-coral hover:bg-coral-dark text-white font-semibold text-sm shadow-sm transition-colors"
+      >
+        Sign in &amp; buy credits
+      </Link>
+      <p className="mt-2 mb-4 text-[11px] text-slate-500 text-center">
+        We&rsquo;ll hold the slot for you for 24 hours from when the
+        homeowner booked.
+      </p>
+
+      <p className="text-xs text-slate-500 mb-2 text-center">
+        Not interested?
+      </p>
+      <DeclineButton leadId={facts.leadId} token={facts.token} />
+    </>
+  );
+}
+
+// ─── Needs claim (no Propertoasty account yet) ────────────────────────
+
+function NeedsClaim({ state }: { state: { facts: BookingFacts } }) {
+  const { facts } = state;
+  const slot = formatSlot(facts.scheduledAt);
+  const wants = listWants(
+    facts.wantsHeatPump,
+    facts.wantsSolar,
+    facts.wantsBattery,
+  );
+  const signupQuery = facts.installerEmail
+    ? `?tab=signup&email=${encodeURIComponent(facts.installerEmail)}`
+    : "?tab=signup";
+  return (
+    <>
+      <Header pillText="Claim your installer profile" title={facts.installerName} />
+      <BookingFactsCard facts={facts} slot={slot} wants={wants} />
+
+      <p className="text-sm text-slate-600 leading-relaxed mb-4">
+        We don&rsquo;t have a Propertoasty account on file for{" "}
+        <strong className="text-navy">
+          {facts.installerEmail ?? "this installer"}
+        </strong>
+        . Sign up using that email to claim your profile and accept
+        leads.
+      </p>
+
+      <Link
+        href={`/auth/login${signupQuery}`}
+        className="w-full inline-flex items-center justify-center gap-2 h-12 rounded-full bg-coral hover:bg-coral-dark text-white font-semibold text-sm shadow-sm transition-colors"
+      >
+        Sign up to claim
+      </Link>
+      <p className="mt-2 mb-4 text-[11px] text-slate-500 text-center">
+        Use the email this lead was sent to so we match you to the
+        right installer record.
+      </p>
+
+      <p className="text-xs text-slate-500 mb-2 text-center">
+        Not your area? Not interested?
+      </p>
+      <DeclineButton leadId={facts.leadId} token={facts.token} />
+    </>
+  );
+}
+
+// ─── Already accepted / declined (terminal) ───────────────────────────
 
 function AlreadyAccepted({ facts }: { facts: BookingFacts }) {
   return (
@@ -409,12 +486,13 @@ function AlreadyAccepted({ facts }: { facts: BookingFacts }) {
         You&rsquo;ve already accepted this lead
       </h1>
       <p className="mt-3 text-sm text-slate-600 leading-relaxed">
-        Calendar invite is already on its way and the homeowner has been
-        notified. Their contact details are in the confirmation email we
-        sent — just hit Reply to get the conversation going.
+        Calendar invite is on its way and the homeowner has been
+        notified. Their contact details are in the confirmation email
+        we sent.
       </p>
       <p className="mt-2 text-xs text-slate-500">
-        Booking: {facts.installerName} · {formatSlot(facts.scheduledAt).longDateLabel}
+        Booking: {facts.installerName} ·{" "}
+        {formatSlot(facts.scheduledAt).longDateLabel}
       </p>
       <Link
         href="/installer"
@@ -426,152 +504,36 @@ function AlreadyAccepted({ facts }: { facts: BookingFacts }) {
   );
 }
 
-// ─── Gates ────────────────────────────────────────────────────────────
-
-function NeedsLogin({
-  state,
-}: {
-  state: { facts: BookingFacts; loginUrl: string };
-}) {
+function AlreadyDeclined({ facts }: { facts: BookingFacts }) {
   return (
-    <>
-      <Header pillText="Sign in to accept" title={state.facts.installerName} />
-      <p className="text-sm text-slate-600 leading-relaxed mb-5">
-        You&rsquo;ve got a lead waiting — please sign in to your installer
-        account to review the slot, debit credits, and confirm.
+    <div className="text-center">
+      <span className="inline-flex items-center justify-center w-14 h-14 rounded-full mb-5 text-xl font-bold bg-slate-100 text-slate-700">
+        <XCircle className="w-6 h-6" />
+      </span>
+      <h1 className="text-xl sm:text-2xl font-bold text-navy leading-tight">
+        This lead has been closed
+      </h1>
+      <p className="mt-3 text-sm text-slate-600 leading-relaxed">
+        Either you (or someone with the link) declined this lead.
+        We&rsquo;ve let the homeowner know and pointed them at other
+        installers.
+      </p>
+      <p className="mt-2 text-xs text-slate-500">
+        Was: {facts.installerName} ·{" "}
+        {formatSlot(facts.scheduledAt).longDateLabel}
       </p>
       <Link
-        href={state.loginUrl}
-        className="w-full inline-flex items-center justify-center gap-2 h-12 rounded-full bg-coral hover:bg-coral-dark text-white font-semibold text-sm shadow-sm transition-colors"
+        href="/installer"
+        className="mt-6 inline-flex items-center justify-center h-11 px-5 rounded-full bg-coral hover:bg-coral-dark text-white font-semibold text-sm shadow-sm transition-colors"
       >
-        Sign in to continue
+        Go to installer portal
       </Link>
-      <p className="mt-3 text-[11px] text-slate-500 text-center">
-        We&rsquo;ll bring you straight back here once you&rsquo;re in.
-      </p>
-    </>
-  );
-}
-
-function NeedsInstallerRole({
-  state,
-}: {
-  state: { facts: BookingFacts; currentEmail: string };
-}) {
-  return (
-    <>
-      <Header
-        pillText="Verify your installer profile"
-        title={state.facts.installerName}
-      />
-      <p className="text-sm text-slate-600 leading-relaxed mb-5">
-        You&rsquo;re signed in as{" "}
-        <strong className="text-navy">{state.currentEmail}</strong>, but
-        your account isn&rsquo;t linked to an installer profile yet. Claim
-        your record by searching for your MCS number, company name or
-        company number — pre-fills everything we have on file.
-      </p>
-      <Link
-        href="/installer-signup"
-        className="w-full inline-flex items-center justify-center gap-2 h-12 rounded-full bg-coral hover:bg-coral-dark text-white font-semibold text-sm shadow-sm transition-colors"
-      >
-        Claim my installer profile
-      </Link>
-      <p className="mt-3 text-[11px] text-slate-500 text-center">
-        Approval takes a few minutes if we&rsquo;ve got you on file. Manual
-        review otherwise.
-      </p>
-    </>
-  );
-}
-
-function WrongAccount({
-  state,
-}: {
-  state: { facts: BookingFacts; currentEmail: string; expectedEmail: string };
-}) {
-  return (
-    <>
-      <Header
-        pillText="Wrong account"
-        title={state.facts.installerName}
-      />
-      <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 mb-4 text-sm leading-relaxed">
-        <p className="font-semibold text-amber-900">
-          This lead was sent to a different installer account.
-        </p>
-        <p className="text-amber-900 mt-2">
-          You&rsquo;re signed in as{" "}
-          <strong className="text-navy">{state.currentEmail}</strong>, but
-          this lead was emailed to{" "}
-          <strong className="text-navy">{state.expectedEmail}</strong>.
-        </p>
-        <p className="text-amber-900 mt-2">
-          Sign out and back in with that address to accept it.
-        </p>
-      </div>
-      <Link
-        href={`/auth/login?redirect=${encodeURIComponent(`/lead/accept?lead=${state.facts.leadId}&token=${state.facts.token}`)}`}
-        className="w-full inline-flex items-center justify-center gap-2 h-12 rounded-full bg-coral hover:bg-coral-dark text-white font-semibold text-sm shadow-sm transition-colors"
-      >
-        Sign in with the right account
-      </Link>
-      <p className="mt-3 text-[11px] text-slate-500 text-center">
-        Sign out from your current account first, then come back here.
-      </p>
-    </>
-  );
-}
-
-function NeedsCredits({
-  state,
-}: {
-  state: { facts: BookingFacts; creditsHave: number; currentEmail: string };
-}) {
-  const slot = formatSlot(state.facts.scheduledAt);
-  const wants = listWants(
-    state.facts.wantsHeatPump,
-    state.facts.wantsSolar,
-    state.facts.wantsBattery,
-  );
-  const shortBy = LEAD_ACCEPT_COST_CREDITS - state.creditsHave;
-  return (
-    <>
-      <Header pillText="Top up to accept" title={state.facts.installerName} />
-      <SignedInPill email={state.currentEmail} credits={state.creditsHave} />
-      <BookingFactsCard facts={state.facts} slot={slot} wants={wants} />
-
-      <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 mb-4 text-sm leading-relaxed">
-        <p className="font-semibold text-amber-900">
-          You&rsquo;re {shortBy} credit{shortBy === 1 ? "" : "s"} short.
-        </p>
-        <p className="text-amber-900 mt-1">
-          Accepting a lead costs {LEAD_ACCEPT_COST_CREDITS} credits. You
-          currently have <strong>{state.creditsHave}</strong>. Top up below
-          and come straight back to this page to accept.
-        </p>
-      </div>
-
-      <Link
-        href="/installer/credits"
-        className="w-full inline-flex items-center justify-center gap-2 h-12 rounded-full bg-coral hover:bg-coral-dark text-white font-semibold text-sm shadow-sm transition-colors"
-      >
-        Buy credits
-      </Link>
-      <p className="mt-3 text-[11px] text-slate-500 text-center">
-        We&rsquo;ll hold the slot for you for 24 hours from when the
-        homeowner booked.
-      </p>
-    </>
+    </div>
   );
 }
 
 // ─── Shared chrome ────────────────────────────────────────────────────
 
-// Surface the currently-signed-in account so testers can immediately
-// spot account-mismatch issues (e.g. they're logged in as a different
-// auth user than the one they SQL-updated). Visible on the gate views
-// where the credit balance matters.
 function SignedInPill({
   email,
   credits,
@@ -581,10 +543,16 @@ function SignedInPill({
 }) {
   return (
     <div className="rounded-lg bg-slate-50 border border-slate-200 px-3 py-2 mb-4 text-xs text-slate-600 leading-relaxed">
-      Signed in as <strong className="text-navy">{email}</strong>{" "}
+      Account on file: <strong className="text-navy">{email}</strong>{" "}
       <span className="text-slate-400">·</span>{" "}
       Balance:{" "}
-      <strong className={credits >= 5 ? "text-emerald-700" : "text-amber-700"}>
+      <strong
+        className={
+          credits >= LEAD_ACCEPT_COST_CREDITS
+            ? "text-emerald-700"
+            : "text-amber-700"
+        }
+      >
         {credits} credit{credits === 1 ? "" : "s"}
       </strong>
     </div>
@@ -655,6 +623,65 @@ function Row({
         <span className="text-slate-700">{children}</span>
       </span>
     </div>
+  );
+}
+
+function ActionButton({
+  action,
+  leadId,
+  token,
+  children,
+  icon,
+  primary,
+}: {
+  action: "accept" | "reschedule" | "decline";
+  leadId: string;
+  token: string;
+  children: React.ReactNode;
+  icon?: React.ReactNode;
+  primary?: boolean;
+}) {
+  const cls = primary
+    ? "bg-coral hover:bg-coral-dark text-white"
+    : "bg-white border border-slate-200 hover:border-coral/40 text-navy";
+  return (
+    <form
+      action="/api/installer-leads/acknowledge"
+      method="POST"
+      className="mb-3"
+    >
+      <input type="hidden" name="lead" value={leadId} />
+      <input type="hidden" name="token" value={token} />
+      <input type="hidden" name="action" value={action} />
+      <button
+        type="submit"
+        className={`w-full inline-flex items-center justify-center gap-2 h-12 rounded-full font-semibold text-sm shadow-sm transition-colors ${cls}`}
+      >
+        {icon}
+        {children}
+      </button>
+    </form>
+  );
+}
+
+function DeclineButton({ leadId, token }: { leadId: string; token: string }) {
+  return (
+    <form action="/api/installer-leads/acknowledge" method="POST">
+      <input type="hidden" name="lead" value={leadId} />
+      <input type="hidden" name="token" value={token} />
+      <input type="hidden" name="action" value="decline" />
+      <button
+        type="submit"
+        className="w-full inline-flex items-center justify-center gap-2 h-11 text-xs font-semibold text-slate-600 hover:text-slate-900 hover:underline"
+      >
+        <XCircle className="w-3.5 h-3.5" />
+        Decline this lead
+      </button>
+      <p className="text-[11px] text-slate-500 leading-relaxed mt-1 text-center">
+        No charge. We let the homeowner know and point them at other
+        nearby installers.
+      </p>
+    </form>
   );
 }
 

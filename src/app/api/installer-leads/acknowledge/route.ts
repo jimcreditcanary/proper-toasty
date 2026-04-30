@@ -1,7 +1,7 @@
+import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createClient as createServerClient } from "@/lib/supabase/server";
-import { verifyLeadAckToken } from "@/lib/email/tokens";
+import { verifyLeadAckToken, buildReportToken } from "@/lib/email/tokens";
 import {
   sendEmail,
   type SendEmailAttachment,
@@ -9,41 +9,44 @@ import {
 } from "@/lib/email/client";
 import { buildHomeownerEmail } from "@/lib/email/templates/booking-homeowner";
 import { buildInstallerEmail } from "@/lib/email/templates/booking-installer";
-// Bookings-calendar event inserts are intentionally disabled — see
-// the long comment in section 5 of the POST handler. The
-// calendar.ts module remains for future re-use under DWD.
+import { buildReschedulingHomeownerEmail } from "@/lib/email/templates/booking-rescheduling-homeowner";
+import { buildDeclinedHomeownerEmail } from "@/lib/email/templates/booking-declined-homeowner";
 import { buildIcs, icsToBase64 } from "@/lib/email/ics";
 import { LEAD_ACCEPT_COST_CREDITS } from "@/lib/booking/credits";
+import { findNearby } from "@/lib/services/installers";
 import type { Database } from "@/types/database";
 
 const FROM_EMAIL =
   process.env.EMAIL_FROM_ADDRESS ?? "bookings@propertoasty.com";
 
+// Decline email's "X installers nearby" stat — radius the homeowner
+// is offered alternatives within.
+const DECLINE_NEARBY_RADIUS_MILES = 10;
+const DECLINE_NEARBY_RADIUS_KM = DECLINE_NEARBY_RADIUS_MILES * 1.609344;
+
 // POST /api/installer-leads/acknowledge
-//   form fields: lead=<uuid>, token=<hmac>
+//   form fields: lead, token, action ∈ {accept | reschedule | decline}
 //
-// POST-only since PR C3.1: corporate email security scanners
-// (Outlook / Defender / Mimecast) GET every URL in incoming email
-// to scan for malware. With a GET endpoint here, the prefetch
-// auto-accepted leads before the installer's inbox even rendered.
-// The /lead/accept page is the GET-side: it shows a summary + an
-// "Accept this lead" button that POSTs to this route. Form
-// submission isn't something email scanners do.
+// PR-C3.2: split single-action endpoint into three. All three are
+// reachable without login — the HMAC token is the auth, and we
+// identify the installer's user (for credit attribution) via email
+// match between installers.email and users.email.
 //
-// Flow on POST:
-//   1. Verify the HMAC token (rejects tampered links)
-//   2. Update lead status → 'visit_booked'
-//   3. Update meeting status → 'booked' (slot now confirmed)
-//   4. Insert two Google Calendar events (homeowner 1hr +
-//      installer-with-buffer)
-//   5. Send the confirmed-flavour emails to both parties
-//   6. Redirect to /lead/accepted?state=ok
+//   action=accept     — book the slot. Calendar invite + confirmed
+//                        emails fire. Debits LEAD_ACCEPT_COST_CREDITS.
+//   action=reschedule — installer takes the lead but can't make the
+//                        slot. Meeting → cancelled (slot freed).
+//                        Debits credits. Homeowner gets a "they took
+//                        it but want to pick a new time" email with
+//                        the installer's contact details.
+//   action=decline    — installer doesn't want the lead. Meeting →
+//                        cancelled (slot freed). NO credit debit.
+//                        Homeowner gets a "they couldn't take it,
+//                        here are X other installers" email.
 //
-// Idempotent — re-submitting the form on an already-accepted lead
-// returns ok without re-inserting events or re-sending emails.
-//
-// Verbose [ack] logging through the post-accept fan-out so missing
-// calendar invites are traceable in Vercel logs.
+// Race-condition CAS pattern (status=pending → booked / cancelled in
+// a single UPDATE … WHERE) prevents double-fanout from concurrent
+// submits. Idempotent on re-click.
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -87,43 +90,64 @@ function extractReportFacts(snapshot: unknown): ReportFacts {
   };
 }
 
-function landingUrl(state: "ok" | "invalid" | "expired" | "error" | "already"): string {
+function landingUrl(state: "ok" | "invalid" | "expired" | "error" | "declined"): string {
   return `/lead/accepted?state=${state}`;
 }
 
-/**
- * Read both form-encoded and JSON bodies — we accept the standard
- * HTML form submit from /lead/accept, plus JSON if a future internal
- * caller wants the same endpoint.
- */
-async function readBody(
-  req: Request,
-): Promise<{ leadId: string | null; token: string | null }> {
+function backToAcceptUrl(leadId: string, token: string): string {
+  return `/lead/accept?lead=${encodeURIComponent(leadId)}&token=${encodeURIComponent(token)}`;
+}
+
+interface ParsedBody {
+  leadId: string | null;
+  token: string | null;
+  action: "accept" | "reschedule" | "decline";
+}
+
+async function readBody(req: Request): Promise<ParsedBody> {
   const contentType = req.headers.get("content-type") ?? "";
+  let leadId: string | null = null;
+  let token: string | null = null;
+  let actionRaw = "accept";
+
   if (contentType.includes("application/json")) {
     try {
-      const json = (await req.json()) as { lead?: string; token?: string };
-      return { leadId: json.lead ?? null, token: json.token ?? null };
+      const json = (await req.json()) as {
+        lead?: string;
+        token?: string;
+        action?: string;
+      };
+      leadId = json.lead ?? null;
+      token = json.token ?? null;
+      actionRaw = json.action ?? "accept";
     } catch {
-      return { leadId: null, token: null };
+      /* fall through */
+    }
+  } else {
+    try {
+      const form = await req.formData();
+      const v = (k: string) => {
+        const x = form.get(k);
+        return typeof x === "string" ? x : null;
+      };
+      leadId = v("lead");
+      token = v("token");
+      actionRaw = v("action") ?? "accept";
+    } catch {
+      /* fall through */
     }
   }
-  // Default to form-encoded (the /lead/accept page POSTs this).
-  try {
-    const form = await req.formData();
-    return {
-      leadId: typeof form.get("lead") === "string" ? (form.get("lead") as string) : null,
-      token:
-        typeof form.get("token") === "string" ? (form.get("token") as string) : null,
-    };
-  } catch {
-    return { leadId: null, token: null };
-  }
+
+  const action: "accept" | "reschedule" | "decline" =
+    actionRaw === "reschedule" || actionRaw === "decline"
+      ? actionRaw
+      : "accept";
+  return { leadId, token, action };
 }
 
 export async function POST(req: Request) {
   const url = new URL(req.url);
-  const { leadId, token } = await readBody(req);
+  const { leadId, token, action } = await readBody(req);
 
   if (!leadId || !token) {
     return NextResponse.redirect(new URL(landingUrl("invalid"), url), 303);
@@ -135,6 +159,8 @@ export async function POST(req: Request) {
   const admin = createAdminClient();
   const now = new Date().toISOString();
 
+  console.log("[ack] action received", { leadId, action });
+
   // 1. Look up the lead. We need its analysis_snapshot for the
   // confirmed-installer email's pre-survey insights, plus the contact
   // details we'll surface in the email + calendar event.
@@ -142,7 +168,8 @@ export async function POST(req: Request) {
     .from("installer_leads")
     .select(
       "id, installer_id, status, contact_name, contact_email, contact_phone, " +
-        "property_address, property_postcode, " +
+        "property_address, property_postcode, property_latitude, property_longitude, " +
+        "homeowner_lead_id, " +
         "wants_heat_pump, wants_solar, wants_battery, notes, analysis_snapshot",
     )
     .eq("id", leadId)
@@ -157,6 +184,9 @@ export async function POST(req: Request) {
         | "contact_phone"
         | "property_address"
         | "property_postcode"
+        | "property_latitude"
+        | "property_longitude"
+        | "homeowner_lead_id"
         | "wants_heat_pump"
         | "wants_solar"
         | "wants_battery"
@@ -173,7 +203,6 @@ export async function POST(req: Request) {
     return NextResponse.redirect(new URL(landingUrl("invalid"), url), 303);
   }
 
-  // 2. Look up the matching meeting + installer in parallel.
   const [meetingResult, installerResult] = await Promise.all([
     admin
       .from("installer_meetings")
@@ -219,19 +248,18 @@ export async function POST(req: Request) {
     return NextResponse.redirect(new URL(landingUrl("error"), url), 303);
   }
 
-  // 3. Idempotent re-click — if the meeting is already booked AND
-  // calendar IDs are set, this is a duplicate submission (browser
-  // back / refresh / pre-fetcher chasing the redirect). Bump the
-  // timestamp and bail without firing anything again.
-  const alreadyAccepted =
-    meeting?.status === "booked" &&
-    (meeting.google_event_id != null ||
-      meeting.google_installer_event_id != null);
+  // ── Branch on action ────────────────────────────────────────────
+  if (action === "decline") {
+    return handleDecline({ admin, url, lead, meeting, installer, leadId, now });
+  }
 
-  if (alreadyAccepted) {
+  // accept / reschedule both need credit attribution.
+
+  // Idempotent re-click on accept: meeting is already 'booked'.
+  if (action === "accept" && meeting?.status === "booked") {
     console.log("[ack] already accepted — idempotent re-click", {
       leadId,
-      meetingId: meeting?.id,
+      meetingId: meeting.id,
     });
     await admin
       .from("installer_leads")
@@ -239,91 +267,73 @@ export async function POST(req: Request) {
       .eq("id", leadId);
     return NextResponse.redirect(new URL(landingUrl("ok"), url), 303);
   }
-
-  // 4. Auth gate — installer must be signed in with installer or
-  // admin role. The page-level gate already covers most of this, but
-  // we re-check here so the API can't be POSTed to without auth
-  // (e.g. a shared link reaching a logged-out browser).
-  const supabase = await createServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    console.warn("[ack] unauthenticated POST — bouncing to login", { leadId });
-    const next = `/lead/accept?lead=${encodeURIComponent(leadId)}&token=${encodeURIComponent(token)}`;
-    const loginUrl = new URL(`/auth/login?redirect=${encodeURIComponent(next)}`, url);
-    return NextResponse.redirect(loginUrl, 303);
+  if (
+    (action === "accept" || action === "reschedule") &&
+    (lead.status === "visit_booked" ||
+      lead.status === "installer_acknowledged")
+  ) {
+    console.log("[ack] lead already taken — idempotent re-click", {
+      leadId,
+      status: lead.status,
+    });
+    return NextResponse.redirect(new URL(landingUrl("ok"), url), 303);
+  }
+  if (lead.status === "cancelled" || lead.status === "closed_lost") {
+    return NextResponse.redirect(new URL(landingUrl("declined"), url), 303);
   }
 
+  // ── Identify the user account whose credits cover this lead ─────
+  // Email match between installers.email and users.email. Until F2
+  // installer claim ships, this is the only binding we have. If
+  // there's no match, push them back to the page which renders the
+  // "claim your profile" CTA.
+  const installerEmail = installer.email?.toLowerCase().trim() ?? null;
+  if (!installerEmail) {
+    console.warn("[ack] installer has no email — can't attribute credits", {
+      leadId,
+      installerId: installer.id,
+    });
+    return NextResponse.redirect(new URL(backToAcceptUrl(leadId, token), url), 303);
+  }
   const { data: profile } = await admin
     .from("users")
-    .select("id, email, role, credits, blocked")
-    .eq("id", user.id)
+    .select("id, email, credits, blocked")
+    .ilike("email", installerEmail)
+    .limit(1)
     .maybeSingle<{
       id: string;
       email: string;
-      role: "admin" | "user" | "installer";
       credits: number;
       blocked: boolean;
     }>();
   if (!profile || profile.blocked) {
-    console.warn("[ack] blocked or missing profile", {
-      userId: user.id,
-      blocked: profile?.blocked,
+    console.warn("[ack] no matching user account for installer email", {
+      leadId,
+      installerEmail,
     });
-    return NextResponse.redirect(new URL(landingUrl("error"), url), 303);
-  }
-  if (profile.role !== "installer" && profile.role !== "admin") {
-    console.warn("[ack] non-installer attempted accept", {
-      userId: user.id,
-      role: profile.role,
-    });
-    // Bounce back to the page — it'll render the "needs installer
-    // role" claim CTA.
-    const back = `/lead/accept?lead=${encodeURIComponent(leadId)}&token=${encodeURIComponent(token)}`;
-    return NextResponse.redirect(new URL(back, url), 303);
-  }
-  // Installer-binding check — the logged-in user must own the
-  // installer record this lead was sent to. Same logic as the page-
-  // level gate, mirrored here as defence-in-depth (a hand-crafted
-  // POST could bypass the page check). Admins always pass.
-  if (profile.role !== "admin") {
-    const expectedEmail = installer.email?.toLowerCase().trim() ?? null;
-    const currentEmail = profile.email?.toLowerCase().trim() ?? "";
-    if (expectedEmail !== null && expectedEmail !== currentEmail) {
-      console.warn("[ack] wrong-account attempted accept", {
-        userId: user.id,
-        userEmail: profile.email,
-        expectedEmail,
-      });
-      const back = `/lead/accept?lead=${encodeURIComponent(leadId)}&token=${encodeURIComponent(token)}`;
-      return NextResponse.redirect(new URL(back, url), 303);
-    }
+    return NextResponse.redirect(new URL(backToAcceptUrl(leadId, token), url), 303);
   }
   if (profile.credits < LEAD_ACCEPT_COST_CREDITS) {
     console.warn("[ack] insufficient credits at submit", {
-      userId: user.id,
+      userId: profile.id,
       credits: profile.credits,
     });
-    const back = `/lead/accept?lead=${encodeURIComponent(leadId)}&token=${encodeURIComponent(token)}`;
-    return NextResponse.redirect(new URL(back, url), 303);
+    return NextResponse.redirect(new URL(backToAcceptUrl(leadId, token), url), 303);
   }
 
-  // 5. Atomic claim of the meeting slot — `update WHERE status =
-  // 'pending'` returns 0 rows if another concurrent POST got there
-  // first. This is the fix for the duplicate-calendar-invite bug
-  // we saw in production: two near-simultaneous form submits both
-  // passed the alreadyAccepted check (neither had updated yet) and
-  // both fired the fan-out. Now only the first wins.
+  // ── Atomic claim of the meeting slot ────────────────────────────
+  // pending → booked (accept) or pending → cancelled (reschedule).
+  // CAS returns 0 rows if another concurrent POST got there first.
   if (!meeting) {
     console.warn(
-      "[ack] no meeting row found for lead — calendar invites cannot fire",
+      "[ack] no meeting row found for lead — calendar invite cannot fire",
       { leadId },
     );
   } else {
+    const targetStatus = action === "accept" ? "booked" : "cancelled";
     const { data: claimedRows, error: claimErr } = await admin
       .from("installer_meetings")
-      .update({ status: "booked" })
+      .update({ status: targetStatus })
       .eq("id", meeting.id)
       .eq("status", "pending")
       .select("id");
@@ -332,12 +342,9 @@ export async function POST(req: Request) {
       return NextResponse.redirect(new URL(landingUrl("error"), url), 303);
     }
     if (!claimedRows || claimedRows.length === 0) {
-      // Another request beat us to it — treat as already accepted
-      // by someone (likely a duplicate submit) and bail without
-      // re-firing.
       console.log(
         "[ack] CAS lost — meeting was already claimed by another request",
-        { leadId, meetingId: meeting.id },
+        { leadId, meetingId: meeting.id, targetStatus },
       );
       await admin
         .from("installer_leads")
@@ -347,27 +354,15 @@ export async function POST(req: Request) {
     }
   }
 
-  // 6. Atomic credit debit. If this fails (race between page-load
-  // check + this debit), roll the meeting back to pending so the
-  // slot doesn't get burned without payment.
+  // ── Atomic credit debit ────────────────────────────────────────
   const { data: debited, error: debitErr } = await admin.rpc("deduct_credits", {
-    p_user_id: user.id,
+    p_user_id: profile.id,
     p_count: LEAD_ACCEPT_COST_CREDITS,
   });
-  if (debitErr) {
-    console.error("[ack] credit debit RPC failed", debitErr);
-    // Roll back the CAS so the slot can be retried.
-    if (meeting) {
-      await admin
-        .from("installer_meetings")
-        .update({ status: "pending" })
-        .eq("id", meeting.id);
-    }
-    return NextResponse.redirect(new URL(landingUrl("error"), url), 303);
-  }
-  if (!debited) {
-    console.warn("[ack] credit debit returned false — rollback", {
-      userId: user.id,
+  if (debitErr || !debited) {
+    console.error("[ack] credit debit failed — rolling back meeting", {
+      err: debitErr,
+      ok: debited,
     });
     if (meeting) {
       await admin
@@ -375,127 +370,282 @@ export async function POST(req: Request) {
         .update({ status: "pending" })
         .eq("id", meeting.id);
     }
-    const back = `/lead/accept?lead=${encodeURIComponent(leadId)}&token=${encodeURIComponent(token)}`;
-    return NextResponse.redirect(new URL(back, url), 303);
+    return NextResponse.redirect(new URL(backToAcceptUrl(leadId, token), url), 303);
   }
   console.log("[ack] credits debited", {
-    userId: user.id,
+    userId: profile.id,
     cost: LEAD_ACCEPT_COST_CREDITS,
+    action,
   });
 
-  // 7. Flip lead → visit_booked.
+  // ── Lead status update ────────────────────────────────────────
+  // accept → visit_booked, reschedule → installer_acknowledged (took
+  // the lead, no slot booked).
   const { error: leadUpdateErr } = await admin
     .from("installer_leads")
     .update({
       acknowledge_clicked_at: now,
       installer_acknowledged_at: now,
-      status: "visit_booked",
-      visit_booked_for: meeting?.scheduled_at ?? null,
+      status: action === "accept" ? "visit_booked" : "installer_acknowledged",
+      visit_booked_for:
+        action === "accept" ? meeting?.scheduled_at ?? null : null,
     })
     .eq("id", leadId);
   if (leadUpdateErr) {
     console.error("[ack] lead status update failed", leadUpdateErr);
-    // Don't redirect on error here — the meeting + credit are
-    // already committed. Continue to the fan-out so the user gets
-    // their calendar invite + emails.
   }
 
-  // 5. Calendar invites are delivered by ICS attachments on the
-  // confirmed emails (built below). We DON'T also create events on
-  // the bookings calendar — testers reported duplicate entries when
-  // the bookings calendar was secondary on their personal Google
-  // account, since events on a calendar you own bleed into your main
-  // calendar feed. The `installer_meetings` table is the audit
-  // trail; the upcoming admin "all bookings" view will surface it.
-  //
-  // The calendar.ts module + GOOGLE_CALENDAR_* env vars stay in place
-  // — we'll re-enable bookings-calendar inserts when we move to a
-  // dedicated Workspace account that nobody's personal calendar
-  // subscribes to.
-  const reportFacts = extractReportFacts(lead.analysis_snapshot);
-
-  // Mark the meeting row's invite_sent_at so admin can see when
-  // notifications fired, even though we no longer track Google event
-  // IDs (those live on the bookings calendar in the future).
+  // Stamp invite_sent_at so admin sees when notifications fired.
   if (meeting) {
-    const { error: inviteUpdateErr } = await admin
+    await admin
       .from("installer_meetings")
       .update({ invite_sent_at: now })
       .eq("id", meeting.id);
-    if (inviteUpdateErr) {
-      console.error(
-        "[ack] meeting invite_sent_at update failed",
-        inviteUpdateErr,
-      );
-    }
   }
 
-  // 6. Confirmed emails to both parties.
-  const homeownerEmail = meeting
-    ? buildHomeownerEmail({
-        homeownerName: lead.contact_name ?? "there",
-        installerCompanyName: installer.company_name,
-        installerEmail: installer.email,
-        installerTelephone: installer.telephone,
-        installerWebsite: installer.website,
-        propertyAddress: lead.property_address,
-        meetingStartUtc: meeting.scheduled_at,
-        meetingDurationMin: meeting.duration_min,
-        wantsHeatPump: lead.wants_heat_pump,
-        wantsSolar: lead.wants_solar,
-        wantsBattery: lead.wants_battery,
-      })
-    : null;
-
-  const installerEmail =
-    meeting && installer.email
-      ? buildInstallerEmail({
-          installerCompanyName: installer.company_name,
-          homeownerName: lead.contact_name ?? "Homeowner",
-          homeownerEmail: lead.contact_email,
-          homeownerPhone: lead.contact_phone ?? null,
-          notes: lead.notes,
-          propertyAddress: lead.property_address,
-          propertyPostcode: lead.property_postcode,
-          meetingStartUtc: meeting.scheduled_at,
-          meetingDurationMin: meeting.duration_min,
-          travelBufferMin: meeting.travel_buffer_min,
-          wantsHeatPump: lead.wants_heat_pump,
-          wantsSolar: lead.wants_solar,
-          wantsBattery: lead.wants_battery,
-          hpVerdict: reportFacts.hpVerdict,
-          hpGrantGbp: reportFacts.hpGrantGbp,
-          hpSystemKw: reportFacts.hpSystemKw,
-          solarRating: reportFacts.solarRating,
-          solarKwp: reportFacts.solarKwp,
-        })
-      : null;
-
-  // Build ICS attachments for both confirmed emails. The homeowner
-  // gets a 1hr event, the installer gets a 2hr block (1hr meeting +
-  // travel buffers either side). Each ICS file gets a stable UID so
-  // updates / cancellations later can supersede the right event.
+  // ── Confirmed emails (+ ICS for accept only) ───────────────────
+  const reportFacts = extractReportFacts(lead.analysis_snapshot);
   const wantsList = listWants(
     lead.wants_heat_pump,
     lead.wants_solar,
     lead.wants_battery,
   );
 
-  const homeownerIcsAttachment: SendEmailAttachment | null = meeting
-    ? buildHomeownerIcsAttachment({
-        leadId,
-        meeting,
-        installerName: installer.company_name,
-        installerEmail: installer.email,
+  if (action === "accept") {
+    await sendAcceptEmails({
+      lead,
+      meeting,
+      installer,
+      reportFacts,
+      wantsList,
+      leadId,
+    });
+  } else {
+    // reschedule
+    await sendRescheduleEmails({ lead, meeting, installer, reportFacts, leadId });
+  }
+
+  return NextResponse.redirect(new URL(landingUrl("ok"), url), 303);
+}
+
+// ─── action=decline ────────────────────────────────────────────────────
+
+async function handleDecline({
+  admin,
+  url,
+  lead,
+  meeting,
+  installer,
+  leadId,
+  now,
+}: {
+  admin: ReturnType<typeof createAdminClient>;
+  url: URL;
+  lead: Pick<
+    LeadRow,
+    | "id"
+    | "installer_id"
+    | "status"
+    | "contact_name"
+    | "contact_email"
+    | "homeowner_lead_id"
+    | "property_latitude"
+    | "property_longitude"
+    | "wants_heat_pump"
+    | "wants_solar"
+    | "wants_battery"
+    | "analysis_snapshot"
+    | "property_address"
+    | "property_postcode"
+  >;
+  meeting: Pick<
+    MeetingRow,
+    "id" | "scheduled_at" | "status"
+  > | null;
+  installer: Pick<InstallerRow, "id" | "company_name" | "email">;
+  leadId: string;
+  now: string;
+}) {
+  // Already declined — bail
+  if (lead.status === "cancelled" || lead.status === "closed_lost") {
+    return NextResponse.redirect(new URL(landingUrl("declined"), url), 303);
+  }
+  // Already accepted (visit booked) — declining isn't allowed at that point
+  if (lead.status === "visit_booked") {
+    return NextResponse.redirect(new URL(landingUrl("ok"), url), 303);
+  }
+
+  // Cancel the meeting + lead atomically (CAS-style on meeting if present).
+  if (meeting && meeting.status === "pending") {
+    await admin
+      .from("installer_meetings")
+      .update({ status: "cancelled" })
+      .eq("id", meeting.id)
+      .eq("status", "pending");
+  }
+  await admin
+    .from("installer_leads")
+    .update({
+      status: "cancelled",
+      acknowledge_clicked_at: now,
+    })
+    .eq("id", leadId);
+
+  console.log("[ack] declined", { leadId, installerId: installer.id });
+
+  // Compute "X installers nearby" for the homeowner email.
+  let nearbyCount = 0;
+  if (lead.property_latitude != null && lead.property_longitude != null) {
+    try {
+      const result = await findNearby({
+        latitude: Number(lead.property_latitude),
+        longitude: Number(lead.property_longitude),
+        wantsHeatPump: lead.wants_heat_pump,
+        wantsSolar: lead.wants_solar,
+        wantsBattery: lead.wants_battery,
+        page: 1,
+        pageSize: 1,
+        maxDistanceKm: DECLINE_NEARBY_RADIUS_KM,
+        homeownerLeadId: null,
+      });
+      // Subtract 1 for the declining installer themselves (their record
+      // is in the directory and would show up in the nearby query).
+      nearbyCount = Math.max(0, result.totalCount - 1);
+    } catch (e) {
+      console.warn(
+        "[ack] nearby count failed — falling back to 0",
+        e instanceof Error ? e.message : e,
+      );
+    }
+  }
+
+  // Issue a fresh report-share token so the email can deep-link the
+  // homeowner back to their report's "Book a site visit" tab.
+  let reportUrl = `${normalisedBase()}/check`;
+  try {
+    reportUrl = await issueReportUrl({ admin, lead });
+  } catch (e) {
+    console.warn(
+      "[ack] report token issue failed — falling back to /check",
+      e instanceof Error ? e.message : e,
+    );
+  }
+
+  if (meeting) {
+    const declineEmail = buildDeclinedHomeownerEmail({
+      homeownerName: lead.contact_name ?? "there",
+      installerCompanyName: installer.company_name,
+      originalSlotUtc: meeting.scheduled_at,
+      wantsHeatPump: lead.wants_heat_pump,
+      wantsSolar: lead.wants_solar,
+      wantsBattery: lead.wants_battery,
+      nearbyInstallerCount: nearbyCount,
+      nearbyRadiusMiles: DECLINE_NEARBY_RADIUS_MILES,
+      reportUrl,
+    });
+    const result = await sendEmail({
+      to: lead.contact_email,
+      subject: declineEmail.subject,
+      html: declineEmail.html,
+      text: declineEmail.text,
+      tags: [
+        { name: "kind", value: "booking_declined_homeowner" },
+        { name: "lead_id", value: leadId },
+      ],
+    });
+    console.log("[ack] decline email", {
+      ok: result.ok,
+      ...(result.ok ? { id: result.id } : {}),
+    });
+  }
+
+  return NextResponse.redirect(new URL(landingUrl("declined"), url), 303);
+}
+
+// ─── Email senders ──────────────────────────────────────────────────────
+
+async function sendAcceptEmails({
+  lead,
+  meeting,
+  installer,
+  reportFacts,
+  wantsList,
+  leadId,
+}: {
+  lead: Pick<
+    LeadRow,
+    | "contact_name"
+    | "contact_email"
+    | "contact_phone"
+    | "property_address"
+    | "property_postcode"
+    | "wants_heat_pump"
+    | "wants_solar"
+    | "wants_battery"
+    | "notes"
+  >;
+  meeting: Pick<
+    MeetingRow,
+    "id" | "scheduled_at" | "duration_min" | "travel_buffer_min"
+  > | null;
+  installer: Pick<
+    InstallerRow,
+    "company_name" | "email" | "telephone" | "website"
+  >;
+  reportFacts: ReportFacts;
+  wantsList: string;
+  leadId: string;
+}) {
+  if (!meeting) return;
+
+  const homeownerEmail = buildHomeownerEmail({
+    homeownerName: lead.contact_name ?? "there",
+    installerCompanyName: installer.company_name,
+    installerEmail: installer.email,
+    installerTelephone: installer.telephone,
+    installerWebsite: installer.website,
+    propertyAddress: lead.property_address,
+    meetingStartUtc: meeting.scheduled_at,
+    meetingDurationMin: meeting.duration_min,
+    wantsHeatPump: lead.wants_heat_pump,
+    wantsSolar: lead.wants_solar,
+    wantsBattery: lead.wants_battery,
+  });
+  const installerEmail = installer.email
+    ? buildInstallerEmail({
+        installerCompanyName: installer.company_name,
         homeownerName: lead.contact_name ?? "Homeowner",
         homeownerEmail: lead.contact_email,
+        homeownerPhone: lead.contact_phone ?? null,
+        notes: lead.notes,
         propertyAddress: lead.property_address,
-        wantsList,
+        propertyPostcode: lead.property_postcode,
+        meetingStartUtc: meeting.scheduled_at,
+        meetingDurationMin: meeting.duration_min,
+        travelBufferMin: meeting.travel_buffer_min,
+        wantsHeatPump: lead.wants_heat_pump,
+        wantsSolar: lead.wants_solar,
+        wantsBattery: lead.wants_battery,
+        hpVerdict: reportFacts.hpVerdict,
+        hpGrantGbp: reportFacts.hpGrantGbp,
+        hpSystemKw: reportFacts.hpSystemKw,
+        solarRating: reportFacts.solarRating,
+        solarKwp: reportFacts.solarKwp,
       })
     : null;
 
-  const installerIcsAttachment: SendEmailAttachment | null =
-    meeting && installer.email
+  const homeownerIcs = buildHomeownerIcsAttachment({
+    leadId,
+    meeting,
+    installerName: installer.company_name,
+    installerEmail: installer.email,
+    homeownerName: lead.contact_name ?? "Homeowner",
+    homeownerEmail: lead.contact_email,
+    propertyAddress: lead.property_address,
+    wantsList,
+  });
+  const installerIcs =
+    installer.email && meeting
       ? buildInstallerIcsAttachment({
           leadId,
           meeting,
@@ -510,24 +660,18 @@ export async function POST(req: Request) {
         })
       : null;
 
-  const [homeownerEmailResult, installerEmailResult] = await Promise.all([
-    homeownerEmail
-      ? sendEmail({
-          to: lead.contact_email,
-          subject: homeownerEmail.subject,
-          html: homeownerEmail.html,
-          text: homeownerEmail.text,
-          tags: [
-            { name: "kind", value: "booking_confirmed_homeowner" },
-            { name: "lead_id", value: leadId },
-          ],
-          attachments: homeownerIcsAttachment ? [homeownerIcsAttachment] : undefined,
-        })
-      : Promise.resolve<SendEmailResult>({
-          ok: false,
-          skipped: true,
-          reason: "no meeting row",
-        }),
+  const [hRes, iRes] = await Promise.all([
+    sendEmail({
+      to: lead.contact_email,
+      subject: homeownerEmail.subject,
+      html: homeownerEmail.html,
+      text: homeownerEmail.text,
+      tags: [
+        { name: "kind", value: "booking_confirmed_homeowner" },
+        { name: "lead_id", value: leadId },
+      ],
+      attachments: [homeownerIcs],
+    }),
     installerEmail && installer.email
       ? sendEmail({
           to: installer.email,
@@ -539,7 +683,7 @@ export async function POST(req: Request) {
             { name: "kind", value: "booking_confirmed_installer" },
             { name: "lead_id", value: leadId },
           ],
-          attachments: installerIcsAttachment ? [installerIcsAttachment] : undefined,
+          attachments: installerIcs ? [installerIcs] : undefined,
         })
       : Promise.resolve<SendEmailResult>({
           ok: false,
@@ -547,28 +691,160 @@ export async function POST(req: Request) {
           reason: "no installer email on file",
         }),
   ]);
-
-  console.log("[ack] confirmed email results", {
-    homeowner: homeownerEmailResult.ok
-      ? { ok: true, id: homeownerEmailResult.id }
-      : "skipped" in homeownerEmailResult && homeownerEmailResult.skipped
-        ? { skipped: true, reason: homeownerEmailResult.reason }
-        : "error" in homeownerEmailResult
-          ? { error: homeownerEmailResult.error }
-          : { error: "unknown" },
-    installer: installerEmailResult.ok
-      ? { ok: true, id: installerEmailResult.id }
-      : "skipped" in installerEmailResult && installerEmailResult.skipped
-        ? { skipped: true, reason: installerEmailResult.reason }
-        : "error" in installerEmailResult
-          ? { error: installerEmailResult.error }
-          : { error: "unknown" },
-  });
-
-  return NextResponse.redirect(new URL(landingUrl("ok"), url), 303);
+  console.log("[ack] accept emails", { homeowner: hRes.ok, installer: iRes.ok });
 }
 
-// ─── ICS helpers ────────────────────────────────────────────────────────
+async function sendRescheduleEmails({
+  lead,
+  meeting,
+  installer,
+  reportFacts,
+  leadId,
+}: {
+  lead: Pick<
+    LeadRow,
+    | "contact_name"
+    | "contact_email"
+    | "contact_phone"
+    | "property_address"
+    | "property_postcode"
+    | "wants_heat_pump"
+    | "wants_solar"
+    | "wants_battery"
+    | "notes"
+  >;
+  meeting: Pick<MeetingRow, "scheduled_at" | "duration_min" | "travel_buffer_min"> | null;
+  installer: Pick<
+    InstallerRow,
+    "company_name" | "email" | "telephone" | "website"
+  >;
+  reportFacts: ReportFacts;
+  leadId: string;
+}) {
+  if (!meeting) return;
+
+  // Homeowner: "took your lead, wants to reschedule"
+  const reschedule = buildReschedulingHomeownerEmail({
+    homeownerName: lead.contact_name ?? "there",
+    installerCompanyName: installer.company_name,
+    installerEmail: installer.email,
+    installerTelephone: installer.telephone,
+    installerWebsite: installer.website,
+    originalSlotUtc: meeting.scheduled_at,
+    propertyAddress: lead.property_address,
+    wantsHeatPump: lead.wants_heat_pump,
+    wantsSolar: lead.wants_solar,
+    wantsBattery: lead.wants_battery,
+  });
+
+  // Installer: confirmed-installer email gives them full contact details
+  // so they can reach out. We reuse the existing template — it's the
+  // same payload, just no calendar invite.
+  const installerConf = installer.email
+    ? buildInstallerEmail({
+        installerCompanyName: installer.company_name,
+        homeownerName: lead.contact_name ?? "Homeowner",
+        homeownerEmail: lead.contact_email,
+        homeownerPhone: lead.contact_phone ?? null,
+        notes: lead.notes,
+        propertyAddress: lead.property_address,
+        propertyPostcode: lead.property_postcode,
+        meetingStartUtc: meeting.scheduled_at,
+        meetingDurationMin: meeting.duration_min,
+        travelBufferMin: meeting.travel_buffer_min,
+        wantsHeatPump: lead.wants_heat_pump,
+        wantsSolar: lead.wants_solar,
+        wantsBattery: lead.wants_battery,
+        hpVerdict: reportFacts.hpVerdict,
+        hpGrantGbp: reportFacts.hpGrantGbp,
+        hpSystemKw: reportFacts.hpSystemKw,
+        solarRating: reportFacts.solarRating,
+        solarKwp: reportFacts.solarKwp,
+      })
+    : null;
+
+  const [hRes, iRes] = await Promise.all([
+    sendEmail({
+      to: lead.contact_email,
+      subject: reschedule.subject,
+      html: reschedule.html,
+      text: reschedule.text,
+      tags: [
+        { name: "kind", value: "booking_rescheduling_homeowner" },
+        { name: "lead_id", value: leadId },
+      ],
+    }),
+    installerConf && installer.email
+      ? sendEmail({
+          to: installer.email,
+          subject: installerConf.subject,
+          html: installerConf.html,
+          text: installerConf.text,
+          replyTo: lead.contact_email,
+          tags: [
+            { name: "kind", value: "booking_confirmed_installer" },
+            { name: "lead_id", value: leadId },
+          ],
+        })
+      : Promise.resolve<SendEmailResult>({
+          ok: false,
+          skipped: true,
+          reason: "no installer email on file",
+        }),
+  ]);
+  console.log("[ack] reschedule emails", { homeowner: hRes.ok, installer: iRes.ok });
+}
+
+// ─── Helpers ────────────────────────────────────────────────────────────
+
+function normalisedBase(): string {
+  const base =
+    process.env.NEXT_PUBLIC_APP_URL ??
+    process.env.VERCEL_URL ??
+    "https://propertoasty.com";
+  const url = base.startsWith("http") ? base : `https://${base}`;
+  return url.replace(/\/+$/, "");
+}
+
+async function issueReportUrl({
+  admin,
+  lead,
+}: {
+  admin: ReturnType<typeof createAdminClient>;
+  lead: Pick<
+    LeadRow,
+    | "homeowner_lead_id"
+    | "contact_email"
+    | "analysis_snapshot"
+    | "property_address"
+    | "property_postcode"
+    | "property_latitude"
+    | "property_longitude"
+  >;
+}): Promise<string> {
+  // Same pattern as /api/reports/share — generate UUID first so we
+  // can sign + persist in one round-trip.
+  const reportId = randomUUID();
+  const token = buildReportToken(reportId);
+  const expires = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+  const { error } = await admin.from("report_tokens").insert({
+    id: reportId,
+    token,
+    kind: "self",
+    homeowner_lead_id: lead.homeowner_lead_id ?? null,
+    recipient_email: lead.contact_email,
+    analysis_snapshot: (lead.analysis_snapshot ?? {}) as never,
+    property_address: lead.property_address,
+    property_postcode: lead.property_postcode,
+    property_latitude: lead.property_latitude,
+    property_longitude: lead.property_longitude,
+    expires_at: expires,
+  });
+  if (error) {
+    throw new Error(`report token insert failed: ${error.message}`);
+  }
+  return `${normalisedBase()}/r/${token}`;
+}
 
 function listWants(hp: boolean, solar: boolean, battery: boolean): string {
   const parts: string[] = [];
@@ -604,7 +880,7 @@ function buildHomeownerIcsAttachment(args: {
     "Things to bring up:",
     "• MCS certification number on the quote.",
     "• Warranty length on labour AND kit (5+ years labour, 7+ on kit).",
-    "• Specific make + model — never accept a vague \"a 5 kW system\" line.",
+    '• Specific make + model — never accept a vague "a 5 kW system" line.',
     "• Whether they handle DNO notification + planning permission.",
     args.installerEmail ? `\nNeed to change or cancel? Email ${args.installerEmail}.` : "",
   ]
@@ -623,7 +899,6 @@ function buildHomeownerIcsAttachment(args: {
     attendeeEmail: args.homeownerEmail,
     attendeeName: args.homeownerName,
   });
-
   return {
     name: "site-survey.ics",
     contentBase64: icsToBase64(ics),
@@ -685,7 +960,6 @@ function buildInstallerIcsAttachment(args: {
     attendeeEmail: args.installerEmail,
     attendeeName: args.installerName,
   });
-
   return {
     name: "site-survey.ics",
     contentBase64: icsToBase64(ics),
