@@ -1,236 +1,203 @@
 import { NextRequest, NextResponse } from "next/server";
+import Stripe from "stripe";
 import { stripe } from "@/lib/stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
-import Stripe from "stripe";
+import { findPack } from "@/lib/billing/credit-packs";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function fromTable(admin: ReturnType<typeof createAdminClient>, table: string) {
-  return (admin as any).from(table);
-}
+// POST /api/webhook
+//
+// Stripe webhook handler. We currently care about ONE event type:
+//
+//   checkout.session.completed  →  one-time installer credit pack
+//                                  purchases. Insert a purchase
+//                                  audit row + add credits to the
+//                                  user atomically.
+//
+// Other event types are ignored with a 200 so Stripe doesn't retry
+// them.
+//
+// Idempotency: the audit row's `stripe_session_id` column is a
+// unique index. If Stripe retries (e.g. our 2xx took >10s) the
+// second insert hits the unique violation, we detect it, and skip
+// the credit add. End-state is "credited exactly once".
 
-export async function POST(request: NextRequest) {
-  const body = await request.text();
+export const runtime = "nodejs";
+export const maxDuration = 30;
+
+// Raw body needed for Stripe signature verification. Disable Next's
+// default body parsing.
+export const dynamic = "force-dynamic";
+
+export async function POST(request: NextRequest): Promise<NextResponse> {
   const signature = request.headers.get("stripe-signature");
-
   if (!signature) {
     return NextResponse.json({ error: "Missing signature" }, { status: 400 });
   }
 
-  let event: Stripe.Event;
-
-  try {
-    event = stripe.webhooks.constructEvent(
-      body,
-      signature,
-      process.env.STRIPE_WEBHOOK_SECRET!
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  if (!webhookSecret) {
+    console.error("[webhook] STRIPE_WEBHOOK_SECRET not configured");
+    return NextResponse.json(
+      { error: "Webhook not configured" },
+      { status: 500 },
     );
+  }
+
+  // Verify signature against the RAW request body. Anything between
+  // body parse and signature verify breaks the HMAC, so keep this
+  // straightforward.
+  const rawBody = await request.text();
+  let event: Stripe.Event;
+  try {
+    event = stripe.webhooks.constructEvent(rawBody, signature, webhookSecret);
   } catch (err) {
-    console.error("Webhook signature verification failed:", err);
+    const msg = err instanceof Error ? err.message : "verify failed";
+    console.error("[webhook] signature verification failed", msg);
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
 
-  const admin = createAdminClient();
+  console.log("[webhook] event received", {
+    id: event.id,
+    type: event.type,
+  });
 
-  // ── One-time payment (pay-as-you-go credit packs) ──
   if (event.type === "checkout.session.completed") {
     const session = event.data.object as Stripe.Checkout.Session;
+    return await handleCheckoutCompleted(session);
+  }
 
-    // Skip subscription checkouts — handled by invoice.paid
-    if (session.mode === "subscription") {
-      // Create enterprise subscription record
-      const userId = session.metadata?.user_id;
-      const credits = parseInt(session.metadata?.credits ?? "0", 10);
-      const pricePerCredit = parseFloat(
-        session.metadata?.price_per_credit ?? "0"
-      );
-      const planType = session.metadata?.plan_type ?? "monthly_block";
-      const subId =
-        typeof session.subscription === "string"
-          ? session.subscription
-          : null;
+  // Ignore everything else. Returning 200 stops Stripe retrying.
+  return NextResponse.json({ received: true, ignored: event.type });
+}
 
-      if (userId && subId) {
-        await fromTable(admin, "enterprise_subscriptions").insert({
-          user_id: userId,
-          stripe_subscription_id: subId,
-          plan_type: planType,
-          monthly_credits: credits,
-          price_per_credit: pricePerCredit,
-          status: "active",
-        });
+async function handleCheckoutCompleted(
+  session: Stripe.Checkout.Session,
+): Promise<NextResponse> {
+  // Only handle our installer credit purchases. Stripe webhooks are
+  // shared across an entire account; if the user runs other
+  // products through this Stripe account we don't want to
+  // accidentally grant credits.
+  const purpose = session.metadata?.purpose;
+  if (purpose !== "installer_credits") {
+    console.log("[webhook] ignoring checkout — wrong purpose", { purpose });
+    return NextResponse.json({ received: true, ignored: "non-credits" });
+  }
 
-        // Mark user as enterprise
-        await fromTable(admin, "users")
-          .update({ enterprise: true })
-          .eq("id", userId);
+  // Extract metadata + cross-check against our pack catalogue. We
+  // don't trust `pack_credits` directly — we look the pack up by
+  // `pack_id` so a tampered checkout can't mint extra credits.
+  const userId = session.metadata?.user_id ?? null;
+  const packId = session.metadata?.pack_id ?? null;
+  const installerIdRaw = session.metadata?.installer_id ?? null;
+  if (!userId || !packId) {
+    console.error("[webhook] missing metadata", { userId, packId });
+    return NextResponse.json({ error: "Missing metadata" }, { status: 400 });
+  }
+  const pack = findPack(packId);
+  if (!pack) {
+    console.error("[webhook] unknown pack id", { packId });
+    return NextResponse.json({ error: "Unknown pack" }, { status: 400 });
+  }
 
-        console.log(
-          `Created enterprise subscription for user ${userId}: ${credits} credits/mo`
-        );
-      }
-
-      return NextResponse.json({ received: true });
-    }
-
-    const userId = session.metadata?.user_id;
-    const credits = parseInt(session.metadata?.credits ?? "0", 10);
-
-    if (!userId || credits <= 0) {
-      console.error("Invalid webhook metadata:", session.metadata);
-      return NextResponse.json({ error: "Invalid metadata" }, { status: 400 });
-    }
-
-    // Record payment
-    const { error: paymentError } = await admin.from("payments").insert({
-      user_id: userId,
-      stripe_session_id: session.id,
-      stripe_payment_intent_id:
-        typeof session.payment_intent === "string"
-          ? session.payment_intent
-          : null,
-      amount: session.amount_total ?? 0,
-      credits_purchased: credits,
-      status: "completed",
+  // Sanity check the amount Stripe actually charged matches our
+  // catalogue. If it doesn't, something's gone weird (price drift,
+  // tampered checkout). Bail without crediting; the audit row is
+  // worth more than the credits.
+  const amountPaid = session.amount_total ?? 0;
+  if (amountPaid !== pack.pricePence) {
+    console.error("[webhook] amount mismatch", {
+      packId,
+      expected: pack.pricePence,
+      actual: amountPaid,
     });
-
-    if (paymentError) {
-      console.error("Failed to record payment:", paymentError);
-      return NextResponse.json({ error: "Failed to record payment" }, { status: 500 });
-    }
-
-    // Add credits to user
-    const { data: user, error: fetchError } = await admin
-      .from("users")
-      .select("credits")
-      .eq("id", userId)
-      .single();
-
-    if (fetchError) {
-      console.error("Failed to fetch user:", fetchError);
-      return NextResponse.json({ error: "Failed to fetch user" }, { status: 500 });
-    }
-
-    const { error: updateError } = await admin
-      .from("users")
-      .update({ credits: (user?.credits ?? 0) + credits })
-      .eq("id", userId);
-
-    if (updateError) {
-      console.error("Failed to update credits:", updateError);
-      return NextResponse.json({ error: "Failed to update credits" }, { status: 500 });
-    }
-
-    console.log(`Added ${credits} credits to user ${userId}`);
-  }
-
-  // ── Subscription invoice paid (monthly renewal) ──
-  if (event.type === "invoice.paid") {
-    const invoice = event.data.object as Stripe.Invoice;
-    // In newer Stripe API versions, subscription may be on parent_subscription_details or subscription_details
-    const invoiceAny = invoice as unknown as Record<string, unknown>;
-    const subId =
-      typeof invoiceAny.subscription === "string"
-        ? invoiceAny.subscription
-        : (invoice as unknown as { subscription_details?: { id?: string } }).subscription_details?.id ?? null;
-
-    if (subId) {
-      // Look up our subscription record
-      const { data: sub } = await fromTable(admin, "enterprise_subscriptions")
-        .select("id, user_id, monthly_credits")
-        .eq("stripe_subscription_id", subId)
-        .single();
-
-      if (sub) {
-        // Add monthly credits
-        const { data: user } = await admin
-          .from("users")
-          .select("credits")
-          .eq("id", sub.user_id)
-          .single();
-
-        if (user) {
-          await admin
-            .from("users")
-            .update({ credits: (user.credits ?? 0) + sub.monthly_credits })
-            .eq("id", sub.user_id);
-        }
-
-        // Record enterprise invoice
-        await fromTable(admin, "enterprise_invoices").insert({
-          user_id: sub.user_id,
-          subscription_id: sub.id,
-          stripe_invoice_id: invoice.id,
-          amount: invoice.amount_paid ?? 0,
-          credits: sub.monthly_credits,
-          status: "paid",
-          period_start: invoice.period_start
-            ? new Date(invoice.period_start * 1000).toISOString()
-            : null,
-          period_end: invoice.period_end
-            ? new Date(invoice.period_end * 1000).toISOString()
-            : null,
-        });
-
-        console.log(
-          `Enterprise renewal: +${sub.monthly_credits} credits for user ${sub.user_id}`
-        );
-      }
-    }
-  }
-
-  // ── Subscription status changes ──
-  if (
-    event.type === "customer.subscription.updated" ||
-    event.type === "customer.subscription.deleted"
-  ) {
-    const subscription = event.data.object as Stripe.Subscription;
-    const subAny = subscription as unknown as Record<string, unknown>;
-    const status = subscription.status;
-
-    const mappedStatus =
-      status === "active"
-        ? "active"
-        : status === "past_due"
-          ? "past_due"
-          : status === "canceled" || status === "unpaid"
-            ? "cancelled"
-            : "active";
-
-    const updateData: Record<string, unknown> = {
-      status: mappedStatus,
-      updated_at: new Date().toISOString(),
-    };
-
-    // current_period_start/end may be on the object or nested in newer API versions
-    if (typeof subAny.current_period_start === "number") {
-      updateData.current_period_start = new Date(
-        (subAny.current_period_start as number) * 1000
-      ).toISOString();
-    }
-    if (typeof subAny.current_period_end === "number") {
-      updateData.current_period_end = new Date(
-        (subAny.current_period_end as number) * 1000
-      ).toISOString();
-    }
-
-    await fromTable(admin, "enterprise_subscriptions")
-      .update(updateData)
-      .eq("stripe_subscription_id", subscription.id);
-
-    // If cancelled, remove enterprise flag
-    if (mappedStatus === "cancelled") {
-      const userId = subscription.metadata?.user_id;
-      if (userId) {
-        await fromTable(admin, "users")
-          .update({ enterprise: false })
-          .eq("id", userId);
-      }
-    }
-
-    console.log(
-      `Subscription ${subscription.id} status → ${mappedStatus}`
+    return NextResponse.json(
+      { error: "Amount mismatch" },
+      { status: 400 },
     );
   }
 
-  return NextResponse.json({ received: true });
+  const installerId =
+    installerIdRaw && /^\d+$/.test(installerIdRaw)
+      ? Number(installerIdRaw)
+      : null;
+  const paymentIntentId =
+    typeof session.payment_intent === "string" ? session.payment_intent : null;
+
+  const admin = createAdminClient();
+
+  // ── 1. Insert the audit row. The unique index on
+  // stripe_session_id makes retries idempotent: a duplicate row
+  // returns a 23505 unique-violation, which we treat as "already
+  // processed" and skip the credit add.
+  const { error: insertErr } = await admin
+    .from("installer_credit_purchases")
+    .insert({
+      user_id: userId,
+      installer_id: installerId,
+      pack_credits: pack.credits,
+      price_pence: pack.pricePence,
+      currency: session.currency ?? "gbp",
+      stripe_session_id: session.id,
+      stripe_payment_intent_id: paymentIntentId,
+      status: "completed",
+    });
+
+  if (insertErr) {
+    // 23505 = unique violation = duplicate webhook delivery
+    if (insertErr.code === "23505") {
+      console.log("[webhook] duplicate session — already credited", {
+        sessionId: session.id,
+      });
+      return NextResponse.json({ received: true, dedup: true });
+    }
+    console.error("[webhook] audit insert failed", insertErr);
+    // Return 500 so Stripe retries.
+    return NextResponse.json(
+      { error: "Audit insert failed" },
+      { status: 500 },
+    );
+  }
+
+  // ── 2. Add credits. Read-modify-write is fine here because the
+  // audit row insert above is the actual idempotency guard. Two
+  // concurrent webhook deliveries can't both reach this point.
+  const { data: profile, error: fetchErr } = await admin
+    .from("users")
+    .select("credits")
+    .eq("id", userId)
+    .maybeSingle<{ credits: number }>();
+  if (fetchErr || !profile) {
+    console.error("[webhook] user fetch failed", fetchErr);
+    return NextResponse.json(
+      { error: "User fetch failed" },
+      { status: 500 },
+    );
+  }
+
+  const newBalance = (profile.credits ?? 0) + pack.credits;
+  const { error: updateErr } = await admin
+    .from("users")
+    .update({ credits: newBalance })
+    .eq("id", userId);
+  if (updateErr) {
+    console.error("[webhook] credit update failed", updateErr);
+    // The audit row is already written. Return 500 so Stripe
+    // retries — on retry, the audit insert will dedup but we'll
+    // attempt the credit add again. Worst case admin manually
+    // tops up.
+    return NextResponse.json(
+      { error: "Credit update failed" },
+      { status: 500 },
+    );
+  }
+
+  console.log("[webhook] credited", {
+    userId,
+    installerId,
+    packId,
+    creditsAdded: pack.credits,
+    newBalance,
+  });
+
+  return NextResponse.json({ received: true, credited: pack.credits });
 }

@@ -1144,6 +1144,36 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["installer_availability"]["Insert"]>;
         Relationships: [];
       };
+      installer_credit_purchases: {
+        Row: {
+          id: string;
+          user_id: string | null;
+          installer_id: number | null;
+          pack_credits: number;
+          price_pence: number;
+          currency: string;
+          stripe_session_id: string;
+          stripe_payment_intent_id: string | null;
+          status: "completed" | "refunded";
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id?: string | null;
+          installer_id?: number | null;
+          pack_credits: number;
+          price_pence: number;
+          currency?: string;
+          stripe_session_id: string;
+          stripe_payment_intent_id?: string | null;
+          status?: "completed" | "refunded";
+          created_at?: string;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["installer_credit_purchases"]["Insert"]
+        >;
+        Relationships: [];
+      };
       installer_signup_requests: {
         Row: {
           id: string;
