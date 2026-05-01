@@ -1144,6 +1144,66 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["installer_availability"]["Insert"]>;
         Relationships: [];
       };
+      installer_signup_requests: {
+        Row: {
+          id: string;
+          status: "pending" | "approved" | "rejected";
+          company_number: string | null;
+          company_name: string;
+          ch_address: string | null;
+          ch_incorporation_date: string | null;
+          contact_name: string;
+          contact_email: string;
+          contact_phone: string;
+          bus_registered: boolean;
+          cap_heat_pump: boolean;
+          cap_solar_pv: boolean;
+          cap_battery_storage: boolean;
+          certification_body: string | null;
+          certification_number: string | null;
+          certification_pending: boolean;
+          notes: string | null;
+          request_ip_hash: string | null;
+          request_user_agent: string | null;
+          reviewed_by: string | null;
+          reviewed_at: string | null;
+          admin_notes: string | null;
+          approved_installer_id: number | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          status?: "pending" | "approved" | "rejected";
+          company_number?: string | null;
+          company_name: string;
+          ch_address?: string | null;
+          ch_incorporation_date?: string | null;
+          contact_name: string;
+          contact_email: string;
+          contact_phone: string;
+          bus_registered?: boolean;
+          cap_heat_pump?: boolean;
+          cap_solar_pv?: boolean;
+          cap_battery_storage?: boolean;
+          certification_body?: string | null;
+          certification_number?: string | null;
+          certification_pending?: boolean;
+          notes?: string | null;
+          request_ip_hash?: string | null;
+          request_user_agent?: string | null;
+          reviewed_by?: string | null;
+          reviewed_at?: string | null;
+          admin_notes?: string | null;
+          approved_installer_id?: number | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["installer_signup_requests"]["Insert"]
+        >;
+        Relationships: [];
+      };
       installer_meetings: {
         Row: {
           id: string;

@@ -1,11 +1,13 @@
 import { PortalShell } from "@/components/portal-shell";
 import {
   BarChart3,
+  Building2,
   FileText,
   Newspaper,
   Users,
   type LucideIcon,
 } from "lucide-react";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 // Admin portal landing.
 //
@@ -18,37 +20,59 @@ interface FeatureCard {
   icon: LucideIcon;
   status: "live" | "coming-soon";
   href?: string;
+  badge?: number;
 }
 
-const FEATURES: FeatureCard[] = [
-  {
-    title: "User management",
-    body: "Add and edit users, block accounts, promote installers to admins.",
-    icon: Users,
-    status: "coming-soon",
-  },
-  {
-    title: "Performance dashboard",
-    body: "Credit purchases, credit consumption, lead match rates — filterable by month or all-time.",
-    icon: BarChart3,
-    status: "coming-soon",
-  },
-  {
-    title: "Blog manager",
-    body: "Create, edit and delete Journal posts.",
-    icon: Newspaper,
-    status: "live",
-    href: "/dashboard/admin/blog",
-  },
-  {
-    title: "Report history",
-    body: "Search every report by address, email, phone, name or 6-character ID.",
-    icon: FileText,
-    status: "coming-soon",
-  },
-];
+async function loadPendingRequestCount(): Promise<number> {
+  const admin = createAdminClient();
+  const { count } = await admin
+    .from("installer_signup_requests")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "pending");
+  return count ?? 0;
+}
 
-export default function AdminHomePage() {
+export const dynamic = "force-dynamic";
+
+export default async function AdminHomePage() {
+  const pendingRequests = await loadPendingRequestCount();
+
+  const features: FeatureCard[] = [
+    {
+      title: "Installer requests",
+      body: "Review installers asking to be added to the directory. Approve, reject, or request more info.",
+      icon: Building2,
+      status: "live",
+      href: "/admin/installer-requests",
+      badge: pendingRequests,
+    },
+    {
+      title: "User management",
+      body: "Add and edit users, block accounts, promote installers to admins.",
+      icon: Users,
+      status: "coming-soon",
+    },
+    {
+      title: "Performance dashboard",
+      body: "Credit purchases, credit consumption, lead match rates — filterable by month or all-time.",
+      icon: BarChart3,
+      status: "coming-soon",
+    },
+    {
+      title: "Blog manager",
+      body: "Create, edit and delete Journal posts.",
+      icon: Newspaper,
+      status: "live",
+      href: "/dashboard/admin/blog",
+    },
+    {
+      title: "Report history",
+      body: "Search every report by address, email, phone, name or 6-character ID.",
+      icon: FileText,
+      status: "coming-soon",
+    },
+  ];
+
   return (
     <PortalShell
       portalName="Admin"
@@ -56,7 +80,7 @@ export default function AdminHomePage() {
       pageSubtitle="Manage users, watch performance, and keep the directory honest."
     >
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {FEATURES.map((f) => (
+        {features.map((f) => (
           <FeatureTile key={f.title} feature={f} />
         ))}
       </div>
@@ -88,6 +112,11 @@ function FeatureTile({ feature }: { feature: FeatureCard }) {
         {feature.status === "coming-soon" && (
           <span className="ml-auto inline-flex items-center text-[10px] font-semibold uppercase tracking-wider text-slate-500 bg-slate-100 rounded-full px-2 py-0.5">
             Soon
+          </span>
+        )}
+        {feature.status === "live" && feature.badge && feature.badge > 0 && (
+          <span className="ml-auto inline-flex items-center justify-center min-w-[22px] h-5 px-1.5 rounded-full text-[10px] font-bold bg-coral text-white">
+            {feature.badge}
           </span>
         )}
       </div>

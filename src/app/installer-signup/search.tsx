@@ -158,18 +158,23 @@ export function ClaimSearch() {
             <p className="font-semibold text-navy mb-1">
               No matches for &ldquo;{q}&rdquo;.
             </p>
-            <p className="text-xs">
+            <p className="text-xs mb-3">
               {byNumber
                 ? "We don't have an MCS-listed installer with that Companies House number."
                 : "Try a different spelling — or your Companies House number for an exact match."}
             </p>
+            <Link
+              href="/installer-signup/request"
+              className="inline-flex items-center justify-center gap-1.5 h-10 px-4 rounded-full bg-coral hover:bg-coral-dark text-white font-semibold text-xs shadow-sm transition-colors"
+            >
+              Can&rsquo;t find your company? Request to be added →
+            </Link>
           </div>
         )}
 
         {!results && (
           <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-4 text-xs text-slate-500 leading-relaxed">
-            We pull every match against the MCS-certified directory we
-            scrape from{" "}
+            We match against the MCS-certified directory we scrape from{" "}
             <a
               href="https://mcscertified.com"
               target="_blank"
@@ -178,14 +183,14 @@ export function ClaimSearch() {
             >
               mcscertified.com
             </a>
-            . If yours isn&rsquo;t there yet, email{" "}
-            <a
-              href="mailto:hello@propertoasty.com"
-              className="underline"
+            . If yours isn&rsquo;t there yet,{" "}
+            <Link
+              href="/installer-signup/request"
+              className="text-coral hover:text-coral-dark font-medium underline"
             >
-              hello@propertoasty.com
-            </a>{" "}
-            and we&rsquo;ll add it manually.
+              request to be added
+            </Link>
+            {" "}— we&rsquo;ll review and get back to you within a working day.
           </div>
         )}
       </div>
