@@ -328,15 +328,17 @@ function AutoControls({
 
   return (
     <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
-      <div className="flex items-center justify-between gap-3 mb-3">
-        <div>
-          <p className="text-sm font-semibold text-navy">Auto top-up</p>
-          <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">
-            {settings.enabled
-              ? "On — flick off to stop auto charges."
-              : "Pick a pack, then flick on."}
-          </p>
-        </div>
+      <div className="flex items-center justify-between gap-3 mb-1">
+        <p
+          className={`text-sm font-semibold ${
+            settings.enabled ? "text-emerald-700" : "text-slate-500"
+          }`}
+        >
+          Auto top-up is{" "}
+          <span className="font-bold">
+            {settings.enabled ? "ON" : "OFF"}
+          </span>
+        </p>
         <ToggleSwitch
           checked={settings.enabled}
           disabled={saving}
@@ -346,6 +348,11 @@ function AutoControls({
           }
         />
       </div>
+      <p className="text-[11px] text-slate-500 leading-relaxed mb-3">
+        {settings.enabled
+          ? "We'll auto-buy when your balance drops to 10 credits or below."
+          : "Pick a pack below, then flick the switch on."}
+      </p>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
         {CREDIT_PACKS.map((p) => {
