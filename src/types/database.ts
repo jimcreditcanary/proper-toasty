@@ -17,6 +17,16 @@ export interface Database {
           api_key: string | null;
           role: "admin" | "user" | "installer";
           blocked: boolean;
+          // Migration 042 — C2 auto top-up
+          stripe_customer_id: string | null;
+          auto_recharge_pack_id:
+            | "starter"
+            | "growth"
+            | "scale"
+            | "volume"
+            | null;
+          auto_recharge_failed_at: string | null;
+          auto_recharge_failure_reason: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -27,6 +37,15 @@ export interface Database {
           api_key?: string | null;
           role?: "admin" | "user" | "installer";
           blocked?: boolean;
+          stripe_customer_id?: string | null;
+          auto_recharge_pack_id?:
+            | "starter"
+            | "growth"
+            | "scale"
+            | "volume"
+            | null;
+          auto_recharge_failed_at?: string | null;
+          auto_recharge_failure_reason?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -37,6 +56,15 @@ export interface Database {
           api_key?: string | null;
           role?: "admin" | "user" | "installer";
           blocked?: boolean;
+          stripe_customer_id?: string | null;
+          auto_recharge_pack_id?:
+            | "starter"
+            | "growth"
+            | "scale"
+            | "volume"
+            | null;
+          auto_recharge_failed_at?: string | null;
+          auto_recharge_failure_reason?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -1144,6 +1172,40 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["installer_availability"]["Insert"]>;
         Relationships: [];
       };
+      installer_auto_recharge_attempts: {
+        Row: {
+          id: string;
+          user_id: string | null;
+          installer_id: number | null;
+          pack_id: string;
+          pack_credits: number;
+          price_pence: number;
+          status: "succeeded" | "requires_action" | "failed";
+          stripe_payment_intent_id: string | null;
+          failure_code: string | null;
+          failure_message: string | null;
+          balance_at_trigger: number | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id?: string | null;
+          installer_id?: number | null;
+          pack_id: string;
+          pack_credits: number;
+          price_pence: number;
+          status: "succeeded" | "requires_action" | "failed";
+          stripe_payment_intent_id?: string | null;
+          failure_code?: string | null;
+          failure_message?: string | null;
+          balance_at_trigger?: number | null;
+          created_at?: string;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["installer_auto_recharge_attempts"]["Insert"]
+        >;
+        Relationships: [];
+      };
       installer_credit_purchases: {
         Row: {
           id: string;
@@ -1152,7 +1214,9 @@ export interface Database {
           pack_credits: number;
           price_pence: number;
           currency: string;
-          stripe_session_id: string;
+          // Nullable from Migration 042: off-session auto-recharges
+          // don't go through Checkout, so no session id.
+          stripe_session_id: string | null;
           stripe_payment_intent_id: string | null;
           status: "completed" | "refunded";
           created_at: string;
@@ -1164,7 +1228,7 @@ export interface Database {
           pack_credits: number;
           price_pence: number;
           currency?: string;
-          stripe_session_id: string;
+          stripe_session_id?: string | null;
           stripe_payment_intent_id?: string | null;
           status?: "completed" | "refunded";
           created_at?: string;

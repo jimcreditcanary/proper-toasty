@@ -1,5 +1,8 @@
+import Link from "next/link";
+import { createClient } from "@/lib/supabase/server";
 import { PortalShell } from "@/components/portal-shell";
 import {
+  AlertCircle,
   CalendarDays,
   CreditCard,
   FileText,
@@ -58,9 +61,10 @@ const FEATURES: FeatureCard[] = [
   },
   {
     title: "Buy credits",
-    body: "30 / 100 / 250 / 1,000 credit packs. Auto-recharge available.",
+    body: "30 / 100 / 250 / 1,000 credit packs. Auto top-up available.",
     icon: CreditCard,
-    status: "coming-soon",
+    status: "live",
+    href: "/installer/credits",
   },
   {
     title: "Performance",
@@ -82,13 +86,57 @@ const FEATURES: FeatureCard[] = [
   },
 ];
 
-export default function InstallerHomePage() {
+export const dynamic = "force-dynamic";
+
+export default async function InstallerHomePage() {
+  // Pull the auto-recharge failure flag so the banner can render.
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  let failureReason: string | null = null;
+  if (user) {
+    const { data: profile } = await supabase
+      .from("users")
+      .select("auto_recharge_failed_at, auto_recharge_failure_reason")
+      .eq("id", user.id)
+      .maybeSingle<{
+        auto_recharge_failed_at: string | null;
+        auto_recharge_failure_reason: string | null;
+      }>();
+    if (profile?.auto_recharge_failed_at) {
+      failureReason = profile.auto_recharge_failure_reason ?? "Card declined";
+    }
+  }
+
   return (
     <PortalShell
       portalName="Installer"
       pageTitle="Welcome back"
       pageSubtitle="Manage your availability, accept leads, and quote with confidence."
     >
+      {failureReason && (
+        <Link
+          href="/installer/credits"
+          className="block rounded-xl border border-amber-200 bg-amber-50 p-4 mb-5 hover:border-amber-300 transition-colors"
+        >
+          <div className="flex items-start gap-3 text-sm">
+            <AlertCircle className="w-5 h-5 shrink-0 mt-0.5 text-amber-700" />
+            <div className="flex-1">
+              <p className="font-semibold text-amber-900">
+                Auto top-up didn&rsquo;t go through
+              </p>
+              <p className="text-xs text-amber-900 mt-1 leading-relaxed">
+                {failureReason}
+              </p>
+              <p className="text-xs text-amber-800 mt-1.5 font-medium">
+                Top up manually to keep accepting leads →
+              </p>
+            </div>
+          </div>
+        </Link>
+      )}
+
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {FEATURES.map((f) => (
           <FeatureTile key={f.title} feature={f} />

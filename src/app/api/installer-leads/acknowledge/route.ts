@@ -15,6 +15,7 @@ import { buildIcs, icsToBase64 } from "@/lib/email/ics";
 import { LEAD_ACCEPT_COST_CREDITS } from "@/lib/booking/credits";
 import { findNearby } from "@/lib/services/installers";
 import { resolveInstallerProfile } from "@/lib/installer-claim/resolve-profile";
+import { maybeRunAutoRecharge } from "@/lib/billing/auto-recharge";
 import type { Database } from "@/types/database";
 
 const FROM_EMAIL =
@@ -376,6 +377,17 @@ export async function POST(req: Request) {
     userId: profile.id,
     cost: LEAD_ACCEPT_COST_CREDITS,
     action,
+  });
+
+  // C2 — fire auto top-up if enabled and balance is now at/under
+  // threshold. Fire-and-forget by design: a hiccup with the recharge
+  // never blocks lead acceptance. The function reads the user's
+  // current balance from `profile.credits` (pre-debit) minus the
+  // cost we just deducted.
+  void maybeRunAutoRecharge({
+    admin,
+    userId: profile.id,
+    balanceAfter: profile.credits - LEAD_ACCEPT_COST_CREDITS,
   });
 
   // ── Lead status update ────────────────────────────────────────

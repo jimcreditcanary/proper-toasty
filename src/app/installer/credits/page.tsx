@@ -11,6 +11,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { PortalShell } from "@/components/portal-shell";
 import { CREDIT_PACKS, formatGbp } from "@/lib/billing/credit-packs";
 import { BuyButtons } from "./buy-buttons";
+import { AutoTopUpPanel } from "./auto-topup-panel";
 import type { Database } from "@/types/database";
 
 export const dynamic = "force-dynamic";
@@ -90,10 +91,14 @@ export default async function CreditsPage({ searchParams }: PageProps) {
 
       <BuyButtons packs={CREDIT_PACKS} />
 
-      <p className="text-[11px] text-slate-500 text-center leading-relaxed mt-4 mb-8">
+      <p className="text-[11px] text-slate-500 text-center leading-relaxed mt-4 mb-6">
         Card payments handled by Stripe. We don&rsquo;t store card
         details. Receipts go to your account email.
       </p>
+
+      <div className="mb-8">
+        <AutoTopUpPanel />
+      </div>
 
       {/* Purchase history */}
       <div className="rounded-2xl border border-slate-200 bg-white p-5">

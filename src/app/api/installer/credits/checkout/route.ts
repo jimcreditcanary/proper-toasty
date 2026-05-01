@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { stripe } from "@/lib/stripe";
 import { findPack } from "@/lib/billing/credit-packs";
+import { ensureStripeCustomer } from "@/lib/billing/stripe-customer";
 
 // POST /api/installer/credits/checkout
 //
@@ -22,6 +23,12 @@ import { findPack } from "@/lib/billing/credit-packs";
 // defend against tampered amounts (Stripe trusts the line items
 // it actually charged for, but the webhook still uses pack_id +
 // our table to determine credits).
+//
+// C2 addition: every Checkout attaches to a Stripe Customer and
+// passes setup_future_usage='off_session' on the underlying
+// PaymentIntent so the card is saved + reusable. That gives us
+// what we need to fire off-session top-ups when balance hits the
+// auto-recharge threshold.
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -74,16 +81,36 @@ export async function POST(req: Request): Promise<NextResponse> {
     );
   }
 
+  const admin = createAdminClient();
+
   // Look up the bound installer (if any) so the webhook can stamp
   // installer_id on the audit row. If the user hasn't claimed an
   // installer yet, the purchase still succeeds — credits go to the
   // user account, installer_id stays null.
-  const admin = createAdminClient();
   const { data: installer } = await admin
     .from("installers")
     .select("id, company_name")
     .eq("user_id", user.id)
     .maybeSingle<{ id: number; company_name: string }>();
+
+  // Create or reuse a Stripe Customer so the card from this checkout
+  // is reusable for future off-session recharges (C2). Failure here
+  // is fatal — without a Customer we can't enable auto top-up later.
+  let customerId: string;
+  try {
+    customerId = await ensureStripeCustomer({
+      admin,
+      userId: user.id,
+      email: user.email,
+    });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Stripe customer error";
+    console.error("[credits/checkout] customer setup failed", message);
+    return NextResponse.json<CheckoutResponse>(
+      { ok: false, error: message },
+      { status: 500 },
+    );
+  }
 
   // App URL for success/cancel redirects. Falls back to the request
   // origin so this works on preview deploys without env config.
@@ -95,7 +122,11 @@ export async function POST(req: Request): Promise<NextResponse> {
   try {
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
-      customer_email: user.email,
+      customer: customerId,
+      // Save the card so we can charge it off-session for auto top-ups.
+      payment_intent_data: {
+        setup_future_usage: "off_session",
+      },
       line_items: [
         {
           quantity: 1,
@@ -138,6 +169,7 @@ export async function POST(req: Request): Promise<NextResponse> {
 
     console.log("[credits/checkout] session created", {
       userId: user.id,
+      customerId,
       packId: pack.id,
       installerId: installer?.id ?? null,
       sessionId: session.id,
