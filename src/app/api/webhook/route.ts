@@ -2,7 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { stripe } from "@/lib/stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { findPack } from "@/lib/billing/credit-packs";
+import { findPack, type CreditPack } from "@/lib/billing/credit-packs";
+import { buildEnableToken } from "@/lib/billing/enable-token";
+import { sendEmail } from "@/lib/email/client";
+import { buildPurchaseConfirmedEmail } from "@/lib/email/templates/installer-purchase-confirmed";
+import { buildEnableAutoTopUpEmail } from "@/lib/email/templates/installer-enable-auto-topup";
+import { buildAutoRechargeConfirmedEmail } from "@/lib/email/templates/installer-auto-recharge-confirmed";
 
 // POST /api/webhook
 //
@@ -12,7 +17,10 @@ import { findPack } from "@/lib/billing/credit-packs";
 //                                   (the Stripe Checkout flow).
 //                                   Insert audit row, add credits,
 //                                   persist customer_id, clear any
-//                                   prior auto-recharge failure.
+//                                   prior auto-recharge failure,
+//                                   send the receipt email + (on
+//                                   first-ever purchase) the auto
+//                                   top-up nudge email.
 //
 //   payment_intent.succeeded     →  off-session auto top-up (C2).
 //                                   PaymentIntents from Checkout
@@ -20,6 +28,8 @@ import { findPack } from "@/lib/billing/credit-packs";
 //                                   filter to ones marked with
 //                                   metadata.purpose === 'installer_credits_auto'
 //                                   to avoid double-crediting.
+//                                   Sends the auto-recharge
+//                                   confirmation email.
 //
 // Idempotency: installer_credit_purchases has unique partial indexes
 // on both stripe_session_id and stripe_payment_intent_id. Either is
@@ -128,6 +138,13 @@ async function handleCheckoutCompleted(
   const customerId =
     typeof session.customer === "string" ? session.customer : null;
 
+  // Stripe-hosted receipt URL — best-effort fetch from the underlying
+  // charge. Failures are non-fatal; the user still gets the credits
+  // and the email just omits the download link.
+  const receiptUrl = paymentIntentId
+    ? await fetchReceiptUrl(paymentIntentId)
+    : null;
+
   const admin = createAdminClient();
 
   // 1. Insert the audit row (unique index on stripe_session_id is
@@ -142,6 +159,7 @@ async function handleCheckoutCompleted(
       currency: session.currency ?? "gbp",
       stripe_session_id: session.id,
       stripe_payment_intent_id: paymentIntentId,
+      stripe_receipt_url: receiptUrl,
       status: "completed",
     });
 
@@ -163,12 +181,16 @@ async function handleCheckoutCompleted(
   //    failure flag (a successful manual top-up clears the alarm).
   const { data: profile, error: fetchErr } = await admin
     .from("users")
-    .select("credits, stripe_customer_id, auto_recharge_failed_at")
+    .select(
+      "email, credits, stripe_customer_id, auto_recharge_failed_at, auto_recharge_pack_id",
+    )
     .eq("id", userId)
     .maybeSingle<{
+      email: string;
       credits: number;
       stripe_customer_id: string | null;
       auto_recharge_failed_at: string | null;
+      auto_recharge_pack_id: string | null;
     }>();
   if (fetchErr || !profile) {
     console.error("[webhook] user fetch failed", fetchErr);
@@ -178,13 +200,9 @@ async function handleCheckoutCompleted(
   const newBalance = (profile.credits ?? 0) + pack.credits;
   const updatePayload: Record<string, unknown> = { credits: newBalance };
 
-  // Persist customer_id if checkout returned one and we don't have it
-  // yet (defensive — ensureStripeCustomer should have set it earlier).
   if (customerId && !profile.stripe_customer_id) {
     updatePayload.stripe_customer_id = customerId;
   }
-  // Heal the failure flag — a manual top-up means whatever blocked
-  // the off-session recharge is no longer urgent.
   if (profile.auto_recharge_failed_at) {
     updatePayload.auto_recharge_failed_at = null;
     updatePayload.auto_recharge_failure_reason = null;
@@ -209,6 +227,27 @@ async function handleCheckoutCompleted(
     creditsAdded: pack.credits,
     newBalance,
   });
+
+  // 3. Detect "first ever purchase" by counting installer_credit_purchases
+  //    for this user. Exact count of 1 means the row we just inserted is
+  //    the only one. We send the auto-top-up nudge email in that case.
+  const { count: purchaseCount } = await admin
+    .from("installer_credit_purchases")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId);
+  const isFirstPurchase = (purchaseCount ?? 0) === 1;
+
+  // 4. Send the receipt confirmation email + (first purchase only +
+  //    auto-recharge not already on) the nudge email. Soft-fail.
+  await sendCheckoutEmails({
+    userId,
+    email: profile.email,
+    pack,
+    newBalance,
+    receiptUrl,
+    isFirstPurchase: isFirstPurchase && !profile.auto_recharge_pack_id,
+  });
+
   return NextResponse.json({ received: true, credited: pack.credits });
 }
 
@@ -217,9 +256,6 @@ async function handleCheckoutCompleted(
 async function handlePaymentIntentSucceeded(
   intent: Stripe.PaymentIntent,
 ): Promise<NextResponse> {
-  // Only the off-session auto-recharge path. PaymentIntents from
-  // Checkout also emit this event but we already credit them via
-  // checkout.session.completed — filter by the bespoke purpose tag.
   const purpose = intent.metadata?.purpose;
   if (purpose !== "installer_credits_auto") {
     return NextResponse.json({ received: true, ignored: "non-auto" });
@@ -252,6 +288,7 @@ async function handlePaymentIntentSucceeded(
       ? Number(installerIdRaw)
       : null;
 
+  const receiptUrl = await fetchReceiptUrl(intent.id);
   const admin = createAdminClient();
 
   // 1. Insert audit row, deduped by stripe_payment_intent_id.
@@ -265,6 +302,7 @@ async function handlePaymentIntentSucceeded(
       currency: intent.currency ?? "gbp",
       stripe_session_id: null,
       stripe_payment_intent_id: intent.id,
+      stripe_receipt_url: receiptUrl,
       status: "completed",
     });
   if (insertErr) {
@@ -284,9 +322,13 @@ async function handlePaymentIntentSucceeded(
   // 2. Bump credits + clear failure flag.
   const { data: profile, error: fetchErr } = await admin
     .from("users")
-    .select("credits, auto_recharge_failed_at")
+    .select("email, credits, auto_recharge_failed_at")
     .eq("id", userId)
-    .maybeSingle<{ credits: number; auto_recharge_failed_at: string | null }>();
+    .maybeSingle<{
+      email: string;
+      credits: number;
+      auto_recharge_failed_at: string | null;
+    }>();
   if (fetchErr || !profile) {
     console.error("[webhook] auto-recharge user fetch failed", fetchErr);
     return NextResponse.json({ error: "User fetch failed" }, { status: 500 });
@@ -309,9 +351,6 @@ async function handlePaymentIntentSucceeded(
     );
   }
 
-  // 3. Mark the recharge attempt row as succeeded so the audit table
-  //    matches reality. We persisted it as 'failed' / 'requires_action'
-  //    pending the webhook (see auto-recharge.ts for why).
   if (attemptId) {
     await admin
       .from("installer_auto_recharge_attempts")
@@ -327,5 +366,162 @@ async function handlePaymentIntentSucceeded(
     newBalance,
     attemptId,
   });
+
+  // 3. Send the auto-recharge confirmation email. Soft-fail.
+  try {
+    const email = buildAutoRechargeConfirmedEmail({
+      contactName: null,
+      packLabel: pack.label,
+      packCredits: pack.credits,
+      pricePence: pack.pricePence,
+      newBalance,
+      receiptUrl,
+      creditsPortalUrl: `${normalisedBase()}/installer/credits`,
+    });
+    const result = await sendEmail({
+      to: profile.email,
+      subject: email.subject,
+      html: email.html,
+      text: email.text,
+      tags: [
+        { name: "kind", value: "installer_auto_recharge_confirmed" },
+        { name: "user_id", value: userId },
+      ],
+    });
+    console.log("[webhook] auto-recharge confirmation email", {
+      ok: result.ok,
+      ...(result.ok ? { id: result.id } : {}),
+    });
+  } catch (e) {
+    console.warn(
+      "[webhook] auto-recharge confirmation email failed",
+      e instanceof Error ? e.message : e,
+    );
+  }
+
   return NextResponse.json({ received: true, credited: pack.credits });
+}
+
+// ─── Helpers ────────────────────────────────────────────────────────
+
+// Fetch the Stripe-hosted receipt URL for the underlying Charge.
+// Both Checkout and off-session PaymentIntents end up with a Charge;
+// the URL lives on `charge.receipt_url`. Best-effort: returns null
+// on any failure rather than blowing up the webhook.
+async function fetchReceiptUrl(
+  paymentIntentId: string,
+): Promise<string | null> {
+  try {
+    const intent = await stripe.paymentIntents.retrieve(paymentIntentId);
+    const chargeRef = intent.latest_charge;
+    const chargeId = typeof chargeRef === "string" ? chargeRef : chargeRef?.id;
+    if (!chargeId) return null;
+    const charge = await stripe.charges.retrieve(chargeId);
+    return charge.receipt_url ?? null;
+  } catch (e) {
+    console.warn(
+      "[webhook] fetchReceiptUrl failed",
+      e instanceof Error ? e.message : e,
+    );
+    return null;
+  }
+}
+
+async function sendCheckoutEmails(args: {
+  userId: string;
+  email: string;
+  pack: CreditPack;
+  newBalance: number;
+  receiptUrl: string | null;
+  isFirstPurchase: boolean;
+}): Promise<void> {
+  const creditsPortalUrl = `${normalisedBase()}/installer/credits`;
+
+  // Receipt confirmation — every successful manual purchase.
+  try {
+    const email = buildPurchaseConfirmedEmail({
+      contactName: null,
+      packLabel: args.pack.label,
+      packCredits: args.pack.credits,
+      pricePence: args.pack.pricePence,
+      newBalance: args.newBalance,
+      receiptUrl: args.receiptUrl,
+      creditsPortalUrl,
+    });
+    const result = await sendEmail({
+      to: args.email,
+      subject: email.subject,
+      html: email.html,
+      text: email.text,
+      tags: [
+        { name: "kind", value: "installer_purchase_confirmed" },
+        { name: "user_id", value: args.userId },
+      ],
+    });
+    console.log("[webhook] purchase confirmation email", {
+      ok: result.ok,
+      ...(result.ok ? { id: result.id } : {}),
+    });
+  } catch (e) {
+    console.warn(
+      "[webhook] purchase confirmation email failed",
+      e instanceof Error ? e.message : e,
+    );
+  }
+
+  // First-purchase auto top-up nudge — only on the user's first ever
+  // purchase AND only if auto top-up isn't already on.
+  if (!args.isFirstPurchase) return;
+
+  try {
+    let enableUrl: string;
+    try {
+      const token = buildEnableToken(args.userId, args.pack.id);
+      enableUrl = `${normalisedBase()}/api/installer/credits/auto-recharge/enable?token=${encodeURIComponent(token)}`;
+    } catch (e) {
+      // Missing INSTALLER_AUTO_TOPUP_SECRET — skip the nudge rather
+      // than send a broken link.
+      console.warn(
+        "[webhook] enable token build failed — skipping nudge email",
+        e instanceof Error ? e.message : e,
+      );
+      return;
+    }
+
+    const email = buildEnableAutoTopUpEmail({
+      contactName: null,
+      packLabel: args.pack.label,
+      packCredits: args.pack.credits,
+      enableUrl,
+      creditsPortalUrl,
+    });
+    const result = await sendEmail({
+      to: args.email,
+      subject: email.subject,
+      html: email.html,
+      text: email.text,
+      tags: [
+        { name: "kind", value: "installer_enable_auto_topup" },
+        { name: "user_id", value: args.userId },
+      ],
+    });
+    console.log("[webhook] auto-topup nudge email", {
+      ok: result.ok,
+      ...(result.ok ? { id: result.id } : {}),
+    });
+  } catch (e) {
+    console.warn(
+      "[webhook] auto-topup nudge email failed",
+      e instanceof Error ? e.message : e,
+    );
+  }
+}
+
+function normalisedBase(): string {
+  const base =
+    process.env.NEXT_PUBLIC_APP_URL ??
+    process.env.VERCEL_URL ??
+    "https://propertoasty.com";
+  const url = base.startsWith("http") ? base : `https://${base}`;
+  return url.replace(/\/+$/, "");
 }

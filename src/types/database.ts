@@ -1218,6 +1218,7 @@ export interface Database {
           // don't go through Checkout, so no session id.
           stripe_session_id: string | null;
           stripe_payment_intent_id: string | null;
+          stripe_receipt_url: string | null;
           status: "completed" | "refunded";
           created_at: string;
         };
@@ -1230,6 +1231,7 @@ export interface Database {
           currency?: string;
           stripe_session_id?: string | null;
           stripe_payment_intent_id?: string | null;
+          stripe_receipt_url?: string | null;
           status?: "completed" | "refunded";
           created_at?: string;
         };
