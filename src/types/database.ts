@@ -1047,6 +1047,9 @@ export interface Database {
           homeowner_email_id: string | null;
           acknowledge_token: string | null;
           acknowledge_clicked_at: string | null;
+          // Migration 044 — C4 auto-release + reminder
+          installer_reminder_sent_at: string | null;
+          auto_released_at: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -1097,6 +1100,8 @@ export interface Database {
           homeowner_email_id?: string | null;
           acknowledge_token?: string | null;
           acknowledge_clicked_at?: string | null;
+          installer_reminder_sent_at?: string | null;
+          auto_released_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
