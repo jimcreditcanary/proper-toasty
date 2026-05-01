@@ -5,7 +5,6 @@ import {
   CreditCard,
   Loader2,
   Sparkles,
-  CheckCircle2,
   AlertCircle,
   X,
   Plus,
@@ -330,28 +329,22 @@ function AutoControls({
   return (
     <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
       <div className="flex items-center justify-between gap-3 mb-3">
-        <p className="text-sm font-semibold text-navy">
-          {settings.enabled ? "Pick the auto top-up pack" : "Choose a pack and turn it on"}
-        </p>
-        <button
-          type="button"
+        <div>
+          <p className="text-sm font-semibold text-navy">Auto top-up</p>
+          <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">
+            {settings.enabled
+              ? "On — flick off to stop auto charges."
+              : "Pick a pack, then flick on."}
+          </p>
+        </div>
+        <ToggleSwitch
+          checked={settings.enabled}
           disabled={saving}
-          onClick={() => update(settings.enabled ? null : draft)}
-          className={`inline-flex items-center justify-center gap-1.5 h-9 px-4 rounded-full text-xs font-semibold transition-colors ${
-            settings.enabled
-              ? "bg-emerald-600 hover:bg-emerald-700 text-white"
-              : "bg-coral hover:bg-coral-dark text-white"
-          } disabled:opacity-60`}
-        >
-          {settings.enabled ? (
-            <>
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              On — turn off
-            </>
-          ) : (
-            "Turn on"
-          )}
-        </button>
+          onChange={(next) => update(next ? draft : null)}
+          ariaLabel={
+            settings.enabled ? "Turn off auto top-up" : "Turn on auto top-up"
+          }
+        />
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -544,6 +537,46 @@ function BuyModal({ onClose }: { onClose: () => void }) {
         </p>
       </div>
     </div>
+  );
+}
+
+// ─── Toggle switch ─────────────────────────────────────────────────
+//
+// iOS-style on/off switch. Built as a `<button role="switch">` so
+// keyboard + screen-reader users get the right semantics. Coloured
+// with the same emerald used elsewhere on the credits page so the
+// "ON" state matches the green accents in the parent card.
+
+function ToggleSwitch({
+  checked,
+  disabled,
+  onChange,
+  ariaLabel,
+}: {
+  checked: boolean;
+  disabled?: boolean;
+  onChange: (next: boolean) => void;
+  ariaLabel: string;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={ariaLabel}
+      disabled={disabled}
+      onClick={() => onChange(!checked)}
+      className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-coral focus:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed ${
+        checked ? "bg-emerald-600" : "bg-slate-300"
+      }`}
+    >
+      <span
+        aria-hidden="true"
+        className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+          checked ? "translate-x-5" : "translate-x-0"
+        }`}
+      />
+    </button>
   );
 }
 
