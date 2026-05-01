@@ -6,11 +6,17 @@
 //   2. All purchases line up under one Stripe entity for support /
 //      reconciliation.
 //
-// users.stripe_customer_id is the source of truth. If it's set we
-// re-use it; otherwise we create a fresh Customer in Stripe and
-// persist the id back. The unique partial index on the column
-// stops a concurrent double-create from sticking.
+// users.stripe_customer_id is the source of truth. If it's set AND
+// Stripe still recognises the id we re-use it; otherwise we self-heal
+// by creating a fresh Customer and persisting the new id.
+//
+// Why the validation matters: an orphaned id sneaks in whenever the
+// Stripe key gets switched between modes (test ↔ live), the Customer
+// gets deleted in the dashboard, or the row was copied between
+// Stripe accounts. Without the check, every subsequent checkout
+// would 400 with "No such customer" and the user would be stuck.
 
+import type Stripe from "stripe";
 import { stripe } from "@/lib/stripe";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
@@ -28,7 +34,9 @@ export async function ensureStripeCustomer(
 ): Promise<string> {
   const { admin, userId, email } = args;
 
-  // Fast path: customer already on file.
+  // Fast path: customer already on file. Validate it with Stripe
+  // before trusting it — orphaned ids cause every downstream call
+  // to fail until a human clears the column.
   const { data: existing, error: lookupErr } = await admin
     .from("users")
     .select("stripe_customer_id")
@@ -38,7 +46,29 @@ export async function ensureStripeCustomer(
     throw new Error(`user lookup failed: ${lookupErr.message}`);
   }
   if (existing?.stripe_customer_id) {
-    return existing.stripe_customer_id;
+    const validated = await retrieveValidCustomer(existing.stripe_customer_id);
+    if (validated) {
+      return validated;
+    }
+    // Stale id — clear it and fall through to the create path. We
+    // don't return here so the same call can recover.
+    console.warn(
+      "[stripe-customer] stored customer id is stale, recreating",
+      { userId, staleId: existing.stripe_customer_id },
+    );
+    const { error: clearErr } = await admin
+      .from("users")
+      .update({ stripe_customer_id: null })
+      .eq("id", userId)
+      .eq("stripe_customer_id", existing.stripe_customer_id);
+    if (clearErr) {
+      // Soft fail — the create + persist below will hit the unique
+      // index and we'll re-read whatever ended up there.
+      console.warn(
+        "[stripe-customer] could not clear stale id",
+        clearErr.message,
+      );
+    }
   }
 
   // Create the Customer. We pass our own user id in metadata so
@@ -92,4 +122,34 @@ export async function ensureStripeCustomer(
   }
 
   return customer.id;
+}
+
+// Retrieve a Customer from Stripe and treat the result as either
+// "valid + return id" or "missing/deleted — caller should self-heal".
+// Other Stripe errors (auth, network) bubble up as throws because
+// we can't safely recreate without knowing they're truly orphaned.
+async function retrieveValidCustomer(
+  customerId: string,
+): Promise<string | null> {
+  try {
+    const customer = await stripe.customers.retrieve(customerId);
+    if ("deleted" in customer && customer.deleted) {
+      return null;
+    }
+    return customer.id;
+  } catch (err) {
+    // Stripe returns StripeInvalidRequestError with code 'resource_missing'
+    // when the id is wrong (mode mismatch, deleted customer, different
+    // account). That's the recoverable case.
+    const stripeErr = err as Stripe.errors.StripeError;
+    if (
+      stripeErr.code === "resource_missing" ||
+      stripeErr.statusCode === 404
+    ) {
+      return null;
+    }
+    // Anything else — re-throw. We don't want to silently mint a new
+    // Customer if Stripe just had a transient outage.
+    throw err;
+  }
 }

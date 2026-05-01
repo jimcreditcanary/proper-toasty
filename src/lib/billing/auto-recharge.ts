@@ -258,8 +258,29 @@ async function runAutoRecharge({
 async function pickDefaultPaymentMethod(
   customerId: string,
 ): Promise<string | null> {
-  // Prefer the Customer's default payment method if it's set.
-  const customer = await stripe.customers.retrieve(customerId);
+  // Prefer the Customer's default payment method if it's set. If
+  // the Customer has been deleted (or the id was created in a
+  // different Stripe account / mode) Stripe throws
+  // resource_missing — treat that as "no card", same as if a real
+  // card was simply absent. The off-session trigger then writes a
+  // failure record + emails the user.
+  let customer: Stripe.Response<Stripe.Customer | Stripe.DeletedCustomer>;
+  try {
+    customer = await stripe.customers.retrieve(customerId);
+  } catch (err) {
+    const stripeErr = err as Stripe.errors.StripeError;
+    if (
+      stripeErr.code === "resource_missing" ||
+      stripeErr.statusCode === 404
+    ) {
+      console.warn(
+        "[auto-recharge] customer id missing on Stripe — treating as no card",
+        { customerId },
+      );
+      return null;
+    }
+    throw err;
+  }
   if (customer.deleted) return null;
   const defaultPm = customer.invoice_settings?.default_payment_method;
   if (typeof defaultPm === "string") return defaultPm;
