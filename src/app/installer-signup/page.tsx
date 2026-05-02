@@ -23,6 +23,7 @@
 // exist.
 
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { Logo } from "@/components/logo";
@@ -58,6 +59,12 @@ interface PrefillData {
   // useful to someone who already knows the installer ID.
   email: string | null;
   alreadyClaimed: boolean;
+  /** The bound user_id (when claimed) so we can detect the case
+   *  where the signed-in viewer IS the owner — e.g. they came back
+   *  via the "sign in" CTA on the already-claimed view — and bounce
+   *  them straight to /installer rather than show "claimed by
+   *  someone else". */
+  ownerUserId: string | null;
 }
 
 async function loadInstaller(id: number): Promise<PrefillData | null> {
@@ -93,6 +100,7 @@ async function loadInstaller(id: number): Promise<PrefillData | null> {
     certificationNumber: data.certification_number,
     email: data.email,
     alreadyClaimed: data.user_id != null,
+    ownerUserId: data.user_id ?? null,
   };
 }
 
@@ -120,6 +128,16 @@ export default async function InstallerSignupPage({ searchParams }: PageProps) {
     data: { user },
   } = await supabase.auth.getUser();
   const signedInEmail = user?.email ?? null;
+
+  // Owner-recognition shortcut: if the signed-in viewer is the
+  // installer's bound user, send them straight to the portal —
+  // they're already done with the claim flow. Triggered when
+  // someone clicks "sign in" from the already-claimed view, signs
+  // in correctly, and would otherwise loop back into the same
+  // already-claimed page.
+  if (prefill && user && prefill.ownerUserId === user.id) {
+    redirect("/installer");
+  }
 
   return (
     <main className="min-h-screen bg-cream-deep px-4 py-12">
