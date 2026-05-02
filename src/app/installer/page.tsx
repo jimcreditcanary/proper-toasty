@@ -33,7 +33,8 @@ const FEATURES: FeatureCard[] = [
     title: "Availability",
     body: "Set the times you can take site visits. Slots auto-roll forward 28 days.",
     icon: CalendarDays,
-    status: "coming-soon",
+    status: "live",
+    href: "/installer/availability",
   },
   {
     title: "Leads",

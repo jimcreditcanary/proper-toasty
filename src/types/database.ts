@@ -989,6 +989,9 @@ export interface Database {
           checkatrade_url?: string | null;
           checkatrade_fetched_at?: string | null;
           checkatrade_status?: string | null;
+          // Migration 037 — installer-configurable visit length + travel buffer
+          meeting_duration_min?: number;
+          travel_buffer_min?: number;
           // Migration 039 — F2 installer claim binding
           user_id?: string | null;
           claimed_at?: string | null;
