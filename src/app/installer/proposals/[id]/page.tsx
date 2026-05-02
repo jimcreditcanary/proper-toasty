@@ -57,7 +57,7 @@ export default async function ProposalDetailPage({ params }: PageProps) {
       <PortalShell
         portalName="Installer"
         pageTitle="Proposal"
-        backLink={{ href: "/installer/proposals", label: "Back to proposals" }}
+        backLink={{ href: "/installer/proposals", label: "Back to quotes" }}
       >
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6">
           <p className="text-sm text-amber-900 leading-relaxed">
@@ -98,19 +98,20 @@ export default async function ProposalDetailPage({ params }: PageProps) {
   const homeownerUrl = `${appBaseUrl}/p/${proposal.homeowner_token}`;
 
   const lineItems = parseLineItems(proposal.line_items);
+  const messages = parseHomeownerMessages(proposal.homeowner_messages);
 
   return (
     <PortalShell
       portalName="Installer"
       pageTitle={
-        lead?.property_address ?? lead?.property_postcode ?? "Proposal"
+        lead?.property_address ?? lead?.property_postcode ?? "Quote"
       }
       pageSubtitle={
         lead?.contact_name
           ? `Quote sent to ${lead.contact_name}`
           : "Quote detail"
       }
-      backLink={{ href: "/installer/proposals", label: "Back to proposals" }}
+      backLink={{ href: "/installer/proposals", label: "Back to quotes" }}
     >
       {/* Status strip */}
       <StatusStrip proposal={proposal} />
@@ -230,6 +231,44 @@ export default async function ProposalDetailPage({ params }: PageProps) {
           </Link>
         )}
       </div>
+
+      {/* Homeowner messages — questions / callback requests left
+          on /p/<token>. Most recent at the bottom (chronological). */}
+      {messages.length > 0 && (
+        <div className="rounded-2xl border border-sky-200 bg-sky-50 p-5 mb-5">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-sky-700 mb-3">
+            Messages from {lead?.contact_name ?? "the homeowner"}
+          </p>
+          <ul className="space-y-2">
+            {messages.map((m) => (
+              <li
+                key={m.id}
+                className="rounded-lg bg-white border border-sky-100 p-3 text-sm"
+              >
+                <p className="text-[10px] font-bold uppercase tracking-wider text-sky-700 mb-1">
+                  {m.channel === "callback" ? "Callback requested" : "Message"}{" "}
+                  · {formatDate(m.sent_at)}
+                </p>
+                <p className="text-slate-800 whitespace-pre-wrap leading-relaxed">
+                  {m.body}
+                </p>
+              </li>
+            ))}
+          </ul>
+          {lead?.contact_email && (
+            <p className="text-[11px] text-sky-800 mt-3 leading-relaxed">
+              Reply by emailing{" "}
+              <a
+                href={`mailto:${lead.contact_email}`}
+                className="underline font-semibold"
+              >
+                {lead.contact_email}
+              </a>{" "}
+              — or just hit Reply on the email notification you received.
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Homeowner contact reminder for accepted */}
       {proposal.status === "accepted" && lead && (
@@ -356,12 +395,61 @@ function parseLineItems(raw: Json): LineItem[] {
       quantity: number;
       unit_price_pence: number;
     };
+    const validCats = ["heat_pump", "solar", "battery", "other"] as const;
+    const rawCat = (r as unknown as { category?: unknown }).category;
+    const cat =
+      typeof rawCat === "string" &&
+      (validCats as readonly string[]).includes(rawCat)
+        ? (rawCat as (typeof validCats)[number])
+        : "other";
+    const isBus = (r as unknown as { is_bus_grant?: unknown }).is_bus_grant === true;
     return [
       {
         id: typeof r.id === "string" ? r.id : `row-${Math.random()}`,
         description: r.description,
         quantity: r.quantity,
         unit_price_pence: r.unit_price_pence,
+        category: cat,
+        is_bus_grant: isBus,
+      },
+    ];
+  });
+}
+
+interface HomeownerMessageRow {
+  id: string;
+  body: string;
+  sent_at: string;
+  channel?: "message" | "callback";
+}
+
+function parseHomeownerMessages(raw: Json): HomeownerMessageRow[] {
+  if (!Array.isArray(raw)) return [];
+  return (raw as unknown[]).flatMap((row) => {
+    if (
+      !row ||
+      typeof row !== "object" ||
+      typeof (row as { id?: unknown }).id !== "string" ||
+      typeof (row as { body?: unknown }).body !== "string" ||
+      typeof (row as { sent_at?: unknown }).sent_at !== "string"
+    ) {
+      return [];
+    }
+    const r = row as {
+      id: string;
+      body: string;
+      sent_at: string;
+      channel?: unknown;
+    };
+    return [
+      {
+        id: r.id,
+        body: r.body,
+        sent_at: r.sent_at,
+        channel:
+          r.channel === "callback" || r.channel === "message"
+            ? r.channel
+            : undefined,
       },
     ];
   });

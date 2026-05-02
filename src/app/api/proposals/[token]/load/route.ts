@@ -31,7 +31,7 @@ export async function GET(
   const { data: proposal } = await admin
     .from("installer_proposals")
     .select(
-      "id, installer_id, installer_lead_id, status, line_items, cover_message, vat_rate_bps, subtotal_pence, vat_pence, total_pence, sent_at, viewed_at, accepted_at, declined_at",
+      "id, installer_id, installer_lead_id, status, line_items, cover_message, vat_rate_bps, subtotal_pence, vat_pence, total_pence, sent_at, viewed_at, accepted_at, declined_at, homeowner_messages",
     )
     .eq("id", proposalId)
     .eq("homeowner_token", token)

@@ -74,7 +74,7 @@ export default async function ProposalsListPage({ searchParams }: PageProps) {
     return (
       <PortalShell
         portalName="Installer"
-        pageTitle="Proposals"
+        pageTitle="Quotes"
         backLink={{ href: "/installer", label: "Back to installer portal" }}
       >
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6">
@@ -140,7 +140,7 @@ export default async function ProposalsListPage({ searchParams }: PageProps) {
   return (
     <PortalShell
       portalName="Installer"
-      pageTitle="Proposals"
+      pageTitle="Quotes"
       pageSubtitle="Every quote you've created, across all leads."
       backLink={{ href: "/installer", label: "Back to installer portal" }}
     >
@@ -297,14 +297,14 @@ function StatusBadge({ status }: { status: ProposalRow["status"] }) {
 function EmptyState({ status }: { status: StatusKey }) {
   const copy =
     status === "all"
-      ? "You haven't sent any proposals yet. Open an accepted lead and click 'Send proposal' to build your first quote."
+      ? "You haven't sent any quotes yet. Open an accepted lead and click 'Send quote' to build your first one."
       : status === "draft"
         ? "No drafts. Drafts you save without sending land here so you can finish them later."
         : status === "sent"
-          ? "No sent proposals yet. Once you send one, it'll appear here while waiting on the homeowner's response."
+          ? "No sent quotes yet. Once you send one, it'll appear here while waiting on the homeowner's response."
           : status === "accepted"
-            ? "No accepted proposals yet. They'll show here once a homeowner says yes."
-            : "No declined proposals — that's a good thing.";
+            ? "No accepted quotes yet. They'll show here once a homeowner says yes."
+            : "No declined quotes — that's a good thing.";
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-8 text-center">
       <span className="inline-flex items-center justify-center w-11 h-11 rounded-2xl bg-slate-100 text-slate-400 mb-3">

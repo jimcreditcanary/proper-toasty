@@ -294,7 +294,7 @@ function ReportCard({ lead }: { lead: LeadRow }) {
             href={`/installer/leads/${lead.id}/propose`}
             className="inline-flex items-center gap-1.5 h-9 px-3 rounded-full bg-white border border-coral hover:bg-coral-pale text-coral-dark font-semibold text-xs transition-colors"
           >
-            Send proposal
+            Send quote
             <ArrowRight className="w-3 h-3" />
           </Link>
           <Link

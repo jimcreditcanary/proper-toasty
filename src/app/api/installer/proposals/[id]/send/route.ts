@@ -12,6 +12,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendEmail } from "@/lib/email/client";
 import { buildProposalSentHomeownerEmail } from "@/lib/email/templates/proposal-sent-homeowner";
+import { resolveInstallerNotifyEmail } from "@/lib/proposals/notify";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -35,13 +36,14 @@ export async function POST(
   // Resolve installer.
   const { data: installer } = await admin
     .from("installers")
-    .select("id, company_name, email, telephone")
+    .select("id, company_name, email, telephone, user_id")
     .eq("user_id", user.id)
     .maybeSingle<{
       id: number;
       company_name: string;
       email: string | null;
       telephone: string | null;
+      user_id: string | null;
     }>();
   if (!installer) {
     return NextResponse.json(
@@ -49,6 +51,9 @@ export async function POST(
       { status: 403 },
     );
   }
+  // For reply-to + future "from" customisation: prefer
+  // installers.email, fall back to the bound user's auth email.
+  const replyToEmail = await resolveInstallerNotifyEmail(admin, installer);
 
   // Pull the proposal + the lead in one round-trip via the foreign
   // key relationship — we need contact info from the lead to email.
@@ -121,7 +126,7 @@ export async function POST(
   const email = buildProposalSentHomeownerEmail({
     homeownerName: lead.contact_name,
     installerCompanyName: installer.company_name,
-    installerEmail: installer.email,
+    installerEmail: replyToEmail,
     installerTelephone: installer.telephone,
     totalPence: proposal.total_pence,
     vatRateBps: proposal.vat_rate_bps,
@@ -130,12 +135,18 @@ export async function POST(
     coverMessage: proposal.cover_message ?? null,
   });
 
+  console.info("[proposals] sending homeowner email", {
+    proposalId: id,
+    to: lead.contact_email,
+    replyTo: replyToEmail,
+  });
+
   const sendResult = await sendEmail({
     to: lead.contact_email,
     subject: email.subject,
     html: email.html,
     text: email.text,
-    replyTo: installer.email ?? undefined,
+    replyTo: replyToEmail ?? undefined,
     tags: [
       { name: "kind", value: "proposal-sent" },
       { name: "proposalId", value: id },

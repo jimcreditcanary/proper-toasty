@@ -109,7 +109,7 @@ export default async function InstallerHomePage() {
       href: "/installer/reports",
     },
     {
-      title: "Send proposal",
+      title: "Send quote",
       body: "Build a line-item quote and send it to the homeowner. Accept/decline tracked + emailed back to you.",
       icon: Send,
       status: "live",

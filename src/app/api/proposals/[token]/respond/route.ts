@@ -14,6 +14,7 @@ import { parseProposalToken } from "@/lib/email/tokens";
 import { sendEmail } from "@/lib/email/client";
 import { buildProposalAcceptedInstallerEmail } from "@/lib/email/templates/proposal-accepted-installer";
 import { buildProposalDeclinedInstallerEmail } from "@/lib/email/templates/proposal-declined-installer";
+import { resolveInstallerNotifyEmail } from "@/lib/proposals/notify";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -102,9 +103,14 @@ export async function POST(
   const [{ data: installer }, { data: lead }] = await Promise.all([
     admin
       .from("installers")
-      .select("id, company_name, email")
+      .select("id, company_name, email, user_id")
       .eq("id", proposal.installer_id)
-      .maybeSingle<{ id: number; company_name: string; email: string | null }>(),
+      .maybeSingle<{
+        id: number;
+        company_name: string;
+        email: string | null;
+        user_id: string | null;
+      }>(),
     admin
       .from("installer_leads")
       .select(
@@ -114,7 +120,12 @@ export async function POST(
       .maybeSingle(),
   ]);
 
-  if (installer?.email && lead) {
+  // Falls back to the bound user's auth email if installers.email is null.
+  const installerToEmail = installer
+    ? await resolveInstallerNotifyEmail(admin, installer)
+    : null;
+
+  if (installerToEmail && installer && lead) {
     const appBaseUrl = (
       process.env.NEXT_PUBLIC_APP_URL ?? "https://propertoasty.com"
     ).replace(/\/+$/, "");
@@ -142,7 +153,7 @@ export async function POST(
           });
 
     const sendResult = await sendEmail({
-      to: installer.email,
+      to: installerToEmail,
       subject: built.subject,
       html: built.html,
       text: built.text,
@@ -162,8 +173,12 @@ export async function POST(
     }
   } else {
     console.warn(
-      "[proposals] response notify skipped — installer.email or lead missing",
-      { proposalId: proposal.id, installerHasEmail: !!installer?.email },
+      "[proposals] response notify skipped — recipient or lead missing",
+      {
+        proposalId: proposal.id,
+        installerHasEmail: !!installerToEmail,
+        leadFound: !!lead,
+      },
     );
   }
 

@@ -160,6 +160,8 @@ export default async function ProposePage({ params }: PageProps) {
               description: p.description,
               quantity: p.quantity,
               unit_price_pence: p.unit_price_pence,
+              category: p.category,
+              is_bus_grant: p.is_bus_grant ?? false,
             })),
             coverMessage: null,
             vatRateBps: 0,
@@ -173,10 +175,10 @@ export default async function ProposePage({ params }: PageProps) {
       portalName="Installer"
       pageTitle={
         resumeDraft
-          ? "Continue your draft proposal"
+          ? "Continue your draft quote"
           : previousSent
-            ? "Send a revised proposal"
-            : "Send a proposal"
+            ? "Send a revised quote"
+            : "Send a quote"
       }
       pageSubtitle={
         lead.contact_name
@@ -199,7 +201,7 @@ export default async function ProposePage({ params }: PageProps) {
               {previousSent.status}
             </span>
             . Edit and re-send below — this creates a v2; the original
-            stays in your proposals list.
+            stays in your quotes list.
           </p>
         </div>
       )}
@@ -223,7 +225,7 @@ export default async function ProposePage({ params }: PageProps) {
           href="/installer/proposals"
           className="text-xs text-slate-500 hover:text-coral underline"
         >
-          ← All proposals
+          ← All quotes
         </Link>
       </div>
     </PortalShell>
@@ -247,13 +249,23 @@ function coerceLineItems(raw: Json): LineItem[] {
       description: string;
       quantity: number;
       unit_price_pence: number;
+      category?: unknown;
+      is_bus_grant?: unknown;
     };
+    const validCats = ["heat_pump", "solar", "battery", "other"] as const;
+    const cat =
+      typeof r.category === "string" &&
+      (validCats as readonly string[]).includes(r.category)
+        ? (r.category as (typeof validCats)[number])
+        : "other";
     return [
       {
         id: typeof r.id === "string" ? r.id : crypto.randomUUID(),
         description: r.description,
         quantity: r.quantity,
         unit_price_pence: r.unit_price_pence,
+        category: cat,
+        is_bus_grant: r.is_bus_grant === true,
       },
     ];
   });

@@ -1379,6 +1379,8 @@ export interface Database {
           accepted_at: string | null;
           declined_at: string | null;
           decline_reason: string | null;
+          // Migration 047 — homeowner messages on /p/<token>
+          homeowner_messages: Json;
           created_at: string;
           updated_at: string;
         };
@@ -1400,6 +1402,7 @@ export interface Database {
           accepted_at?: string | null;
           declined_at?: string | null;
           decline_reason?: string | null;
+          homeowner_messages?: Json;
           created_at?: string;
           updated_at?: string;
         };

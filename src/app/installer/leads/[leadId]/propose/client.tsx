@@ -2,17 +2,20 @@
 
 import Link from "next/link";
 
-// Builder UI for an installer proposal.
+// Builder UI for an installer quote.
 //
-// State machine:
-//   1. Mount with `seed` line items (from preset or previous draft).
-//   2. Edit freely — line items, cover message, VAT toggle.
-//   3. "Save draft" — POSTs to /api/installer/proposals (or PATCHes
-//      an existing draft). Establishes a backing row so we can use
-//      its id for subsequent saves.
-//   4. "Send proposal" — saves first then POSTs the send endpoint.
-//      Confirmation modal so the installer can review the headline
-//      total before firing the email.
+// Top-level: three category checkboxes (heat pump / solar / battery)
+// — toggling one in/out adds the preset rows or strips them. Lines
+// are grouped under category subheadings so the homeowner sees a
+// coherent breakdown.
+//
+// BUS grant lives as a checkbox at the foot of the heat-pump section.
+// When ticked, the grant line is added (-£7,500) but the totals
+// engine caps the magnitude at the heat-pump install subtotal — so
+// a £6k install never shows a negative total.
+//
+// Save / Send: identical pattern to the previous builder. Save first,
+// then POST the send endpoint. Confirmation modal before fire.
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -25,12 +28,23 @@ import {
   AlertCircle,
   CheckCircle2,
   Receipt,
+  Info,
 } from "lucide-react";
 import {
   computeTotals,
   formatGbp,
+  groupByCategory,
+  presetsFor,
+  HEAT_PUMP_PRESETS,
+  SOLAR_PV_PRESETS,
+  BATTERY_PRESETS,
+  BUS_GRANT_PRESET,
+  BUS_GRANT_CAP_PENCE,
+  CATEGORY_LABELS,
   VAT_RATE_OPTIONS,
   type LineItem,
+  type LineItemCategory,
+  type LineItemPreset,
 } from "@/lib/proposals/schema";
 
 interface LeadContext {
@@ -70,6 +84,17 @@ type SaveState =
   | { kind: "saved" }
   | { kind: "sent"; proposalUrl: string; emailSkipped: boolean };
 
+function presetToLine(p: LineItemPreset): LineItem {
+  return {
+    id: crypto.randomUUID(),
+    description: p.description,
+    quantity: p.quantity,
+    unit_price_pence: p.unit_price_pence,
+    category: p.category,
+    is_bus_grant: p.is_bus_grant ?? false,
+  };
+}
+
 export function ProposalBuilderClient({
   leadId,
   leadContext,
@@ -89,17 +114,63 @@ export function ProposalBuilderClient({
   const [save, setSave] = useState<SaveState>({ kind: "idle" });
   const [showConfirm, setShowConfirm] = useState(false);
 
+  // Category visibility derived from line items — if any item with
+  // a category is present, the section is "on".
+  const grouped = useMemo(() => groupByCategory(lineItems), [lineItems]);
+  const sectionOn = useMemo(
+    () => ({
+      heat_pump: grouped.heat_pump.length > 0,
+      solar: grouped.solar.length > 0,
+      battery: grouped.battery.length > 0,
+    }),
+    [grouped],
+  );
+
+  // BUS grant on/off is whether any heat-pump line has the flag.
+  const busGrantOn = useMemo(
+    () => lineItems.some((li) => li.is_bus_grant),
+    [lineItems],
+  );
+
   const totals = useMemo(
     () => computeTotals(lineItems, vatRateBps),
     [lineItems, vatRateBps],
   );
 
-  function updateRow(idx: number, patch: Partial<LineItem>) {
+  // Toggle a category section on/off. Off → strip all items in that
+  // category. On → seed presets if the section was previously empty.
+  function toggleCategory(category: "heat_pump" | "solar" | "battery") {
+    setLineItems((prev) => {
+      const isOn = prev.some((li) => li.category === category);
+      if (isOn) {
+        return prev.filter((li) => li.category !== category);
+      }
+      const presets =
+        category === "heat_pump"
+          ? [...HEAT_PUMP_PRESETS, BUS_GRANT_PRESET]
+          : category === "solar"
+            ? SOLAR_PV_PRESETS
+            : BATTERY_PRESETS;
+      return [...prev, ...presets.map(presetToLine)];
+    });
+  }
+
+  function toggleBusGrant() {
+    setLineItems((prev) => {
+      const has = prev.some((li) => li.is_bus_grant);
+      if (has) {
+        return prev.filter((li) => !li.is_bus_grant);
+      }
+      return [...prev, presetToLine(BUS_GRANT_PRESET)];
+    });
+  }
+
+  function updateRow(id: string, patch: Partial<LineItem>) {
     setLineItems((prev) =>
-      prev.map((row, i) => (i === idx ? { ...row, ...patch } : row)),
+      prev.map((row) => (row.id === id ? { ...row, ...patch } : row)),
     );
   }
-  function addRow() {
+  function addRow(category: LineItemCategory) {
     setLineItems((prev) => [
       ...prev,
       {
@@ -107,16 +178,15 @@ export function ProposalBuilderClient({
         description: "",
         quantity: 1,
         unit_price_pence: 0,
+        category,
+        is_bus_grant: false,
       },
     ]);
   }
-  function removeRow(idx: number) {
-    setLineItems((prev) => prev.filter((_, i) => i !== idx));
+  function removeRow(id: string) {
+    setLineItems((prev) => prev.filter((r) => r.id !== id));
   }
 
-  // Build the API payload. `quantity` ends up coming from the input
-  // as a string-coerced number; we sanitise once here so the
-  // server-side zod parse doesn't choke on NaN.
   function buildPayload() {
     return {
       installer_lead_id: leadId,
@@ -125,6 +195,8 @@ export function ProposalBuilderClient({
         description: row.description.trim(),
         quantity: Number.isFinite(row.quantity) ? row.quantity : 0,
         unit_price_pence: Math.round(row.unit_price_pence),
+        category: row.category,
+        is_bus_grant: row.is_bus_grant,
       })),
       cover_message: coverMessage.trim() || null,
       vat_rate_bps: vatRateBps,
@@ -195,8 +267,6 @@ export function ProposalBuilderClient({
       proposalUrl: j.proposalUrl,
       emailSkipped: j.emailSkipped === true,
     });
-    // Refresh the server tree so the inbox + reports list pick up
-    // the new state if the installer navigates away.
     router.refresh();
   }
 
@@ -235,8 +305,8 @@ export function ProposalBuilderClient({
         </span>
         <h2 className="text-xl font-semibold text-emerald-900">
           {save.emailSkipped
-            ? "Proposal sent (email pending)"
-            : "Proposal sent"}
+            ? "Quote sent (email pending)"
+            : "Quote sent"}
         </h2>
         <p className="text-sm text-emerald-900 mt-2 leading-relaxed max-w-md mx-auto">
           {save.emailSkipped
@@ -264,7 +334,7 @@ export function ProposalBuilderClient({
             href="/installer/proposals"
             className="inline-flex items-center gap-1.5 h-10 px-4 rounded-full bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold text-sm transition-colors"
           >
-            All proposals
+            All quotes
           </Link>
         </div>
       </div>
@@ -288,126 +358,69 @@ export function ProposalBuilderClient({
             {leadContext.propertyPostcode && ` · ${leadContext.propertyPostcode}`}
           </p>
         )}
-        <p className="text-xs text-slate-500 mt-2">
-          Asked about:{" "}
-          <span className="font-medium text-slate-700">
-            {[
-              leadContext.wantsHeatPump && "Heat pump",
-              leadContext.wantsSolar && "Solar PV",
-              leadContext.wantsBattery && "Battery",
-            ]
-              .filter(Boolean)
-              .join(" + ") || "Energy upgrades"}
-          </span>
-        </p>
       </div>
 
-      {/* Line items editor */}
+      {/* Category toggles */}
       <div className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
-        <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-          <div>
-            <h2 className="text-sm font-semibold text-navy flex items-center gap-2">
-              <Receipt className="w-4 h-4 text-slate-500" />
-              Line items
-            </h2>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Edit the presets or add your own. Use a negative price
-              for grants and discounts.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={addRow}
-            className="inline-flex items-center gap-1.5 h-9 px-3 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs transition-colors"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            Add row
-          </button>
-        </div>
-
-        <div className="space-y-2">
-          {/* Header strip — only on sm+ */}
-          <div className="hidden sm:grid grid-cols-[1fr,80px,120px,120px,40px] gap-2 text-[10px] font-bold uppercase tracking-wider text-slate-500 px-1 pb-1">
-            <span>Description</span>
-            <span className="text-right">Qty</span>
-            <span className="text-right">Unit price (£)</span>
-            <span className="text-right">Line total</span>
-            <span></span>
-          </div>
-
-          {lineItems.length === 0 && (
-            <div className="rounded-lg border border-dashed border-slate-300 p-6 text-center">
-              <p className="text-xs text-slate-500">
-                No line items yet. Click <strong>Add row</strong> to start.
-              </p>
-            </div>
-          )}
-
-          {lineItems.map((row, idx) => {
-            const linePence = Math.round(row.quantity * row.unit_price_pence);
+        <p className="text-sm font-semibold text-navy mb-1">
+          What does this quote cover?
+        </p>
+        <p className="text-xs text-slate-500 mb-3">
+          Toggle systems on or off — preset line items load below for
+          you to edit.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {(["heat_pump", "solar", "battery"] as const).map((cat) => {
+            const on = sectionOn[cat];
             return (
-              <div
-                key={row.id}
-                className="grid grid-cols-1 sm:grid-cols-[1fr,80px,120px,120px,40px] gap-2 items-start"
+              <button
+                key={cat}
+                type="button"
+                onClick={() => toggleCategory(cat)}
+                className={`inline-flex items-center gap-2 h-10 px-4 rounded-full text-sm font-semibold transition-colors border ${
+                  on
+                    ? "bg-coral text-white border-coral hover:bg-coral-dark"
+                    : "bg-white text-slate-600 border-slate-200 hover:border-coral/40"
+                }`}
               >
-                <input
-                  type="text"
-                  value={row.description}
-                  onChange={(e) =>
-                    updateRow(idx, { description: e.target.value })
-                  }
-                  placeholder="Description"
-                  className="h-10 px-3 rounded-lg border border-slate-200 bg-white text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-coral focus:ring-2 focus:ring-coral/20"
-                />
-                <input
-                  type="number"
-                  inputMode="decimal"
-                  value={Number.isFinite(row.quantity) ? row.quantity : ""}
-                  onChange={(e) =>
-                    updateRow(idx, {
-                      quantity: e.target.value === "" ? 0 : Number(e.target.value),
-                    })
-                  }
-                  step="0.1"
-                  min="0"
-                  className="h-10 px-3 rounded-lg border border-slate-200 bg-white text-sm text-slate-900 text-right focus:outline-none focus:border-coral focus:ring-2 focus:ring-coral/20"
-                />
-                <input
-                  type="number"
-                  inputMode="decimal"
-                  value={
-                    row.unit_price_pence === 0
-                      ? ""
-                      : (row.unit_price_pence / 100).toString()
-                  }
-                  onChange={(e) =>
-                    updateRow(idx, {
-                      unit_price_pence:
-                        e.target.value === ""
-                          ? 0
-                          : Math.round(Number(e.target.value) * 100),
-                    })
-                  }
-                  step="0.01"
-                  placeholder="0.00"
-                  className="h-10 px-3 rounded-lg border border-slate-200 bg-white text-sm text-slate-900 text-right focus:outline-none focus:border-coral focus:ring-2 focus:ring-coral/20"
-                />
-                <div className="h-10 px-3 rounded-lg bg-slate-50 border border-slate-200 text-sm font-semibold text-navy text-right flex items-center justify-end">
-                  {formatGbp(linePence)}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => removeRow(idx)}
-                  className="h-10 w-10 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors flex items-center justify-center"
-                  aria-label="Remove line"
+                <span
+                  className={`inline-flex items-center justify-center w-4 h-4 rounded border ${
+                    on
+                      ? "bg-white border-white text-coral"
+                      : "border-slate-300"
+                  }`}
                 >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
+                  {on && <CheckCircle2 className="w-3 h-3" strokeWidth={3} />}
+                </span>
+                {CATEGORY_LABELS[cat]}
+              </button>
             );
           })}
         </div>
       </div>
+
+      {/* Per-category line items */}
+      {(["heat_pump", "solar", "battery", "other"] as const).map((cat) => {
+        const rows = grouped[cat];
+        // Skip empty non-other sections (the toggles above are the
+        // only way to turn them on). "Other" is always present so
+        // installers can add bespoke rows.
+        if (cat !== "other" && rows.length === 0) return null;
+        return (
+          <CategorySection
+            key={cat}
+            category={cat}
+            rows={rows}
+            appliedLineTotalsByRowId={mapAppliedTotals(lineItems, totals.appliedLineTotals)}
+            onUpdate={updateRow}
+            onAdd={() => addRow(cat)}
+            onRemove={removeRow}
+            busGrantOn={busGrantOn}
+            onToggleBusGrant={toggleBusGrant}
+            busGrantWasCapped={totals.busGrantWasCapped}
+          />
+        );
+      })}
 
       {/* VAT + totals strip */}
       <div className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
@@ -488,7 +501,7 @@ export function ProposalBuilderClient({
           <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
           <p className="text-emerald-900">
             Draft saved. The homeowner won&rsquo;t see anything until you
-            click <strong>Send proposal</strong>.
+            click <strong>Send quote</strong>.
           </p>
         </div>
       )}
@@ -524,7 +537,7 @@ export function ProposalBuilderClient({
           ) : (
             <Send className="w-4 h-4" />
           )}
-          Send proposal
+          Send quote
         </button>
       </div>
 
@@ -581,4 +594,200 @@ export function ProposalBuilderClient({
       )}
     </div>
   );
+}
+
+// ─── Category section ─────────────────────────────────────────────
+
+function CategorySection({
+  category,
+  rows,
+  appliedLineTotalsByRowId,
+  onUpdate,
+  onAdd,
+  onRemove,
+  busGrantOn,
+  onToggleBusGrant,
+  busGrantWasCapped,
+}: {
+  category: LineItemCategory;
+  rows: LineItem[];
+  appliedLineTotalsByRowId: Record<string, number>;
+  onUpdate: (id: string, patch: Partial<LineItem>) => void;
+  onAdd: () => void;
+  onRemove: (id: string) => void;
+  busGrantOn: boolean;
+  onToggleBusGrant: () => void;
+  busGrantWasCapped: boolean;
+}) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
+      <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+        <div className="flex items-center gap-2">
+          <span className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-coral-pale text-coral-dark">
+            <Receipt className="w-3.5 h-3.5" />
+          </span>
+          <h3 className="text-sm font-semibold text-navy">
+            {CATEGORY_LABELS[category]}
+          </h3>
+        </div>
+        <button
+          type="button"
+          onClick={onAdd}
+          className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-[11px] transition-colors"
+        >
+          <Plus className="w-3 h-3" />
+          Add row
+        </button>
+      </div>
+
+      {/* Header strip — sm+ only. Underscores in arbitrary value
+          (Tailwind v4 spec) so the grid actually applies. */}
+      <div className="hidden sm:grid grid-cols-[1fr_72px_120px_120px_36px] gap-2 text-[10px] font-bold uppercase tracking-wider text-slate-500 px-1 pb-1">
+        <span>Description</span>
+        <span className="text-right">Qty</span>
+        <span className="text-right">Unit price (£)</span>
+        <span className="text-right">Line total</span>
+        <span></span>
+      </div>
+
+      <div className="space-y-2">
+        {rows.length === 0 && category === "other" && (
+          <div className="rounded-lg border border-dashed border-slate-300 p-4 text-center">
+            <p className="text-xs text-slate-500">
+              Custom rows go here. Click <strong>Add row</strong> to add one.
+            </p>
+          </div>
+        )}
+
+        {rows.map((row) => {
+          const applied = appliedLineTotalsByRowId[row.id] ?? 0;
+          const raw = Math.round(row.quantity * row.unit_price_pence);
+          const isCapped = row.is_bus_grant && applied !== raw;
+          return (
+            <div
+              key={row.id}
+              className="grid grid-cols-1 sm:grid-cols-[1fr_72px_120px_120px_36px] gap-2 items-start"
+            >
+              <input
+                type="text"
+                value={row.description}
+                onChange={(e) =>
+                  onUpdate(row.id, { description: e.target.value })
+                }
+                placeholder="Description"
+                className={`h-10 px-3 rounded-lg border bg-white text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-coral focus:ring-2 focus:ring-coral/20 ${
+                  row.is_bus_grant ? "border-emerald-300 bg-emerald-50/40" : "border-slate-200"
+                }`}
+                readOnly={row.is_bus_grant}
+              />
+              <input
+                type="number"
+                inputMode="decimal"
+                value={Number.isFinite(row.quantity) ? row.quantity : ""}
+                onChange={(e) =>
+                  onUpdate(row.id, {
+                    quantity:
+                      e.target.value === "" ? 0 : Number(e.target.value),
+                  })
+                }
+                step="0.1"
+                min="0"
+                disabled={row.is_bus_grant}
+                className="h-10 px-2 rounded-lg border border-slate-200 bg-white text-sm text-slate-900 text-right focus:outline-none focus:border-coral focus:ring-2 focus:ring-coral/20 disabled:bg-slate-50 disabled:text-slate-400"
+              />
+              <input
+                type="number"
+                inputMode="decimal"
+                value={
+                  row.unit_price_pence === 0
+                    ? ""
+                    : (row.unit_price_pence / 100).toString()
+                }
+                onChange={(e) =>
+                  onUpdate(row.id, {
+                    unit_price_pence:
+                      e.target.value === ""
+                        ? 0
+                        : Math.round(Number(e.target.value) * 100),
+                  })
+                }
+                step="0.01"
+                placeholder="0.00"
+                disabled={row.is_bus_grant}
+                className="h-10 px-3 rounded-lg border border-slate-200 bg-white text-sm text-slate-900 text-right focus:outline-none focus:border-coral focus:ring-2 focus:ring-coral/20 disabled:bg-slate-50 disabled:text-slate-400"
+              />
+              <div
+                className={`h-10 px-3 rounded-lg border text-sm font-semibold text-right flex items-center justify-end ${
+                  applied < 0
+                    ? "bg-emerald-50 border-emerald-200 text-emerald-800"
+                    : "bg-slate-50 border-slate-200 text-navy"
+                }`}
+                title={
+                  isCapped
+                    ? `Capped from ${formatGbp(raw)} — install cost is below the £${BUS_GRANT_CAP_PENCE / 100} grant.`
+                    : undefined
+                }
+              >
+                {formatGbp(applied)}
+              </div>
+              <button
+                type="button"
+                onClick={() => onRemove(row.id)}
+                className="h-10 w-9 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors flex items-center justify-center"
+                aria-label="Remove line"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* BUS grant toggle + cap notice — heat pump section only */}
+      {category === "heat_pump" && (
+        <div className="mt-4 pt-4 border-t border-slate-100">
+          <label className="flex items-start gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={busGrantOn}
+              onChange={onToggleBusGrant}
+              className="mt-0.5 w-4 h-4 rounded border-slate-300 text-coral focus:ring-coral/30"
+            />
+            <span className="text-sm">
+              <span className="font-semibold text-navy">
+                Apply BUS grant
+              </span>{" "}
+              <span className="text-slate-500 text-xs">
+                (£{(BUS_GRANT_CAP_PENCE / 100).toLocaleString("en-GB")} towards eligible heat pumps —
+                Ofgem pays the installer direct)
+              </span>
+            </span>
+          </label>
+          {busGrantOn && busGrantWasCapped && (
+            <div className="mt-2 ml-7 rounded-lg border border-amber-200 bg-amber-50 p-2.5 flex items-start gap-2 text-xs">
+              <Info className="w-3.5 h-3.5 text-amber-700 shrink-0 mt-0.5" />
+              <p className="text-amber-900 leading-relaxed">
+                <strong>Grant capped at install cost.</strong> The BUS
+                grant pays up to £
+                {(BUS_GRANT_CAP_PENCE / 100).toLocaleString("en-GB")} or
+                the cost of the install, whichever is lower. The
+                homeowner won&rsquo;t end up with a negative bill.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function mapAppliedTotals(
+  lineItems: LineItem[],
+  appliedTotals: number[],
+): Record<string, number> {
+  const out: Record<string, number> = {};
+  lineItems.forEach((li, i) => {
+    out[li.id] = appliedTotals[i] ?? 0;
+  });
+  return out;
 }
