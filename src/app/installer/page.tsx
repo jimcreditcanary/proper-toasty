@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { PortalShell } from "@/components/portal-shell";
 import {
   AlertCircle,
@@ -17,8 +18,8 @@ import {
 
 // Installer portal landing.
 //
-// Each card is a placeholder for a feature being shipped in subsequent
-// PRs. Cards flip to live links as the features land.
+// Each card is a placeholder for a feature being shipped in
+// subsequent PRs. Cards flip to live links as the features land.
 
 interface FeatureCard {
   title: string;
@@ -26,89 +27,117 @@ interface FeatureCard {
   icon: LucideIcon;
   status: "live" | "coming-soon";
   href?: string;
+  /** Coral pip on the right of the tile heading. Use for actionable
+   *  state ("you've got 3 things to look at"). 0 hides it. */
+  badge?: number;
 }
-
-const FEATURES: FeatureCard[] = [
-  {
-    title: "Availability",
-    body: "Set the times you can take site visits. Slots auto-roll forward 28 days.",
-    icon: CalendarDays,
-    status: "live",
-    href: "/installer/availability",
-  },
-  {
-    title: "Leads",
-    body: "Accept or reject site-visit requests. 5 credits per accepted lead.",
-    icon: Inbox,
-    status: "coming-soon",
-  },
-  {
-    title: "Reports",
-    body: "View pre-survey reports for everyone you've quoted or been matched with. Search by address, name, email, phone or 6-character ID.",
-    icon: FileText,
-    status: "coming-soon",
-  },
-  {
-    title: "Send proposal",
-    body: "Build a line-item quote and send it to the homeowner from inside the report.",
-    icon: Send,
-    status: "coming-soon",
-  },
-  {
-    title: "Pre-survey requests",
-    body: "Email your customers a personalised link to complete the survey. 1 credit per request.",
-    icon: Zap,
-    status: "coming-soon",
-  },
-  {
-    title: "Buy credits",
-    body: "30 / 100 / 250 / 1,000 credit packs. Auto top-up available.",
-    icon: CreditCard,
-    status: "live",
-    href: "/installer/credits",
-  },
-  {
-    title: "Performance",
-    body: "Leads received, quoted, won, with conversion rates by month.",
-    icon: TrendingUp,
-    status: "coming-soon",
-  },
-  {
-    title: "Billing & receipts",
-    body: "VAT receipts for every credit purchase. Downloadable.",
-    icon: Wallet,
-    status: "coming-soon",
-  },
-  {
-    title: "API access",
-    body: "Integrate pre-survey requests into your own systems. POST first name, email, postcode.",
-    icon: KeyRound,
-    status: "coming-soon",
-  },
-];
 
 export const dynamic = "force-dynamic";
 
 export default async function InstallerHomePage() {
-  // Pull the auto-recharge failure flag so the banner can render.
+  // Pull two server-side signals: the auto-recharge failure banner
+  // + the pending-leads count badge for the Leads tile.
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
   let failureReason: string | null = null;
+  let pendingLeads = 0;
+
   if (user) {
-    const { data: profile } = await supabase
-      .from("users")
-      .select("auto_recharge_failed_at, auto_recharge_failure_reason")
-      .eq("id", user.id)
-      .maybeSingle<{
-        auto_recharge_failed_at: string | null;
-        auto_recharge_failure_reason: string | null;
-      }>();
-    if (profile?.auto_recharge_failed_at) {
-      failureReason = profile.auto_recharge_failure_reason ?? "Card declined";
+    const admin = createAdminClient();
+    const [profileRes, installerRes] = await Promise.all([
+      supabase
+        .from("users")
+        .select("auto_recharge_failed_at, auto_recharge_failure_reason")
+        .eq("id", user.id)
+        .maybeSingle<{
+          auto_recharge_failed_at: string | null;
+          auto_recharge_failure_reason: string | null;
+        }>(),
+      admin
+        .from("installers")
+        .select("id")
+        .eq("user_id", user.id)
+        .maybeSingle<{ id: number }>(),
+    ]);
+
+    if (profileRes.data?.auto_recharge_failed_at) {
+      failureReason =
+        profileRes.data.auto_recharge_failure_reason ?? "Card declined";
+    }
+
+    if (installerRes.data?.id) {
+      const { count } = await admin
+        .from("installer_leads")
+        .select("id", { count: "exact", head: true })
+        .eq("installer_id", installerRes.data.id)
+        .in("status", ["new", "sent_to_installer"]);
+      pendingLeads = count ?? 0;
     }
   }
+
+  const features: FeatureCard[] = [
+    {
+      title: "Availability",
+      body: "Set the times you can take site visits. Slots auto-roll forward 28 days.",
+      icon: CalendarDays,
+      status: "live",
+      href: "/installer/availability",
+    },
+    {
+      title: "Leads",
+      body: "Accept or reject site-visit requests. 5 credits per accepted lead.",
+      icon: Inbox,
+      status: "live",
+      href: "/installer/leads",
+      badge: pendingLeads,
+    },
+    {
+      title: "Reports",
+      body: "View pre-survey reports for everyone you've quoted or been matched with. Search by address, name, email, phone or 6-character ID.",
+      icon: FileText,
+      status: "coming-soon",
+    },
+    {
+      title: "Send proposal",
+      body: "Build a line-item quote and send it to the homeowner from inside the report.",
+      icon: Send,
+      status: "coming-soon",
+    },
+    {
+      title: "Pre-survey requests",
+      body: "Email your customers a personalised link to complete the survey. 1 credit per request.",
+      icon: Zap,
+      status: "coming-soon",
+    },
+    {
+      title: "Buy credits",
+      body: "30 / 100 / 250 / 1,000 credit packs. Auto top-up available.",
+      icon: CreditCard,
+      status: "live",
+      href: "/installer/credits",
+    },
+    {
+      title: "Performance",
+      body: "Leads received, quoted, won, with conversion rates by month.",
+      icon: TrendingUp,
+      status: "coming-soon",
+    },
+    {
+      title: "Billing & receipts",
+      body: "VAT receipts for every credit purchase. Downloadable.",
+      icon: Wallet,
+      status: "coming-soon",
+    },
+    {
+      title: "API access",
+      body: "Integrate pre-survey requests into your own systems. POST first name, email, postcode.",
+      icon: KeyRound,
+      status: "coming-soon",
+    },
+  ];
 
   return (
     <PortalShell
@@ -139,7 +168,7 @@ export default async function InstallerHomePage() {
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {FEATURES.map((f) => (
+        {features.map((f) => (
           <FeatureTile key={f.title} feature={f} />
         ))}
       </div>
@@ -171,6 +200,11 @@ function FeatureTile({ feature }: { feature: FeatureCard }) {
         {feature.status === "coming-soon" && (
           <span className="ml-auto inline-flex items-center text-[10px] font-semibold uppercase tracking-wider text-slate-500 bg-slate-100 rounded-full px-2 py-0.5">
             Soon
+          </span>
+        )}
+        {feature.status === "live" && feature.badge && feature.badge > 0 && (
+          <span className="ml-auto inline-flex items-center justify-center min-w-[22px] h-5 px-1.5 rounded-full text-[10px] font-bold bg-coral text-white">
+            {feature.badge}
           </span>
         )}
       </div>
