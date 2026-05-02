@@ -96,8 +96,10 @@ export function computeTotals(
     const raw = roundHalfToEven(li.quantity * li.unit_price_pence);
     if (li.is_bus_grant) {
       // Cap |raw| at heatPumpInstallPence. Grant lines are negative;
-      // never take more off than the install cost.
-      const capped = -Math.min(Math.abs(raw), Math.max(0, heatPumpInstallPence));
+      // never take more off than the install cost. The `+ 0` at the
+      // end normalises -0 (which JS leaks when capping to zero) to
+      // +0 so the public appliedLineTotals never serialises a "-0".
+      const capped = -Math.min(Math.abs(raw), Math.max(0, heatPumpInstallPence)) + 0;
       if (capped !== raw) busGrantWasCapped = true;
       appliedLineTotals.push(capped);
     } else {
