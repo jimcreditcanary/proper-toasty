@@ -131,9 +131,10 @@ export default async function InstallerHomePage() {
     },
     {
       title: "Performance",
-      body: "Leads received, quoted, won, with conversion rates by month.",
+      body: "Leads received, quoted, won — with conversion rates and a 3-month trend.",
       icon: TrendingUp,
-      status: "coming-soon",
+      status: "live",
+      href: "/installer/performance",
     },
     {
       title: "Billing & receipts",
