@@ -41,6 +41,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
 import { maskEmail } from "@/lib/installer-claim/email-mask";
 import { track, identify } from "@/lib/analytics";
+import { INSTALLER_FREE_STARTER_CREDITS } from "@/lib/booking/credits";
 
 type AdminClient = SupabaseClient<Database>;
 
@@ -172,6 +173,16 @@ export async function completeInstallerClaim(args: {
     company: installer.company_name,
   });
 
+  // Free starter credits — first-claim only. Race-safe via the
+  // IS NULL guard in the WHERE clause: if a parallel claim somehow
+  // also fired (shouldn't happen given we just won the CAS above
+  // on the installer row, but defence in depth), only one will see
+  // a null `installer_starter_credits_granted_at` and apply the
+  // grant. Failures here don't fail the claim — the installer is
+  // still bound, they just don't get the freebie. We log and
+  // monitor.
+  await grantStarterCreditsIfFirstClaim(admin, userId);
+
   // Activation event — fired exactly once per (user, installer)
   // pair. identify() sets installer-level attributes that persist
   // across all subsequent events from this user, so dashboards can
@@ -197,4 +208,62 @@ export async function completeInstallerClaim(args: {
     installerId,
     companyName: installer.company_name,
   };
+}
+
+// ─── Starter-credits grant ──────────────────────────────────────────
+
+async function grantStarterCreditsIfFirstClaim(
+  admin: SupabaseClient<Database>,
+  userId: string,
+): Promise<void> {
+  try {
+    // Read current balance + grant flag in one shot.
+    const { data: profile } = await admin
+      .from("users")
+      .select("credits, installer_starter_credits_granted_at")
+      .eq("id", userId)
+      .maybeSingle<{
+        credits: number;
+        installer_starter_credits_granted_at: string | null;
+      }>();
+    if (!profile) return;
+    if (profile.installer_starter_credits_granted_at) return; // Already granted.
+
+    const newBalance = (profile.credits ?? 0) + INSTALLER_FREE_STARTER_CREDITS;
+    const grantedAt = new Date().toISOString();
+    // CAS — only update if the column is still NULL. Beats the row-
+    // lock race on identical-timestamp parallel claims.
+    const { data: updated, error } = await admin
+      .from("users")
+      .update({
+        credits: newBalance,
+        installer_starter_credits_granted_at: grantedAt,
+      })
+      .eq("id", userId)
+      .is("installer_starter_credits_granted_at", null)
+      .select("id")
+      .maybeSingle();
+    if (error) {
+      console.warn("[claim] starter credits grant failed", {
+        userId,
+        err: error.message,
+      });
+      return;
+    }
+    if (!updated) {
+      // Lost the CAS — another concurrent claim got there first.
+      // Not an error, just means the grant already happened.
+      return;
+    }
+    console.log("[claim] starter credits granted", {
+      userId,
+      amount: INSTALLER_FREE_STARTER_CREDITS,
+      newBalance,
+    });
+  } catch (err) {
+    console.warn("[claim] starter credits grant threw", {
+      userId,
+      err: err instanceof Error ? err.message : err,
+    });
+  }
 }

@@ -38,13 +38,18 @@ export default async function CreditsPage({ searchParams }: PageProps) {
 
   let balance = 0;
   let purchases: PurchaseRow[] = [];
+  let starterGrantedAt: string | null = null;
   if (user) {
     const { data: profile } = await supabase
       .from("users")
-      .select("credits")
+      .select("credits, installer_starter_credits_granted_at")
       .eq("id", user.id)
-      .maybeSingle<{ credits: number }>();
+      .maybeSingle<{
+        credits: number;
+        installer_starter_credits_granted_at: string | null;
+      }>();
     balance = profile?.credits ?? 0;
+    starterGrantedAt = profile?.installer_starter_credits_granted_at ?? null;
 
     // Purchase history — service role read because RLS on the table
     // is service-only. Filter by user_id so we never leak across
@@ -58,6 +63,10 @@ export default async function CreditsPage({ searchParams }: PageProps) {
       .limit(20);
     purchases = (data ?? []) as PurchaseRow[];
   }
+  // Show the starter-credit "freebie" banner when the grant was
+  // applied AND the user hasn't yet bought a paid pack — so once
+  // they top up themselves the banner gracefully fades away.
+  const showStarterBanner = !!starterGrantedAt && purchases.length === 0;
 
   return (
     <PortalShell
@@ -73,6 +82,24 @@ export default async function CreditsPage({ searchParams }: PageProps) {
             No charge was made. Pick a pack any time from the Buy more
             credits button.
           </p>
+        </div>
+      )}
+
+      {showStarterBanner && (
+        <div className="rounded-xl border border-coral/30 bg-coral-pale/40 p-4 mb-5 flex items-start gap-3">
+          <span className="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-white text-coral-dark shrink-0 text-base">
+            🎁
+          </span>
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-navy">
+              You&rsquo;ve got 30 free starter credits — on us
+            </p>
+            <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+              Enough for ~30 pre-survey sends or 6 lead accepts. Try
+              the platform end-to-end before topping up — the banner
+              hides as soon as you make your first purchase.
+            </p>
+          </div>
         </div>
       )}
 

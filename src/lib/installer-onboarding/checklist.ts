@@ -70,10 +70,10 @@ export function buildChecklist(input: ChecklistInputs): ChecklistResult {
     },
     {
       id: "credits",
-      title: "Buy your first credit pack",
+      title: "Top up your credit balance",
       body:
-        "Credits unlock lead acceptance (5 each) and pre-survey sends (1 each). Pick a pack that suits your volume.",
-      ctaLabel: "Buy credits",
+        "We've credited you 30 free starter credits — enough for ~30 pre-survey sends or 6 lead accepts. Top up here when you're ready to scale.",
+      ctaLabel: "View credits",
       ctaHref: "/installer/credits",
       done: input.creditBalance > 0,
     },

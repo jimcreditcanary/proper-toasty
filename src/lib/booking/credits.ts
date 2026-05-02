@@ -11,3 +11,12 @@
 
 export const LEAD_ACCEPT_COST_CREDITS = 5;
 export const PRESURVEY_REQUEST_COST_CREDITS = 1;
+
+// Free starter credits granted on first installer claim (one-shot,
+// gated by users.installer_starter_credits_granted_at). Worth ~£95
+// at the smallest pack rate — generous enough to genuinely try the
+// product, small enough that the unit-economics math still works.
+//
+// Tune this constant to dial trial generosity up or down. Backfill
+// migration is in 049_installer_starter_credits.sql.
+export const INSTALLER_FREE_STARTER_CREDITS = 30;
