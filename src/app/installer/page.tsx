@@ -144,9 +144,10 @@ export default async function InstallerHomePage() {
     },
     {
       title: "API access",
-      body: "Integrate pre-survey requests into your own systems. POST first name, email, postcode.",
+      body: "Integrate pre-survey requests into your CRM. POST name, email, postcode — 1 credit per call.",
       icon: KeyRound,
-      status: "coming-soon",
+      status: "live",
+      href: "/installer/api-access",
     },
   ];
 
