@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import Link from "next/link";
 import { Logo } from "@/components/logo";
 import { CheckWizardProvider, useCheckWizard } from "./context";
-import { STEP_ORDER, type CheckStep } from "./types";
+import { STEP_ORDER, type CheckStep, type CheckWizardState } from "./types";
 import { Step1Address } from "./step-1-address";
 import { Step2Preview } from "./step-2-preview";
 import { Step3Questions } from "./step-3-questions";
@@ -110,9 +110,13 @@ function StepWrapper() {
   );
 }
 
-export function CheckWizard() {
+interface CheckWizardProps {
+  initialState?: Partial<CheckWizardState>;
+}
+
+export function CheckWizard({ initialState }: CheckWizardProps = {}) {
   return (
-    <CheckWizardProvider>
+    <CheckWizardProvider initialState={initialState}>
       <PageTitleSync />
       {/* Skip link — visually hidden by default, shown on keyboard focus
           (first Tab press lands here). Lets screen reader / keyboard

@@ -5,6 +5,9 @@ import {
   type LeadCaptureResponse,
 } from "@/lib/schemas/leads";
 import { FuelTariffSchema } from "@/lib/schemas/bill";
+import { issueReportUrl } from "@/lib/booking/report-link";
+import type { Database } from "@/types/database";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 // POST /api/leads/capture
 //
@@ -86,6 +89,7 @@ export async function POST(req: Request) {
     ...tariffDenorm,
   };
 
+  let homeownerLeadId: string;
   if (existing?.id) {
     const { error } = await admin
       .from("homeowner_leads")
@@ -98,25 +102,158 @@ export async function POST(req: Request) {
         { status: 500 },
       );
     }
-    return NextResponse.json<LeadCaptureResponse>({ ok: true, id: existing.id });
+    homeownerLeadId = existing.id;
+  } else {
+    const { data: inserted, error: insertError } = await admin
+      .from("homeowner_leads")
+      .insert(payload)
+      .select("id")
+      .single();
+    if (insertError || !inserted) {
+      console.error("[leads] insert failed", insertError);
+      return NextResponse.json<LeadCaptureResponse>(
+        { ok: false, error: "Could not save" },
+        { status: 500 },
+      );
+    }
+    homeownerLeadId = inserted.id;
   }
 
-  const { data: inserted, error: insertError } = await admin
-    .from("homeowner_leads")
-    .insert(payload)
-    .select("id")
-    .single();
-
-  if (insertError || !inserted) {
-    console.error("[leads] insert failed", insertError);
-    return NextResponse.json<LeadCaptureResponse>(
-      { ok: false, error: "Could not save" },
-      { status: 500 },
-    );
+  // I5 — pre-survey attribution. When the capture carries a
+  // presurvey request id, auto-create the installer_lead linking
+  // back to the requesting installer (no booking dance, no extra
+  // credit charge — they paid 1 credit per send already). Failures
+  // here don't fail the capture: we want the homeowner to see their
+  // report regardless and can heal the attribution out of band.
+  if (input.preSurveyRequestId) {
+    await tryAttributeToPreSurveyRequest(admin, {
+      preSurveyRequestId: input.preSurveyRequestId,
+      homeownerLeadId,
+      payload,
+    });
   }
 
-  return NextResponse.json<LeadCaptureResponse>({ ok: true, id: inserted.id });
+  return NextResponse.json<LeadCaptureResponse>({ ok: true, id: homeownerLeadId });
 }
+
+// ─── Pre-survey attribution ───────────────────────────────────────
+
+async function tryAttributeToPreSurveyRequest(
+  admin: SupabaseClient<Database>,
+  args: {
+    preSurveyRequestId: string;
+    homeownerLeadId: string;
+    payload: Record<string, unknown>;
+  },
+) {
+  try {
+    // Pull the request row + verify it's still actionable.
+    const { data: request } = await admin
+      .from("installer_pre_survey_requests")
+      .select(
+        "id, installer_id, contact_name, contact_email, contact_postcode, completed_at, expires_at",
+      )
+      .eq("id", args.preSurveyRequestId)
+      .maybeSingle();
+    if (!request) {
+      console.warn("[leads] presurvey attribution skipped — request not found", {
+        requestId: args.preSurveyRequestId,
+      });
+      return;
+    }
+    if (request.completed_at) {
+      console.warn("[leads] presurvey already completed — skipping duplicate attribution", {
+        requestId: args.preSurveyRequestId,
+      });
+      return;
+    }
+
+    const p = args.payload as Record<string, unknown>;
+
+    // Auto-create the installer_lead. status starts at
+    // 'installer_acknowledged' + installer_acknowledged_at stamped
+    // so the inbox skips the accept dance entirely.
+    const nowIso = new Date().toISOString();
+    const { data: insertedLead, error: leadErr } = await admin
+      .from("installer_leads")
+      .insert({
+        homeowner_lead_id: args.homeownerLeadId,
+        installer_id: request.installer_id,
+        contact_email: (p.email as string) ?? request.contact_email,
+        contact_name: (p.name as string | null) ?? request.contact_name,
+        contact_phone: (p.phone as string | null) ?? null,
+        property_address: (p.address as string | null) ?? null,
+        property_postcode:
+          (p.postcode as string | null) ?? request.contact_postcode ?? null,
+        property_uprn: (p.uprn as string | null) ?? null,
+        property_latitude: (p.latitude as number | null) ?? null,
+        property_longitude: (p.longitude as number | null) ?? null,
+        analysis_snapshot: (p.analysis_snapshot ?? null) as never,
+        wants_heat_pump: true,
+        wants_solar: true,
+        wants_battery: false,
+        // Auto-acknowledged — installer requested this customer, no
+        // booking acceptance needed.
+        status: "installer_acknowledged",
+        installer_acknowledged_at: nowIso,
+        installer_notified_at: nowIso,
+        notification_status: "skipped",
+        pre_survey_request_id: request.id,
+      })
+      .select("id, homeowner_lead_id, contact_email, analysis_snapshot, property_address, property_postcode, property_latitude, property_longitude")
+      .single();
+    if (leadErr || !insertedLead) {
+      console.error("[leads] presurvey installer_lead insert failed", leadErr);
+      return;
+    }
+
+    // Mint a report URL so the installer can read the report from the
+    // inbox the same way as a directory-routed lead.
+    let reportUrl: string | null = null;
+    try {
+      const appBaseUrl = (
+        process.env.NEXT_PUBLIC_APP_URL ?? "https://propertoasty.com"
+      ).replace(/\/+$/, "");
+      reportUrl = await issueReportUrl({
+        admin,
+        lead: insertedLead,
+        appBaseUrl,
+      });
+      await admin
+        .from("installer_leads")
+        .update({ installer_report_url: reportUrl })
+        .eq("id", insertedLead.id);
+    } catch (e) {
+      console.warn("[leads] presurvey report URL mint failed", {
+        leadId: insertedLead.id,
+        err: e instanceof Error ? e.message : e,
+      });
+    }
+
+    // Mark the request done + cross-link both lead ids.
+    await admin
+      .from("installer_pre_survey_requests")
+      .update({
+        status: "completed",
+        completed_at: nowIso,
+        result_homeowner_lead_id: args.homeownerLeadId,
+        result_installer_lead_id: insertedLead.id,
+      })
+      .eq("id", request.id);
+
+    console.info("[leads] presurvey attribution complete", {
+      requestId: request.id,
+      installerLeadId: insertedLead.id,
+      reportUrlMinted: !!reportUrl,
+    });
+  } catch (e) {
+    console.error("[leads] presurvey attribution threw", {
+      requestId: args.preSurveyRequestId,
+      err: e instanceof Error ? e.message : e,
+    });
+  }
+}
+
 
 // ─── Tariff denormalisation ─────────────────────────────────────────────────
 //

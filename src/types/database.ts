@@ -1055,6 +1055,9 @@ export interface Database {
           auto_released_at: string | null;
           // Migration 045 — installer report URL minted at accept time
           installer_report_url: string | null;
+          // Migration 048 — set when this lead came from an installer-
+          // initiated pre-survey send (vs an organic directory match)
+          pre_survey_request_id: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -1108,6 +1111,7 @@ export interface Database {
           installer_reminder_sent_at?: string | null;
           auto_released_at?: string | null;
           installer_report_url?: string | null;
+          pre_survey_request_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -1407,6 +1411,48 @@ export interface Database {
           updated_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["installer_proposals"]["Insert"]>;
+        Relationships: [];
+      };
+      installer_pre_survey_requests: {
+        Row: {
+          id: string;
+          installer_id: number;
+          contact_name: string;
+          contact_email: string;
+          contact_postcode: string | null;
+          status: "pending" | "clicked" | "completed" | "expired";
+          homeowner_token: string;
+          sends_count: number;
+          last_sent_at: string;
+          total_credits_charged: number;
+          clicked_at: string | null;
+          completed_at: string | null;
+          result_homeowner_lead_id: string | null;
+          result_installer_lead_id: string | null;
+          expires_at: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          installer_id: number;
+          contact_name: string;
+          contact_email: string;
+          contact_postcode?: string | null;
+          status?: "pending" | "clicked" | "completed" | "expired";
+          homeowner_token: string;
+          sends_count?: number;
+          last_sent_at?: string;
+          total_credits_charged?: number;
+          clicked_at?: string | null;
+          completed_at?: string | null;
+          result_homeowner_lead_id?: string | null;
+          result_installer_lead_id?: string | null;
+          expires_at?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["installer_pre_survey_requests"]["Insert"]>;
         Relationships: [];
       };
     };

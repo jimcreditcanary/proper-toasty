@@ -72,6 +72,10 @@ export function Step5bLeadCapture() {
           electricityTariff: state.electricityTariff,
           gasTariff: state.gasTariff,
         },
+        // I5 — forwards through to /api/leads/capture so the
+        // installer_lead gets auto-created + the request row marked
+        // completed when the customer arrived via /check?presurvey=…
+        preSurveyRequestId: state.preSurveyRequestId ?? null,
       };
       try {
         const res = await fetch("/api/leads/capture", {

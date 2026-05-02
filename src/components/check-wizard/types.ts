@@ -95,6 +95,14 @@ export interface CheckWizardState {
   leadConsentInstallerMatching: boolean;
   leadCapturedAt: string | null; // ISO timestamp
   leadId: string | null;         // server-returned id once saved
+
+  // I5 — pre-survey attribution. When set, the customer arrived
+  // via /check?presurvey=<token>. /api/leads/capture forwards this
+  // up to auto-create an installer_lead attributed to the requesting
+  // installer + flip the request row to 'completed'. The wizard
+  // also surfaces a "your installer requested this" banner.
+  preSurveyRequestId: string | null;
+  preSurveyInstallerName: string | null;
 }
 
 export const INITIAL_STATE: CheckWizardState = {
@@ -119,6 +127,8 @@ export const INITIAL_STATE: CheckWizardState = {
   leadConsentInstallerMatching: true, // opt-in by default (matches business model)
   leadCapturedAt: null,
   leadId: null,
+  preSurveyRequestId: null,
+  preSurveyInstallerName: null,
 };
 
 export type CheckWizardAction =

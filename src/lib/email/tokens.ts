@@ -171,3 +171,57 @@ export function parseProposalToken(token: string): string | null {
     return null;
   }
 }
+
+// ─── Pre-survey request tokens ──────────────────────────────────────
+//
+// Same `{compactUuid}.{hex-hmac}` shape as report + proposal tokens,
+// distinct secret so leakage in one channel doesn't compromise
+// another. Used by /check?presurvey=<token>.
+//
+// Env var: PRE_SURVEY_TOKEN_SECRET, falls back to REPORT_TOKEN_SECRET
+// for dev convenience.
+
+function preSurveySecret(): string {
+  const s =
+    process.env.PRE_SURVEY_TOKEN_SECRET ?? process.env.REPORT_TOKEN_SECRET;
+  if (!s || s.length < 16) {
+    throw new Error(
+      "PRE_SURVEY_TOKEN_SECRET (or REPORT_TOKEN_SECRET) env var must be set (≥16 chars)",
+    );
+  }
+  return s;
+}
+
+function signPreSurveySig(requestId: string): string {
+  return createHmac("sha256", preSurveySecret()).update(requestId).digest("hex");
+}
+
+export function buildPreSurveyToken(requestId: string): string {
+  const compact = requestId.replace(/-/g, "");
+  return `${compact}.${signPreSurveySig(requestId)}`;
+}
+
+export function parsePreSurveyToken(token: string): string | null {
+  if (typeof token !== "string") return null;
+  const parts = token.split(".");
+  if (parts.length !== 2) return null;
+  const [compactId, sig] = parts;
+  if (compactId.length !== 32 || !/^[0-9a-f]+$/i.test(compactId)) return null;
+  const requestId = `${compactId.slice(0, 8)}-${compactId.slice(8, 12)}-${compactId.slice(12, 16)}-${compactId.slice(16, 20)}-${compactId.slice(20, 32)}`;
+  let expected: string;
+  try {
+    expected = signPreSurveySig(requestId);
+  } catch {
+    return null;
+  }
+  if (expected.length !== sig.length) return null;
+  try {
+    const ok = timingSafeEqual(
+      Buffer.from(expected, "hex"),
+      Buffer.from(sig, "hex"),
+    );
+    return ok ? requestId : null;
+  } catch {
+    return null;
+  }
+}

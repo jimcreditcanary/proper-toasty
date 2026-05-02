@@ -19,6 +19,11 @@ export const LeadCaptureRequestSchema = z.object({
   consentMarketing: z.boolean().default(false),
   consentInstallerMatching: z.boolean().default(false),
   analysisSnapshot: z.unknown().optional().nullable(),
+  // I5 — when present, this capture came from a customer who landed
+  // via /check?presurvey=<token>. Triggers auto-creation of the
+  // installer_lead attributed to the requesting installer + flips
+  // the request row to 'completed'.
+  preSurveyRequestId: z.string().uuid().optional().nullable(),
 });
 export type LeadCaptureRequest = z.infer<typeof LeadCaptureRequestSchema>;
 

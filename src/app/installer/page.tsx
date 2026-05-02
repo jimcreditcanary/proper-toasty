@@ -117,9 +117,10 @@ export default async function InstallerHomePage() {
     },
     {
       title: "Pre-survey requests",
-      body: "Email your customers a personalised link to complete the survey. 1 credit per request.",
+      body: "Email your customers a personalised link to complete the check. 1 credit per send. Completed leads land in your inbox auto-accepted.",
       icon: Zap,
-      status: "coming-soon",
+      status: "live",
+      href: "/installer/pre-survey-requests",
     },
     {
       title: "Buy credits",

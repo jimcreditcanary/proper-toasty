@@ -38,6 +38,7 @@ import {
   Clock,
   Sparkles,
   ArrowRight,
+  UserPlus,
 } from "lucide-react";
 import type { Database } from "@/types/database";
 
@@ -267,9 +268,19 @@ function LeadCard({
                 · {postcodeArea(lead.property_postcode)}
               </span>
             )}
+            {lead.pre_survey_request_id && (
+              <span
+                className="inline-flex items-center gap-1 ml-2 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-coral-pale text-coral-dark border border-coral/20"
+                title="You sent this customer a pre-survey link — they completed the check and the lead came back to you."
+              >
+                <UserPlus className="w-2.5 h-2.5" />
+                You requested
+              </span>
+            )}
           </p>
           <p className="text-xs text-slate-500 mt-0.5">
-            Booked {formatRelative(lead.created_at)}
+            {lead.pre_survey_request_id ? "Completed " : "Booked "}
+            {formatRelative(lead.created_at)}
           </p>
         </div>
         <StatusBadge lead={lead} />
