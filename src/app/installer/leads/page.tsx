@@ -471,12 +471,39 @@ function Row({
 }
 
 function EmptyState({ bucket }: { bucket: StatusKey }) {
+  if (bucket === "pending") {
+    // The most-trafficked empty state — and the one with the
+    // clearest "what now" answer. Push to /pre-survey-requests
+    // since installers can self-source leads instead of waiting
+    // for the directory to route one in.
+    return (
+      <div className="rounded-xl border border-slate-200 bg-white p-8 text-center">
+        <span className="inline-flex items-center justify-center w-11 h-11 rounded-2xl bg-coral-pale text-coral-dark mb-3">
+          <Inbox className="w-5 h-5" />
+        </span>
+        <p className="text-sm font-semibold text-navy">
+          No pending leads — yet
+        </p>
+        <p className="text-sm text-slate-600 mt-2 max-w-md mx-auto leading-relaxed">
+          We&rsquo;ll email you the moment one lands from the
+          directory. Or get ahead of it — send a customer of yours
+          a personalised check link and the lead routes straight to
+          you.
+        </p>
+        <Link
+          href="/installer/pre-survey-requests"
+          className="inline-flex items-center gap-1.5 h-10 px-4 mt-5 rounded-full bg-coral hover:bg-coral-dark text-white font-semibold text-xs shadow-sm transition-colors"
+        >
+          Send your first check link
+          <ArrowRight className="w-3 h-3" />
+        </Link>
+      </div>
+    );
+  }
   const copy =
-    bucket === "pending"
-      ? "No pending leads right now. We'll email you the moment one lands — and if you've turned on auto top-up, your credits stay topped up so you can accept on the spot."
-      : bucket === "accepted"
-        ? "No active bookings. Accepted leads land here once you've taken the slot."
-        : "Nothing closed yet. Completed visits, declined leads, and auto-released bookings show up here.";
+    bucket === "accepted"
+      ? "No active bookings. Accepted leads land here once you've taken the slot."
+      : "Nothing closed yet. Completed visits, declined leads, and auto-released bookings show up here.";
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-8 text-center">
       <span className="inline-flex items-center justify-center w-11 h-11 rounded-2xl bg-slate-100 text-slate-400 mb-3">

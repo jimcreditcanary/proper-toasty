@@ -32,6 +32,7 @@ import { ClaimSignupForm } from "./signup-form";
 import { ClaimSearch } from "./search";
 import { ClaimAsSelfButton } from "./claim-button";
 import { maskEmail } from "@/lib/installer-claim/email-mask";
+import { INSTALLER_FREE_STARTER_CREDITS } from "@/lib/booking/credits";
 import type { Database } from "@/types/database";
 
 export const dynamic = "force-dynamic";
@@ -146,6 +147,9 @@ export default async function InstallerSignupPage({ searchParams }: PageProps) {
           <Link href="/" className="inline-block mb-6">
             <Logo size="md" variant="light" />
           </Link>
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-coral-pale border border-coral/30 text-coral-dark text-[11px] font-bold uppercase tracking-wider mb-3">
+            🎁 {INSTALLER_FREE_STARTER_CREDITS} free credits on signup
+          </div>
           <h1 className="text-2xl sm:text-3xl font-bold text-navy leading-tight">
             {prefill
               ? `Claim ${prefill.companyName}`
@@ -153,8 +157,8 @@ export default async function InstallerSignupPage({ searchParams }: PageProps) {
           </h1>
           <p className="mt-2 text-sm text-slate-600 leading-relaxed max-w-md mx-auto">
             {prefill
-              ? "Confirm this is your company, set a password, and start accepting leads via Propertoasty."
-              : "Search for your company by name or by Companies House number. We'll match it to your existing MCS profile."}
+              ? `Confirm this is your company, set a password, and ${INSTALLER_FREE_STARTER_CREDITS} credits land in your balance the moment you finish.`
+              : `Search by company name or Companies House number — we'll match you to your existing MCS profile + grant ${INSTALLER_FREE_STARTER_CREDITS} starter credits when you claim.`}
           </p>
         </div>
 

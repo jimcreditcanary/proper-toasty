@@ -42,6 +42,8 @@ import type { Database } from "@/types/database";
 import { maskEmail } from "@/lib/installer-claim/email-mask";
 import { track, identify } from "@/lib/analytics";
 import { INSTALLER_FREE_STARTER_CREDITS } from "@/lib/booking/credits";
+import { sendEmail } from "@/lib/email/client";
+import { buildInstallerWelcomeEmail } from "@/lib/email/templates/installer-welcome";
 
 type AdminClient = SupabaseClient<Database>;
 
@@ -181,7 +183,16 @@ export async function completeInstallerClaim(args: {
   // grant. Failures here don't fail the claim — the installer is
   // still bound, they just don't get the freebie. We log and
   // monitor.
-  await grantStarterCreditsIfFirstClaim(admin, userId);
+  const grantedNow = await grantStarterCreditsIfFirstClaim(admin, userId);
+
+  // Welcome email — fire only if we just granted the credits, so
+  // the email is genuinely a first-time-claim moment (re-claims
+  // after disconnect/reconnect don't re-spam). Fire-and-forget +
+  // fail-soft: if Postmark errors, we log + carry on rather than
+  // failing the claim.
+  if (grantedNow) {
+    void sendWelcomeEmail({ admin, userId, installer });
+  }
 
   // Activation event — fired exactly once per (user, installer)
   // pair. identify() sets installer-level attributes that persist
@@ -212,10 +223,15 @@ export async function completeInstallerClaim(args: {
 
 // ─── Starter-credits grant ──────────────────────────────────────────
 
+/**
+ * Returns true when this call was the one that actually granted +
+ * stamped — caller uses it to decide whether to fire the welcome
+ * email (we don't want to re-send on every reclaim).
+ */
 async function grantStarterCreditsIfFirstClaim(
   admin: SupabaseClient<Database>,
   userId: string,
-): Promise<void> {
+): Promise<boolean> {
   try {
     // Read current balance + grant flag in one shot.
     const { data: profile } = await admin
@@ -226,8 +242,8 @@ async function grantStarterCreditsIfFirstClaim(
         credits: number;
         installer_starter_credits_granted_at: string | null;
       }>();
-    if (!profile) return;
-    if (profile.installer_starter_credits_granted_at) return; // Already granted.
+    if (!profile) return false;
+    if (profile.installer_starter_credits_granted_at) return false; // Already granted.
 
     const newBalance = (profile.credits ?? 0) + INSTALLER_FREE_STARTER_CREDITS;
     const grantedAt = new Date().toISOString();
@@ -248,21 +264,82 @@ async function grantStarterCreditsIfFirstClaim(
         userId,
         err: error.message,
       });
-      return;
+      return false;
     }
     if (!updated) {
       // Lost the CAS — another concurrent claim got there first.
       // Not an error, just means the grant already happened.
-      return;
+      return false;
     }
     console.log("[claim] starter credits granted", {
       userId,
       amount: INSTALLER_FREE_STARTER_CREDITS,
       newBalance,
     });
+    return true;
   } catch (err) {
     console.warn("[claim] starter credits grant threw", {
       userId,
+      err: err instanceof Error ? err.message : err,
+    });
+    return false;
+  }
+}
+
+// ─── Welcome email ──────────────────────────────────────────────────
+
+async function sendWelcomeEmail(args: {
+  admin: SupabaseClient<Database>;
+  userId: string;
+  installer: { company_name: string; email: string | null };
+}): Promise<void> {
+  try {
+    // Use the auth user's email — it's guaranteed present (the user
+    // just signed in to claim) and is the address they actually
+    // monitor. installers.email might be the company's general inbox
+    // which they don't read.
+    const { data } = await args.admin.auth.admin.getUserById(args.userId);
+    const to = data?.user?.email;
+    if (!to) {
+      console.warn("[claim] welcome email skipped — no auth email", {
+        userId: args.userId,
+      });
+      return;
+    }
+
+    // First name = first word of company name (best fallback we have
+    // — we don't collect a personal name at signup time).
+    const firstName = args.installer.company_name.split(/\s+/)[0] || "there";
+    const appBaseUrl = (
+      process.env.NEXT_PUBLIC_APP_URL ?? "https://propertoasty.com"
+    ).replace(/\/+$/, "");
+
+    const built = buildInstallerWelcomeEmail({
+      firstName,
+      companyName: args.installer.company_name,
+      starterCredits: INSTALLER_FREE_STARTER_CREDITS,
+      dashboardUrl: `${appBaseUrl}/installer`,
+    });
+
+    const sendResult = await sendEmail({
+      to,
+      subject: built.subject,
+      html: built.html,
+      text: built.text,
+      tags: [
+        { name: "kind", value: "installer-welcome" },
+        { name: "userId", value: args.userId },
+      ],
+    });
+    if (!sendResult.ok && !sendResult.skipped) {
+      console.warn("[claim] welcome email send failed", {
+        userId: args.userId,
+        err: sendResult.error,
+      });
+    }
+  } catch (err) {
+    console.warn("[claim] welcome email threw", {
+      userId: args.userId,
       err: err instanceof Error ? err.message : err,
     });
   }
