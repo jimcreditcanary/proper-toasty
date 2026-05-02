@@ -26,6 +26,10 @@ interface Props {
   defaultEmail: string;
 }
 
+interface ExistingAccountState {
+  email: string;
+}
+
 export function ClaimSignupForm({
   installerId,
   installerName,
@@ -38,6 +42,17 @@ export function ClaimSignupForm({
   const [accepted, setAccepted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  // Detect "this email is already on the system" — Supabase doesn't
+  // surface a real error for this (anti-enumeration default). When we
+  // spot it, switch the whole form into a "sign in instead" state so
+  // the user doesn't sit waiting on an email that's never coming.
+  const [existing, setExisting] = useState<ExistingAccountState | null>(null);
+
+  function loginRedirectUrl(): string {
+    // After sign-in, drop them back here so the page re-renders into
+    // the one-click claim-as-self button.
+    return `/auth/login?redirect=${encodeURIComponent(`/installer-signup?id=${installerId}`)}`;
+  }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -50,7 +65,7 @@ export function ClaimSignupForm({
       return;
     }
 
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -69,10 +84,55 @@ export function ClaimSignupForm({
       return;
     }
 
+    // Supabase returns ok with `user.identities = []` when an account
+    // already exists for that email — a deliberate anti-enumeration
+    // behaviour. Detect it and surface a clear "sign in instead" CTA
+    // rather than send the user off to the dead-end pending page.
+    const identities = data.user?.identities ?? [];
+    if (data.user && identities.length === 0) {
+      setExisting({ email });
+      setLoading(false);
+      return;
+    }
+
     // Hand off to the "check your email" page. We pass the email
     // through so it can render a "we sent a link to <email>" line.
     const params = new URLSearchParams({ email, installer: installerName });
     router.push(`/installer-signup/pending?${params.toString()}`);
+  }
+
+  if (existing) {
+    return (
+      <div className="space-y-4">
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-relaxed">
+          <p className="font-semibold text-amber-900">
+            You&rsquo;ve already got a Propertoasty account
+          </p>
+          <p className="text-amber-900 mt-1">
+            <strong>{existing.email}</strong> is already registered.
+            Sign in and we&rsquo;ll bind {installerName} straight to
+            your existing account — no second password, no extra
+            email.
+          </p>
+        </div>
+        <Link
+          href={loginRedirectUrl()}
+          className="w-full inline-flex items-center justify-center h-12 rounded-full bg-coral hover:bg-coral-dark text-white font-semibold text-sm shadow-sm transition-colors"
+        >
+          Sign in to claim {installerName}
+        </Link>
+        <button
+          type="button"
+          onClick={() => {
+            setExisting(null);
+            setEmail("");
+          }}
+          className="w-full text-center text-xs text-slate-500 hover:text-slate-700"
+        >
+          Or use a different email
+        </button>
+      </div>
+    );
   }
 
   return (
