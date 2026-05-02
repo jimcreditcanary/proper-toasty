@@ -103,9 +103,10 @@ export default async function InstallerHomePage() {
     },
     {
       title: "Reports",
-      body: "View pre-survey reports for everyone you've quoted or been matched with. Search by address, name, email, phone or 6-character ID.",
+      body: "Pre-survey reports for every lead you've accepted. Search by address, postcode, name, email or phone.",
       icon: FileText,
-      status: "coming-soon",
+      status: "live",
+      href: "/installer/reports",
     },
     {
       title: "Send proposal",
