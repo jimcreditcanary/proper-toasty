@@ -217,7 +217,12 @@ function PrefillView({
 
   let body: React.ReactNode;
   if (prefill.alreadyClaimed) {
-    body = <AlreadyClaimedNote />;
+    body = (
+      <AlreadyClaimedNote
+        installerId={prefill.id}
+        signedIn={!!signedInEmail}
+      />
+    );
   } else if (signedInEmail && !installerEmail) {
     body = <NoEmailOnFileNote companyName={prefill.companyName} />;
   } else if (signedInEmail && installerEmail !== userEmail) {
@@ -438,18 +443,52 @@ function CompanyCard({ prefill }: { prefill: PrefillData }) {
   );
 }
 
-function AlreadyClaimedNote() {
+// "This profile is already claimed" — most often what the rightful
+// owner sees when they've come back to /installer-signup after a
+// previous claim. The dominant action should be "sign in" so they
+// can get back into their portal in one click; the "wasn't me?" path
+// stays available as a secondary support link.
+//
+// When the visitor IS signed in but still hitting this view, their
+// account isn't the one bound to this installer (race-lost case) —
+// we drop the sign-in CTA and lean on the support link, otherwise
+// we'd point them at the page they came from.
+function AlreadyClaimedNote({
+  installerId,
+  signedIn,
+}: {
+  installerId: number;
+  signedIn: boolean;
+}) {
+  const signInHref = `/auth/login?redirect=${encodeURIComponent(`/installer-signup?id=${installerId}`)}`;
   return (
-    <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-relaxed">
-      <p className="font-semibold text-amber-900">
-        This profile has already been claimed.
-      </p>
-      <p className="text-amber-900 mt-1">
-        Someone has already signed up under this MCS record. If that
-        wasn&rsquo;t you, email{" "}
+    <div className="space-y-4">
+      <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-relaxed">
+        <p className="font-semibold text-amber-900">
+          This profile is already claimed.
+        </p>
+        <p className="text-amber-900 mt-1">
+          {signedIn
+            ? "Your account isn't the one bound to this installer — somebody else has already claimed it."
+            : "If that someone is you, sign in to get back to your installer portal."}
+        </p>
+      </div>
+
+      {!signedIn && (
+        <Link
+          href={signInHref}
+          className="w-full inline-flex items-center justify-center h-12 rounded-full bg-coral hover:bg-coral-dark text-white font-semibold text-sm shadow-sm transition-colors"
+        >
+          Sign in to your account
+        </Link>
+      )}
+
+      <p className="text-xs text-slate-500 text-center leading-relaxed">
+        {signedIn ? "If that wasn't you, " : "Wasn't you? "}
+        email{" "}
         <a
           href="mailto:hello@propertoasty.com"
-          className="underline font-medium"
+          className="text-coral hover:text-coral-dark underline font-medium"
         >
           hello@propertoasty.com
         </a>{" "}
