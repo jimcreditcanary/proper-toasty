@@ -284,17 +284,18 @@ function ReportCard({ lead }: { lead: LeadRow }) {
             <span className="text-slate-400"> · Accepted {accepted}</span>
           )}
         </div>
-        {lead.installer_report_url && (
-          <Link
-            href={lead.installer_report_url}
-            target="_blank"
-            rel="noopener"
-            className="inline-flex items-center gap-1.5 h-9 px-3 rounded-full bg-coral hover:bg-coral-dark text-white font-semibold text-xs transition-colors"
-          >
-            Open report
-            <ArrowRight className="w-3 h-3" />
-          </Link>
-        )}
+        {/* Link to the installer-flavoured report viewer. The URL on
+            installer_report_url itself points at the public /r/<token>
+            (used in calendar invites + emails) — but in-portal we
+            want the audience-stripped variant under
+            /installer/reports/[leadId]. */}
+        <Link
+          href={`/installer/reports/${lead.id}`}
+          className="inline-flex items-center gap-1.5 h-9 px-3 rounded-full bg-coral hover:bg-coral-dark text-white font-semibold text-xs transition-colors"
+        >
+          Open report
+          <ArrowRight className="w-3 h-3" />
+        </Link>
       </div>
     </div>
   );

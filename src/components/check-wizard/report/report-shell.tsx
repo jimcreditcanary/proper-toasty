@@ -77,10 +77,25 @@ export interface ReportSelection {
   batteryKwh: number;
 }
 
-export function ReportShell() {
+interface ReportShellProps {
+  /** Switches the rendered surface between the homeowner-facing
+   *  report (full advice / share / book-a-visit) and an installer-
+   *  facing prep view (just the technical detail, no consumer
+   *  cards, no email button). Defaults to "homeowner". */
+  audience?: "homeowner" | "installer";
+}
+
+export function ReportShell({ audience = "homeowner" }: ReportShellProps = {}) {
+  const isInstaller = audience === "installer";
   const { state, reset, back, goTo } = useCheckWizard();
   const [tab, setTab] = useState<ReportTabKey>("overview");
   const [shareOpen, setShareOpen] = useState(false);
+
+  // Tabs filtered for the installer surface — drop Savings (consumer
+  // ROI tiles) and Book a site visit (booking is the homeowner's job).
+  const visibleTabs = isInstaller
+    ? TABS.filter((t) => t.key !== "savings" && t.key !== "book")
+    : TABS;
   const a = state.analysis;
   const addr = state.address;
 
@@ -177,15 +192,18 @@ export function ReportShell() {
         </p>
       </header>
 
-      {/* Persistent recommendation strip — visible across every tab so
-          the user can adjust their plan at any time without bouncing
-          back to Overview. */}
-      <RecommendationStrip
-        analysis={a}
-        selection={selection}
-        setSelection={setSelection}
-        onJumpTab={setTab}
-      />
+      {/* Persistent recommendation strip — visible across every tab
+          so the user can adjust their plan at any time. Hidden in
+          installer mode: the installer doesn't pick a config, they
+          just see what the homeowner went with. */}
+      {!isInstaller && (
+        <RecommendationStrip
+          analysis={a}
+          selection={selection}
+          setSelection={setSelection}
+          onJumpTab={setTab}
+        />
+      )}
 
       {/* Horizontal tab nav — proper ARIA tab pattern.
           Arrow keys cycle between tabs; Home/End jump to first/last.
@@ -197,22 +215,24 @@ export function ReportShell() {
         aria-orientation="horizontal"
         className="-mx-1 px-1 overflow-x-auto border-b border-slate-200"
         onKeyDown={(e) => {
-          const idx = TABS.findIndex((t) => t.key === tab);
+          const idx = visibleTabs.findIndex((t) => t.key === tab);
           if (idx < 0) return;
           let next = idx;
-          if (e.key === "ArrowRight" || e.key === "ArrowDown") next = (idx + 1) % TABS.length;
-          else if (e.key === "ArrowLeft" || e.key === "ArrowUp") next = (idx - 1 + TABS.length) % TABS.length;
+          if (e.key === "ArrowRight" || e.key === "ArrowDown")
+            next = (idx + 1) % visibleTabs.length;
+          else if (e.key === "ArrowLeft" || e.key === "ArrowUp")
+            next = (idx - 1 + visibleTabs.length) % visibleTabs.length;
           else if (e.key === "Home") next = 0;
-          else if (e.key === "End") next = TABS.length - 1;
+          else if (e.key === "End") next = visibleTabs.length - 1;
           else return;
           e.preventDefault();
-          const nextKey = TABS[next].key;
+          const nextKey = visibleTabs[next].key;
           setTab(nextKey);
           tabRefs.current[nextKey]?.focus();
         }}
       >
         <div className="flex gap-1 min-w-max">
-          {TABS.map((t) => {
+          {visibleTabs.map((t) => {
             const active = tab === t.key;
             return (
               <button
@@ -260,9 +280,10 @@ export function ReportShell() {
             setSelection={setSelection}
             financingPreference={state.financingPreference}
             onJumpTab={setTab}
+            audience={audience}
           />
         )}
-        {tab === "savings" && (
+        {tab === "savings" && !isInstaller && (
           <SavingsTab
             analysis={a}
             electricityTariff={state.electricityTariff}
@@ -283,6 +304,7 @@ export function ReportShell() {
                   )}`
                 : null
             }
+            audience={audience}
           />
         )}
         {tab === "solar" && (
@@ -295,7 +317,7 @@ export function ReportShell() {
             gasTariff={state.gasTariff}
           />
         )}
-        {tab === "book" && (
+        {tab === "book" && !isInstaller && (
           <BookVisitTab
             analysis={a}
             postcode={addr.postcode}
@@ -305,33 +327,37 @@ export function ReportShell() {
           />
         )}
 
-        {/* Footer controls — Back / Share / Start over */}
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-slate-200 mt-8">
-          <button
-            type="button"
-            onClick={back}
-            className="inline-flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back to floorplan
-          </button>
-          <button
-            type="button"
-            onClick={() => setShareOpen(true)}
-            className="inline-flex items-center gap-2 h-11 px-5 rounded-full bg-coral hover:bg-coral-dark text-white font-semibold text-sm shadow-sm"
-          >
-            <Mail className="w-4 h-4" />
-            Email or share this report
-          </button>
-          <button
-            type="button"
-            onClick={reset}
-            className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-slate-900"
-          >
-            Start another check
-            <ArrowRight className="w-4 h-4" />
-          </button>
-        </div>
+        {/* Footer controls. Installer mode hides everything except a
+            spacer — the surrounding /installer/reports/[leadId] page
+            wraps this in PortalShell which provides its own back link. */}
+        {!isInstaller && (
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-slate-200 mt-8">
+            <button
+              type="button"
+              onClick={back}
+              className="inline-flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back to floorplan
+            </button>
+            <button
+              type="button"
+              onClick={() => setShareOpen(true)}
+              className="inline-flex items-center gap-2 h-11 px-5 rounded-full bg-coral hover:bg-coral-dark text-white font-semibold text-sm shadow-sm"
+            >
+              <Mail className="w-4 h-4" />
+              Email or share this report
+            </button>
+            <button
+              type="button"
+              onClick={reset}
+              className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-slate-900"
+            >
+              Start another check
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
+        )}
 
         <p className="pt-4 text-xs text-slate-500 leading-relaxed">
           A pre-survey indication based on public data, satellite imagery, and your

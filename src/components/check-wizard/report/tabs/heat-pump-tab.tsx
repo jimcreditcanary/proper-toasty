@@ -31,12 +31,18 @@ interface Props {
   analysis: AnalyseResponse;
   floorplan: FloorplanAnalysis | null;
   floorplanImageUrl: string | null;
+  /** Suppresses consumer-flavoured cards (the "Heat pump for your
+   *  home" headline + the "Things to bring up with your installer"
+   *  prep list) when the report is being viewed by an installer
+   *  prepping for a site visit. */
+  audience?: "homeowner" | "installer";
 }
 
 export function HeatPumpTab({
   analysis,
   floorplan,
   floorplanImageUrl,
+  audience = "homeowner",
 }: Props) {
   const hp = analysis.eligibility.heatPump;
   const finance = analysis.finance.heatPump;
@@ -61,7 +67,10 @@ export function HeatPumpTab({
 
   return (
     <div className="space-y-6">
-      {/* HEADLINE — the three numbers + verdict */}
+      {/* HEADLINE — the three numbers + verdict.
+          Hidden in installer mode — they get the same numbers in the
+          report-shell header + on the lead row, this card duplicates. */}
+      {audience === "homeowner" && (
       <SectionCard
         title="Heat pump for your home"
         subtitle="Three numbers that tell you what to expect."
@@ -108,6 +117,7 @@ export function HeatPumpTab({
           </div>
         )}
       </SectionCard>
+      )}
 
       {/* FLOORPLAN — drawn vs AI-detected variant */}
       {floorplan && (
@@ -215,8 +225,10 @@ export function HeatPumpTab({
         </SectionCard>
       )}
 
-      {/* THINGS TO ASK THE INSTALLER */}
-      {(floorplan?.heatPumpInstallationConcerns?.length ||
+      {/* THINGS TO ASK THE INSTALLER — homeowner-only. Installers
+          don't need their own conversation prompts surfaced. */}
+      {audience === "homeowner" &&
+      (floorplan?.heatPumpInstallationConcerns?.length ||
         floorplan?.recommendedInstallerQuestions?.length ||
         hp.warnings.length ||
         hp.notes.length) && (

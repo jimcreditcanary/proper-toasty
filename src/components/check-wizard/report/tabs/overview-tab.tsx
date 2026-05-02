@@ -42,12 +42,16 @@ interface Props {
   setSelection: (s: ReportSelection) => void;
   financingPreference: YesNoUnsure | null;
   onJumpTab: (tab: ReportTabKey) => void;
+  /** Suppresses consumer-facing cards when the report is being viewed
+   *  by an installer prepping for a site visit. */
+  audience?: "homeowner" | "installer";
 }
 
 export function OverviewTab({
   analysis,
   address,
   satelliteUrl,
+  audience = "homeowner",
 }: Props) {
 
   return (
@@ -59,7 +63,10 @@ export function OverviewTab({
         enrichments={analysis.enrichments}
       />
 
-      {/* Installer playbook */}
+      {/* Installer playbook — homeowner-only. Installers landing here
+          via /installer/reports/[leadId] don't need the "how to vet
+          us" advice. */}
+      {audience === "homeowner" && (
       <SectionCard
         title="How to get the best out of installers"
         subtitle="A bit of prep goes a long way. Here&rsquo;s the playbook we&rsquo;d use ourselves."
@@ -108,6 +115,7 @@ export function OverviewTab({
           </div>
         </div>
       </SectionCard>
+      )}
     </div>
   );
 }
