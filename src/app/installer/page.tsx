@@ -4,17 +4,25 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { PortalShell } from "@/components/portal-shell";
 import {
   AlertCircle,
+  ArrowRight,
   CalendarDays,
+  CheckCircle2,
+  Circle,
   CreditCard,
   FileText,
   Inbox,
   KeyRound,
   Send,
+  Sparkles,
   TrendingUp,
   Wallet,
   Zap,
   type LucideIcon,
 } from "lucide-react";
+import {
+  buildChecklist,
+  type ChecklistResult,
+} from "@/lib/installer-onboarding/checklist";
 
 // Installer portal landing.
 //
@@ -50,17 +58,19 @@ export default async function InstallerHomePage() {
   // managing multiple companies — they instantly know which login
   // they're in.
   let companyName: string | null = null;
+  let checklist: ChecklistResult | null = null;
 
   if (user) {
     const admin = createAdminClient();
     const [profileRes, installerRes] = await Promise.all([
       supabase
         .from("users")
-        .select("auto_recharge_failed_at, auto_recharge_failure_reason")
+        .select("auto_recharge_failed_at, auto_recharge_failure_reason, credits")
         .eq("id", user.id)
         .maybeSingle<{
           auto_recharge_failed_at: string | null;
           auto_recharge_failure_reason: string | null;
+          credits: number;
         }>(),
       admin
         .from("installers")
@@ -76,12 +86,38 @@ export default async function InstallerHomePage() {
 
     if (installerRes.data) {
       companyName = installerRes.data.company_name;
-      const { count } = await admin
-        .from("installer_leads")
-        .select("id", { count: "exact", head: true })
-        .eq("installer_id", installerRes.data.id)
-        .in("status", ["new", "sent_to_installer"]);
-      pendingLeads = count ?? 0;
+      // Pull the four onboarding signals + the pending-leads badge
+      // count in parallel — single round-trip burst keeps the
+      // landing page snappy even with the extra queries.
+      const installerId = installerRes.data.id;
+      const [pendingRes, availabilityRes, preSurveyRes, proposalRes] =
+        await Promise.all([
+          admin
+            .from("installer_leads")
+            .select("id", { count: "exact", head: true })
+            .eq("installer_id", installerId)
+            .in("status", ["new", "sent_to_installer"]),
+          admin
+            .from("installer_availability")
+            .select("id", { count: "exact", head: true })
+            .eq("installer_id", installerId),
+          admin
+            .from("installer_pre_survey_requests")
+            .select("id", { count: "exact", head: true })
+            .eq("installer_id", installerId),
+          admin
+            .from("installer_proposals")
+            .select("id", { count: "exact", head: true })
+            .eq("installer_id", installerId)
+            .not("sent_at", "is", null),
+        ]);
+      pendingLeads = pendingRes.count ?? 0;
+      checklist = buildChecklist({
+        hasAvailability: (availabilityRes.count ?? 0) > 0,
+        creditBalance: profileRes.data?.credits ?? 0,
+        preSurveyRequestCount: preSurveyRes.count ?? 0,
+        proposalSentCount: proposalRes.count ?? 0,
+      });
     }
   }
 
@@ -188,6 +224,10 @@ export default async function InstallerHomePage() {
         </Link>
       )}
 
+      {checklist && !checklist.isComplete && (
+        <OnboardingChecklist checklist={checklist} companyName={companyName} />
+      )}
+
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {features.map((f) => (
           <FeatureTile key={f.title} feature={f} />
@@ -241,4 +281,102 @@ function FeatureTile({ feature }: { feature: FeatureCard }) {
     );
   }
   return card;
+}
+
+// ─── Onboarding checklist ──────────────────────────────────────────
+//
+// Renders above the feature tiles when the installer hasn't yet
+// completed the four core steps. Highlights one current step at a
+// time so first-time visitors aren't presented with four equal
+// CTAs and end up doing none of them. Hides automatically once
+// every step is done — no dismissal mechanism needed.
+
+function OnboardingChecklist({
+  checklist,
+  companyName,
+}: {
+  checklist: ChecklistResult;
+  companyName: string | null;
+}) {
+  return (
+    <div className="rounded-2xl border border-coral/30 bg-coral-pale/40 p-5 sm:p-6 mb-6">
+      <div className="flex items-start justify-between gap-3 flex-wrap mb-4">
+        <div className="flex items-start gap-3">
+          <span className="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-white text-coral-dark shrink-0">
+            <Sparkles className="w-4 h-4" />
+          </span>
+          <div>
+            <h2 className="text-base font-semibold text-navy">
+              {companyName ? `Welcome, ${companyName}` : "Welcome to Propertoasty"} 👋
+            </h2>
+            <p className="text-xs text-slate-600 mt-0.5">
+              A few quick things to set up before your first lead lands.
+            </p>
+          </div>
+        </div>
+        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold bg-white border border-coral/20 text-coral-dark">
+          {checklist.doneCount} of {checklist.totalCount} done
+        </span>
+      </div>
+
+      <ul className="space-y-2">
+        {checklist.items.map((item) => (
+          <li key={item.id}>
+            <ChecklistRow item={item} />
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function ChecklistRow({
+  item,
+}: {
+  item: ChecklistResult["items"][number];
+}) {
+  return (
+    <div
+      className={`rounded-xl border p-3 sm:p-4 flex items-start gap-3 ${
+        item.done
+          ? "bg-white/60 border-slate-200 opacity-70"
+          : item.current
+            ? "bg-white border-coral shadow-sm"
+            : "bg-white/60 border-slate-200"
+      }`}
+    >
+      <span className="shrink-0 mt-0.5">
+        {item.done ? (
+          <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+        ) : item.current ? (
+          <Circle className="w-5 h-5 text-coral fill-coral/15" />
+        ) : (
+          <Circle className="w-5 h-5 text-slate-300" />
+        )}
+      </span>
+      <div className="flex-1 min-w-0">
+        <p
+          className={`text-sm font-semibold ${
+            item.done ? "text-slate-500 line-through" : "text-navy"
+          }`}
+        >
+          {item.title}
+        </p>
+        {!item.done && (
+          <p className="text-xs text-slate-600 mt-0.5 leading-relaxed">
+            {item.body}
+          </p>
+        )}
+      </div>
+      {!item.done && item.current && (
+        <Link
+          href={item.ctaHref}
+          className="shrink-0 inline-flex items-center gap-1.5 h-9 px-3 rounded-full bg-coral hover:bg-coral-dark text-white font-semibold text-xs shadow-sm transition-colors self-center"
+        >
+          {item.ctaLabel}
+          <ArrowRight className="w-3 h-3" />
+        </Link>
+      )}
+    </div>
+  );
 }
