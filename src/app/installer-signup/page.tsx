@@ -30,6 +30,7 @@ import { Building2 } from "lucide-react";
 import { ClaimSignupForm } from "./signup-form";
 import { ClaimSearch } from "./search";
 import { ClaimAsSelfButton } from "./claim-button";
+import { maskEmail } from "@/lib/installer-claim/email-mask";
 import type { Database } from "@/types/database";
 
 export const dynamic = "force-dynamic";
@@ -37,7 +38,11 @@ export const dynamic = "force-dynamic";
 type InstallerRow = Database["public"]["Tables"]["installers"]["Row"];
 
 interface PageProps {
-  searchParams: Promise<{ id?: string; email?: string; error?: string }>;
+  searchParams: Promise<{
+    id?: string;
+    email?: string;
+    error?: "race_lost" | "email_mismatch" | "no_email" | string;
+  }>;
 }
 
 interface PrefillData {
@@ -160,6 +165,7 @@ export default async function InstallerSignupPage({ searchParams }: PageProps) {
               prefill={prefill}
               emailOverride={emailOverride}
               signedInEmail={signedInEmail}
+              errorFlag={errorFlag}
             />
           ) : (
             <ClaimSearch />
@@ -182,40 +188,96 @@ export default async function InstallerSignupPage({ searchParams }: PageProps) {
 }
 
 // Server-rendered — receives prefill from the parent and decides
-// which of three states to render:
+// which view to render. Order matters; earlier conditions win.
 //
-//   - Already claimed → "this profile has been claimed" note.
-//   - User is signed in → one-click claim-as-self button (no
-//     account creation, no confirm email).
-//   - User isn't signed in → the F2 signup form (creates the
-//     account + binds via auth callback).
+//   1. Already claimed by someone else → "claimed" note.
+//   2. Signed-in user, but their email doesn't match the installer
+//      record → mismatch refusal (security: stops cross-installer
+//      claims).
+//   3. Signed-in user, installer has no email on file → no-email
+//      refusal (admin support route).
+//   4. Signed-in user, email matches → one-click claim-as-self.
+//   5. Anonymous → F2 signup form (creates the account + binds via
+//      auth callback). The form ALSO enforces the email match, but
+//      this server-side path stops the wrong account from getting
+//      to the form in the first place.
 function PrefillView({
   prefill,
   emailOverride,
   signedInEmail,
+  errorFlag,
 }: {
   prefill: PrefillData;
   emailOverride: string | undefined;
   signedInEmail: string | null;
+  errorFlag: string | null;
 }) {
+  const installerEmail = prefill.email?.toLowerCase().trim() ?? null;
+  const userEmail = signedInEmail?.toLowerCase().trim() ?? null;
+
+  let body: React.ReactNode;
+  if (prefill.alreadyClaimed) {
+    body = <AlreadyClaimedNote />;
+  } else if (signedInEmail && !installerEmail) {
+    body = <NoEmailOnFileNote companyName={prefill.companyName} />;
+  } else if (signedInEmail && installerEmail !== userEmail) {
+    body = (
+      <EmailMismatchNote
+        companyName={prefill.companyName}
+        userEmail={signedInEmail}
+        installerEmailHint={maskEmail(prefill.email)}
+      />
+    );
+  } else if (signedInEmail) {
+    body = (
+      <ClaimAsSelfButton
+        installerId={prefill.id}
+        installerName={prefill.companyName}
+        signedInEmail={signedInEmail}
+      />
+    );
+  } else {
+    body = (
+      <ClaimSignupForm
+        installerId={prefill.id}
+        installerName={prefill.companyName}
+        defaultEmail={emailOverride ?? prefill.email ?? ""}
+      />
+    );
+  }
+
   return (
     <>
-      <CompanyCard prefill={prefill} />
-      {prefill.alreadyClaimed ? (
-        <AlreadyClaimedNote />
-      ) : signedInEmail ? (
-        <ClaimAsSelfButton
-          installerId={prefill.id}
-          installerName={prefill.companyName}
-          signedInEmail={signedInEmail}
-        />
-      ) : (
-        <ClaimSignupForm
-          installerId={prefill.id}
-          installerName={prefill.companyName}
-          defaultEmail={emailOverride ?? prefill.email ?? ""}
-        />
+      {/* Pre-prefill banners from the auth-callback redirect path
+          (fires when a brand-new signup confirmed an email that
+          turned out to mismatch the installer record). */}
+      {errorFlag === "email_mismatch" && (
+        <div className="rounded-xl border border-red-200 bg-red-50 p-4 mb-4 text-sm leading-relaxed">
+          <p className="font-semibold text-red-900">
+            Email didn&rsquo;t match
+          </p>
+          <p className="text-red-900 mt-1">
+            For security we only let an installer be claimed by the
+            email address on the directory record. Sign in with the
+            right email, or get in touch if you need it updated.
+          </p>
+        </div>
       )}
+      {errorFlag === "no_email" && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 mb-4 text-sm leading-relaxed">
+          <p className="font-semibold text-amber-900">
+            We can&rsquo;t auto-verify ownership
+          </p>
+          <p className="text-amber-900 mt-1">
+            There&rsquo;s no email on file for this installer, so
+            email <a href="mailto:hello@propertoasty.com" className="underline font-medium">hello@propertoasty.com</a>{" "}
+            and we&rsquo;ll verify ownership manually.
+          </p>
+        </div>
+      )}
+
+      <CompanyCard prefill={prefill} />
+      {body}
       <p className="mt-4 text-center text-xs text-slate-500">
         Not your company?{" "}
         <Link
@@ -227,6 +289,69 @@ function PrefillView({
         .
       </p>
     </>
+  );
+}
+
+function NoEmailOnFileNote({ companyName }: { companyName: string }) {
+  return (
+    <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-relaxed">
+      <p className="font-semibold text-amber-900">
+        We can&rsquo;t auto-verify ownership of {companyName}
+      </p>
+      <p className="text-amber-900 mt-1">
+        There&rsquo;s no email on file for this installer, so we
+        can&rsquo;t check you&rsquo;re the right person to claim it.
+        Email{" "}
+        <a
+          href="mailto:hello@propertoasty.com"
+          className="underline font-medium"
+        >
+          hello@propertoasty.com
+        </a>{" "}
+        and we&rsquo;ll sort the claim manually.
+      </p>
+    </div>
+  );
+}
+
+function EmailMismatchNote({
+  companyName,
+  userEmail,
+  installerEmailHint,
+}: {
+  companyName: string;
+  userEmail: string;
+  installerEmailHint: string | null;
+}) {
+  return (
+    <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm leading-relaxed">
+      <p className="font-semibold text-red-900">
+        Wrong account for {companyName}
+      </p>
+      <p className="text-red-900 mt-1">
+        You&rsquo;re signed in as{" "}
+        <strong>{userEmail}</strong>, but {companyName}&rsquo;s
+        profile is registered to{" "}
+        <strong>{installerEmailHint ?? "a different email"}</strong>.
+      </p>
+      <p className="text-red-900 mt-2">
+        Sign in with the correct email to claim, or email{" "}
+        <a
+          href="mailto:hello@propertoasty.com"
+          className="underline font-medium"
+        >
+          hello@propertoasty.com
+        </a>{" "}
+        if the address on file is out of date and we&rsquo;ll update it
+        for you.
+      </p>
+      <Link
+        href="/auth/login"
+        className="inline-flex items-center justify-center h-10 px-4 mt-3 rounded-full bg-white border border-red-200 hover:border-red-300 text-red-700 font-semibold text-xs transition-colors"
+      >
+        Sign in with a different email
+      </Link>
+    </div>
   );
 }
 

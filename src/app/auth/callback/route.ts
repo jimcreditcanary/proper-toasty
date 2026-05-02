@@ -53,6 +53,7 @@ export async function GET(request: NextRequest) {
     claimResult = await completeInstallerClaim({
       admin,
       userId: data.user.id,
+      userEmail: data.user.email ?? "",
       installerId: claimId,
     });
     // Best-effort: clear the metadata flag so a re-issued
@@ -85,6 +86,16 @@ export async function GET(request: NextRequest) {
   }
   if (claimResult?.kind === "race-lost") {
     return NextResponse.redirect(`${origin}/installer-signup?error=race_lost`);
+  }
+  if (claimResult?.kind === "email-mismatch") {
+    return NextResponse.redirect(
+      `${origin}/installer-signup?id=${claimId}&error=email_mismatch`,
+    );
+  }
+  if (claimResult?.kind === "no-email-on-file") {
+    return NextResponse.redirect(
+      `${origin}/installer-signup?id=${claimId}&error=no_email`,
+    );
   }
 
   // Look up the role to decide where to land. Anonymous fallback to

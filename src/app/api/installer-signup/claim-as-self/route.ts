@@ -31,7 +31,14 @@ interface ClaimResponse {
   installerId?: number;
   companyName?: string;
   error?: string;
-  reason?: "race-lost" | "installer-missing" | "unauthenticated" | "internal";
+  reason?:
+    | "race-lost"
+    | "installer-missing"
+    | "unauthenticated"
+    | "email-mismatch"
+    | "no-email-on-file"
+    | "internal";
+  installerEmailHint?: string | null;
 }
 
 export async function POST(req: Request): Promise<NextResponse<ClaimResponse>> {
@@ -39,7 +46,7 @@ export async function POST(req: Request): Promise<NextResponse<ClaimResponse>> {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) {
+  if (!user || !user.email) {
     return NextResponse.json<ClaimResponse>(
       { ok: false, error: "Sign in required", reason: "unauthenticated" },
       { status: 401 },
@@ -67,6 +74,7 @@ export async function POST(req: Request): Promise<NextResponse<ClaimResponse>> {
   const result = await completeInstallerClaim({
     admin,
     userId: user.id,
+    userEmail: user.email,
     installerId: parsed.data.installerId,
   });
 
@@ -86,6 +94,29 @@ export async function POST(req: Request): Promise<NextResponse<ClaimResponse>> {
           "Another account claimed this installer just now. If that wasn't you, email hello@propertoasty.com.",
       },
       { status: 409 },
+    );
+  }
+  if (result.kind === "email-mismatch") {
+    return NextResponse.json<ClaimResponse>(
+      {
+        ok: false,
+        reason: "email-mismatch",
+        installerEmailHint: result.installerEmailHint,
+        error: `${result.companyName}'s profile uses a different email${
+          result.installerEmailHint ? ` (${result.installerEmailHint})` : ""
+        }. If that's no longer your address, email hello@propertoasty.com to update it.`,
+      },
+      { status: 403 },
+    );
+  }
+  if (result.kind === "no-email-on-file") {
+    return NextResponse.json<ClaimResponse>(
+      {
+        ok: false,
+        reason: "no-email-on-file",
+        error: `We don't have an email on file for ${result.companyName}, so we can't auto-verify ownership. Email hello@propertoasty.com to claim this profile.`,
+      },
+      { status: 403 },
     );
   }
   return NextResponse.json<ClaimResponse>(

@@ -42,6 +42,7 @@ export default async function AvailabilityPage() {
       portalName="Installer"
       pageTitle="Availability"
       pageSubtitle="Set when you're free to do site visits. Homeowners book directly into open slots."
+      backLink={{ href: "/installer", label: "Back to installer portal" }}
     >
       {!installer ? (
         <UnboundState />

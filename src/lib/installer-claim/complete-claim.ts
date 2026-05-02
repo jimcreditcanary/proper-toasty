@@ -10,6 +10,26 @@
 //      signed-in user clicks "Claim this profile" rather than going
 //      through a fresh signup.
 //
+// SECURITY — email-match enforcement:
+//
+//   The user's auth email MUST equal the installer record's email
+//   on file (case-insensitive, trimmed). Without this, any signed-in
+//   user could claim any installer in the directory just by knowing
+//   the id (e.g. claim Octopus Energy from a personal account).
+//
+//   Edge cases:
+//     - Installer has no email on file → claim is blocked. The user
+//       is told to email support to verify ownership manually.
+//     - Email mismatch → claim is blocked. We surface a *masked*
+//       hint of the installer's address so a legit owner who's
+//       changed email knows what's expected, without leaking the
+//       full address to a probe.
+//
+//   This is intentionally strict for v1. Generic shared inboxes
+//   (info@company.com) where the actual person uses bob@company.com
+//   end up using the F3 admin-review path (/installer-signup/request)
+//   to verify ownership.
+//
 // CAS pattern: update only where user_id is still NULL. Two callers
 // racing for the same installer means whichever lands first wins;
 // the other gets a "race-lost" outcome they can show in the UI.
@@ -19,26 +39,40 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
+import { maskEmail } from "@/lib/installer-claim/email-mask";
 
 type AdminClient = SupabaseClient<Database>;
 
 export type ClaimOutcome =
   | { kind: "claimed"; installerId: number; companyName: string }
   | { kind: "race-lost"; reason: string }
+  | {
+      kind: "email-mismatch";
+      installerEmailHint: string | null;
+      companyName: string;
+    }
+  | { kind: "no-email-on-file"; companyName: string }
   | { kind: "error"; reason: string };
 
 export async function completeInstallerClaim(args: {
   admin: AdminClient;
   userId: string;
+  /** The auth-confirmed email of the user attempting the claim. */
+  userEmail: string;
   installerId: number;
 }): Promise<ClaimOutcome> {
-  const { admin, userId, installerId } = args;
+  const { admin, userId, userEmail, installerId } = args;
 
   const { data: installer, error: lookupErr } = await admin
     .from("installers")
-    .select("id, user_id, company_name")
+    .select("id, user_id, company_name, email")
     .eq("id", installerId)
-    .maybeSingle<{ id: number; user_id: string | null; company_name: string }>();
+    .maybeSingle<{
+      id: number;
+      user_id: string | null;
+      company_name: string;
+      email: string | null;
+    }>();
   if (lookupErr || !installer) {
     console.warn("[claim] target missing", {
       installerId,
@@ -53,6 +87,40 @@ export async function completeInstallerClaim(args: {
     });
     return { kind: "race-lost", reason: "already-claimed" };
   }
+
+  // Email-match security check. Skip when we're just confirming an
+  // existing self-bind (idempotent re-run) — the binding's already
+  // done and the user is who they were before.
+  if (installer.user_id !== userId) {
+    const installerEmail = installer.email?.toLowerCase().trim() ?? null;
+    const callerEmail = userEmail.toLowerCase().trim();
+    if (!installerEmail) {
+      console.warn("[claim] blocked — no email on installer record", {
+        installerId,
+        userId,
+      });
+      return {
+        kind: "no-email-on-file",
+        companyName: installer.company_name,
+      };
+    }
+    if (installerEmail !== callerEmail) {
+      console.warn("[claim] blocked — email mismatch", {
+        installerId,
+        userId,
+        userEmail: callerEmail,
+        // Don't log the installer's full email — masked is plenty
+        // for support traceability without leaking PII.
+        installerEmailMasked: maskEmail(installer.email),
+      });
+      return {
+        kind: "email-mismatch",
+        installerEmailHint: maskEmail(installer.email),
+        companyName: installer.company_name,
+      };
+    }
+  }
+
   if (installer.user_id === userId) {
     // Idempotent re-claim. Belt-and-braces re-flip the role.
     await admin

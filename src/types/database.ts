@@ -1053,6 +1053,8 @@ export interface Database {
           // Migration 044 — C4 auto-release + reminder
           installer_reminder_sent_at: string | null;
           auto_released_at: string | null;
+          // Migration 045 — installer report URL minted at accept time
+          installer_report_url: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -1105,6 +1107,7 @@ export interface Database {
           acknowledge_clicked_at?: string | null;
           installer_reminder_sent_at?: string | null;
           auto_released_at?: string | null;
+          installer_report_url?: string | null;
           created_at?: string;
           updated_at?: string;
         };

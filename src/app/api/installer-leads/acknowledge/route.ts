@@ -423,6 +423,33 @@ export async function POST(req: Request) {
     lead.wants_battery,
   );
 
+  // Mint a report-share URL the installer can use to read the
+  // homeowner's pre-survey before the visit. Persisted on the lead
+  // so the inbox + ICS pull the same URL. Soft-fails — if token
+  // minting bombs we still credit + email, just without the report
+  // link.
+  let installerReportUrl: string | null = null;
+  if (action === "accept") {
+    try {
+      installerReportUrl = await issueReportUrl({ admin, lead });
+      const { error: persistErr } = await admin
+        .from("installer_leads")
+        .update({ installer_report_url: installerReportUrl })
+        .eq("id", leadId);
+      if (persistErr) {
+        console.warn(
+          "[ack] couldn't persist installer_report_url",
+          persistErr.message,
+        );
+      }
+    } catch (e) {
+      console.warn(
+        "[ack] report token mint failed — continuing without",
+        e instanceof Error ? e.message : e,
+      );
+    }
+  }
+
   if (action === "accept") {
     await sendAcceptEmails({
       lead,
@@ -431,14 +458,23 @@ export async function POST(req: Request) {
       reportFacts,
       wantsList,
       leadId,
+      installerReportUrl,
     });
   } else {
     // reschedule
     await sendRescheduleEmails({ lead, meeting, installer, reportFacts, leadId });
   }
 
+  // Carry the report URL through to /lead/accepted so the page can
+  // surface a "View report" CTA. URL-safe by URLSearchParams.
+  const landingParams = new URLSearchParams({
+    state: action === "accept" ? "ok" : "reschedule",
+  });
+  if (installerReportUrl) {
+    landingParams.set("reportUrl", installerReportUrl);
+  }
   return NextResponse.redirect(
-    new URL(landingUrl(action === "accept" ? "ok" : "reschedule"), url),
+    new URL(`/lead/accepted?${landingParams.toString()}`, url),
     303,
   );
 }
@@ -586,6 +622,7 @@ async function sendAcceptEmails({
   reportFacts,
   wantsList,
   leadId,
+  installerReportUrl,
 }: {
   lead: Pick<
     LeadRow,
@@ -610,6 +647,7 @@ async function sendAcceptEmails({
   reportFacts: ReportFacts;
   wantsList: string;
   leadId: string;
+  installerReportUrl: string | null;
 }) {
   if (!meeting) return;
 
@@ -672,6 +710,7 @@ async function sendAcceptEmails({
           propertyAddress: lead.property_address,
           propertyPostcode: lead.property_postcode,
           wantsList,
+          installerReportUrl,
         })
       : null;
 
@@ -937,6 +976,7 @@ function buildInstallerIcsAttachment(args: {
   propertyAddress: string | null;
   propertyPostcode: string | null;
   wantsList: string;
+  installerReportUrl: string | null;
 }): SendEmailAttachment {
   const meetingStart = new Date(args.meeting.scheduled_at);
   const start = new Date(
@@ -958,6 +998,10 @@ function buildInstallerIcsAttachment(args: {
     args.propertyAddress ? `Address: ${args.propertyAddress}` : "",
     args.propertyPostcode && !args.propertyAddress
       ? `Postcode: ${args.propertyPostcode}`
+      : "",
+    "",
+    args.installerReportUrl
+      ? `Pre-survey report (open before the visit): ${args.installerReportUrl}`
       : "",
   ]
     .filter((l) => l !== null && l !== "")

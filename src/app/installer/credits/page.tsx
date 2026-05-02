@@ -64,6 +64,7 @@ export default async function CreditsPage({ searchParams }: PageProps) {
       portalName="Installer"
       pageTitle="Credits"
       pageSubtitle="One credit per pre-survey request, five credits per accepted lead."
+      backLink={{ href: "/installer", label: "Back to installer portal" }}
     >
       {cancelled && (
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 mb-5 text-sm">

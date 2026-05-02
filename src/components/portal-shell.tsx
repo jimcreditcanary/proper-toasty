@@ -12,12 +12,18 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 import type { ReactNode } from "react";
 
 export interface NavItem {
   label: string;
   href: string;
   icon?: ReactNode;
+}
+
+export interface BackLink {
+  href: string;
+  label: string;
 }
 
 interface Props {
@@ -29,6 +35,10 @@ interface Props {
   pageSubtitle?: string;
   /** Tabs along the bottom of the header. Empty in F1. */
   navItems?: NavItem[];
+  /** Optional "← Back to ..." link rendered above the page title.
+   *  Use on subpages (e.g. /installer/leads) so users have a one-
+   *  click path back to /installer without hunting for the logo. */
+  backLink?: BackLink;
   children: ReactNode;
 }
 
@@ -37,6 +47,7 @@ export function PortalShell({
   pageTitle,
   pageSubtitle,
   navItems = [],
+  backLink,
   children,
 }: Props) {
   const pathname = usePathname();
@@ -45,6 +56,15 @@ export function PortalShell({
     <div className="min-h-screen bg-slate-50">
       <div className="bg-white border-b border-slate-200">
         <div className="mx-auto max-w-6xl px-4 sm:px-6 pt-6 pb-4">
+          {backLink && (
+            <Link
+              href={backLink.href}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-coral transition-colors mb-2"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              {backLink.label}
+            </Link>
+          )}
           <p className="text-xs font-semibold uppercase tracking-wider text-coral">
             {portalName} portal
           </p>

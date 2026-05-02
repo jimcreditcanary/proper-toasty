@@ -26,6 +26,11 @@ interface Props {
   defaultEmail: string;
 }
 
+// Helper — case-insensitive trimmed compare for email-match.
+function emailsMatch(a: string, b: string): boolean {
+  return a.toLowerCase().trim() === b.toLowerCase().trim();
+}
+
 interface ExistingAccountState {
   email: string;
 }
@@ -61,6 +66,19 @@ export function ClaimSignupForm({
 
     if (!accepted) {
       setError("Please accept the terms before signing up.");
+      setLoading(false);
+      return;
+    }
+
+    // Email-match guard: if the form was opened with the directory
+    // email pre-filled, the user must keep using that exact address.
+    // Backend enforces this anyway (auth callback rejects mismatched
+    // claims) but failing fast here saves the user an email roundtrip
+    // that would just dead-end.
+    if (defaultEmail && !emailsMatch(email, defaultEmail)) {
+      setError(
+        `${installerName}'s profile uses ${defaultEmail}. Use that email to claim — or contact hello@propertoasty.com if it's out of date.`,
+      );
       setLoading(false);
       return;
     }
@@ -150,12 +168,21 @@ export function ClaimSignupForm({
           required
           value={email}
           onChange={(e) => setEmail(e.target.value)}
+          // Lock the field when we know the directory email — the
+          // claim has to land on that address for security. Visually
+          // greyed so the user understands why they can't change it.
+          readOnly={defaultEmail.length > 0}
           placeholder="you@example.com"
-          className="w-full h-11 px-3 rounded-xl bg-slate-50 border border-slate-200 focus:border-coral focus:outline-none text-sm text-slate-900 placeholder:text-slate-400"
+          className={`w-full h-11 px-3 rounded-xl border focus:border-coral focus:outline-none text-sm text-slate-900 placeholder:text-slate-400 ${
+            defaultEmail.length > 0
+              ? "bg-slate-100 border-slate-200 cursor-not-allowed text-slate-700"
+              : "bg-slate-50 border-slate-200"
+          }`}
         />
         <p className="text-[11px] text-slate-500 leading-relaxed">
-          This is where lead notifications + the calendar invite will
-          land. Use the address you check most often.
+          {defaultEmail.length > 0
+            ? `Locked to the email on ${installerName}'s MCS profile. Email hello@propertoasty.com if it's out of date.`
+            : "Where lead notifications + the calendar invite will land."}
         </p>
       </div>
 

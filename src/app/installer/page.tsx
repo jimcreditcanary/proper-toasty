@@ -44,6 +44,12 @@ export default async function InstallerHomePage() {
 
   let failureReason: string | null = null;
   let pendingLeads = 0;
+  // Pull the bound installer's company name so the page title can
+  // be specific ("Welcome back, Toasty Test Installer Ltd") rather
+  // than the generic "Welcome back". Massive UX win for accounts
+  // managing multiple companies — they instantly know which login
+  // they're in.
+  let companyName: string | null = null;
 
   if (user) {
     const admin = createAdminClient();
@@ -58,9 +64,9 @@ export default async function InstallerHomePage() {
         }>(),
       admin
         .from("installers")
-        .select("id")
+        .select("id, company_name")
         .eq("user_id", user.id)
-        .maybeSingle<{ id: number }>(),
+        .maybeSingle<{ id: number; company_name: string }>(),
     ]);
 
     if (profileRes.data?.auto_recharge_failed_at) {
@@ -68,7 +74,8 @@ export default async function InstallerHomePage() {
         profileRes.data.auto_recharge_failure_reason ?? "Card declined";
     }
 
-    if (installerRes.data?.id) {
+    if (installerRes.data) {
+      companyName = installerRes.data.company_name;
       const { count } = await admin
         .from("installer_leads")
         .select("id", { count: "exact", head: true })
@@ -139,11 +146,19 @@ export default async function InstallerHomePage() {
     },
   ];
 
+  // Title: prefer the company name when bound. The PortalShell's
+  // "Installer portal" pill above already says they're in the
+  // installer surface, so we don't duplicate "Welcome back".
+  const pageTitle = companyName ?? "Welcome back";
+  const pageSubtitle = companyName
+    ? "Manage your availability, accept leads, and quote with confidence."
+    : "Claim your installer profile to start accepting leads.";
+
   return (
     <PortalShell
       portalName="Installer"
-      pageTitle="Welcome back"
-      pageSubtitle="Manage your availability, accept leads, and quote with confidence."
+      pageTitle={pageTitle}
+      pageSubtitle={pageSubtitle}
     >
       {failureReason && (
         <Link

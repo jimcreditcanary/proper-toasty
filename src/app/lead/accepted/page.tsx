@@ -1,6 +1,8 @@
 // Landing page the installer sees after their accept / reschedule /
-// decline action runs. The /api/installer-leads/acknowledge endpoint
-// redirects here with ?state=ok|reschedule|declined|invalid|expired|error.
+// decline action runs. /api/installer-leads/acknowledge redirects
+// here with ?state=ok|reschedule|declined|invalid|expired|error and
+// (on accept) ?reportUrl=… so we can offer a "view report" CTA
+// before the visit.
 //
 // Copy avoids naming any specific calendar product — installers may
 // be on Outlook, Apple Calendar, Fastmail, anything that opens an
@@ -14,10 +16,11 @@ export const dynamic = "force-dynamic";
 export default async function AcknowledgePage({
   searchParams,
 }: {
-  searchParams: Promise<{ state?: string }>;
+  searchParams: Promise<{ state?: string; reportUrl?: string }>;
 }) {
   const params = await searchParams;
   const state = params.state ?? "invalid";
+  const reportUrl = params.reportUrl ?? null;
 
   let title: string;
   let body: string;
@@ -63,9 +66,17 @@ export default async function AcknowledgePage({
   }
 
   const accentColour =
-    tone === "ok" ? "bg-emerald-100 text-emerald-700" :
-    tone === "warn" ? "bg-amber-100 text-amber-800" :
-    "bg-red-100 text-red-700";
+    tone === "ok"
+      ? "bg-emerald-100 text-emerald-700"
+      : tone === "warn"
+        ? "bg-amber-100 text-amber-800"
+        : "bg-red-100 text-red-700";
+
+  // Where the primary CTA points. Installers come here from accept
+  // emails — they want to land back in their portal. The legacy
+  // "Back to Propertoasty" → / made no sense.
+  const primaryHref = "/installer";
+  const primaryLabel = "Open the installer portal";
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-cream-deep to-cream flex items-center justify-center px-4 py-12">
@@ -78,14 +89,34 @@ export default async function AcknowledgePage({
         <h1 className="text-xl sm:text-2xl font-bold text-navy leading-tight">
           {title}
         </h1>
-        <p className="mt-3 text-sm text-slate-600 leading-relaxed">
-          {body}
-        </p>
+        <p className="mt-3 text-sm text-slate-600 leading-relaxed">{body}</p>
+
+        {/* View pre-survey report — only when accept actually wired
+            up a report URL (state=ok, reportUrl present). Helps the
+            installer prep the visit without trawling for the
+            calendar invite first. */}
+        {state === "ok" && reportUrl && (
+          <Link
+            href={reportUrl}
+            target="_blank"
+            rel="noopener"
+            className="mt-6 inline-flex items-center justify-center h-11 px-5 rounded-full bg-coral hover:bg-coral-dark text-white font-semibold text-sm shadow-sm transition-colors w-full"
+          >
+            View pre-survey report
+          </Link>
+        )}
+
         <Link
-          href="/"
-          className="mt-6 inline-flex items-center justify-center h-11 px-5 rounded-full bg-coral hover:bg-coral-dark text-white font-semibold text-sm shadow-sm transition-colors"
+          href={primaryHref}
+          className={`${
+            state === "ok" && reportUrl ? "mt-3" : "mt-6"
+          } inline-flex items-center justify-center h-11 px-5 rounded-full ${
+            state === "ok" && reportUrl
+              ? "bg-white border border-slate-200 hover:border-coral/40 text-slate-700"
+              : "bg-coral hover:bg-coral-dark text-white"
+          } font-semibold text-sm shadow-sm transition-colors w-full`}
         >
-          Back to Propertoasty
+          {primaryLabel}
         </Link>
       </div>
     </main>
