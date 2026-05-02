@@ -52,6 +52,9 @@ export function SiteHeader({
             <Link href="/enterprise" className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors">
               For installers
             </Link>
+            <Link href="/pricing" className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors">
+              Pricing
+            </Link>
             <Link href="/blog" className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors">
               Blog
             </Link>

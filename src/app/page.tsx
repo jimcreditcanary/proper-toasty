@@ -32,6 +32,9 @@ function LandingHeader() {
           <Link href="/enterprise" className="text-[var(--muted-brand)] hover:text-navy transition-colors">
             For installers
           </Link>
+          <Link href="/pricing" className="text-[var(--muted-brand)] hover:text-navy transition-colors">
+            Pricing
+          </Link>
           <Link href="/blog" className="text-[var(--muted-brand)] hover:text-navy transition-colors">
             Journal
           </Link>
@@ -68,6 +71,7 @@ function LandingFooter() {
             <li><Link href="/check" className="hover:text-navy">Run a check</Link></li>
             <li><Link href="/blog" className="hover:text-navy">Journal</Link></li>
             <li><Link href="/enterprise" className="hover:text-navy">For installers</Link></li>
+            <li><Link href="/pricing" className="hover:text-navy">Pricing</Link></li>
           </ul>
         </div>
         <div className="text-sm">
