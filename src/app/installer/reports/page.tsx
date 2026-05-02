@@ -15,6 +15,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { PortalShell } from "@/components/portal-shell";
+import { issueReportUrl } from "@/lib/booking/report-link";
 import {
   ArrowRight,
   CheckCircle2,
@@ -63,13 +64,19 @@ async function loadInstallerId(): Promise<
 async function loadReports(
   installerId: number,
   query: string | null,
+  appBaseUrl: string,
 ): Promise<LeadRow[]> {
   const admin = createAdminClient();
+  // Match anything the installer actually acknowledged (accept OR
+  // reschedule). We don't filter on installer_report_url because
+  // pre-migration-045 accepts didn't get a URL stamped — we mint
+  // those lazily below so the page heals itself the first time an
+  // installer visits.
   let q = admin
     .from("installer_leads")
     .select("*")
     .eq("installer_id", installerId)
-    .not("installer_report_url", "is", null)
+    .not("installer_acknowledged_at", "is", null)
     .order("installer_acknowledged_at", {
       ascending: false,
       nullsFirst: false,
@@ -99,7 +106,33 @@ async function loadReports(
     console.error("[reports] query failed", error);
     return [];
   }
-  return (data ?? []) as LeadRow[];
+  const rows = (data ?? []) as LeadRow[];
+
+  // Backfill any rows missing installer_report_url. issueReportUrl
+  // creates a fresh report_tokens row + returns the public /r/<token>
+  // URL; we persist it so future renders are zero side-effect.
+  await Promise.all(
+    rows
+      .filter((r) => !r.installer_report_url)
+      .map(async (lead) => {
+        try {
+          const url = await issueReportUrl({ admin, lead, appBaseUrl });
+          await admin
+            .from("installer_leads")
+            .update({ installer_report_url: url })
+            .eq("id", lead.id);
+          // Mutate the in-memory row so the render below sees it.
+          lead.installer_report_url = url;
+        } catch (e) {
+          console.warn("[reports] backfill failed for lead", {
+            leadId: lead.id,
+            err: e instanceof Error ? e.message : e,
+          });
+        }
+      }),
+  );
+
+  return rows;
 }
 
 export default async function ReportsPage({ searchParams }: PageProps) {
@@ -120,7 +153,14 @@ export default async function ReportsPage({ searchParams }: PageProps) {
     );
   }
 
-  const reports = await loadReports(auth.installerId, query);
+  // Same env-fallback pattern as /api/installer-leads/acknowledge.
+  // issueReportUrl needs an absolute base so the persisted URL works
+  // when surfaced in emails / calendar invites later too.
+  const appBaseUrl = (
+    process.env.NEXT_PUBLIC_APP_URL ?? "https://propertoasty.com"
+  ).replace(/\/+$/, "");
+
+  const reports = await loadReports(auth.installerId, query, appBaseUrl);
 
   return (
     <PortalShell
