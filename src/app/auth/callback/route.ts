@@ -98,14 +98,52 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  // Look up the role to decide where to land. Anonymous fallback to
-  // /dashboard so a brand-new account always lands somewhere even if
-  // the row hasn't been linked yet.
+  // Look up the role to decide where to land. Also check for an
+  // email-matching unclaimed installer + auto-bind if found —
+  // covers the case where a brand-new user confirmed their email
+  // but the metadata-driven claim above didn't run (e.g. metadata
+  // was cleared, signup happened via /auth/login rather than
+  // /installer-signup).
   const { data: profile } = await supabase
     .from("users")
     .select("role")
     .eq("id", data.user.id)
     .maybeSingle<{ role: string | null }>();
+
+  if (
+    profile?.role !== "admin" &&
+    profile?.role !== "installer" &&
+    data.user.email
+  ) {
+    const admin = createAdminClient();
+    const { data: matches } = await admin
+      .from("installers")
+      .select("id, company_name")
+      .ilike("email", data.user.email)
+      .is("user_id", null)
+      .limit(2);
+    if (matches && matches.length === 1) {
+      const target = matches[0]!;
+      const result = await completeInstallerClaim({
+        admin,
+        userId: data.user.id,
+        userEmail: data.user.email,
+        installerId: target.id,
+      });
+      if (result.kind === "claimed") {
+        console.log("[auth/callback] auto-bound matching installer", {
+          userId: data.user.id,
+          installerId: target.id,
+        });
+        return NextResponse.redirect(`${origin}/installer`);
+      }
+      console.warn("[auth/callback] auto-bind failed", {
+        userId: data.user.id,
+        installerId: target.id,
+        kind: result.kind,
+      });
+    }
+  }
 
   return NextResponse.redirect(`${origin}${landingForRole(profile?.role)}`);
 }

@@ -238,7 +238,7 @@ function PrefillView({
     );
   } else {
     body = (
-      <ClaimSignupForm
+      <UnauthenticatedClaimChoices
         installerId={prefill.id}
         installerName={prefill.companyName}
         defaultEmail={emailOverride ?? prefill.email ?? ""}
@@ -351,6 +351,61 @@ function EmailMismatchNote({
       >
         Sign in with a different email
       </Link>
+    </div>
+  );
+}
+
+// Two-path picker shown to anonymous users on /installer-signup
+// when an installer is prefilled. Sign-in is offered first +
+// prominently — most testers reaching this page already have an
+// account from a prior session, and the previous "buried text
+// link" UX made them think they had to start over.
+function UnauthenticatedClaimChoices({
+  installerId,
+  installerName,
+  defaultEmail,
+}: {
+  installerId: number;
+  installerName: string;
+  defaultEmail: string;
+}) {
+  const signInHref = `/auth/login?redirect=${encodeURIComponent(`/installer-signup?id=${installerId}`)}`;
+  return (
+    <div className="space-y-5">
+      <div className="rounded-xl border border-coral/30 bg-coral-pale/40 p-4">
+        <p className="text-xs font-semibold uppercase tracking-wider text-coral">
+          Already on Propertoasty?
+        </p>
+        <p className="mt-1 text-sm text-navy leading-relaxed">
+          Sign in and we&rsquo;ll bind {installerName} to your existing
+          account in one click — no second password.
+        </p>
+        <Link
+          href={signInHref}
+          className="inline-flex items-center justify-center w-full h-12 mt-4 rounded-full bg-coral hover:bg-coral-dark text-white font-semibold text-sm shadow-sm transition-colors"
+        >
+          Sign in to claim {installerName}
+        </Link>
+      </div>
+
+      <div className="relative flex items-center">
+        <div className="flex-1 border-t border-slate-200" />
+        <span className="px-3 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+          Or new here?
+        </span>
+        <div className="flex-1 border-t border-slate-200" />
+      </div>
+
+      <div>
+        <p className="text-sm font-semibold text-navy mb-3">
+          Create your account
+        </p>
+        <ClaimSignupForm
+          installerId={installerId}
+          installerName={installerName}
+          defaultEmail={defaultEmail}
+        />
+      </div>
     </div>
   );
 }

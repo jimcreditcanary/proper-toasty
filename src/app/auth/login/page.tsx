@@ -68,32 +68,20 @@ function AuthPageInner() {
     }
 
     // If the original deep-link gave us a `redirect`, honour it.
-    // Otherwise let the auth callback's role-based router pick: send
-    // to /auth/callback with no `next` — actually we never hit the
-    // callback on a password sign-in, so do the role lookup here.
+    // Otherwise let the post-signin-target endpoint figure out where
+    // to send the user. That endpoint also does an auto-bind step
+    // for users whose email matches an unclaimed installer — saves
+    // them re-doing the F2 claim flow after sign-in.
     const explicitRedirect = searchParams.get("redirect");
     if (explicitRedirect) {
       router.push(explicitRedirect);
       return;
     }
-    // Look up role for first-time landing.
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (user) {
-      const { data: profile } = await supabase
-        .from("users")
-        .select("role")
-        .eq("id", user.id)
-        .maybeSingle<{ role: string | null }>();
-      const target =
-        profile?.role === "admin"
-          ? "/admin"
-          : profile?.role === "installer"
-            ? "/installer"
-            : "/dashboard";
-      router.push(target);
-    } else {
+    try {
+      const res = await fetch("/api/auth/post-signin-target");
+      const json = (await res.json()) as { ok: boolean; redirect?: string };
+      router.push(json.redirect ?? "/dashboard");
+    } catch {
       router.push("/dashboard");
     }
   }
