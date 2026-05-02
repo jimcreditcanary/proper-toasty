@@ -10,6 +10,7 @@ import type { SupabaseClient, User } from "@supabase/supabase-js";
 import { sendEmail } from "@/lib/email/client";
 import { buildPreSurveyRequestCustomerEmail } from "@/lib/email/templates/installer-pre-survey-request-customer";
 import { resolveInstallerNotifyEmail } from "@/lib/proposals/notify";
+import { track } from "@/lib/analytics";
 import { PRE_SURVEY_REQUEST_COST_CREDITS } from "./schema";
 import type { Database } from "@/types/database";
 
@@ -32,6 +33,9 @@ export interface SendArgs {
     homeowner_token: string;
   };
   isResend: boolean;
+  /** "ui" = dashboard form, "api" = /api/v1. Tagged on the
+   *  resulting analytics event so we can split the funnel. */
+  source: "ui" | "api";
 }
 
 export type SendResult =
@@ -128,6 +132,18 @@ export async function chargeAndSend(args: SendArgs): Promise<SendResult> {
       error: "Email send failed — credit refunded, please try again",
     };
   }
+
+  // Funnel-entry event. is_resend lets us split first-touch vs
+  // nudges; source lets us see how much of the volume is API-driven
+  // (CRM integration) vs manual dashboard work.
+  track("installer_pre_survey_sent", {
+    props: {
+      installer_id: installer.id,
+      is_resend: isResend,
+      source: args.source,
+    },
+    userId: user.id,
+  });
 
   return { ok: true, debited: PRE_SURVEY_REQUEST_COST_CREDITS };
 }

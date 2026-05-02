@@ -13,6 +13,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { sendEmail } from "@/lib/email/client";
 import { buildProposalSentHomeownerEmail } from "@/lib/email/templates/proposal-sent-homeowner";
 import { resolveInstallerNotifyEmail } from "@/lib/proposals/notify";
+import { track } from "@/lib/analytics";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -166,6 +167,27 @@ export async function POST(
       { status: 502 },
     );
   }
+
+  // Pipeline analytics — fired AFTER the send commits so we don't
+  // count failed-then-retried sends. Includes pricing context so
+  // we can answer "what's the average accepted quote value" later.
+  track("installer_quote_sent", {
+    props: {
+      installer_id: installer.id,
+      total_pence: proposal.total_pence,
+      item_count: itemCount,
+      has_bus_grant: Array.isArray(proposal.line_items)
+        ? proposal.line_items.some(
+            (li): boolean =>
+              !!li &&
+              typeof li === "object" &&
+              (li as { is_bus_grant?: unknown }).is_bus_grant === true,
+          )
+        : false,
+      vat_rate_bps: proposal.vat_rate_bps,
+    },
+    userId: user.id,
+  });
 
   return NextResponse.json({
     ok: true,

@@ -79,6 +79,28 @@ src/
 - `npm run dev` — dev server
 - `npm run build` — production build
 - `npm run lint` — ESLint
+- `npm test` — vitest run (one-shot)
+- `npm run test:watch` — vitest watch mode
+
+## Observability (free tiers)
+
+Both no-op silently when env vars are unset, so dev / preview without
+secrets continues to work fine.
+
+**Sentry** (errors + perf). Free tier: 5K errors/mo, 10K perf events/mo.
+- `SENTRY_DSN` — server-side reporting
+- `NEXT_PUBLIC_SENTRY_DSN` — browser reporting (same DSN, exposed)
+- `SENTRY_AUTH_TOKEN` — for source-map upload at build time
+- `SENTRY_ORG`, `SENTRY_PROJECT` — for source-map upload
+
+**PostHog** (product analytics). Free tier: 1M events/mo.
+- `POSTHOG_API_KEY` — project key (starts with `phc_`)
+- `POSTHOG_HOST` — defaults to `https://eu.i.posthog.com` (EU
+  residency for UK customers)
+
+Event taxonomy lives in `src/lib/analytics.ts` — `EventMap` is the
+single source of truth, adding events = adding a key. Events fire
+fire-and-forget from API routes; never await captures in a hot path.
 
 ## Database
 

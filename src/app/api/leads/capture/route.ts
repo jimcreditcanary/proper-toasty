@@ -6,6 +6,7 @@ import {
 } from "@/lib/schemas/leads";
 import { FuelTariffSchema } from "@/lib/schemas/bill";
 import { issueReportUrl } from "@/lib/booking/report-link";
+import { track } from "@/lib/analytics";
 import type { Database } from "@/types/database";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -132,6 +133,16 @@ export async function POST(req: Request) {
       payload,
     });
   }
+
+  // Primary homeowner conversion event — the moment they're
+  // captured into the platform. via_pre_survey lets us measure
+  // organic vs installer-sourced funnel separately.
+  track("homeowner_check_completed", {
+    props: {
+      via_pre_survey: !!input.preSurveyRequestId,
+    },
+    email: input.email,
+  });
 
   return NextResponse.json<LeadCaptureResponse>({ ok: true, id: homeownerLeadId });
 }

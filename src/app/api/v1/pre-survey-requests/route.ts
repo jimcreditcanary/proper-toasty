@@ -103,6 +103,7 @@ export async function POST(req: Request) {
       homeowner_token: inserted.homeowner_token,
     },
     isResend: false,
+    source: "api",
   });
   if (!send.ok) {
     // Drop the row so a 402 / 502 leaves the installer's list

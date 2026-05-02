@@ -15,6 +15,7 @@ import { sendEmail } from "@/lib/email/client";
 import { buildProposalAcceptedInstallerEmail } from "@/lib/email/templates/proposal-accepted-installer";
 import { buildProposalDeclinedInstallerEmail } from "@/lib/email/templates/proposal-declined-installer";
 import { resolveInstallerNotifyEmail } from "@/lib/proposals/notify";
+import { track } from "@/lib/analytics";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -180,6 +181,29 @@ export async function POST(
         leadFound: !!lead,
       },
     );
+  }
+
+  // Conversion analytics — homeowner is anonymous (no auth), so
+  // distinct_id is the SHA-256 prefix of their email. Decline
+  // reason text NEVER ships to PostHog (privacy + signal-to-noise);
+  // we only emit `has_reason: bool` so we can sense-check the
+  // capture rate of the optional field.
+  if (body.decision === "accepted") {
+    track("homeowner_quote_accepted", {
+      props: {
+        installer_id: proposal.installer_id,
+        total_pence: proposal.total_pence,
+      },
+      email: lead?.contact_email ?? null,
+    });
+  } else {
+    track("homeowner_quote_declined", {
+      props: {
+        installer_id: proposal.installer_id,
+        has_reason: !!(body.reason && body.reason.trim()),
+      },
+      email: lead?.contact_email ?? null,
+    });
   }
 
   return NextResponse.json({ ok: true, status: body.decision });

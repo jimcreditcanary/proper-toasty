@@ -8,6 +8,7 @@ import { sendEmail } from "@/lib/email/client";
 import { buildPurchaseConfirmedEmail } from "@/lib/email/templates/installer-purchase-confirmed";
 import { buildEnableAutoTopUpEmail } from "@/lib/email/templates/installer-enable-auto-topup";
 import { buildAutoRechargeConfirmedEmail } from "@/lib/email/templates/installer-auto-recharge-confirmed";
+import { track } from "@/lib/analytics";
 
 // POST /api/webhook
 //
@@ -248,6 +249,17 @@ async function handleCheckoutCompleted(
     isFirstPurchase: isFirstPurchase && !profile.auto_recharge_pack_id,
   });
 
+  // Revenue analytics — pack + price as event properties so the
+  // funnel chart can show £/credit + most-popular pack.
+  track("installer_credits_purchased", {
+    props: {
+      pack_credits: pack.credits,
+      price_pence: pack.pricePence,
+      method: "checkout",
+    },
+    userId,
+  });
+
   return NextResponse.json({ received: true, credited: pack.credits });
 }
 
@@ -398,6 +410,17 @@ async function handlePaymentIntentSucceeded(
       e instanceof Error ? e.message : e,
     );
   }
+
+  // Same revenue event as the Checkout path; method tag lets us
+  // segment auto-topup vs manual purchases in PostHog.
+  track("installer_credits_purchased", {
+    props: {
+      pack_credits: pack.credits,
+      price_pence: pack.pricePence,
+      method: "auto_topup",
+    },
+    userId,
+  });
 
   return NextResponse.json({ received: true, credited: pack.credits });
 }

@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { withSentryConfig } from "@sentry/nextjs";
 
 const securityHeaders = [
   { key: "X-Content-Type-Options", value: "nosniff" },
@@ -40,4 +41,29 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+// Sentry wraps the build to upload source maps + auto-instrument
+// API routes. Skipped silently when SENTRY_AUTH_TOKEN isn't set
+// (i.e. local dev / CI without secrets) — withSentryConfig
+// degrades to a no-op in that case.
+export default withSentryConfig(nextConfig, {
+  // Org + project come from env vars so different deploy
+  // environments can point at different Sentry projects.
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  // Suppresses log output when SENTRY_AUTH_TOKEN missing — keeps
+  // local builds quiet.
+  silent: !process.env.SENTRY_AUTH_TOKEN,
+  // Upload source maps only in CI / production builds.
+  widenClientFileUpload: true,
+  // Tunnel Sentry SDK requests through our own /monitoring path
+  // to avoid ad-blockers killing error reports in the browser.
+  tunnelRoute: "/monitoring",
+  // Disable the dev-time logger — it's noisy + we don't need it.
+  disableLogger: true,
+  // Source map handling — `disable: true` skips public-URL upload
+  // (we still upload to Sentry via the auth token + use them
+  // server-side for stack-trace symbolication).
+  sourcemaps: {
+    disable: false,
+  },
+});

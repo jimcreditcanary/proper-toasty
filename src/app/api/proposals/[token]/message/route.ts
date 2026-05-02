@@ -18,6 +18,7 @@ import { parseProposalToken } from "@/lib/email/tokens";
 import { sendEmail } from "@/lib/email/client";
 import { buildProposalMessageInstallerEmail } from "@/lib/email/templates/proposal-message-installer";
 import { resolveInstallerNotifyEmail } from "@/lib/proposals/notify";
+import { track } from "@/lib/analytics";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -155,6 +156,17 @@ export async function POST(
       hasInstallerEmail: !!installerToEmail,
     });
   }
+
+  // Engagement signal — homeowners who message tend to convert at
+  // a higher rate than silent ones. Channel split lets us measure
+  // "callback requested" vs "asked a question" separately.
+  track("homeowner_quote_message_sent", {
+    props: {
+      installer_id: proposal.installer_id,
+      channel: body.channel,
+    },
+    email: lead?.contact_email ?? null,
+  });
 
   return NextResponse.json({ ok: true, message: newMessage });
 }

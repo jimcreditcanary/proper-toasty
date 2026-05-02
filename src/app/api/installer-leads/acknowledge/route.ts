@@ -16,6 +16,7 @@ import { LEAD_ACCEPT_COST_CREDITS } from "@/lib/booking/credits";
 import { findNearby } from "@/lib/services/installers";
 import { resolveInstallerProfile } from "@/lib/installer-claim/resolve-profile";
 import { maybeRunAutoRecharge } from "@/lib/billing/auto-recharge";
+import { track } from "@/lib/analytics";
 import type { Database } from "@/types/database";
 
 const FROM_EMAIL =
@@ -377,6 +378,19 @@ export async function POST(req: Request) {
     userId: profile.id,
     cost: LEAD_ACCEPT_COST_CREDITS,
     action,
+  });
+
+  // Pipeline: lead acceptance is the moment value crystallises for
+  // the installer. Source defaults to "directory" since the
+  // pre-survey path bypasses this route entirely (auto-acked at
+  // lead-capture time with cost_credits = 0).
+  track("installer_lead_accepted", {
+    props: {
+      installer_id: lead.installer_id,
+      source: "directory",
+      cost_credits: LEAD_ACCEPT_COST_CREDITS,
+    },
+    userId: profile.id,
   });
 
   // C2 — fire auto top-up if enabled and balance is now at/under

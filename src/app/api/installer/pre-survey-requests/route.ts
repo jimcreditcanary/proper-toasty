@@ -119,6 +119,7 @@ export async function POST(req: Request) {
       homeowner_token: inserted.homeowner_token,
     },
     isResend: false,
+    source: "ui",
   });
   if (!send.ok) {
     // Delete the row if the very first send failed — installer

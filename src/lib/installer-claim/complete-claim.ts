@@ -40,6 +40,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
 import { maskEmail } from "@/lib/installer-claim/email-mask";
+import { track, identify } from "@/lib/analytics";
 
 type AdminClient = SupabaseClient<Database>;
 
@@ -170,6 +171,27 @@ export async function completeInstallerClaim(args: {
     installerId,
     company: installer.company_name,
   });
+
+  // Activation event — fired exactly once per (user, installer)
+  // pair. identify() sets installer-level attributes that persist
+  // across all subsequent events from this user, so dashboards can
+  // group by company without a join.
+  identify({
+    userId,
+    properties: {
+      role: "installer",
+      installer_id: installerId,
+      company_name: installer.company_name,
+    },
+  });
+  track("installer_claim_completed", {
+    props: {
+      installer_id: installerId,
+      company_name: installer.company_name,
+    },
+    userId,
+  });
+
   return {
     kind: "claimed",
     installerId,
