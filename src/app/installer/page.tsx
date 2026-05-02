@@ -110,9 +110,10 @@ export default async function InstallerHomePage() {
     },
     {
       title: "Send proposal",
-      body: "Build a line-item quote and send it to the homeowner from inside the report.",
+      body: "Build a line-item quote and send it to the homeowner. Accept/decline tracked + emailed back to you.",
       icon: Send,
-      status: "coming-soon",
+      status: "live",
+      href: "/installer/proposals",
     },
     {
       title: "Pre-survey requests",

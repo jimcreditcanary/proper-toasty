@@ -1360,6 +1360,52 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["installer_meetings"]["Insert"]>;
         Relationships: [];
       };
+      installer_proposals: {
+        Row: {
+          id: string;
+          installer_id: number;
+          installer_lead_id: string;
+          homeowner_lead_id: string | null;
+          status: "draft" | "sent" | "accepted" | "declined";
+          line_items: Json;
+          cover_message: string | null;
+          vat_rate_bps: number;
+          subtotal_pence: number;
+          vat_pence: number;
+          total_pence: number;
+          homeowner_token: string;
+          sent_at: string | null;
+          viewed_at: string | null;
+          accepted_at: string | null;
+          declined_at: string | null;
+          decline_reason: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          installer_id: number;
+          installer_lead_id: string;
+          homeowner_lead_id?: string | null;
+          status?: "draft" | "sent" | "accepted" | "declined";
+          line_items?: Json;
+          cover_message?: string | null;
+          vat_rate_bps?: number;
+          subtotal_pence?: number;
+          vat_pence?: number;
+          total_pence?: number;
+          homeowner_token: string;
+          sent_at?: string | null;
+          viewed_at?: string | null;
+          accepted_at?: string | null;
+          declined_at?: string | null;
+          decline_reason?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["installer_proposals"]["Insert"]>;
+        Relationships: [];
+      };
     };
     Views: {
       [_ in never]: never;

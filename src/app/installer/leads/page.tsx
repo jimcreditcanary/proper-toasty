@@ -338,19 +338,35 @@ function LeadCard({
             View pre-survey report
             <ArrowRight className="w-3.5 h-3.5" />
           </Link>
+          <Link
+            href={`/installer/leads/${lead.id}/propose`}
+            className="inline-flex items-center gap-1.5 h-10 px-4 rounded-full bg-white border border-coral hover:bg-coral-pale text-coral-dark font-semibold text-xs transition-colors"
+          >
+            Send proposal
+            <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
           <p className="text-[11px] text-slate-500 leading-relaxed flex-1 min-w-[200px]">
             Reply to the original confirmation email to reach the
             homeowner — your reply lands directly in their inbox.
           </p>
         </div>
       ) : bucket === "closed" ? (
-        <Link
-          href={`/installer/reports/${lead.id}`}
-          className="inline-flex items-center gap-1.5 h-9 px-3 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs transition-colors"
-        >
-          View pre-survey report
-          <ArrowRight className="w-3 h-3" />
-        </Link>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href={`/installer/reports/${lead.id}`}
+            className="inline-flex items-center gap-1.5 h-9 px-3 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs transition-colors"
+          >
+            View pre-survey report
+            <ArrowRight className="w-3 h-3" />
+          </Link>
+          <Link
+            href={`/installer/leads/${lead.id}/propose`}
+            className="inline-flex items-center gap-1.5 h-9 px-3 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs transition-colors"
+          >
+            Send proposal
+            <ArrowRight className="w-3 h-3" />
+          </Link>
+        </div>
       ) : null}
     </div>
   );

@@ -289,13 +289,22 @@ function ReportCard({ lead }: { lead: LeadRow }) {
             (used in calendar invites + emails) — but in-portal we
             want the audience-stripped variant under
             /installer/reports/[leadId]. */}
-        <Link
-          href={`/installer/reports/${lead.id}`}
-          className="inline-flex items-center gap-1.5 h-9 px-3 rounded-full bg-coral hover:bg-coral-dark text-white font-semibold text-xs transition-colors"
-        >
-          Open report
-          <ArrowRight className="w-3 h-3" />
-        </Link>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href={`/installer/leads/${lead.id}/propose`}
+            className="inline-flex items-center gap-1.5 h-9 px-3 rounded-full bg-white border border-coral hover:bg-coral-pale text-coral-dark font-semibold text-xs transition-colors"
+          >
+            Send proposal
+            <ArrowRight className="w-3 h-3" />
+          </Link>
+          <Link
+            href={`/installer/reports/${lead.id}`}
+            className="inline-flex items-center gap-1.5 h-9 px-3 rounded-full bg-coral hover:bg-coral-dark text-white font-semibold text-xs transition-colors"
+          >
+            Open report
+            <ArrowRight className="w-3 h-3" />
+          </Link>
+        </div>
       </div>
     </div>
   );

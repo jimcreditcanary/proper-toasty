@@ -113,3 +113,61 @@ export function parseReportToken(token: string): string | null {
     return null;
   }
 }
+
+// ─── Proposal tokens ────────────────────────────────────────────────
+//
+// Same `{compactUuid}.{hex-hmac}` shape as report tokens, with a
+// distinct secret so a leaked report token can't be replayed against
+// a proposal endpoint (and vice versa). Used by the homeowner-facing
+// /p/<token> page.
+//
+// Required env var:
+//   PROPOSAL_TOKEN_SECRET   (any random ≥16-char string).
+//   Falls back to REPORT_TOKEN_SECRET so dev environments don't have
+//   to add a third secret on day one — but production should set
+//   both for proper isolation.
+
+function proposalSecret(): string {
+  const s =
+    process.env.PROPOSAL_TOKEN_SECRET ?? process.env.REPORT_TOKEN_SECRET;
+  if (!s || s.length < 16) {
+    throw new Error(
+      "PROPOSAL_TOKEN_SECRET (or REPORT_TOKEN_SECRET) env var must be set (≥16 chars)",
+    );
+  }
+  return s;
+}
+
+function signProposalSig(proposalId: string): string {
+  return createHmac("sha256", proposalSecret()).update(proposalId).digest("hex");
+}
+
+export function buildProposalToken(proposalId: string): string {
+  const compact = proposalId.replace(/-/g, "");
+  return `${compact}.${signProposalSig(proposalId)}`;
+}
+
+export function parseProposalToken(token: string): string | null {
+  if (typeof token !== "string") return null;
+  const parts = token.split(".");
+  if (parts.length !== 2) return null;
+  const [compactId, sig] = parts;
+  if (compactId.length !== 32 || !/^[0-9a-f]+$/i.test(compactId)) return null;
+  const proposalId = `${compactId.slice(0, 8)}-${compactId.slice(8, 12)}-${compactId.slice(12, 16)}-${compactId.slice(16, 20)}-${compactId.slice(20, 32)}`;
+  let expected: string;
+  try {
+    expected = signProposalSig(proposalId);
+  } catch {
+    return null;
+  }
+  if (expected.length !== sig.length) return null;
+  try {
+    const ok = timingSafeEqual(
+      Buffer.from(expected, "hex"),
+      Buffer.from(sig, "hex"),
+    );
+    return ok ? proposalId : null;
+  } catch {
+    return null;
+  }
+}
