@@ -100,9 +100,11 @@ export interface CheckWizardState {
   // via /check?presurvey=<token>. /api/leads/capture forwards this
   // up to auto-create an installer_lead attributed to the requesting
   // installer + flip the request row to 'completed'. The wizard
-  // also surfaces a "your installer requested this" banner.
+  // also surfaces a "your installer requested this" banner and
+  // pre-fills the postcode in step 1.
   preSurveyRequestId: string | null;
   preSurveyInstallerName: string | null;
+  prefillPostcode: string | null;
 }
 
 export const INITIAL_STATE: CheckWizardState = {
@@ -129,6 +131,7 @@ export const INITIAL_STATE: CheckWizardState = {
   leadId: null,
   preSurveyRequestId: null,
   preSurveyInstallerName: null,
+  prefillPostcode: null,
 };
 
 export type CheckWizardAction =

@@ -22,10 +22,16 @@ export const runtime = "nodejs";
 export const maxDuration = 30;
 
 export async function POST(
-  _req: Request,
+  req: Request,
   ctx: { params: Promise<{ id: string }> },
 ) {
   const { id } = await ctx.params;
+
+  // ?force=true bypasses the 72h cooling-off. The UI offers it as a
+  // "send anyway" link when the standard resend is blocked, so the
+  // installer who knows their customer is just slow to check email
+  // can push a second send through.
+  const force = new URL(req.url).searchParams.get("force") === "true";
 
   const supabase = await createClient();
   const {
@@ -80,19 +86,23 @@ export async function POST(
     );
   }
 
-  // Cooling-off check.
-  const hoursSinceLastSend =
-    (Date.now() - new Date(request.last_sent_at).getTime()) / (1000 * 60 * 60);
-  if (hoursSinceLastSend < PRE_SURVEY_RESEND_COOLOFF_HOURS) {
-    const hoursLeft = Math.ceil(
-      PRE_SURVEY_RESEND_COOLOFF_HOURS - hoursSinceLastSend,
-    );
-    return NextResponse.json(
-      {
-        error: `Last reminder went out under ${PRE_SURVEY_RESEND_COOLOFF_HOURS} hours ago. Try again in ${hoursLeft} hour${hoursLeft === 1 ? "" : "s"}.`,
-      },
-      { status: 429 },
-    );
+  // Cooling-off check — skipped when ?force=true.
+  if (!force) {
+    const hoursSinceLastSend =
+      (Date.now() - new Date(request.last_sent_at).getTime()) /
+      (1000 * 60 * 60);
+    if (hoursSinceLastSend < PRE_SURVEY_RESEND_COOLOFF_HOURS) {
+      const hoursLeft = Math.ceil(
+        PRE_SURVEY_RESEND_COOLOFF_HOURS - hoursSinceLastSend,
+      );
+      return NextResponse.json(
+        {
+          error: `Last reminder went out under ${PRE_SURVEY_RESEND_COOLOFF_HOURS} hours ago. Try again in ${hoursLeft} hour${hoursLeft === 1 ? "" : "s"} — or click 'Send anyway' to override.`,
+          coolOffActive: true,
+        },
+        { status: 429 },
+      );
+    }
   }
 
   const send = await chargeAndSend({

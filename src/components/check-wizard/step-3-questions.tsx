@@ -57,10 +57,19 @@ export function Step3Questions() {
     gasRequired,
   ]);
 
+  // Personalise the heading when the customer arrived via an
+  // installer pre-survey link (we have their first name from the
+  // request row).
+  const firstName = state.preSurveyRequestId
+    ? state.leadName?.split(" ")[0] || null
+    : null;
+
   return (
     <div className="max-w-2xl mx-auto w-full">
       <div className="text-center mb-10">
-        <h1 className="text-3xl sm:text-4xl text-navy">A few quick questions</h1>
+        <h1 className="text-3xl sm:text-4xl text-navy">
+          {firstName ? `${firstName}, a few quick questions` : "A few quick questions"}
+        </h1>
         <p className="mt-3 text-slate-600">
           Takes about 30 seconds. Your report will cover{" "}
           <span className="font-semibold text-navy">heat pump, solar and battery</span>{" "}

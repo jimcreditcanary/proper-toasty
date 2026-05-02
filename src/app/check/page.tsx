@@ -98,5 +98,6 @@ async function loadPresurveyPrefill(
     leadName: request.contact_name,
     preSurveyRequestId: request.id,
     preSurveyInstallerName: installer?.company_name ?? null,
+    prefillPostcode: request.contact_postcode,
   };
 }

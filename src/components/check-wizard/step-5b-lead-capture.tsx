@@ -124,13 +124,27 @@ export function Step5bLeadCapture() {
             Your report is ready
           </p>
           <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-navy leading-tight">
-            One last step — where should we send it?
+            {state.preSurveyRequestId && state.leadName
+              ? `${state.leadName.split(" ")[0]}, just one tap to view your report`
+              : "One last step — where should we send it?"}
           </h1>
           <p className="mt-3 text-sm text-slate-600 max-w-lg">
-            We&rsquo;ve run the full pre-survey on{" "}
-            <span className="font-medium text-navy">{addr}</span>. Before you see it,
-            we just need an email so you can come back to it, and so we can connect
-            you to installers when you&rsquo;re ready to quote.
+            {state.preSurveyRequestId && state.preSurveyInstallerName ? (
+              <>
+                We&rsquo;ve run the full pre-survey on{" "}
+                <span className="font-medium text-navy">{addr}</span>. Confirm
+                below and we&rsquo;ll send a copy of your report to{" "}
+                <span className="font-medium text-navy">{state.preSurveyInstallerName}</span>{" "}
+                so they can prep your quote.
+              </>
+            ) : (
+              <>
+                We&rsquo;ve run the full pre-survey on{" "}
+                <span className="font-medium text-navy">{addr}</span>. Before you see it,
+                we just need an email so you can come back to it, and so we can connect
+                you to installers when you&rsquo;re ready to quote.
+              </>
+            )}
           </p>
 
           {/* What's in your report */}

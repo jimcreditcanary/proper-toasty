@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowRight, Loader2, MapPin, Search } from "lucide-react";
 import type { UkCountry } from "@/lib/postcode/region";
 import { isV1SupportedCountry } from "@/lib/postcode/region";
@@ -10,8 +10,8 @@ import { useCheckWizard } from "./context";
 type Phase = "idle" | "searching" | "picking" | "resolving";
 
 export function Step1Address() {
-  const { update, next, goTo } = useCheckWizard();
-  const [postcode, setPostcode] = useState("");
+  const { state, update, next, goTo } = useCheckWizard();
+  const [postcode, setPostcode] = useState(state.prefillPostcode ?? "");
   const [phase, setPhase] = useState<Phase>("idle");
   const [error, setError] = useState<string | null>(null);
   const [addresses, setAddresses] = useState<AddressLookupResponse["addresses"]>([]);
@@ -101,10 +101,38 @@ export function Step1Address() {
     [update, next, goTo, country]
   );
 
+  // Auto-fire the postcode lookup once on mount when an installer
+  // pre-survey link supplied the postcode — saves the customer the
+  // re-typing step and drops them straight at the address picker.
+  const autoSearched = useRef(false);
+  useEffect(() => {
+    if (autoSearched.current) return;
+    if (!state.prefillPostcode) return;
+    if (state.prefillPostcode.trim().length < 5) return;
+    if (phase !== "idle") return;
+    autoSearched.current = true;
+    void search();
+  }, [state.prefillPostcode, phase, search]);
+
+  // First name from the prefilled lead — drives the personalised
+  // greeting on the address step. Leaving the heading copy
+  // untouched for organic visitors so we don't change their flow.
+  const firstName = state.leadName?.split(" ")[0] || null;
+  const isPrefilled = !!state.preSurveyRequestId;
+
   return (
     <div className="max-w-xl mx-auto w-full">
       <div className="text-center mb-8">
-        <h1 className="text-3xl sm:text-4xl text-navy">What&rsquo;s your postcode?</h1>
+        {isPrefilled && firstName && (
+          <p className="text-xs font-bold uppercase tracking-wider text-coral mb-2">
+            Hi {firstName} 👋{state.preSurveyInstallerName ? ` — quick check from ${state.preSurveyInstallerName}` : ""}
+          </p>
+        )}
+        <h1 className="text-3xl sm:text-4xl text-navy">
+          {isPrefilled && firstName
+            ? `${firstName}, what's your postcode?`
+            : "What’s your postcode?"}
+        </h1>
         <p className="mt-3 text-slate-600">
           We&rsquo;ll pull the exact property — UPRN, EPC, roof — from public UK data.
         </p>

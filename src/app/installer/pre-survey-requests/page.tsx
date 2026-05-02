@@ -296,15 +296,18 @@ function RequestCard({
           )}
           {!canResend &&
             (request.status === "pending" || request.status === "clicked") && (
-              <span
-                className="text-[11px] text-slate-400 italic"
-                title={`Resend allowed ${PRE_SURVEY_RESEND_COOLOFF_HOURS}h after last send`}
-              >
-                Resend in{" "}
-                {Math.ceil(
-                  PRE_SURVEY_RESEND_COOLOFF_HOURS - hoursSinceLastSend,
-                )}
-                h
+              <span className="inline-flex items-center gap-2">
+                <span
+                  className="text-[11px] text-slate-400 italic"
+                  title={`Default cool-off is ${PRE_SURVEY_RESEND_COOLOFF_HOURS}h after last send`}
+                >
+                  Cool-off:{" "}
+                  {Math.ceil(
+                    PRE_SURVEY_RESEND_COOLOFF_HOURS - hoursSinceLastSend,
+                  )}
+                  h left
+                </span>
+                <ResendButton requestId={request.id} variant="force" />
               </span>
             )}
         </div>
