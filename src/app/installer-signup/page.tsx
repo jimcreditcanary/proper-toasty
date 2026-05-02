@@ -23,11 +23,13 @@
 // exist.
 
 import Link from "next/link";
+import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { Logo } from "@/components/logo";
 import { Building2 } from "lucide-react";
 import { ClaimSignupForm } from "./signup-form";
 import { ClaimSearch } from "./search";
+import { ClaimAsSelfButton } from "./claim-button";
 import type { Database } from "@/types/database";
 
 export const dynamic = "force-dynamic";
@@ -104,6 +106,16 @@ export default async function InstallerSignupPage({ searchParams }: PageProps) {
     prefill = await loadInstaller(idNum);
   }
 
+  // Detect a signed-in user so we can short-circuit the F2 signup
+  // form (which would create a duplicate account + send a confirm
+  // email they don't need). The claim-as-self button binds their
+  // existing user to the installer in one POST.
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const signedInEmail = user?.email ?? null;
+
   return (
     <main className="min-h-screen bg-cream-deep px-4 py-12">
       <div className="mx-auto w-full max-w-2xl">
@@ -144,7 +156,11 @@ export default async function InstallerSignupPage({ searchParams }: PageProps) {
 
         <div className="rounded-2xl bg-white border border-slate-200 shadow-sm p-6 sm:p-8">
           {prefill ? (
-            <PrefillView prefill={prefill} emailOverride={emailOverride} />
+            <PrefillView
+              prefill={prefill}
+              emailOverride={emailOverride}
+              signedInEmail={signedInEmail}
+            />
           ) : (
             <ClaimSearch />
           )}
@@ -166,20 +182,33 @@ export default async function InstallerSignupPage({ searchParams }: PageProps) {
 }
 
 // Server-rendered — receives prefill from the parent and decides
-// whether to show the signup form, the "claimed" message, or just
-// the company card with a "back to search" link.
+// which of three states to render:
+//
+//   - Already claimed → "this profile has been claimed" note.
+//   - User is signed in → one-click claim-as-self button (no
+//     account creation, no confirm email).
+//   - User isn't signed in → the F2 signup form (creates the
+//     account + binds via auth callback).
 function PrefillView({
   prefill,
   emailOverride,
+  signedInEmail,
 }: {
   prefill: PrefillData;
   emailOverride: string | undefined;
+  signedInEmail: string | null;
 }) {
   return (
     <>
       <CompanyCard prefill={prefill} />
       {prefill.alreadyClaimed ? (
         <AlreadyClaimedNote />
+      ) : signedInEmail ? (
+        <ClaimAsSelfButton
+          installerId={prefill.id}
+          installerName={prefill.companyName}
+          signedInEmail={signedInEmail}
+        />
       ) : (
         <ClaimSignupForm
           installerId={prefill.id}
