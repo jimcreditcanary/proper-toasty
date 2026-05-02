@@ -93,8 +93,17 @@ export async function POST(req: Request) {
     .single();
   if (insertErr || !inserted) {
     console.error("[pre-survey] insert failed", insertErr);
+    // Surface the underlying cause so missing-migration / FK / RLS
+    // failures are diagnosable from the browser without having to
+    // grep the server logs. Code helps narrow it down (e.g. 42P01 =
+    // table doesn't exist, 23503 = FK violation).
+    const code = insertErr?.code ? ` [${insertErr.code}]` : "";
     return NextResponse.json(
-      { error: "Could not save the request" },
+      {
+        error: insertErr?.message
+          ? `Could not save the request${code}: ${insertErr.message}`
+          : "Could not save the request",
+      },
       { status: 500 },
     );
   }
