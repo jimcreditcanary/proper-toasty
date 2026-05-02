@@ -138,9 +138,10 @@ export default async function InstallerHomePage() {
     },
     {
       title: "Billing & receipts",
-      body: "VAT receipts for every credit purchase. Downloadable.",
+      body: "Consolidated VAT receipts + monthly credit ledger. CSV export for accountants.",
       icon: Wallet,
-      status: "coming-soon",
+      status: "live",
+      href: "/installer/billing",
     },
     {
       title: "API access",
