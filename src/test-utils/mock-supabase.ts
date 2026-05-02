@@ -28,12 +28,28 @@ export interface MockSingleResponse {
 
 type AnyResponse = MockTableResponse | MockSingleResponse;
 
+export interface MockAdminOptions {
+  /** RPC responses by name. Each call to admin.rpc(name, …) pops
+   *  the next value from the queue. Defaults to `{ data: true,
+   *  error: null }` (works for deduct_credits success). */
+  rpc?: Record<string, AnyResponse[]>;
+  /** Auth.admin.getUserById responses, keyed by user id. Default
+   *  is "user not found" → null. */
+  authUsers?: Record<string, { email: string | null }>;
+}
+
 export function makeMockAdmin(
   byTable: Record<string, AnyResponse[]>,
+  options: MockAdminOptions = {},
 ): SupabaseClient<Database> {
   // Clone the queues so the caller's fixture object isn't mutated.
   const queues: Record<string, AnyResponse[]> = {};
   for (const k of Object.keys(byTable)) queues[k] = [...byTable[k]];
+  const rpcQueues: Record<string, AnyResponse[]> = {};
+  for (const k of Object.keys(options.rpc ?? {})) {
+    rpcQueues[k] = [...(options.rpc?.[k] ?? [])];
+  }
+  const authUsers = options.authUsers ?? {};
 
   const buildChain = (response: AnyResponse) => {
     const resolved = {
@@ -104,6 +120,27 @@ export function makeMockAdmin(
       }
       const next = queue.shift()!;
       return buildChain(next);
+    },
+    rpc: async (name: string) => {
+      const queue = rpcQueues[name];
+      if (!queue || queue.length === 0) {
+        // Default: success on deduct_credits, false on others.
+        return name === "deduct_credits"
+          ? { data: true, error: null }
+          : { data: null, error: null };
+      }
+      return queue.shift()!;
+    },
+    auth: {
+      admin: {
+        getUserById: async (id: string) => {
+          const user = authUsers[id];
+          if (!user) {
+            return { data: { user: null }, error: null };
+          }
+          return { data: { user }, error: null };
+        },
+      },
     },
   } as unknown as SupabaseClient<Database>;
 }
