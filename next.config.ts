@@ -58,8 +58,16 @@ export default withSentryConfig(nextConfig, {
   // Tunnel Sentry SDK requests through our own /monitoring path
   // to avoid ad-blockers killing error reports in the browser.
   tunnelRoute: "/monitoring",
-  // Disable the dev-time logger — it's noisy + we don't need it.
-  disableLogger: true,
+  // Webpack-build-time options. Top-level `disableLogger` is
+  // deprecated in @sentry/nextjs v10 — moved into the webpack
+  // treeshake bag.
+  webpack: {
+    treeshake: {
+      // Tree-shake Sentry SDK debug-logger statements out of the
+      // bundle — noisy + we don't need them.
+      removeDebugLogging: true,
+    },
+  },
   // Source map handling — `disable: true` skips public-URL upload
   // (we still upload to Sentry via the auth token + use them
   // server-side for stack-trace symbolication).
