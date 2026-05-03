@@ -54,6 +54,28 @@ export const metadata: Metadata = {
   alternates: {
     canonical: "https://www.propertoasty.com",
   },
+  // Icons — explicit + deterministic. Lesson learnt the hard way:
+  //   - DO NOT put `favicon.ico` or `icon.*` files inside `src/app/`.
+  //     The App Router file convention turns them into dynamic Route
+  //     Handlers (with hash query strings, RSC processing, build
+  //     caching). When a `src/app/favicon.ico` exists alongside
+  //     `public/favicon.ico`, both want to own the `/favicon.ico`
+  //     URL — and the dynamic one wins, so cache hiccups produce
+  //     intermittent 404s. Bitten us repeatedly (commits 656b649,
+  //     deff1a0, 813ed3e, 93bcd08).
+  //   - Single source of truth: `public/favicon.ico` + `public/icon.svg`.
+  //     Both served as static CDN assets with the `immutable` 1yr
+  //     cache headers from next.config.ts. Zero dynamic pipeline,
+  //     zero collisions, can't break.
+  //   - The metadata block below explicitly wires the <link> tags
+  //     so we don't depend on file-convention auto-injection.
+  icons: {
+    icon: [
+      { url: "/favicon.ico", type: "image/x-icon", sizes: "any" },
+      { url: "/icon.svg", type: "image/svg+xml" },
+    ],
+    shortcut: ["/favicon.ico"],
+  },
 };
 
 // Next 14+ requires viewport / themeColor to be exported separately from
