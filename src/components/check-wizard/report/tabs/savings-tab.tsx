@@ -1,30 +1,37 @@
 "use client";
 
-// Savings tab — three-scenario cost breakdown.
+// Savings tab — the live savings projection.
 //
-// ── Current state (Apr 2026) ──────────────────────────────────────────
-// The savings calculator API was retired because the figures didn't
-// add up. We've stripped the live bill / payback / scenario rendering
-// and the charts. What's still live on this tab:
-//   - Solar / Battery / Heat-pump toggles (drive shell-level selection
-//     so the recommendation strip + Solar tab stay in sync)
-//   - Cost breakdown — heat pump install, solar, battery, BUS grant,
-//     net upfront. Pure derivation from analysis + selection, no API.
-//   - "Calculations rebuilding" placeholder where scenarios + charts
-//     used to be.
+// Layout (top → bottom):
+//   1. RecommendationStrip   — plan toggles (heat pump / solar / battery)
+//   2. FinancingControls     — collapsible loan + mortgage inputs
+//   3. SavingsReport         — full live report driven by
+//                              POST /api/savings/calculate
+//   4. Cost breakdown card   — line-item view of the upfront figure
+//                              (independent of the API; kept here as a
+//                              transparent itemised "where the £
+//                              comes from" panel)
 //
-// The new front-end calc engine plugs in via `computeCalc().bills` —
-// once that's non-null we can render the scenario cards + breakdown
-// card again.
+// Empty-state (no upgrades selected) skips the API call entirely and
+// shows a "pick something to see numbers" hint.
 
-import { AlertCircle, PoundSterling } from "lucide-react";
+import { useState } from "react";
+import { AlertCircle } from "lucide-react";
 import type { AnalyseResponse } from "@/lib/schemas/analyse";
 import type { FuelTariff } from "@/lib/schemas/bill";
 import { computeCalc } from "@/lib/savings/calc";
+import {
+  buildSavingsRequest,
+  DEFAULT_FINANCING,
+  type FinancingInputs,
+} from "@/lib/savings/build-request";
+import { useSavingsCalc } from "@/lib/savings/use-savings-calc";
 import type { YesNoUnsure } from "../../types";
 import type { ReportSelection, ReportTabKey } from "../report-shell";
 import { SectionCard, fmtGbp } from "../shared";
 import { RecommendationStrip } from "../recommendation-strip";
+import { FinancingControls } from "../savings/financing-controls";
+import { SavingsReport } from "../savings/savings-report";
 
 interface Props {
   analysis: AnalyseResponse;
@@ -44,26 +51,52 @@ export function SavingsTab({
   gasTariff,
   selection,
   setSelection,
+  financingPreference,
   onJumpTab,
 }: Props) {
-  const calc = computeCalc({
+  // Financing is local to this tab — no other tab consumes it. Seed
+  // `wantFinance` from the wizard's financing-preference question if
+  // the user answered (saves them ticking it again).
+  const [financing, setFinancing] = useState<FinancingInputs>(() => ({
+    ...DEFAULT_FINANCING,
+    wantFinance:
+      financingPreference === "no"
+        ? false
+        : DEFAULT_FINANCING.wantFinance,
+  }));
+
+  const cost = computeCalc({
     analysis,
     electricityTariff,
     gasTariff,
     selection,
-  });
-  const cost = calc.cost;
+  }).cost;
 
   const noTechSelected =
     !selection.hasSolar && !selection.hasBattery && !selection.hasHeatPump;
 
+  // Build the API request once per render so we can pass it to both
+  // the hook (which fetches) and SavingsReport (which displays the
+  // financing values it was computed against).
+  const request = buildSavingsRequest({
+    analysis,
+    electricityTariff,
+    gasTariff,
+    selection,
+    financing,
+  });
+  const { result, loading, error } = useSavingsCalc({
+    analysis,
+    electricityTariff,
+    gasTariff,
+    selection,
+    financing,
+  });
+
   return (
     <div className="space-y-6">
-      {/* Plan-builder — moved here from the shell-level recommendation
-          strip. This is the right home for it: the toggles drive the
-          cost figures + (soon) the savings calc engine that lives on
-          this very tab. The shell now shows just an eligibility
-          checklist instead — much tighter use of vertical space. */}
+      {/* Plan-builder — drives both the cost breakdown below and the
+          API request feeding SavingsReport. */}
       <RecommendationStrip
         analysis={analysis}
         selection={selection}
@@ -71,36 +104,32 @@ export function SavingsTab({
         onJumpTab={onJumpTab}
       />
 
-      {/* Three-scenario card — placeholder while the calc engine is
-          rebuilt. The toggles above still drive selection so the
-          cost breakdown below stays responsive. */}
-      <SectionCard
-        title="Three ways to think about it"
-        subtitle="The same upgrades — three different ways to pay for them."
-        icon={<PoundSterling className="w-5 h-5" />}
-      >
-        {noTechSelected ? (
-          <div className="text-sm text-slate-500 flex items-center gap-2">
+      {/* Advanced financing — only useful once at least one upgrade
+          is in the plan, but harmless to show always. */}
+      <FinancingControls value={financing} onChange={setFinancing} />
+
+      {/* The live report. Skipped when nothing's in the plan — the
+          API would just return defaults that don't reflect the user's
+          choice. */}
+      {noTechSelected ? (
+        <SectionCard>
+          <div className="flex items-center gap-2 text-sm text-slate-500">
             <AlertCircle className="w-4 h-4" />
             Pick at least one upgrade in the plan above to see the numbers.
           </div>
-        ) : (
-          <div className="rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 p-6 text-center">
-            <p className="text-sm font-semibold text-navy">
-              Savings calculation rebuilding
-            </p>
-            <p className="mt-2 text-xs text-slate-600 max-w-md mx-auto leading-relaxed">
-              We&rsquo;re reworking how we model your bills, payback and
-              finance scenarios so the numbers are bulletproof. The cost
-              breakdown below is live and accurate today.
-            </p>
-          </div>
-        )}
-      </SectionCard>
+        </SectionCard>
+      ) : (
+        <SavingsReport
+          result={result}
+          loading={loading}
+          error={error}
+          request={request}
+          financing={financing}
+        />
+      )}
 
-      {/* Cost breakdown — line-item view of what makes up the upfront
-          figure. Pure maths, no calc engine needed, so we keep this
-          rendering today. */}
+      {/* Cost breakdown — line-item view of the upfront figure.
+          Independent of the API; kept for transparency. */}
       {!noTechSelected && (
         <SectionCard
           title="How the upfront cost adds up"
