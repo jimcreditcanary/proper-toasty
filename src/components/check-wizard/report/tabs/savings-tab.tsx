@@ -22,8 +22,9 @@ import type { AnalyseResponse } from "@/lib/schemas/analyse";
 import type { FuelTariff } from "@/lib/schemas/bill";
 import { computeCalc } from "@/lib/savings/calc";
 import type { YesNoUnsure } from "../../types";
-import type { ReportSelection } from "../report-shell";
+import type { ReportSelection, ReportTabKey } from "../report-shell";
 import { SectionCard, fmtGbp } from "../shared";
+import { RecommendationStrip } from "../recommendation-strip";
 
 interface Props {
   analysis: AnalyseResponse;
@@ -32,6 +33,9 @@ interface Props {
   selection: ReportSelection;
   setSelection: (s: ReportSelection) => void;
   financingPreference: YesNoUnsure | null;
+  /** Jump to another report tab — wired to the "See details" links
+   *  on each plan-toggle tile. */
+  onJumpTab: (tab: ReportTabKey) => void;
 }
 
 export function SavingsTab({
@@ -39,6 +43,8 @@ export function SavingsTab({
   electricityTariff,
   gasTariff,
   selection,
+  setSelection,
+  onJumpTab,
 }: Props) {
   const calc = computeCalc({
     analysis,
@@ -53,9 +59,21 @@ export function SavingsTab({
 
   return (
     <div className="space-y-6">
+      {/* Plan-builder — moved here from the shell-level recommendation
+          strip. This is the right home for it: the toggles drive the
+          cost figures + (soon) the savings calc engine that lives on
+          this very tab. The shell now shows just an eligibility
+          checklist instead — much tighter use of vertical space. */}
+      <RecommendationStrip
+        analysis={analysis}
+        selection={selection}
+        setSelection={setSelection}
+        onJumpTab={onJumpTab}
+      />
+
       {/* Three-scenario card — placeholder while the calc engine is
-          rebuilt. The toggles above this tab still drive selection so
-          everything else stays responsive. */}
+          rebuilt. The toggles above still drive selection so the
+          cost breakdown below stays responsive. */}
       <SectionCard
         title="Three ways to think about it"
         subtitle="The same upgrades — three different ways to pay for them."
@@ -64,7 +82,7 @@ export function SavingsTab({
         {noTechSelected ? (
           <div className="text-sm text-slate-500 flex items-center gap-2">
             <AlertCircle className="w-4 h-4" />
-            Pick at least one upgrade above to see the numbers.
+            Pick at least one upgrade in the plan above to see the numbers.
           </div>
         ) : (
           <div className="rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 p-6 text-center">

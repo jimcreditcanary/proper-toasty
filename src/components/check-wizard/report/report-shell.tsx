@@ -38,7 +38,7 @@ import { SavingsTab } from "./tabs/savings-tab";
 import { HeatPumpTab } from "./tabs/heat-pump-tab";
 import { SolarTab } from "./tabs/solar-tab";
 import { BookVisitTab } from "./tabs/book-visit-tab";
-import { RecommendationStrip } from "./recommendation-strip";
+import { EligibilityChecklist } from "./eligibility-checklist";
 
 export type ReportTabKey =
   | "overview"
@@ -54,11 +54,11 @@ interface TabDef {
 }
 
 const TABS: TabDef[] = [
-  { key: "overview", label: "Overview", icon: <HomeIcon className="w-4 h-4" /> },
-  { key: "savings", label: "Savings", icon: <PoundSterling className="w-4 h-4" /> },
-  { key: "heatpump", label: "Heat pump", icon: <Flame className="w-4 h-4" /> },
-  { key: "solar", label: "Solar & battery", icon: <Sun className="w-4 h-4" /> },
-  { key: "book", label: "Book a site visit", icon: <CalendarDays className="w-4 h-4" /> },
+  { key: "overview", label: "Overview", icon: <HomeIcon className="w-5 h-5" /> },
+  { key: "savings", label: "Savings", icon: <PoundSterling className="w-5 h-5" /> },
+  { key: "heatpump", label: "Heat pump", icon: <Flame className="w-5 h-5" /> },
+  { key: "solar", label: "Solar & battery", icon: <Sun className="w-5 h-5" /> },
+  { key: "book", label: "Book a site visit", icon: <CalendarDays className="w-5 h-5" /> },
 ];
 
 // Selection state — lives at the shell level so Overview / Savings /
@@ -192,28 +192,25 @@ export function ReportShell({ audience = "homeowner" }: ReportShellProps = {}) {
         </p>
       </header>
 
-      {/* Persistent recommendation strip — visible across every tab
-          so the user can adjust their plan at any time. Hidden in
-          installer mode: the installer doesn't pick a config, they
-          just see what the homeowner went with. */}
-      {!isInstaller && (
-        <RecommendationStrip
-          analysis={a}
-          selection={selection}
-          setSelection={setSelection}
-          onJumpTab={setTab}
-        />
-      )}
+      {/* Compact eligibility checklist — single row, display-only.
+          Replaced the bulky three-card RecommendationStrip that used
+          to live here; the toggle UI moved to the Savings tab where
+          it sits next to the cost figures it affects. Hidden for
+          installer mode (the installer just sees what the homeowner
+          chose, no eligibility summary needed). */}
+      {!isInstaller && <EligibilityChecklist analysis={a} />}
 
-      {/* Horizontal tab nav — proper ARIA tab pattern.
-          Arrow keys cycle between tabs; Home/End jump to first/last.
-          Roving tabindex means Tab moves out of the tablist into the
-          panel rather than cycling through all five tabs. */}
+      {/* Tab nav — promoted from a thin underlined bar to a proper
+          pill-button container so it's unmissable. Active state is
+          a filled coral chip, not just a text colour change.
+          Still a proper ARIA tab pattern: arrow keys cycle, Home/End
+          jump to first/last, roving tabindex keeps Tab moving out
+          of the tablist into the panel. */}
       <div
         role="tablist"
         aria-label="Report sections"
         aria-orientation="horizontal"
-        className="-mx-1 px-1 overflow-x-auto border-b border-slate-200"
+        className="rounded-2xl border border-slate-200 bg-white shadow-sm p-1.5 sm:p-2 overflow-x-auto"
         onKeyDown={(e) => {
           const idx = visibleTabs.findIndex((t) => t.key === tab);
           if (idx < 0) return;
@@ -231,7 +228,7 @@ export function ReportShell({ audience = "homeowner" }: ReportShellProps = {}) {
           tabRefs.current[nextKey]?.focus();
         }}
       >
-        <div className="flex gap-1 min-w-max">
+        <div className="flex gap-1.5 sm:gap-2 min-w-max">
           {visibleTabs.map((t) => {
             const active = tab === t.key;
             return (
@@ -247,13 +244,15 @@ export function ReportShell({ audience = "homeowner" }: ReportShellProps = {}) {
                 aria-controls={`tabpanel-${t.key}`}
                 tabIndex={active ? 0 : -1}
                 onClick={() => setTab(t.key)}
-                className={`shrink-0 inline-flex items-center gap-2 px-4 sm:px-5 py-3 text-sm font-semibold border-b-2 -mb-px transition-colors ${
+                className={`shrink-0 inline-flex items-center gap-2 px-4 sm:px-5 py-2.5 sm:py-3 rounded-xl text-sm sm:text-base font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-coral focus-visible:ring-offset-2 ${
                   active
-                    ? "border-coral text-coral-dark"
-                    : "border-transparent text-slate-600 hover:text-navy hover:border-slate-300"
+                    ? "bg-coral text-white shadow-sm"
+                    : "text-slate-700 hover:bg-coral-pale/40 hover:text-coral-dark"
                 }`}
               >
-                <span aria-hidden="true">{t.icon}</span>
+                <span aria-hidden="true" className={active ? "" : "text-coral"}>
+                  {t.icon}
+                </span>
                 {t.label}
               </button>
             );
@@ -291,6 +290,7 @@ export function ReportShell({ audience = "homeowner" }: ReportShellProps = {}) {
             selection={selection}
             setSelection={setSelection}
             financingPreference={state.financingPreference}
+            onJumpTab={setTab}
           />
         )}
         {tab === "heatpump" && (
