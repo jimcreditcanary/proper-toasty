@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
+  ExternalLink,
+  HelpCircle,
   Upload,
   X,
 } from "lucide-react";
@@ -339,6 +341,8 @@ export function Step4Floorplan() {
       {/* Upload UI (shown before / on error) */}
       {upload.kind === "idle" || upload.kind === "error" ? (
         <div className="max-w-2xl mx-auto">
+          <FindFloorplanHelp address={state.address} />
+
           <div
             onDragOver={(e) => {
               e.preventDefault();
@@ -380,6 +384,26 @@ export function Step4Floorplan() {
               {upload.message}
             </p>
           )}
+
+          {/* Bypass — for users who genuinely can't lay hands on a
+              floorplan. Wizard state allows floorplanObjectKey to be
+              null so this just advances the wizard; the report flags
+              "no floorplan" gracefully and falls back to satellite +
+              EPC data. */}
+          <div className="mt-6 text-center">
+            <button
+              type="button"
+              onClick={next}
+              className="text-sm text-slate-500 hover:text-slate-900 underline-offset-2 hover:underline transition-colors"
+            >
+              I can&rsquo;t find a floorplan — skip this step
+            </button>
+            <p className="mt-1 text-xs text-slate-400 leading-relaxed max-w-md mx-auto">
+              The report still works without one, but heat-pump sizing
+              + radiator placement will rely entirely on the on-site
+              survey instead.
+            </p>
+          </div>
         </div>
       ) : (
         <div className="space-y-4">
@@ -447,6 +471,102 @@ export function Step4Floorplan() {
         )}
       </div>
     </div>
+  );
+}
+
+// ─── "How do I find my floorplan?" helper ─────────────────────────
+// Demystifies what a floorplan IS + where to find one for the
+// user's specific address. Most homeowners think they don't have
+// one because they've never seen the term — they actually do have
+// one, hiding in their estate-agent listing or sales pack.
+//
+// The Zoopla deep-link uses UPRN when we have it (most precise) or
+// falls back to a postcode-scoped search. UPRN-based deep links go
+// straight to the property page with sale history + the original
+// agent's listing photos (which include the floorplan more often
+// than not).
+function FindFloorplanHelp({
+  address,
+}: {
+  address: { uprn: string; postcode: string } | null;
+}) {
+  // Build a sensible Zoopla URL. UPRN deep-link is the precise
+  // match; falls back to a postcode search when UPRN isn't
+  // available (some PAF rows don't carry one — see the
+  // address-lookup route's PAF warning).
+  const zooplaUrl = address?.uprn
+    ? `https://www.zoopla.co.uk/property/uprn/${address.uprn}/`
+    : address?.postcode
+      ? `https://www.zoopla.co.uk/house-prices/${encodeURIComponent(
+          address.postcode.replace(/\s+/g, "-").toLowerCase(),
+        )}/`
+      : "https://www.zoopla.co.uk/";
+
+  return (
+    <details className="mb-6 rounded-2xl border border-slate-200 bg-slate-50/60 group">
+      <summary className="cursor-pointer list-none px-4 py-3 flex items-center gap-2 text-sm font-semibold text-navy">
+        <HelpCircle className="w-4 h-4 text-coral shrink-0" />
+        Don&rsquo;t have a floorplan? Here&rsquo;s how to find one
+        <span className="ml-auto text-xs text-slate-400 group-open:hidden">
+          Show
+        </span>
+        <span className="ml-auto text-xs text-slate-400 hidden group-open:inline">
+          Hide
+        </span>
+      </summary>
+      <div className="border-t border-slate-200 px-4 py-4 space-y-3">
+        <p className="text-sm text-slate-700 leading-relaxed">
+          Most UK homes have one — you just might not have seen it
+          named &ldquo;floorplan&rdquo; before. Try these in order:
+        </p>
+        <ul className="space-y-2 text-sm text-slate-700">
+          <Tip>
+            <strong className="text-navy">Zoopla / Rightmove listing
+            for your address</strong> — even old listings still carry
+            the floorplan as a photo. Right-click and save it.{" "}
+            <a
+              href={zooplaUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-coral hover:text-coral-dark font-medium underline-offset-2 hover:underline"
+            >
+              Open Zoopla for your address
+              <ExternalLink className="w-3 h-3" />
+            </a>
+          </Tip>
+          <Tip>
+            <strong className="text-navy">Mortgage / sales pack
+            documents</strong> — the original surveyor&rsquo;s report
+            usually has one. Check email PDFs from when you bought
+            the house.
+          </Tip>
+          <Tip>
+            <strong className="text-navy">Old estate-agent emails or
+            brochures</strong> — even a printed copy works. Take a
+            photo of the page and upload that.
+          </Tip>
+          <Tip>
+            <strong className="text-navy">Sketch one yourself</strong>
+            {" "}— a rough hand-drawn plan with rooms + approximate
+            sizes is fine. Tracing app on a tablet works too.
+          </Tip>
+        </ul>
+        <p className="text-xs text-slate-500 leading-relaxed pt-1 border-t border-slate-200/60">
+          Still no luck? Use the &ldquo;skip this step&rdquo; link below
+          the upload area — the report works without it, just with
+          slightly less detail on heat-pump placement.
+        </p>
+      </div>
+    </details>
+  );
+}
+
+function Tip({ children }: { children: React.ReactNode }) {
+  return (
+    <li className="flex items-start gap-2">
+      <span className="shrink-0 mt-1.5 inline-block w-1.5 h-1.5 rounded-full bg-coral" />
+      <span className="leading-relaxed">{children}</span>
+    </li>
   );
 }
 
