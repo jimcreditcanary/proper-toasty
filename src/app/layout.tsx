@@ -75,6 +75,12 @@ export const metadata: Metadata = {
       { url: "/icon.svg", type: "image/svg+xml" },
     ],
     shortcut: ["/favicon.ico"],
+    // iOS Safari + several other browsers speculatively request
+    // /apple-touch-icon.png for home-screen bookmarking even when
+    // it isn't referenced in the head. Without this file the
+    // request 404s noisily in network logs. Generated from
+    // public/icon.svg via scripts/render-apple-touch-icon.js.
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
   },
 };
 
