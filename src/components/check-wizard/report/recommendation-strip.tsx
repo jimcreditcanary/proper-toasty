@@ -1,16 +1,23 @@
 "use client";
 
-// RecommendationStrip — the "What could your home benefit from?" card,
-// extracted from the Overview tab so it lives at the shell level and
-// stays visible across every report tab. Three big tiles (Heat pump /
-// Solar / Battery) double as the master toggle for the rest of the
-// report — every tab observes the same `selection` state from the
-// shell.
+// RecommendationStrip — the "Build your plan" card on the Savings tab.
+// Three tiles, one per upgrade, each with:
+//   - A discrete toggle (instead of "whole card is the button" — that
+//     pattern was getting in the way of the inline sizing controls)
+//   - Verdict pill on the right
+//   - Inline sizing controls when ON:
+//       Solar  → panel-count slider (drives selection.panelCount)
+//       Battery → 3 / 5 / 10 kWh segmented control (drives
+//                 selection.batteryKwh)
+//       Heat pump → no sizing — shows the analysis's recommended
+//                   system kW
+//   - Live cost / generation summary line
+//   - "See details →" jump-link to the relevant tab
 //
-// Tile is the toggle: tap anywhere on the card to add/remove from the
-// plan. Selected = filled coral border + check chip. Unselected = grey
-// outline. Battery is a slave to solar (deselect solar → battery off);
-// shown disabled when solar is off, with a hint.
+// All inputs feed shell-level `selection` state — the Solar tab
+// shows the same battery + panel values via separate (richer) UI.
+// Battery tile is disabled when solar is off (battery needs solar
+// to charge from).
 
 import { Battery, Check, Flame, Sparkles, Sun } from "lucide-react";
 import type { AnalyseResponse } from "@/lib/schemas/analyse";
@@ -24,6 +31,8 @@ interface Props {
   onJumpTab: (tab: ReportTabKey) => void;
 }
 
+const BATTERY_OPTIONS = [3, 5, 10] as const;
+
 export function RecommendationStrip({
   analysis,
   selection,
@@ -33,32 +42,45 @@ export function RecommendationStrip({
   const hp = analysis.eligibility.heatPump;
   const solar = analysis.eligibility.solar;
   const finance = analysis.finance;
+  const solarStrong = solar.rating === "Excellent" || solar.rating === "Good";
 
+  // Cost figures for each tile.
   const hpCostLow = finance.heatPump.estimatedNetInstallCostRangeGBP?.[0] ?? null;
   const hpCostHigh = finance.heatPump.estimatedNetInstallCostRangeGBP?.[1] ?? null;
-  const solarCost = finance.solar.installCostGBP ?? null;
+  const apiSolarCost = finance.solar.installCostGBP ?? null;
+  const recommendedPanels = solar.recommendedPanels ?? 0;
+  // Per-panel scaling — same logic as src/lib/savings/calc.ts so the
+  // tile cost stays in sync with the cost-breakdown card below.
+  const perPanelCost =
+    apiSolarCost != null && recommendedPanels > 0
+      ? apiSolarCost / recommendedPanels
+      : 350;
+  const liveSolarCost = perPanelCost * selection.panelCount;
+  // Annual generation scales linearly with panels (the spec assumes a
+  // fixed kWh/panel/yr; reasonable proxy at this fidelity).
+  const liveSolarKwh =
+    solar.estimatedAnnualKWh && recommendedPanels > 0
+      ? Math.round(
+          (solar.estimatedAnnualKWh / recommendedPanels) * selection.panelCount,
+        )
+      : null;
 
   return (
     <SectionCard
-      title="What could your home benefit from?"
-      subtitle="Tap a card to add or remove it from your plan. The rest of the report updates with your choices."
+      title="Build your plan"
+      subtitle="Toggle each upgrade and tweak the sizing — the report below updates instantly."
       icon={<Sparkles className="w-5 h-5" />}
     >
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
-        <RecTile
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4">
+        <PlanTile
           kind="heatpump"
           title="Heat pump"
-          headline={
-            hp.recommendedSystemKW
-              ? `${hp.recommendedSystemKW} kW system`
-              : "Sized on site visit"
-          }
           verdict={
             hp.verdict === "eligible"
-              ? "Recommended"
+              ? "Compatible"
               : hp.verdict === "conditional"
-                ? "Possible"
-                : "Not now"
+                ? "Requires investigation"
+                : "Not compatible"
           }
           tone={
             hp.verdict === "eligible"
@@ -66,65 +88,72 @@ export function RecommendationStrip({
               : hp.verdict === "conditional"
                 ? "amber"
                 : "slate"
-          }
-          costLine={
-            hpCostLow != null && hpCostHigh != null
-              ? `${fmtGbp(hpCostLow)}–${fmtGbp(hpCostHigh)} after £${hp.estimatedGrantGBP.toLocaleString()} BUS grant`
-              : `£${hp.estimatedGrantGBP.toLocaleString()} BUS grant available`
           }
           selected={selection.hasHeatPump}
           onToggle={() =>
             setSelection({ ...selection, hasHeatPump: !selection.hasHeatPump })
           }
           onSeeDetails={() => onJumpTab("heatpump")}
-        />
-        <RecTile
+          summaryLine={
+            selection.hasHeatPump
+              ? hpCostLow != null && hpCostHigh != null
+                ? `${fmtGbp(hpCostLow, { compact: true })}–${fmtGbp(hpCostHigh, { compact: true })} after £${hp.estimatedGrantGBP.toLocaleString()} BUS grant`
+                : `£${hp.estimatedGrantGBP.toLocaleString()} BUS grant available`
+              : "Estimated install + BUS grant shown when added to plan"
+          }
+        >
+          {selection.hasHeatPump && (
+            <SizingReadout
+              label="Estimated system size"
+              value={
+                hp.recommendedSystemKW
+                  ? `${hp.recommendedSystemKW} kW`
+                  : "TBC on site visit"
+              }
+            />
+          )}
+        </PlanTile>
+
+        <PlanTile
           kind="solar"
           title="Solar PV"
-          headline={
-            solar.recommendedKWp
-              ? `${solar.recommendedKWp} kWp · ${solar.estimatedAnnualKWh?.toLocaleString() ?? "—"} kWh/yr`
-              : "Roof not suitable"
-          }
-          verdict={solar.rating}
-          tone={
-            solar.rating === "Excellent" || solar.rating === "Good"
-              ? "green"
+          verdict={
+            solarStrong
+              ? "Compatible"
               : solar.rating === "Marginal"
-                ? "amber"
-                : "slate"
+                ? "Requires investigation"
+                : "Not compatible"
           }
-          costLine={
-            solarCost != null
-              ? `${fmtGbp(solarCost)} install`
-              : "Install cost depends on roof access"
+          tone={
+            solarStrong ? "green" : solar.rating === "Marginal" ? "amber" : "slate"
           }
           selected={selection.hasSolar}
           onToggle={() =>
             setSelection({ ...selection, hasSolar: !selection.hasSolar })
           }
           onSeeDetails={() => onJumpTab("solar")}
-        />
-        <RecTile
+          summaryLine={
+            selection.hasSolar
+              ? `${liveSolarKwh != null ? `~${liveSolarKwh.toLocaleString()} kWh/yr · ` : ""}${fmtGbp(liveSolarCost, { compact: true })} install`
+              : "Pick a panel count to see install cost"
+          }
+        >
+          {selection.hasSolar && (
+            <PanelSlider
+              value={selection.panelCount}
+              recommended={recommendedPanels}
+              onChange={(v) =>
+                setSelection({ ...selection, panelCount: v })
+              }
+            />
+          )}
+        </PlanTile>
+
+        <PlanTile
           kind="battery"
           title="Battery"
-          headline="Stores midday solar for the evening"
-          verdict={
-            solar.rating === "Excellent" || solar.rating === "Good"
-              ? "Pairs well"
-              : "Optional"
-          }
-          tone={
-            solar.rating === "Excellent" || solar.rating === "Good"
-              ? "green"
-              : "slate"
-          }
-          // No fixed cost line — sizing chosen on the Solar & battery tab.
-          costLine={
-            selection.hasBattery
-              ? "Pick your size on the Solar & battery tab"
-              : "Sized to match your usage"
-          }
+          verdict={solarStrong ? "Compatible" : "Requires investigation"}
+          tone={solarStrong ? "green" : "amber"}
           selected={selection.hasBattery}
           onToggle={() =>
             setSelection({ ...selection, hasBattery: !selection.hasBattery })
@@ -132,38 +161,52 @@ export function RecommendationStrip({
           onSeeDetails={() => onJumpTab("solar")}
           disabled={!selection.hasSolar}
           disabledHint="Battery needs solar to charge from"
-        />
+          summaryLine={
+            selection.hasBattery
+              ? `Stores midday solar to use after dark`
+              : "Pair with solar to shift generation into the evening"
+          }
+        >
+          {selection.hasBattery && (
+            <BatterySegmented
+              value={selection.batteryKwh as 3 | 5 | 10}
+              onChange={(v) =>
+                setSelection({ ...selection, batteryKwh: v })
+              }
+            />
+          )}
+        </PlanTile>
       </div>
     </SectionCard>
   );
 }
 
-// ─── Tile ───────────────────────────────────────────────────────────────────
+// ─── PlanTile shell ────────────────────────────────────────────────────
 
-function RecTile({
+function PlanTile({
   kind,
   title,
-  headline,
   verdict,
   tone,
-  costLine,
   selected,
   disabled,
   disabledHint,
+  summaryLine,
   onToggle,
   onSeeDetails,
+  children,
 }: {
   kind: "heatpump" | "solar" | "battery";
   title: string;
-  headline: string;
   verdict: string;
   tone: "green" | "amber" | "slate";
-  costLine: string;
   selected: boolean;
   disabled?: boolean;
   disabledHint?: string;
+  summaryLine: string;
   onToggle: () => void;
   onSeeDetails: () => void;
+  children?: React.ReactNode;
 }) {
   const icon =
     kind === "heatpump" ? (
@@ -176,110 +219,212 @@ function RecTile({
 
   const verdictTone =
     tone === "green"
-      ? "text-emerald-700 bg-emerald-100"
+      ? "bg-emerald-100 text-emerald-700"
       : tone === "amber"
-        ? "text-amber-800 bg-amber-100"
-        : "text-slate-600 bg-slate-100";
+        ? "bg-amber-100 text-amber-800"
+        : "bg-slate-100 text-slate-600";
+
+  const isOn = selected && !disabled;
 
   return (
     <div
-      className={`relative rounded-2xl border-2 p-4 transition-all ${
+      className={`rounded-2xl border-2 p-4 transition-colors ${
         disabled
           ? "border-slate-200 bg-slate-50/40 opacity-60"
-          : selected
+          : isOn
             ? "border-coral bg-coral-pale/30"
             : "border-slate-200 bg-white"
       }`}
     >
-      {/* Whole tile is the toggle. Big touch target — fills the card. */}
-      <button
-        type="button"
-        onClick={onToggle}
-        disabled={disabled}
-        aria-pressed={selected}
-        aria-label={`${selected ? "Remove" : "Add"} ${title} ${selected ? "from" : "to"} my plan`}
-        title={disabled ? disabledHint : undefined}
-        className="absolute inset-0 rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-coral focus-visible:ring-offset-2 disabled:cursor-not-allowed"
-      >
-        <span className="sr-only">
-          {selected ? "Remove " : "Add "}
-          {title}
-          {selected ? " from my plan" : " to my plan"}
+      {/* Header row: icon + title on the left, verdict pill on the right */}
+      <div className="flex items-center justify-between gap-2 mb-3">
+        <span className="inline-flex items-center gap-2 min-w-0">
+          <span className="shrink-0 inline-flex items-center justify-center w-9 h-9 rounded-xl bg-white text-coral shadow-sm border border-slate-100">
+            {icon}
+          </span>
+          <span className="text-sm font-semibold text-navy truncate">
+            {title}
+          </span>
         </span>
-      </button>
+        <span
+          className={`shrink-0 text-[10px] font-bold uppercase tracking-wider rounded-full px-2 py-0.5 whitespace-nowrap ${verdictTone}`}
+        >
+          {verdict}
+        </span>
+      </div>
 
-      {/* Visual content sits above the absolute button */}
-      <div className="relative pointer-events-none">
-        <div className="flex items-center justify-between gap-2 mb-3">
-          <span className="inline-flex items-center gap-2 min-w-0">
-            <span className="shrink-0 inline-flex items-center justify-center w-9 h-9 rounded-xl bg-white text-coral shadow-sm border border-slate-100">
-              {icon}
-            </span>
-            <span className="text-sm font-semibold text-navy truncate">
-              {title}
-            </span>
+      {/* Toggle row */}
+      <div className="mb-3">
+        <button
+          type="button"
+          onClick={onToggle}
+          disabled={disabled}
+          aria-pressed={selected}
+          className={`w-full inline-flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-sm font-semibold transition-colors disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-coral focus-visible:ring-offset-2 ${
+            disabled
+              ? "bg-slate-100 text-slate-400"
+              : isOn
+                ? "bg-coral text-white hover:bg-coral-dark"
+                : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+          }`}
+        >
+          <span className="inline-flex items-center gap-2">
+            {isOn ? <Check className="w-4 h-4" /> : <Plus />}
+            {isOn ? "In my plan" : "Add to my plan"}
           </span>
-          <span
-            className={`shrink-0 text-[10px] font-bold uppercase tracking-wider rounded-full px-2 py-0.5 whitespace-nowrap ${verdictTone}`}
-          >
-            {verdict}
-          </span>
-        </div>
-
-        <p className="text-lg font-bold text-navy leading-tight">{headline}</p>
-        <p className="mt-2 text-xs text-slate-600 leading-relaxed">
-          {costLine}
-        </p>
-
-        {/* Status chip: makes the selection state un-missable */}
-        <div className="mt-4 flex items-center justify-between gap-3">
-          <span
-            className={`inline-flex items-center gap-1.5 text-xs font-semibold rounded-full px-2.5 py-1 ${
-              disabled
-                ? "bg-slate-100 text-slate-400"
-                : selected
-                  ? "bg-coral text-white"
-                  : "bg-slate-100 text-slate-600"
-            }`}
-          >
-            {selected ? (
-              <>
-                <Check className="w-3.5 h-3.5" />
-                In my plan
-              </>
-            ) : disabled ? (
-              "Not available"
-            ) : (
-              "Tap to add"
-            )}
-          </span>
-          {/* See details — pointer-events-auto so it can be clicked despite
-              the absolute toggle button covering the tile. */}
-          <span
-            className="text-xs font-semibold text-coral hover:underline whitespace-nowrap pointer-events-auto cursor-pointer"
-            role="link"
-            tabIndex={0}
-            onClick={(e) => {
-              e.stopPropagation();
-              onSeeDetails();
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                e.stopPropagation();
-                onSeeDetails();
-              }
-            }}
-          >
-            See details →
-          </span>
-        </div>
+          <Switch on={isOn} />
+        </button>
         {disabled && disabledHint && (
-          <p className="mt-2 text-[11px] text-slate-500 italic">
+          <p className="mt-1.5 text-[11px] text-slate-500 italic">
             {disabledHint}
           </p>
         )}
       </div>
+
+      {/* Sizing controls (children) — only when ON */}
+      {children && <div className="mb-3">{children}</div>}
+
+      {/* Footer: summary line + see details */}
+      <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100">
+        <p className="text-xs text-slate-600 leading-snug">{summaryLine}</p>
+        <button
+          type="button"
+          onClick={onSeeDetails}
+          className="shrink-0 text-xs font-semibold text-coral hover:underline whitespace-nowrap focus:outline-none focus-visible:ring-2 focus-visible:ring-coral rounded"
+        >
+          See details →
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// Tiny "+" SVG so the off-state button doesn't import another lucide
+// icon just for one role.
+function Plus() {
+  return (
+    <svg
+      width={16}
+      height={16}
+      viewBox="0 0 16 16"
+      fill="none"
+      aria-hidden="true"
+    >
+      <path
+        d="M8 3v10M3 8h10"
+        stroke="currentColor"
+        strokeWidth={2}
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function Switch({ on }: { on: boolean }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={`relative inline-block w-8 h-4 rounded-full transition-colors ${
+        on ? "bg-white/40" : "bg-slate-300"
+      }`}
+    >
+      <span
+        className={`absolute top-0.5 w-3 h-3 rounded-full bg-white shadow transition-all ${
+          on ? "left-[18px]" : "left-0.5"
+        }`}
+      />
+    </span>
+  );
+}
+
+// ─── Sizing controls ───────────────────────────────────────────────────
+
+function PanelSlider({
+  value,
+  recommended,
+  onChange,
+}: {
+  value: number;
+  recommended: number;
+  onChange: (n: number) => void;
+}) {
+  return (
+    <div>
+      <label className="flex items-baseline justify-between gap-2 mb-1.5">
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+          Number of panels
+        </span>
+        <span className="text-sm font-bold text-navy tabular-nums">
+          {value}
+          {recommended > 0 && value === recommended && (
+            <span className="ml-1.5 text-[10px] font-bold uppercase tracking-wider text-emerald-700">
+              recommended
+            </span>
+          )}
+        </span>
+      </label>
+      <input
+        type="range"
+        min={1}
+        max={50}
+        step={1}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        aria-label="Number of solar panels"
+        className="w-full accent-coral cursor-pointer"
+      />
+      <div className="flex justify-between text-[10px] text-slate-400 mt-0.5 tabular-nums">
+        <span>1</span>
+        <span>50</span>
+      </div>
+    </div>
+  );
+}
+
+function BatterySegmented({
+  value,
+  onChange,
+}: {
+  value: 3 | 5 | 10;
+  onChange: (n: 3 | 5 | 10) => void;
+}) {
+  return (
+    <div>
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-1.5">
+        Battery size
+      </p>
+      <div className="grid grid-cols-3 gap-1.5" role="radiogroup" aria-label="Battery size">
+        {BATTERY_OPTIONS.map((opt) => {
+          const active = value === opt;
+          return (
+            <button
+              key={opt}
+              type="button"
+              role="radio"
+              aria-checked={active}
+              onClick={() => onChange(opt)}
+              className={`px-2 py-2 rounded-lg text-sm font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-coral focus-visible:ring-offset-1 ${
+                active
+                  ? "bg-coral text-white"
+                  : "bg-white border border-slate-200 text-slate-700 hover:bg-coral-pale/40"
+              }`}
+            >
+              {opt} kWh
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function SizingReadout({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg bg-white border border-slate-200 px-3 py-2">
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+        {label}
+      </p>
+      <p className="text-sm font-bold text-navy mt-0.5">{value}</p>
     </div>
   );
 }

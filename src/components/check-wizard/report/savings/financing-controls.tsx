@@ -1,14 +1,19 @@
 "use client";
 
-// Collapsible "advanced financing" panel for the Savings tab. Drives
-// the loan / mortgage inputs that feed the savings-calc engine.
+// Financing options panel — always visible (was a collapsed
+// <details> previously, but the user almost always wants to see /
+// tweak these values, so hiding behind a chevron made the report
+// feel incomplete).
 //
-// Plain `<details>` element rather than a custom disclosure widget —
-// it gets keyboard focus, screen-reader semantics, and Tab-cycling
-// for free.
+// Two scenarios, each with their own checkbox: "Show personal loan"
+// and "Show add to mortgage". Sliders (not number inputs) for APR
+// and term so it's obvious they're adjustable without having to know
+// the valid range. When a scenario is unchecked, its inputs collapse
+// out of view — keeps the panel compact.
 
-import { ChevronDown, Info } from "lucide-react";
+import { Coins, Home } from "lucide-react";
 import type { FinancingInputs } from "@/lib/savings/build-request";
+import { SectionCard } from "../shared";
 
 interface Props {
   value: FinancingInputs;
@@ -19,141 +24,191 @@ export function FinancingControls({ value, onChange }: Props) {
   const set = (patch: Partial<FinancingInputs>) =>
     onChange({ ...value, ...patch });
 
-  // Convert decimal ↔ % for the rate inputs. The API takes 0.069 for
-  // 6.9%; the user thinks in percentages.
-  const aprPct = round1(value.loanApr * 100);
-  const mortgagePct = round1(value.mortgageRate * 100);
+  // The API's `loan_term_months` is the source of truth, but every UI
+  // surface displays in years. Stored as a multiple of 12 so the
+  // conversion is lossless.
+  const loanTermYears = Math.round(value.loanTermMonths / 12);
 
   return (
-    <details className="group rounded-xl border border-slate-200 bg-white open:shadow-sm">
-      <summary className="flex items-center justify-between gap-3 cursor-pointer list-none px-4 py-3 select-none">
-        <span className="inline-flex items-center gap-2 text-sm font-semibold text-navy">
-          <Info className="w-4 h-4 text-slate-400" />
-          Advanced: financing assumptions
-        </span>
-        <ChevronDown className="w-4 h-4 text-slate-500 transition-transform group-open:rotate-180" />
-      </summary>
+    <SectionCard
+      title="Financing options"
+      subtitle="Tick the scenarios you want to compare. The chart and tables update with your settings."
+      icon={<Coins className="w-5 h-5" />}
+    >
+      <div className="space-y-5">
+        <ScenarioBlock
+          icon={<Coins className="w-4 h-4" />}
+          title="Personal loan"
+          checked={value.wantFinance}
+          onCheck={(c) => set({ wantFinance: c })}
+        >
+          {value.wantFinance && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              <SliderField
+                label="Loan APR"
+                value={value.loanApr * 100}
+                min={0}
+                max={20}
+                step={0.1}
+                suffix="%"
+                onChange={(v) => set({ loanApr: v / 100 })}
+              />
+              <SliderField
+                label="Loan term"
+                value={loanTermYears}
+                min={1}
+                max={30}
+                step={1}
+                suffix=" years"
+                onChange={(v) => set({ loanTermMonths: v * 12 })}
+              />
+            </div>
+          )}
+        </ScenarioBlock>
 
-      <div className="border-t border-slate-100 px-4 py-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <FieldRow label="Loan APR" hint="Personal-loan rate, %">
-            <input
-              type="number"
-              inputMode="decimal"
-              min={0}
-              max={50}
-              step={0.1}
-              value={aprPct}
-              onChange={(e) =>
-                set({ loanApr: clamp(Number(e.target.value), 0, 50) / 100 })
-              }
-              className="w-24 rounded-md border border-slate-200 px-2.5 py-1.5 text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-coral focus:border-coral"
-            />
-            <span className="ml-1 text-sm text-slate-500">%</span>
-          </FieldRow>
+        <ScenarioBlock
+          icon={<Home className="w-4 h-4" />}
+          title="Add to mortgage"
+          checked={value.wantMortgage}
+          onCheck={(c) => set({ wantMortgage: c })}
+        >
+          {value.wantMortgage && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              <SliderField
+                label="Mortgage rate"
+                value={value.mortgageRate * 100}
+                min={0}
+                max={15}
+                step={0.1}
+                suffix="%"
+                onChange={(v) => set({ mortgageRate: v / 100 })}
+              />
+              <SliderField
+                label="Mortgage term"
+                value={value.mortgageTermYears}
+                min={5}
+                max={35}
+                step={1}
+                suffix=" years"
+                onChange={(v) => set({ mortgageTermYears: v })}
+              />
+            </div>
+          )}
+        </ScenarioBlock>
 
-          <FieldRow label="Loan term">
-            <select
-              value={value.loanTermMonths}
-              onChange={(e) =>
-                set({ loanTermMonths: Number(e.target.value) })
-              }
-              className="rounded-md border border-slate-200 px-2.5 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-coral focus:border-coral"
-            >
-              {LOAN_TERMS.map((m) => (
-                <option key={m} value={m}>
-                  {m / 12} years ({m} months)
-                </option>
-              ))}
-            </select>
-          </FieldRow>
-
-          <FieldRow label="Mortgage rate" hint="Annual interest, %">
-            <input
-              type="number"
-              inputMode="decimal"
-              min={0}
-              max={20}
-              step={0.1}
-              value={mortgagePct}
-              onChange={(e) =>
-                set({
-                  mortgageRate: clamp(Number(e.target.value), 0, 20) / 100,
-                })
-              }
-              className="w-24 rounded-md border border-slate-200 px-2.5 py-1.5 text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-coral focus:border-coral"
-            />
-            <span className="ml-1 text-sm text-slate-500">%</span>
-          </FieldRow>
-
-          <FieldRow label="Mortgage term">
-            <select
-              value={value.mortgageTermYears}
-              onChange={(e) =>
-                set({ mortgageTermYears: Number(e.target.value) })
-              }
-              className="rounded-md border border-slate-200 px-2.5 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-coral focus:border-coral"
-            >
-              {MORTGAGE_TERMS.map((y) => (
-                <option key={y} value={y}>
-                  {y} years
-                </option>
-              ))}
-            </select>
-          </FieldRow>
-        </div>
-
-        <label className="mt-4 inline-flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={value.wantFinance}
-            onChange={(e) => set({ wantFinance: e.target.checked })}
-            className="w-4 h-4 rounded border-slate-300 text-coral focus:ring-coral"
-          />
-          Show personal-loan scenario
-        </label>
-
-        <p className="mt-4 text-[11px] text-slate-500 leading-relaxed">
-          Illustrative figures only — we&rsquo;re not a lender or broker. Talk
-          to a regulated mortgage adviser before adding upgrades to a real
-          mortgage.
+        <p className="text-[11px] text-slate-500 leading-relaxed border-t border-slate-100 pt-3">
+          The mortgage scenario assumes a <strong>capital + interest
+          repayment</strong> over the term shown — interest-only mortgages
+          would have lower monthly payments but higher total cost.
+          Illustrative figures only — we&rsquo;re not a lender or broker.
+          Talk to a regulated mortgage adviser before adding upgrades to a
+          real mortgage.
         </p>
       </div>
-    </details>
+    </SectionCard>
   );
 }
 
-function FieldRow({
-  label,
-  hint,
+// ─── Scenario block ────────────────────────────────────────────────────
+// Header row with the title + checkbox; body collapses out when the
+// checkbox is off. We use a real <fieldset>/<legend> for screen-reader
+// grouping — checking the box is logically a master toggle for the
+// whole block.
+
+function ScenarioBlock({
+  icon,
+  title,
+  checked,
+  onCheck,
   children,
 }: {
-  label: string;
-  hint?: string;
+  icon: React.ReactNode;
+  title: string;
+  checked: boolean;
+  onCheck: (c: boolean) => void;
   children: React.ReactNode;
 }) {
   return (
-    <div>
-      <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">
-        {label}
-        {hint && (
-          <span className="ml-2 font-normal normal-case text-slate-400 tracking-normal">
-            — {hint}
+    <fieldset className="rounded-xl border border-slate-200 bg-white p-4">
+      <legend className="px-2 -ml-2">
+        <label className="inline-flex items-center gap-2.5 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={checked}
+            onChange={(e) => onCheck(e.target.checked)}
+            className="w-4 h-4 rounded border-slate-300 text-coral focus:ring-coral"
+          />
+          <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-navy">
+            <span className="text-coral">{icon}</span>
+            Show {title.toLowerCase()} scenario
           </span>
-        )}
+        </label>
+      </legend>
+      {children}
+    </fieldset>
+  );
+}
+
+// ─── Slider field ──────────────────────────────────────────────────────
+// Range input with the value tucked into the label so the user always
+// sees the current setting. Uses `accent-coral` to colour the thumb +
+// fill consistently with the rest of the report.
+
+function SliderField({
+  label,
+  value,
+  min,
+  max,
+  step,
+  suffix,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  step: number;
+  suffix: string;
+  onChange: (v: number) => void;
+}) {
+  // 1-dp display for percentage sliders, integer for whole-number
+  // ones. Avoid printing "0.10000000001" when step is 0.1.
+  const display = step < 1 ? round1(value) : Math.round(value);
+  return (
+    <div>
+      <label className="flex items-baseline justify-between gap-2 mb-1.5">
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+          {label}
+        </span>
+        <span className="text-sm font-bold text-navy tabular-nums">
+          {display}
+          {suffix}
+        </span>
       </label>
-      <div className="flex items-center">{children}</div>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        aria-label={label}
+        className="w-full accent-coral cursor-pointer"
+      />
+      <div className="flex justify-between text-[10px] text-slate-400 mt-0.5 tabular-nums">
+        <span>
+          {min}
+          {suffix}
+        </span>
+        <span>
+          {max}
+          {suffix}
+        </span>
+      </div>
     </div>
   );
 }
 
-const LOAN_TERMS = [12, 24, 36, 48, 60, 84, 120, 180, 240, 300, 360];
-const MORTGAGE_TERMS = [5, 10, 15, 20, 25, 30, 35];
-
-function clamp(n: number, lo: number, hi: number): number {
-  if (Number.isNaN(n)) return lo;
-  return Math.max(lo, Math.min(hi, n));
-}
 function round1(n: number): number {
   return Math.round(n * 10) / 10;
 }

@@ -88,20 +88,35 @@ export function SavingsReport({
     );
   }
 
-  // Whether to include the Finance scenario in chart/table/cards/etc.
+  // Which scenarios to include in chart/table/cards/etc. — driven by
+  // the Financing-options checkboxes in the panel above.
   const showFinance = financing.wantFinance;
+  const showMortgage = financing.wantMortgage;
 
   return (
     <div className="space-y-6">
       <CurrentSpendSection result={result} />
       <NarrativeSection result={result} />
-      <TenYearOutlookSection result={result} showFinance={showFinance} />
-      <MonthlyComparisonSection result={result} showFinance={showFinance} />
-      <BottomLineSection result={result} showFinance={showFinance} />
+      <TenYearOutlookSection
+        result={result}
+        showFinance={showFinance}
+        showMortgage={showMortgage}
+      />
+      <MonthlyComparisonSection
+        result={result}
+        showFinance={showFinance}
+        showMortgage={showMortgage}
+      />
+      <BottomLineSection
+        result={result}
+        showFinance={showFinance}
+        showMortgage={showMortgage}
+      />
       <YourOptionsSection
         result={result}
         request={request}
         showFinance={showFinance}
+        showMortgage={showMortgage}
       />
       {loading && (
         <p className="text-xs text-slate-400 inline-flex items-center gap-1.5">
@@ -187,9 +202,11 @@ function NarrativeSection({ result }: { result: CalculateResponse }) {
 function TenYearOutlookSection({
   result,
   showFinance,
+  showMortgage,
 }: {
   result: CalculateResponse;
   showFinance: boolean;
+  showMortgage: boolean;
 }) {
   const proj = result.projections;
   const series: Array<{
@@ -213,13 +230,6 @@ function TenYearOutlookSection({
       cum: proj.payUpfront.cumulativeCost,
       annual: proj.payUpfront.annualCost,
     },
-    {
-      key: "mortgage",
-      label: SCENARIO_LABELS.mortgage,
-      color: SCENARIO_COLORS.mortgage,
-      cum: proj.mortgage.cumulativeCost,
-      annual: proj.mortgage.annualCost,
-    },
   ];
   if (showFinance) {
     series.splice(1, 0, {
@@ -228,6 +238,15 @@ function TenYearOutlookSection({
       color: SCENARIO_COLORS.finance,
       cum: proj.finance.cumulativeCost,
       annual: proj.finance.annualCost,
+    });
+  }
+  if (showMortgage) {
+    series.push({
+      key: "mortgage",
+      label: SCENARIO_LABELS.mortgage,
+      color: SCENARIO_COLORS.mortgage,
+      cum: proj.mortgage.cumulativeCost,
+      annual: proj.mortgage.annualCost,
     });
   }
 
@@ -308,9 +327,11 @@ function TenYearOutlookSection({
 function MonthlyComparisonSection({
   result,
   showFinance,
+  showMortgage,
 }: {
   result: CalculateResponse;
   showFinance: boolean;
+  showMortgage: boolean;
 }) {
   const m = result.monthlyComparison;
   const best = result.consumerNarrative.bestValueOption;
@@ -336,13 +357,6 @@ function MonthlyComparisonSection({
       payment: m.payUpfront.payment,
       total: m.payUpfront.totalMonthly,
     },
-    {
-      key: "mortgage",
-      label: SCENARIO_LABELS.mortgage,
-      energy: m.mortgage.energyBills,
-      payment: m.mortgage.payment,
-      total: m.mortgage.totalMonthly,
-    },
   ];
   if (showFinance) {
     cards.splice(1, 0, {
@@ -351,6 +365,15 @@ function MonthlyComparisonSection({
       energy: m.finance.energyBills,
       payment: m.finance.payment,
       total: m.finance.totalMonthly,
+    });
+  }
+  if (showMortgage) {
+    cards.push({
+      key: "mortgage",
+      label: SCENARIO_LABELS.mortgage,
+      energy: m.mortgage.energyBills,
+      payment: m.mortgage.payment,
+      total: m.mortgage.totalMonthly,
     });
   }
 
@@ -401,9 +424,11 @@ function MonthlyComparisonSection({
 function BottomLineSection({
   result,
   showFinance,
+  showMortgage,
 }: {
   result: CalculateResponse;
   showFinance: boolean;
+  showMortgage: boolean;
 }) {
   const s = result.summary;
   const reductionPct = Math.round(
@@ -424,13 +449,6 @@ function BottomLineSection({
       savings: s.savingsUpfrontVsDoNothing,
       payback: s.paybackYearUpfront,
     },
-    {
-      key: "mortgage",
-      label: SCENARIO_LABELS.mortgage,
-      tenYear: s.tenYearCostMortgage,
-      savings: s.savingsMortgageVsDoNothing,
-      payback: s.paybackYearMortgage,
-    },
   ];
   if (showFinance) {
     rows.unshift({
@@ -439,6 +457,15 @@ function BottomLineSection({
       tenYear: s.tenYearCostFinance,
       savings: s.savingsFinanceVsDoNothing,
       payback: s.paybackYearFinance,
+    });
+  }
+  if (showMortgage) {
+    rows.push({
+      key: "mortgage",
+      label: SCENARIO_LABELS.mortgage,
+      tenYear: s.tenYearCostMortgage,
+      savings: s.savingsMortgageVsDoNothing,
+      payback: s.paybackYearMortgage,
     });
   }
 
@@ -510,10 +537,12 @@ function YourOptionsSection({
   result,
   request,
   showFinance,
+  showMortgage,
 }: {
   result: CalculateResponse;
   request: CalculateRequest;
   showFinance: boolean;
+  showMortgage: boolean;
 }) {
   const ic = result.improvementCosts;
   const proj = result.projections;
@@ -523,10 +552,19 @@ function YourOptionsSection({
   const upfrontYr1Energy =
     proj.payUpfront.annualCost[0] - proj.payUpfront.upfrontCapital[0];
 
+  // Card count: pay-upfront is always shown. Finance and mortgage are
+  // each opt-in via the Financing-options checkboxes. Pick the grid
+  // template that fits.
+  const cardCount = 1 + (showFinance ? 1 : 0) + (showMortgage ? 1 : 0);
+  const gridCls =
+    cardCount === 3
+      ? "lg:grid-cols-3"
+      : cardCount === 2
+        ? "sm:grid-cols-2"
+        : "sm:grid-cols-1";
+
   return (
-    <div
-      className={`grid grid-cols-1 ${showFinance ? "lg:grid-cols-3" : "sm:grid-cols-2"} gap-3`}
-    >
+    <div className={`grid grid-cols-1 ${gridCls} gap-3`}>
       <OptionCard
         title="Pay upfront"
         starred={best === "payUpfront"}
@@ -565,38 +603,40 @@ function YourOptionsSection({
         />
       )}
 
-      <OptionCard
-        title="Add to mortgage"
-        starred={best === "mortgage"}
-        primary={`${fmtGbp(ic.monthlyMortgageAddition)}/mo`}
-        primaryNote="Extra mortgage payment"
-        rows={[
-          {
-            label: "Term",
-            value: `${request.financing.mortgageTermYears} years @ ${(
-              request.financing.mortgageRate * 100
-            ).toFixed(1)}%`,
-          },
-          {
-            label: "Total monthly outgoings",
-            value: `${fmtGbp(monthly.mortgage.totalMonthly)}/mo`,
-            tone: "navy",
-          },
-          {
-            label: "vs doing nothing",
-            value: `${fmtGbp(monthly.doNothing.totalMonthly)}/mo`,
-          },
-          ...(result.summary.paybackYearMortgage != null
-            ? [
-                {
-                  label: "Pays for itself",
-                  value: `Year ${result.summary.paybackYearMortgage}`,
-                  tone: "good" as const,
-                },
-              ]
-            : []),
-        ]}
-      />
+      {showMortgage && (
+        <OptionCard
+          title="Add to mortgage"
+          starred={best === "mortgage"}
+          primary={`${fmtGbp(ic.monthlyMortgageAddition)}/mo`}
+          primaryNote="Extra mortgage payment (capital + interest)"
+          rows={[
+            {
+              label: "Term",
+              value: `${request.financing.mortgageTermYears} years @ ${(
+                request.financing.mortgageRate * 100
+              ).toFixed(1)}%`,
+            },
+            {
+              label: "Total monthly outgoings",
+              value: `${fmtGbp(monthly.mortgage.totalMonthly)}/mo`,
+              tone: "navy",
+            },
+            {
+              label: "vs doing nothing",
+              value: `${fmtGbp(monthly.doNothing.totalMonthly)}/mo`,
+            },
+            ...(result.summary.paybackYearMortgage != null
+              ? [
+                  {
+                    label: "Pays for itself",
+                    value: `Year ${result.summary.paybackYearMortgage}`,
+                    tone: "good" as const,
+                  },
+                ]
+              : []),
+          ]}
+        />
+      )}
     </div>
   );
 }

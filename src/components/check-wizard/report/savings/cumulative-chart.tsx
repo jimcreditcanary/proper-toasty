@@ -153,18 +153,18 @@ export function CumulativeCostChart({ years, series, yAxisLabel }: Props) {
   );
 }
 
-// Round a max value up to a "nice" tick boundary — picks 1, 2, 5, 10
-// times the appropriate power of ten so axis labels read cleanly.
+// Round a max value up to a "nice" tick boundary using a finer set of
+// multipliers (1, 1.5, 2, 2.5, 3, 4, 5, 7.5, 10) so the chart doesn't
+// waste vertical space. The previous coarse set (1, 2, 5, 10) rounded
+// 22-24K up to 50K — half the chart was empty. With the finer set,
+// 24K → 25K, 17K → 20K, 38K → 40K, etc.
 function niceMax(raw: number): number {
   if (raw <= 0) return 1;
   const exp = Math.floor(Math.log10(raw));
   const base = Math.pow(10, exp);
   const ratio = raw / base;
-  let nice: number;
-  if (ratio <= 1) nice = 1;
-  else if (ratio <= 2) nice = 2;
-  else if (ratio <= 5) nice = 5;
-  else nice = 10;
+  const candidates = [1, 1.5, 2, 2.5, 3, 4, 5, 7.5, 10];
+  const nice = candidates.find((c) => c >= ratio) ?? 10;
   return nice * base;
 }
 

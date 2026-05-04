@@ -20,7 +20,14 @@ export interface FinancingInputs {
   loanApr: number;
   mortgageRate: number;
   mortgageTermYears: number;
+  /** Show + fund the personal-loan scenario. Doubles as the API's
+   *  `improvements.want_finance` flag — when off, the loan PMT
+   *  computation skips so the scenario disappears from the chart. */
   wantFinance: boolean;
+  /** Show the "add to mortgage" scenario. UI-only flag — the API
+   *  always computes mortgage; this just hides the column when the
+   *  homeowner doesn't have / want a mortgage option. */
+  wantMortgage: boolean;
 }
 
 export const DEFAULT_FINANCING: FinancingInputs = {
@@ -29,6 +36,7 @@ export const DEFAULT_FINANCING: FinancingInputs = {
   mortgageRate: 0.045,
   mortgageTermYears: 25,
   wantFinance: true,
+  wantMortgage: true,
 };
 
 interface BuildArgs {

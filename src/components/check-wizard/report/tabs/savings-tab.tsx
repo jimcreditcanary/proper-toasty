@@ -55,15 +55,17 @@ export function SavingsTab({
   onJumpTab,
 }: Props) {
   // Financing is local to this tab — no other tab consumes it. Seed
-  // `wantFinance` from the wizard's financing-preference question if
-  // the user answered (saves them ticking it again).
-  const [financing, setFinancing] = useState<FinancingInputs>(() => ({
-    ...DEFAULT_FINANCING,
-    wantFinance:
-      financingPreference === "no"
-        ? false
-        : DEFAULT_FINANCING.wantFinance,
-  }));
+  // both scenarios off when the wizard captured "no, paying cash"
+  // (no point showing finance/mortgage UI). Otherwise default both
+  // on so the user sees the comparison without an extra click.
+  const [financing, setFinancing] = useState<FinancingInputs>(() => {
+    const wantsCash = financingPreference === "no";
+    return {
+      ...DEFAULT_FINANCING,
+      wantFinance: wantsCash ? false : DEFAULT_FINANCING.wantFinance,
+      wantMortgage: wantsCash ? false : DEFAULT_FINANCING.wantMortgage,
+    };
+  });
 
   const cost = computeCalc({
     analysis,
