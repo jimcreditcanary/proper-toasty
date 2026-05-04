@@ -19,12 +19,13 @@ import {
 // below are hotlinked via next/image (images.unsplash.com is allow-
 // listed in next.config.ts).
 //
-// HERO_IMAGE: deliberately a typical UK terraced / semi-detached
-// house, not the modern villa we used to show. The whole product is
-// pitched at the average UK household (target audience); the hero
-// image needs to look like that household's home.
+// HERO_IMAGE: a typical UK terraced row, not a modern detached villa.
+// The product is pitched at the average UK household — semis,
+// terraces, post-war estates — so the hero should look like the
+// homes most users actually live in. If you have your own
+// photography (or a customer's home with permission), drop it here.
 const HERO_IMAGE =
-  "https://images.unsplash.com/photo-1568605114967-8130f3a36994?auto=format&w=1600&q=80";
+  "https://images.unsplash.com/photo-1605276374104-dee2a0ed3cd6?auto=format&w=1600&q=80";
 const HOME_SMALL =
   "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&w=900&q=80";
 
@@ -172,10 +173,13 @@ export default function Home() {
               missed three signals an average UK homeowner cares
               about (solar potential, EPC headroom, savings). */}
           <div className="relative">
-            <div className="relative aspect-[4/5] rounded-3xl overflow-hidden shadow-xl ring-1 ring-[var(--border)]">
+            {/* Aspect ratio: 8/7 (was 4/5) — height reduced ~30% so
+                the hero doesn't tower over the headline copy on
+                desktop. Mobile auto-scales with the column width. */}
+            <div className="relative aspect-[8/7] rounded-3xl overflow-hidden shadow-xl ring-1 ring-[var(--border)]">
               <Image
                 src={HERO_IMAGE}
-                alt="A typical British semi-detached home"
+                alt="A typical British terraced street"
                 fill
                 priority
                 sizes="(max-width: 1024px) 100vw, 560px"
