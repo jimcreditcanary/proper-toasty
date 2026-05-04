@@ -14,18 +14,15 @@ import {
   Zap,
 } from "lucide-react";
 
-// Stock imagery: Unsplash photos chosen for a warm, lived-in feel.
-// Swap these for your own photography when you have it — the paths
-// below are hotlinked via next/image (images.unsplash.com is allow-
-// listed in next.config.ts).
-//
-// HERO_IMAGE: a typical UK terraced row, not a modern detached villa.
-// The product is pitched at the average UK household — semis,
-// terraces, post-war estates — so the hero should look like the
-// homes most users actually live in. If you have your own
-// photography (or a customer's home with permission), drop it here.
-const HERO_IMAGE =
-  "https://images.unsplash.com/photo-1605276374104-dee2a0ed3cd6?auto=format&w=1600&q=80";
+// Hero image: a real UK semi-detached on a Steepside cul-de-sac
+// — red brick, bay window, green garage door, post-war estate
+// vibe. Lives in public/ so it's served from the same domain
+// (no Unsplash hop, no remote-pattern config). Replace the file
+// with your own photography to swap.
+const HERO_IMAGE = "/hero-uk-home.jpg";
+// HOME_SMALL is still on Unsplash for the "what you get" section
+// further down. Swap when you have proper photography for that
+// block too.
 const HOME_SMALL =
   "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&w=900&q=80";
 
@@ -179,7 +176,7 @@ export default function Home() {
             <div className="relative aspect-[8/7] rounded-3xl overflow-hidden shadow-xl ring-1 ring-[var(--border)]">
               <Image
                 src={HERO_IMAGE}
-                alt="A typical British terraced street"
+                alt="A typical British semi-detached home with red brick, bay window and a green garage door"
                 fill
                 priority
                 sizes="(max-width: 1024px) 100vw, 560px"
