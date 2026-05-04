@@ -95,11 +95,28 @@ function getClient(): PostHog | null {
   if (!key) return null;
   cached = new PostHog(key, {
     host: process.env.POSTHOG_HOST ?? "https://eu.i.posthog.com",
-    // Flush queue every 10 events or 10s, whichever first. Keeps
-    // memory bounded + minimises the cold-start cost in serverless
-    // environments where each request gets its own process.
-    flushAt: 10,
-    flushInterval: 10_000,
+    // Serverless-friendly settings. The previous config batched 10
+    // events / 10s, which on Vercel meant the function frequently
+    // ended before the queued flush completed → the in-flight fetch
+    // got aborted and the SDK logged a (benign but noisy)
+    // PostHogFetchNetworkError.
+    //
+    //   flushAt: 1         → every capture triggers an immediate
+    //                        fetch; no batching means no dangling
+    //                        queue at function exit.
+    //   flushInterval: 0   → disable the background interval timer
+    //                        entirely (the timer's fetch was the
+    //                        most common abort source).
+    //   fetchRetryCount: 1 → one retry is plenty; we don't want a
+    //                        slow-failing endpoint to keep the
+    //                        function alive past its useful work.
+    //   requestTimeout:
+    //     3000 ms          → fail fast. Worst case we drop a single
+    //                        event; better than a 10s hang.
+    flushAt: 1,
+    flushInterval: 0,
+    fetchRetryCount: 1,
+    requestTimeout: 3000,
   });
   return cached;
 }
