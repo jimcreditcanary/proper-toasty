@@ -149,7 +149,6 @@ export function RecommendationStrip({
           {selection.hasSolar && (
             <PanelSlider
               value={Math.min(selection.panelCount, maxPanels)}
-              recommended={recommendedPanels}
               max={maxPanels}
               onChange={(v) =>
                 setSelection({ ...selection, panelCount: v })
@@ -350,12 +349,10 @@ function Switch({ on }: { on: boolean }) {
 
 function PanelSlider({
   value,
-  recommended,
   max,
   onChange,
 }: {
   value: number;
-  recommended: number;
   /** Hard cap from Google Solar API's maxArrayPanelsCount. */
   max: number;
   onChange: (n: number) => void;
@@ -368,11 +365,6 @@ function PanelSlider({
         </span>
         <span className="text-sm font-bold text-navy tabular-nums">
           {value}
-          {recommended > 0 && value === recommended && (
-            <span className="ml-1.5 text-[10px] font-bold uppercase tracking-wider text-emerald-700">
-              recommended
-            </span>
-          )}
         </span>
       </label>
       <input
