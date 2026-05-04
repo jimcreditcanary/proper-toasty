@@ -86,11 +86,36 @@ function matchScore(a: string, b: string): number {
   if (nb.startsWith(na) || na.startsWith(nb)) return 0.9;
   if (nb.includes(na) || na.includes(nb)) return 0.8;
 
-  const ta = new Set(na.split(" "));
-  const tb = new Set(nb.split(" "));
-  const shared = [...ta].filter((t) => tb.has(t)).length;
-  const denom = Math.max(ta.size, tb.size);
-  return denom === 0 ? 0 : shared / denom;
+  const ta = na.split(" ");
+  const tb = nb.split(" ");
+  const setA = new Set(ta);
+  const setB = new Set(tb);
+  const shared = [...setA].filter((t) => setB.has(t)).length;
+  const denom = Math.max(setA.size, setB.size);
+  const tokenScore = denom === 0 ? 0 : shared / denom;
+
+  // Door-number heuristic — UK addresses almost always start with a
+  // numeric token ("19 Hereford Road"). When both addresses share
+  // their first token AND it's a number AND we share at least one
+  // other token (the street name), that's a confident match even
+  // if the address has trailing extras (city, county, postcode)
+  // that drag the raw token-set ratio down.
+  //
+  //   "19 hereford road"             ↔
+  //   "19 hereford road london w5"
+  // → token-set ratio = 3/5 = 0.6
+  // → first-token-is-number + shared = strong signal for the same
+  //   property, bumped to 0.85.
+  if (
+    ta.length > 0 &&
+    tb.length > 0 &&
+    ta[0] === tb[0] &&
+    /^\d+[a-z]?$/.test(ta[0]) &&
+    shared >= 2
+  ) {
+    return Math.max(tokenScore, 0.85);
+  }
+  return tokenScore;
 }
 
 // ─── raw calls ────────────────────────────────────────────────────────────────
@@ -413,7 +438,21 @@ async function resolveEpcUncached(input: GetEpcInput): Promise<EpcByAddressRespo
         return (b.r.registrationDate || "").localeCompare(a.r.registrationDate || "");
       });
     const top = scored[0];
-    if (!top || top.score < 0.5) {
+    // Threshold lowered 0.5 → 0.35 to forgive minor address-shape
+    // mismatches between Postcoder (PAF) and the EPC API. The
+    // door-number heuristic in matchScore guards against false-
+    // positive neighbour matches.
+    if (!top || top.score < 0.35) {
+      // Log the top candidates so we can diagnose stubborn cases
+      // where an EPC clearly exists but no row scores high enough.
+      console.warn("[epc] no postcode+address match above threshold", {
+        input: input.addressLine1,
+        postcode: input.postcode,
+        topCandidates: scored.slice(0, 3).map((c) => ({
+          address: rowAddress(c.r),
+          score: Math.round(c.score * 100) / 100,
+        })),
+      });
       return { found: false, reason: "No EPC matches this address closely enough." };
     }
     best = top.r;
