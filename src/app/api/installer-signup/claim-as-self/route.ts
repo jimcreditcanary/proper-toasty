@@ -119,11 +119,27 @@ export async function POST(req: Request): Promise<NextResponse<ClaimResponse>> {
       { status: 403 },
     );
   }
+  // Pipe the underlying reason through to the client. Was a hardcoded
+  // generic message before — useful for end-users but useless for
+  // diagnosing why a specific user can't claim. Including the actual
+  // DB / lookup error string makes the failure self-reportable + lets
+  // us see the root cause without trawling Sentry. The reason is
+  // already a string that completeInstallerClaim built (no PII).
+  console.error("[claim-as-self] bind failed", {
+    userId: user.id,
+    userEmail: user.email,
+    installerId: parsed.data.installerId,
+    reason: result.reason,
+  });
+  const isMissing = result.reason === "installer-missing";
+  const detail = result.reason && !isMissing ? ` (${result.reason})` : "";
   return NextResponse.json<ClaimResponse>(
     {
       ok: false,
-      reason: result.reason === "installer-missing" ? "installer-missing" : "internal",
-      error: "Couldn't bind your account. Try again or email hello@propertoasty.com.",
+      reason: isMissing ? "installer-missing" : "internal",
+      error: isMissing
+        ? "We can't find this installer record any more. Try refreshing the page."
+        : `Couldn't bind your account${detail}. Try again or email hello@propertoasty.com.`,
     },
     { status: 500 },
   );
