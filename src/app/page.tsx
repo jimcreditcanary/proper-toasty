@@ -6,6 +6,7 @@ import {
   Flame,
   Gauge,
   Leaf,
+  Menu,
   PoundSterling,
   Sun,
   CheckCircle2,
@@ -13,6 +14,13 @@ import {
   BatteryCharging,
   Zap,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 // Hero image: a real UK semi-detached on a Steepside cul-de-sac
 // — red brick, bay window, green garage door, post-war estate
@@ -45,13 +53,66 @@ function LandingHeader() {
           </Link>
         </nav>
         <div className="flex items-center gap-2">
+          {/* Desktop CTA — keeps the prominent pill button on tablet+. */}
           <Link
             href="/check"
-            className="inline-flex items-center gap-1.5 h-10 px-5 rounded-full bg-coral hover:bg-coral-dark text-cream font-medium text-sm transition-colors"
+            className="hidden sm:inline-flex items-center gap-1.5 h-10 px-5 rounded-full bg-coral hover:bg-coral-dark text-cream font-medium text-sm transition-colors"
           >
             Check my home
             <ArrowRight className="w-4 h-4" />
           </Link>
+          {/* Mobile: hamburger menu. The pill CTA + logo were
+              cramming side-by-side on phones so we collapse the
+              CTA + the desktop nav links into a single dropdown. */}
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <button
+                  aria-label="Open menu"
+                  className="sm:hidden inline-flex items-center justify-center h-11 w-11 rounded-lg text-navy hover:bg-cream-deep transition-colors outline-none focus-visible:ring-2 focus-visible:ring-coral"
+                />
+              }
+            >
+              <Menu className="w-5 h-5" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="end"
+              className="sm:hidden w-56 bg-white border-[var(--border)] text-navy"
+            >
+              <DropdownMenuItem
+                render={<Link href="/check" />}
+                className="text-base text-coral-dark font-semibold focus:bg-coral-pale focus:text-coral-dark"
+              >
+                Check my home
+              </DropdownMenuItem>
+              <DropdownMenuSeparator className="bg-[var(--border)]" />
+              <DropdownMenuItem
+                render={<Link href="/enterprise" />}
+                className="text-base text-navy focus:bg-cream-deep focus:text-navy"
+              >
+                For installers
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                render={<Link href="/pricing" />}
+                className="text-base text-navy focus:bg-cream-deep focus:text-navy"
+              >
+                Pricing
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                render={<Link href="/blog" />}
+                className="text-base text-navy focus:bg-cream-deep focus:text-navy"
+              >
+                Journal
+              </DropdownMenuItem>
+              <DropdownMenuSeparator className="bg-[var(--border)]" />
+              <DropdownMenuItem
+                render={<Link href="/auth/login" />}
+                className="text-base text-navy focus:bg-cream-deep focus:text-navy"
+              >
+                Sign in
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
     </header>
