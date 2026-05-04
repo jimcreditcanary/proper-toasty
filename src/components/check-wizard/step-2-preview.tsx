@@ -141,11 +141,18 @@ export function Step2Preview() {
             </p>
           </div>
 
-          <div className="mt-6 flex flex-col-reverse sm:flex-row sm:items-center gap-3">
+          {/* Stacked on mobile (full-width buttons, primary on top
+              via flex-col-reverse). Inline on desktop. The flex-1
+              vs flex-initial trick was meant to expand the primary
+              button on mobile, but `inline-flex` items keep their
+              content width unless told otherwise. Replaced with
+              explicit w-full sm:w-auto so both buttons stretch
+              cleanly on phones. */}
+          <div className="mt-6 flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-3">
             <button
               type="button"
               onClick={back}
-              className="inline-flex items-center justify-center gap-1.5 h-11 px-4 rounded-full border border-[var(--border)] text-sm font-medium text-[var(--muted-brand)] hover:text-navy hover:border-navy transition-colors"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 h-11 px-4 rounded-full border border-[var(--border)] text-sm font-medium text-[var(--muted-brand)] hover:text-navy hover:border-navy transition-colors"
             >
               <ArrowLeft className="w-4 h-4" />
               No, different address
@@ -154,7 +161,7 @@ export function Step2Preview() {
               type="button"
               onClick={next}
               disabled={!ready}
-              className="inline-flex items-center justify-center gap-2 h-11 px-6 rounded-full bg-coral hover:bg-coral-dark disabled:bg-slate-300 disabled:cursor-not-allowed text-cream font-semibold text-sm transition-colors shadow-sm flex-1 sm:flex-initial"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 h-11 px-6 rounded-full bg-coral hover:bg-coral-dark disabled:bg-slate-300 disabled:cursor-not-allowed text-cream font-semibold text-sm transition-colors shadow-sm"
             >
               <CheckCircle2 className="w-4 h-4" />
               Yes, that&rsquo;s my home

@@ -32,9 +32,34 @@ export async function POST(req: Request) {
 
   try {
     const result = await getEpc(parsed.data);
+    // The route returns 200 in both found / not-found cases — that's
+    // the right semantic, but it makes "no data came back" hard to
+    // diagnose from logs alone. Log the outcome explicitly with
+    // the input + reason so we can see WHY the wizard saw a
+    // found:false response without having to re-run the request.
+    if (!result.found) {
+      console.warn("[epc/by-address] not found", {
+        uprn: parsed.data.uprn ?? null,
+        postcode: parsed.data.postcode ?? null,
+        addressLine1: parsed.data.addressLine1 ?? null,
+        reason: result.reason,
+      });
+    } else {
+      console.log("[epc/by-address] found", {
+        uprn: parsed.data.uprn ?? null,
+        postcode: parsed.data.postcode ?? null,
+        matchMethod: result.matchMethod,
+        certBand: result.certificate.currentEnergyBand,
+      });
+    }
     return NextResponse.json(result);
   } catch (err) {
-    console.error("epc by-address error", err);
+    console.error("[epc/by-address] error", {
+      uprn: parsed.data.uprn ?? null,
+      postcode: parsed.data.postcode ?? null,
+      addressLine1: parsed.data.addressLine1 ?? null,
+      err: err instanceof Error ? err.message : err,
+    });
     return NextResponse.json({ error: "EPC lookup failed" }, { status: 502 });
   }
 }

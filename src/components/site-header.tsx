@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Menu } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import {
@@ -114,19 +115,74 @@ export function SiteHeader({
             </DropdownMenu>
           ) : (
             <>
-              <Button
-                className="h-10 bg-coral hover:bg-coral-dark text-white font-semibold text-sm px-5 rounded-lg shadow-sm hover:shadow-md transition-all"
-                render={<Link href="/check" />}
-              >
-                Start a check
-              </Button>
-              <Button
-                variant="ghost"
-                className="h-10 text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg"
-                render={<Link href="/auth/login" />}
-              >
-                Sign in
-              </Button>
+              {/* Desktop: separate buttons. Mobile: hamburger menu —
+                  the two buttons + the logo were cramming on narrow
+                  phones and the "Start a check" copy was wrapping
+                  to two lines inside the button. */}
+              <div className="hidden sm:flex items-center gap-3">
+                <Button
+                  className="h-10 bg-coral hover:bg-coral-dark text-white font-semibold text-sm px-5 rounded-lg shadow-sm hover:shadow-md transition-all"
+                  render={<Link href="/check" />}
+                >
+                  Start a check
+                </Button>
+                <Button
+                  variant="ghost"
+                  className="h-10 text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg"
+                  render={<Link href="/auth/login" />}
+                >
+                  Sign in
+                </Button>
+              </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <button
+                      aria-label="Open menu"
+                      className="sm:hidden inline-flex items-center justify-center h-11 w-11 rounded-lg text-slate-700 hover:bg-slate-100 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-coral"
+                    />
+                  }
+                >
+                  <Menu className="w-5 h-5" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="end"
+                  className="sm:hidden w-56 bg-white border-slate-200 text-slate-900"
+                >
+                  <DropdownMenuItem
+                    render={<Link href="/check" />}
+                    className="text-base text-coral-dark font-semibold focus:bg-coral-pale focus:text-coral-dark"
+                  >
+                    Start a check
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator className="bg-slate-200" />
+                  <DropdownMenuItem
+                    render={<Link href="/enterprise" />}
+                    className="text-base text-slate-700 focus:bg-slate-100 focus:text-slate-900"
+                  >
+                    For installers
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    render={<Link href="/pricing" />}
+                    className="text-base text-slate-700 focus:bg-slate-100 focus:text-slate-900"
+                  >
+                    Pricing
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    render={<Link href="/blog" />}
+                    className="text-base text-slate-700 focus:bg-slate-100 focus:text-slate-900"
+                  >
+                    Blog
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator className="bg-slate-200" />
+                  <DropdownMenuItem
+                    render={<Link href="/auth/login" />}
+                    className="text-base text-slate-700 focus:bg-slate-100 focus:text-slate-900"
+                  >
+                    Sign in
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </>
           )}
         </nav>
