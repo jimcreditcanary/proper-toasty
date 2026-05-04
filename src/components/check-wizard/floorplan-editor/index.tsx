@@ -1095,26 +1095,11 @@ export function FloorplanEditor({
             );
           })()}
 
-        {/* In-canvas "press Enter to close" prompt. Floats at the top
-            center of the canvas while the user is mid-stroke, so the
-            cue is impossible to miss while their attention is on the
-            drawing area. The original below-canvas hint is still
-            rendered (kept for touch users + as a secondary anchor),
-            but the in-viewport popup is the prominent one. */}
-        {drawingInProgress && inputMode === "mouse" && (
-          <div
-            role="status"
-            aria-live="polite"
-            className="absolute top-3 left-1/2 -translate-x-1/2 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-navy text-white text-sm font-semibold shadow-lg pointer-events-none animate-pulse"
-          >
-            <CornerDownLeft className="w-4 h-4" aria-hidden="true" />
-            Press
-            <kbd className="inline-flex items-center h-5 px-1.5 rounded border border-white/30 bg-white/15 text-[11px] font-mono font-semibold">
-              Enter
-            </kbd>
-            to close the {stage === "outdoor" ? "outdoor area" : "shape"}
-          </div>
-        )}
+        {/* (The "press Enter to close" prompt was here as an
+            absolute-positioned overlay, but it scrolled out of view
+            when the canvas was taller than the viewport. Moved to a
+            position:fixed popup outside this container so it stays
+            anchored to the viewport — see below the canvas div.) */}
 
         {/* Background toggle — bottom right, only when it's useful */}
         {(stage === "adjust" || stage === "review") && imageUrl && (
@@ -1135,6 +1120,30 @@ export function FloorplanEditor({
           </button>
         )}
       </div>
+
+      {/* "Press Enter to close" hover popup — `position: fixed` so it
+          stays anchored to the bottom of the viewport regardless of
+          how far the user has scrolled into a tall floorplan canvas.
+          Was previously absolute-positioned inside the canvas
+          container, which meant it scrolled out of view on tall
+          floorplans (the very moment the user most needs the cue).
+          Bottom-anchored to clear the sticky header at the top of
+          the page. Desktop only — touch users see a different
+          prompt below the canvas. */}
+      {drawingInProgress && inputMode === "mouse" && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-navy text-white text-sm font-semibold shadow-2xl pointer-events-none animate-pulse"
+        >
+          <CornerDownLeft className="w-4 h-4" aria-hidden="true" />
+          Press
+          <kbd className="inline-flex items-center h-5 px-1.5 rounded border border-white/30 bg-white/15 text-[11px] font-mono font-semibold">
+            Enter
+          </kbd>
+          to close the {stage === "outdoor" ? "outdoor area" : "shape"}
+        </div>
+      )}
 
       {/* Placements error + concerns */}
       {placementsError && (
