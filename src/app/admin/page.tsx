@@ -55,9 +55,10 @@ export default async function AdminHomePage() {
     },
     {
       title: "Performance dashboard",
-      body: "Credit purchases, credit consumption, lead match rates — filterable by month or all-time.",
+      body: "Volume, conversion funnel, and MCS approval health — filterable by range.",
       icon: BarChart3,
-      status: "coming-soon",
+      status: "live",
+      href: "/admin/performance",
     },
     {
       title: "Blog manager",
