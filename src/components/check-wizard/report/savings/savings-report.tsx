@@ -51,6 +51,10 @@ interface Props {
   error: string | null;
   request: CalculateRequest;
   financing: FinancingInputs;
+  /** Initial chart view. Homeowner reports default to "monthly" (what
+   *  the user sees on a bank statement); presurvey reports default to
+   *  "cumulative" (better grounding for the in-person conversation). */
+  defaultChartView?: "monthly" | "cumulative";
 }
 
 export function SavingsReport({
@@ -59,6 +63,7 @@ export function SavingsReport({
   error,
   request,
   financing,
+  defaultChartView = "monthly",
 }: Props) {
   // Show inline error banner; the cost-breakdown card below this in
   // the parent Savings tab is independent and stays rendered.
@@ -102,6 +107,7 @@ export function SavingsReport({
         result={result}
         showFinance={showFinance}
         showMortgage={showMortgage}
+        defaultView={defaultChartView}
       />
       <MonthlyComparisonSection
         result={result}
@@ -204,18 +210,21 @@ function TenYearOutlookSection({
   result,
   showFinance,
   showMortgage,
+  defaultView,
 }: {
   result: CalculateResponse;
   showFinance: boolean;
   showMortgage: boolean;
+  defaultView: "monthly" | "cumulative";
 }) {
   // Two views over the same data:
   //   - "monthly"    — what the homeowner pays per month, year by
-  //                    year (annualCost ÷ 12). Default — most
-  //                    homeowners think in monthly outgoings.
-  //   - "cumulative" — running total over the 10-year window. Best
-  //                    for comparing total spend.
-  const [view, setView] = useState<"monthly" | "cumulative">("monthly");
+  //                    year (annualCost ÷ 12). Default for the
+  //                    standalone homeowner report.
+  //   - "cumulative" — running total over the 10-year window. Default
+  //                    when the report is from an installer pre-survey
+  //                    (better for the in-person meeting context).
+  const [view, setView] = useState<"monthly" | "cumulative">(defaultView);
   const proj = result.projections;
   const series: Array<{
     key: Scenario;

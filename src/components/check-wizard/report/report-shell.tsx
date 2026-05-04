@@ -85,14 +85,37 @@ interface ReportShellProps {
   audience?: "homeowner" | "installer";
 }
 
+// Three-way audience type derived from the prop + wizard state. The
+// `audience` prop is set by the calling page (installer = "installer";
+// everything else = "homeowner"), but a homeowner viewing a report
+// they got from a specific installer (preSurveyRequestId set) is a
+// distinct surface — they're committed to that installer, so:
+//   - the "Working with installers" prep card is rephrased for the
+//     upcoming visit with that specific installer
+//   - the Book-a-site-visit tab swaps the nearby-installers grid for
+//     a focused "your visit with X is the next step" card
+//   - the Savings chart defaults to cumulative (best for a meeting
+//     conversation) instead of the homeowner's preferred monthly
+type EffectiveAudience = "homeowner" | "presurvey" | "installer";
+
 export function ReportShell({ audience = "homeowner" }: ReportShellProps = {}) {
-  const isInstaller = audience === "installer";
   const { state, reset, back, goTo } = useCheckWizard();
   const [tab, setTab] = useState<ReportTabKey>("overview");
   const [shareOpen, setShareOpen] = useState(false);
 
+  const effectiveAudience: EffectiveAudience =
+    audience === "installer"
+      ? "installer"
+      : state.preSurveyRequestId
+        ? "presurvey"
+        : "homeowner";
+  const isInstaller = effectiveAudience === "installer";
+  const isPreSurvey = effectiveAudience === "presurvey";
+
   // Tabs filtered for the installer surface — drop Savings (consumer
   // ROI tiles) and Book a site visit (booking is the homeowner's job).
+  // Pre-survey homeowners see all five tabs but the Book tab content
+  // is replaced (not the tab itself).
   const visibleTabs = isInstaller
     ? TABS.filter((t) => t.key !== "savings" && t.key !== "book")
     : TABS;
@@ -277,7 +300,8 @@ export function ReportShell({ audience = "homeowner" }: ReportShellProps = {}) {
             setSelection={setSelection}
             financingPreference={state.financingPreference}
             onJumpTab={setTab}
-            audience={audience}
+            audience={effectiveAudience}
+            preSurveyInstallerName={state.preSurveyInstallerName}
           />
         )}
         {tab === "savings" && !isInstaller && (
@@ -289,6 +313,7 @@ export function ReportShell({ audience = "homeowner" }: ReportShellProps = {}) {
             setSelection={setSelection}
             financingPreference={state.financingPreference}
             onJumpTab={setTab}
+            audience={effectiveAudience}
           />
         )}
         {tab === "heatpump" && (
@@ -322,6 +347,8 @@ export function ReportShell({ audience = "homeowner" }: ReportShellProps = {}) {
             latitude={addr.latitude}
             longitude={addr.longitude}
             selection={selection}
+            audience={effectiveAudience}
+            preSurveyInstallerName={state.preSurveyInstallerName}
           />
         )}
 

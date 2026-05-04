@@ -56,6 +56,16 @@ interface Props {
   latitude: number;
   longitude: number;
   selection: ReportSelection;
+  /**
+   * - "homeowner" : full nearby-installers grid (default)
+   * - "presurvey" : homeowner is committed to a specific installer who
+   *                 sent the report — replace the grid with a focused
+   *                 "your visit with X is the next step" card. We still
+   *                 want to leave the tab visible so they can find
+   *                 booking guidance, just not surface other installers.
+   */
+  audience?: "homeowner" | "presurvey" | "installer";
+  preSurveyInstallerName?: string | null;
 }
 
 const PAGE_SIZE = 10;
@@ -66,6 +76,8 @@ export function BookVisitTab({
   latitude,
   longitude,
   selection,
+  audience = "homeowner",
+  preSurveyInstallerName,
 }: Props) {
   const { state } = useCheckWizard();
   const [page, setPage] = useState(1);
@@ -204,6 +216,18 @@ export function BookVisitTab({
   }, [data]);
 
   const techPhrase = describeTech(wantsHeatPump, wantsSolar, wantsBattery);
+
+  // Pre-survey audience: the homeowner is already engaged with a
+  // specific installer, so swapping in a generic "find an installer"
+  // grid is off-message. Render a focused booking card instead.
+  if (audience === "presurvey") {
+    return (
+      <PreSurveyBookingCard
+        installerName={preSurveyInstallerName ?? "your installer"}
+        techPhrase={techPhrase}
+      />
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -664,6 +688,70 @@ function FilterPill({
       {icon}
       {label}
     </span>
+  );
+}
+
+// Pre-survey audience booking card. Replaces the nearby-installers
+// grid when the homeowner arrived via /check?presurvey=<token>.
+// Just acknowledges the next step is the visit with the specific
+// installer who sent the report — we don't surface other installers
+// because the homeowner is already engaged.
+function PreSurveyBookingCard({
+  installerName,
+  techPhrase,
+}: {
+  installerName: string;
+  techPhrase: string;
+}) {
+  return (
+    <div className="space-y-6">
+      <SectionCard
+        title={`Your visit with ${installerName}`}
+        subtitle="That visit's the next step — here's what to expect."
+        icon={<MapPin className="w-5 h-5" />}
+      >
+        <div className="space-y-4 text-sm text-slate-700 leading-relaxed">
+          <p>
+            <strong className="text-navy">{installerName}</strong> shared this
+            report with you ahead of the visit, so you&rsquo;re both starting
+            from the same numbers on {techPhrase}. They&rsquo;ll be in touch
+            to confirm a time if they haven&rsquo;t already.
+          </p>
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">
+              On the day, expect them to
+            </p>
+            <ul className="space-y-2 text-sm">
+              <li className="flex items-start gap-2">
+                <span className="shrink-0 mt-1 inline-block w-1.5 h-1.5 rounded-full bg-coral" />
+                <span>
+                  Walk through your property and verify the report&rsquo;s
+                  measurements + assumptions in person.
+                </span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="shrink-0 mt-1 inline-block w-1.5 h-1.5 rounded-full bg-coral" />
+                <span>
+                  Run a heat-loss survey (for heat pumps) — a real one, not
+                  a 5-minute look-around.
+                </span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="shrink-0 mt-1 inline-block w-1.5 h-1.5 rounded-full bg-coral" />
+                <span>
+                  Confirm the kit, sizing, and timeline before producing a
+                  written quote.
+                </span>
+              </li>
+            </ul>
+          </div>
+          <p className="text-xs text-slate-500">
+            See the &ldquo;Prepping for your visit with {installerName}&rdquo;
+            card on the Overview tab for the prep checklist.
+          </p>
+        </div>
+      </SectionCard>
+    </div>
   );
 }
 

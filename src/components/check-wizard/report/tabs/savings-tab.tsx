@@ -43,6 +43,10 @@ interface Props {
   /** Jump to another report tab — wired to the "See details" links
    *  on each plan-toggle tile. */
   onJumpTab: (tab: ReportTabKey) => void;
+  /** Drives the savings-report chart default view. presurvey →
+   *  cumulative cost (best for the in-person meeting); homeowner →
+   *  monthly outgoings (what they see on a bank statement). */
+  audience?: "homeowner" | "presurvey" | "installer";
 }
 
 export function SavingsTab({
@@ -53,6 +57,7 @@ export function SavingsTab({
   setSelection,
   financingPreference,
   onJumpTab,
+  audience = "homeowner",
 }: Props) {
   // Financing is local to this tab — no other tab consumes it. Seed
   // both scenarios off when the wizard captured "no, paying cash"
@@ -127,6 +132,7 @@ export function SavingsTab({
           error={error}
           request={request}
           financing={financing}
+          defaultChartView={audience === "presurvey" ? "cumulative" : "monthly"}
         />
       )}
 

@@ -44,9 +44,16 @@ interface Props {
   setSelection: (s: ReportSelection) => void;
   financingPreference: YesNoUnsure | null;
   onJumpTab: (tab: ReportTabKey) => void;
-  /** Suppresses consumer-facing cards when the report is being viewed
-   *  by an installer prepping for a site visit. */
-  audience?: "homeowner" | "installer";
+  /**
+   * - "homeowner"  : standard self-serve report
+   * - "presurvey"  : homeowner who arrived via /check?presurvey=<token>;
+   *                  the report is contextualised around their upcoming
+   *                  visit with the requesting installer
+   * - "installer"  : installer prepping for a site visit
+   */
+  audience?: "homeowner" | "presurvey" | "installer";
+  /** Set when audience === "presurvey". Drives the prep-card copy. */
+  preSurveyInstallerName?: string | null;
 }
 
 export function OverviewTab({
@@ -54,7 +61,12 @@ export function OverviewTab({
   address,
   satelliteUrl,
   audience = "homeowner",
+  preSurveyInstallerName,
 }: Props) {
+  // Both homeowner-facing audiences see the installer checklist + the
+  // common-myths card; just the copy of the checklist is contextualised
+  // for presurvey.
+  const showHomeownerCards = audience !== "installer";
   return (
     <div className="space-y-6">
       <PropertyCard
@@ -65,9 +77,14 @@ export function OverviewTab({
         primaryRoofAzimuth={primaryRoofAzimuth(analysis)}
       />
 
-      {audience === "homeowner" && <InstallerChecklist />}
+      {showHomeownerCards && (
+        <InstallerChecklist
+          audience={audience}
+          preSurveyInstallerName={preSurveyInstallerName}
+        />
+      )}
 
-      {audience === "homeowner" && <CommonMyths />}
+      {showHomeownerCards && <CommonMyths />}
     </div>
   );
 }
@@ -286,78 +303,144 @@ function Chip({
 }
 
 // ─── Working-with-installers checklist ────────────────────────────────
-// Combines the previous "playbook" advice + the "what to ask" card
-// that used to live on the Book tab. Two columns on desktop:
-//   - Things to share (inputs you bring to the meeting)
-//   - Questions to ask (outputs you want from the quote)
-// Plain prose with leading checkmarks — easier to scan than the old
-// icon-tile playbook design.
+// Two-column checklist: "what to share" + "what to ask". Both columns
+// reword for the presurvey audience — the homeowner is committed to a
+// specific installer, so prompting them to "ask three for quotes" is
+// off-message. Instead we prep them to make the most of the upcoming
+// visit with the installer who sent the report.
 
-function InstallerChecklist() {
+function InstallerChecklist({
+  audience,
+  preSurveyInstallerName,
+}: {
+  audience: "homeowner" | "presurvey" | "installer";
+  preSurveyInstallerName?: string | null;
+}) {
+  const isPreSurvey = audience === "presurvey";
+  const installerLabel = preSurveyInstallerName ?? "your installer";
+
+  const shareItems = isPreSurvey
+    ? [
+        <>
+          <strong className="text-navy">This report</strong> — share it with{" "}
+          {installerLabel} ahead of the visit so they&rsquo;re working from the
+          same numbers.
+        </>,
+        <>
+          <strong className="text-navy">Your floorplan</strong> — even a rough
+          sketch helps them confirm radiator sizing, pipework runs, and
+          cylinder space without re-measuring twice.
+        </>,
+        <>
+          <strong className="text-navy">A recent energy bill</strong> — the
+          annual kWh figure gives a sanity-check against the heat-loss calc
+          they&rsquo;ll do on the day.
+        </>,
+        <>
+          <strong className="text-navy">Photos of your boiler + meter
+          cupboard</strong> — useful for any pre-visit questions, and saves
+          the engineer a wasted journey if something obvious would block
+          install.
+        </>,
+      ]
+    : [
+        <>
+          <strong className="text-navy">This report</strong> — saves them
+          measuring twice and means everyone&rsquo;s starting from the same
+          numbers.
+        </>,
+        <>
+          <strong className="text-navy">Your floorplan</strong> — even a rough
+          sketch helps them size radiators, find pipework runs, and spot space
+          for the cylinder.
+        </>,
+        <>
+          <strong className="text-navy">A recent energy bill</strong> — the
+          actual annual kWh figure helps them sanity-check the heat-loss calc
+          against your real usage.
+        </>,
+        <>
+          <strong className="text-navy">Photos of your boiler + meter
+          cupboard</strong> — handy on a phone screen when they&rsquo;re
+          quoting remotely.
+        </>,
+      ];
+
+  const askItems = isPreSurvey
+    ? [
+        <>
+          <strong className="text-navy">Heat-loss survey on the visit?</strong>{" "}
+          For heat pumps this is non-negotiable — walls + radiators measured,
+          not eyeballed.
+        </>,
+        <>
+          <strong className="text-navy">What kit will you specify?</strong>{" "}
+          Heat-pump model + serial, panel make + wattage, battery chemistry.
+          &ldquo;A 5kW heat pump&rdquo; isn&rsquo;t enough.
+        </>,
+        <>
+          <strong className="text-navy">What&rsquo;s the warranty?</strong> At
+          least 5 years on labour, 7+ on the kit. Worth confirming who you
+          call if something breaks in year 3.
+        </>,
+        <>
+          <strong className="text-navy">Timeline + disruption?</strong> Most
+          full installs are 2–5 days. Confirm what the install week looks like
+          — heating offline, scaffolding, electrical work — so you can plan.
+        </>,
+      ]
+    : [
+        <>
+          <strong className="text-navy">Your MCS certification number?</strong>{" "}
+          Required for the BUS grant to pay out and for the export-tariff
+          scheme.
+        </>,
+        <>
+          <strong className="text-navy">Will you do a heat-loss survey on
+          the day?</strong> For heat pumps, this is non-negotiable. Walk away
+          if they&rsquo;re happy to quote without measuring.
+        </>,
+        <>
+          <strong className="text-navy">What kit will you specify?</strong>{" "}
+          Heat-pump model + serial, panel make + wattage, battery chemistry.
+          &ldquo;A 5kW heat pump&rdquo; isn&rsquo;t enough.
+        </>,
+        <>
+          <strong className="text-navy">What&rsquo;s the warranty?</strong> At
+          least 5 years on labour, 7+ on the kit. Ask who you call if
+          something breaks in year 3.
+        </>,
+        <>
+          <strong className="text-navy">Got two or three local
+          references?</strong> Properties similar to yours, with permission to
+          ring those owners. Good installers volunteer this.
+        </>,
+      ];
+
   return (
     <SectionCard
-      title="Working with installers"
-      subtitle="What to share, what to ask. Two minutes of prep saves you a bad quote."
+      title={
+        isPreSurvey
+          ? `Prepping for your visit with ${installerLabel}`
+          : "Working with installers"
+      }
+      subtitle={
+        isPreSurvey
+          ? "A bit of prep makes the visit short, sharp, and useful."
+          : "What to share, what to ask. Two minutes of prep saves you a bad quote."
+      }
       icon={<ShieldCheck className="w-5 h-5" />}
     >
       <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-5">
         <ChecklistColumn
-          title="What to share with the installer"
+          title={isPreSurvey ? "What to share before the visit" : "What to share with the installer"}
           icon={<MessageCircleQuestion className="w-4 h-4" />}
-          items={[
-            <>
-              <strong className="text-navy">This report</strong> — saves them
-              measuring twice and means everyone&rsquo;s starting from the same
-              numbers.
-            </>,
-            <>
-              <strong className="text-navy">Your floorplan</strong> — even a
-              rough sketch helps them size radiators, find pipework runs, and
-              spot space for the cylinder.
-            </>,
-            <>
-              <strong className="text-navy">A recent energy bill</strong> — the
-              actual annual kWh figure helps them sanity-check the heat-loss
-              calc against your real usage.
-            </>,
-            <>
-              <strong className="text-navy">Photos of your boiler + meter
-              cupboard</strong> — handy on a phone screen when they&rsquo;re
-              quoting remotely.
-            </>,
-          ]}
+          items={shareItems}
         />
-
         <ChecklistColumn
-          title="Questions to ask before booking"
+          title={isPreSurvey ? "Questions worth asking on the day" : "Questions to ask before booking"}
           icon={<Flame className="w-4 h-4" />}
-          items={[
-            <>
-              <strong className="text-navy">Your MCS certification number?</strong>{" "}
-              Required for the BUS grant to pay out and for the export-tariff
-              scheme.
-            </>,
-            <>
-              <strong className="text-navy">Will you do a heat-loss survey on
-              the day?</strong> For heat pumps, this is non-negotiable. Walk
-              away if they&rsquo;re happy to quote without measuring.
-            </>,
-            <>
-              <strong className="text-navy">What kit will you specify?</strong>{" "}
-              Heat-pump model + serial, panel make + wattage, battery
-              chemistry. &ldquo;A 5kW heat pump&rdquo; isn&rsquo;t enough.
-            </>,
-            <>
-              <strong className="text-navy">What&rsquo;s the warranty?</strong>{" "}
-              At least 5 years on labour, 7+ on the kit. Ask who you call if
-              something breaks in year 3.
-            </>,
-            <>
-              <strong className="text-navy">Got two or three local
-              references?</strong> Properties similar to yours, with permission
-              to ring those owners. Good installers volunteer this.
-            </>,
-          ]}
+          items={askItems}
         />
       </div>
     </SectionCard>
