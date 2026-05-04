@@ -110,28 +110,33 @@ function PropertyCard({
           single 3-col row uses the horizontal space better and keeps
           all three blocks visually balanced. Stacks on mobile. */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
-        {/* Column 1: Property thumbnail + address */}
+        {/* Column 1: Property thumbnail with address overlaid on the
+            bottom. Tighter aspect ratio (16:9 — was 4:3 with the
+            address sitting underneath) so the column doesn't tower
+            over the EPC/Details columns next to it. Gradient overlay
+            keeps the address legible across light/dark imagery. */}
         <div>
           <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-3 inline-flex items-center gap-1">
             <HomeIcon className="w-3 h-3" />
             Your property
           </p>
-          <div
-            className="relative w-full aspect-[4/3] rounded-xl overflow-hidden border border-slate-200 bg-slate-100 mb-3"
-            aria-hidden="true"
-          >
+          <div className="relative w-full aspect-[16/9] rounded-xl overflow-hidden border border-slate-200 bg-slate-100">
             <Image
               src={satelliteUrl}
-              alt=""
+              alt={`Satellite view of ${address}`}
               fill
               sizes="(max-width: 1024px) 100vw, 33vw"
               className="object-cover"
               unoptimized
             />
+            <div
+              aria-hidden="true"
+              className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/70 via-black/30 to-transparent"
+            />
+            <p className="absolute inset-x-0 bottom-0 p-3 text-sm sm:text-base font-semibold text-white leading-snug">
+              {address}
+            </p>
           </div>
-          <p className="text-sm sm:text-base font-semibold text-navy leading-snug">
-            {address}
-          </p>
         </div>
 
         {/* Column 2: Energy performance */}
