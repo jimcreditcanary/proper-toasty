@@ -54,12 +54,15 @@ export function HeatPumpTab({
         ? "amber"
         : "red";
 
+  // Same verdict copy as the Overview eligibility checklist + the
+  // Savings tab tile so a user clicking through the report doesn't
+  // see the same status described three different ways.
   const verdictLabel =
     hp.verdict === "eligible"
-      ? "Yes — a great fit"
+      ? "Compatible"
       : hp.verdict === "conditional"
-        ? "Maybe — a few things to sort"
-        : "Not right now";
+        ? "Requires investigation"
+        : "Not compatible";
 
   const grant = hp.estimatedGrantGBP;
   const sysKw = hp.recommendedSystemKW;

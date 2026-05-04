@@ -184,6 +184,71 @@ export function SolarTab({
               </p>
             </div>
 
+            {/* Battery size — promoted into the main tile (was a
+                standalone "How big a battery?" card lower down).
+                Solar without a battery means you only use what you
+                make during the day; a battery stores the rest. */}
+            <div>
+              <div className="flex items-baseline justify-between mb-2">
+                <label className="text-sm font-medium text-navy inline-flex items-center gap-1.5">
+                  <Battery className="w-4 h-4 text-coral" />
+                  Battery size
+                </label>
+                <span className="text-sm font-semibold text-coral-dark tabular-nums">
+                  {selection.hasBattery ? `${batteryKwh} kWh` : "Off"}
+                </span>
+              </div>
+              <div
+                className="grid grid-cols-3 gap-1.5"
+                role="radiogroup"
+                aria-label="Battery size"
+              >
+                {[3, 5, 10].map((opt) => {
+                  const active = selection.hasBattery && batteryKwh === opt;
+                  return (
+                    <button
+                      key={opt}
+                      type="button"
+                      role="radio"
+                      aria-checked={active}
+                      onClick={() =>
+                        // Picking a size implies "I want a battery" —
+                        // flip hasBattery on as well so the size is
+                        // actually applied to the plan.
+                        setSelection({
+                          ...selection,
+                          hasBattery: true,
+                          batteryKwh: opt,
+                        })
+                      }
+                      className={`px-2 py-2 rounded-lg text-sm font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-coral focus-visible:ring-offset-1 ${
+                        active
+                          ? "bg-coral text-white"
+                          : "bg-white border border-slate-200 text-slate-700 hover:bg-coral-pale/40"
+                      }`}
+                    >
+                      {opt} kWh
+                    </button>
+                  );
+                })}
+              </div>
+              {selection.hasBattery && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setSelection({ ...selection, hasBattery: false })
+                  }
+                  className="mt-1.5 text-[11px] text-slate-500 hover:text-coral underline"
+                >
+                  Remove battery from plan
+                </button>
+              )}
+            </div>
+
+            {/* Cost summary + "tweaks ripple to Savings" callout. The
+                Savings tab is the consumer of these inputs — make
+                that link explicit so the user knows where to look
+                next after adjusting. */}
             <div className="pt-3 border-t border-slate-200 space-y-1.5 text-sm">
               <Row label="Estimated install">
                 <strong className="text-navy">
@@ -198,6 +263,14 @@ export function SolarTab({
                   </strong>
                 </Row>
               )}
+            </div>
+            <div
+              className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-900 leading-relaxed"
+              role="note"
+            >
+              <strong>These choices feed your Savings tab.</strong> Adjust the
+              panel count or battery size and the 10-year projection
+              recalculates automatically.
             </div>
           </div>
         </div>
@@ -262,34 +335,10 @@ export function SolarTab({
           </SectionCard>
         )}
 
-      {/* Battery sizing */}
-      <SectionCard
-        title="How big a battery?"
-        subtitle="Solar without a battery means you only use what you make during the day. A battery stores the rest for the evening."
-        icon={<Battery className="w-5 h-5" />}
-      >
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
-          <BatteryOption
-            kwh={3}
-            description="Light use — backup for evening lights and TV."
-            active={batteryKwh === 3}
-            onSelect={() => setSelection({ ...selection, batteryKwh: 3 })}
-          />
-          <BatteryOption
-            kwh={5}
-            description="Sweet spot for most UK homes — covers an evening and overnight standby."
-            active={batteryKwh === 5}
-            onSelect={() => setSelection({ ...selection, batteryKwh: 5 })}
-            highlight="Most popular"
-          />
-          <BatteryOption
-            kwh={10}
-            description="EV chargers, heat pumps, or working from home — bigger draws all day."
-            active={batteryKwh === 10}
-            onSelect={() => setSelection({ ...selection, batteryKwh: 10 })}
-          />
-        </div>
-      </SectionCard>
+      {/* Battery sizing was previously a standalone card here. It's
+          now promoted into the main hero tile's right column above,
+          alongside the panel count — so all sizing controls live
+          together and clearly link to the Savings tab. */}
 
       {/* Reason / blocker explanation if not Excellent/Good */}
       {solar.reason && tone !== "green" && (
@@ -323,46 +372,9 @@ function Row({
   );
 }
 
-function BatteryOption({
-  kwh,
-  description,
-  active,
-  highlight,
-  onSelect,
-}: {
-  kwh: number;
-  description: string;
-  active: boolean;
-  highlight?: string;
-  onSelect: () => void;
-}) {
-  // Battery cost benchmark — 5 kWh ≈ £3,500 installed.
-  const cost = kwh * 700;
-  return (
-    <button
-      type="button"
-      onClick={onSelect}
-      className={`relative text-left rounded-2xl border p-4 transition-all ${
-        active
-          ? "border-coral bg-coral-pale/40 ring-2 ring-coral/20"
-          : "border-slate-200 bg-white hover:border-slate-300"
-      }`}
-    >
-      {highlight && (
-        <span className="absolute -top-2 right-3 inline-flex items-center px-2 py-0.5 rounded-full bg-coral text-white text-[10px] font-bold uppercase tracking-wider">
-          {highlight}
-        </span>
-      )}
-      <p className="text-2xl font-bold text-navy">{kwh} kWh</p>
-      <p className="text-sm text-slate-500 mt-0.5">
-        ~{fmtGbp(cost, { compact: true })} installed
-      </p>
-      <p className="mt-2 text-xs text-slate-600 leading-relaxed">
-        {description}
-      </p>
-    </button>
-  );
-}
+// (BatteryOption helper component was deleted when the standalone
+// "How big a battery?" card was promoted into the main hero tile —
+// its replacement is the compact segmented control inline above.)
 
 // ─── Panel overlay — segment-based grid tiling ──────────────────────────────
 //

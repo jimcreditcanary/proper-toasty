@@ -39,11 +39,25 @@ interface Props {
 }
 
 export function FloorplanReadOnly({ analysis, imageUrl, canonical }: Props) {
-  // Default behaviour: show the photo when AI auto-detected the layout
-  // (the photo IS the truth), hide it when the user drew their own
-  // annotations (the drawing is the truth, the photo would just clutter
-  // the read-only render).
-  const hidePhoto = canonical ?? !analysis.aiAutorun;
+  // Default behaviour: hide the photo whenever the user (or Claude's
+  // refinement step) has produced any drawn geometry — the drawing
+  // becomes the canonical view and the photo just clutters it. Show
+  // the photo only when there's nothing to overlay (rare edge case
+  // where AI placed pins but we have no walls/doors/stairs at all).
+  //
+  // The previous heuristic was `!analysis.aiAutorun` — that broke when
+  // a layout was AI-autorunned AND then the user drew on top: photo
+  // stayed visible underneath the now-canonical drawing and the two
+  // got out of sync.
+  const hasDrawing =
+    analysis.walls.length > 0 ||
+    analysis.refinedWalls.length > 0 ||
+    analysis.doors.length > 0 ||
+    analysis.refinedDoors.length > 0 ||
+    analysis.userStairs.length > 0 ||
+    analysis.refinedStairs.length > 0 ||
+    analysis.radiators.length > 0;
+  const hidePhoto = canonical ?? hasDrawing;
   // Prefer refined geometry if Claude has cleaned things up — otherwise
   // fall back to the raw user-drawn shapes.
   const walls =
@@ -202,18 +216,59 @@ export function FloorplanReadOnly({ analysis, imageUrl, canonical }: Props) {
         ))}
       </svg>
 
-      {/* Legend */}
-      <div className="absolute bottom-2 left-2 right-2 flex flex-wrap items-center gap-2 rounded-lg bg-white/90 backdrop-blur-sm border border-slate-200 px-3 py-1.5 text-[11px]">
-        <LegendItem
-          icon={<Flame className="w-3 h-3" />}
-          label="Heat pump"
-          colour={COLOURS.hpStroke}
-        />
-        <LegendItem
-          icon={<Box className="w-3 h-3" />}
-          label="Cylinder"
-          colour={COLOURS.cylStroke}
-        />
+      {/* Legend — only show items actually present in the rendered
+          floorplan so the key isn't misleading. */}
+      <div className="absolute bottom-2 left-2 right-2 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg bg-white/90 backdrop-blur-sm border border-slate-200 px-3 py-1.5 text-[11px]">
+        {analysis.heatPumpLocations.length > 0 && (
+          <LegendItem
+            icon={<Flame className="w-3 h-3" />}
+            label="Heat pump"
+            colour={COLOURS.hpStroke}
+          />
+        )}
+        {analysis.hotWaterCylinderCandidates.length > 0 && (
+          <LegendItem
+            icon={<Box className="w-3 h-3" />}
+            label="Cylinder"
+            colour={COLOURS.cylStroke}
+          />
+        )}
+        {doors.length > 0 && (
+          <LegendSwatch
+            label="Door"
+            swatch={
+              <span
+                className="inline-block w-3 h-3 rounded-full bg-white border-2"
+                style={{ borderColor: COLOURS.door }}
+              />
+            }
+          />
+        )}
+        {analysis.radiators.length > 0 && (
+          <LegendSwatch
+            label="Radiator"
+            swatch={
+              <span
+                className="inline-block w-4 h-2 rounded-sm"
+                style={{ backgroundColor: COLOURS.radiator }}
+              />
+            }
+          />
+        )}
+        {stairs.length > 0 && (
+          <LegendSwatch
+            label="Stairs"
+            swatch={
+              <span
+                className="inline-block w-4 h-3 rounded-sm border"
+                style={{
+                  backgroundColor: COLOURS.stairsFill,
+                  borderColor: COLOURS.stairsStroke,
+                }}
+              />
+            }
+          />
+        )}
         {analysis.aiAutorun && (
           <span className="ml-auto inline-flex items-center gap-1 text-coral-dark font-medium">
             <Wand2 className="w-3 h-3" />
@@ -241,6 +296,23 @@ function LegendItem({
         style={{ background: `${colour}25`, color: colour }}
       >
         {icon}
+      </span>
+      {label}
+    </span>
+  );
+}
+
+function LegendSwatch({
+  label,
+  swatch,
+}: {
+  label: string;
+  swatch: React.ReactNode;
+}) {
+  return (
+    <span className="inline-flex items-center gap-1 text-slate-600">
+      <span className="inline-flex items-center justify-center w-4 h-4">
+        {swatch}
       </span>
       {label}
     </span>
