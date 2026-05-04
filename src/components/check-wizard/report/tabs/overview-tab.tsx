@@ -31,7 +31,7 @@ import type { AnalyseResponse } from "@/lib/schemas/analyse";
 import type { FuelTariff } from "@/lib/schemas/bill";
 import type { YesNoUnsure } from "../../types";
 import type { ReportSelection, ReportTabKey } from "../report-shell";
-import { SectionCard } from "../shared";
+import { describeAzimuth, SectionCard } from "../shared";
 import { EpcRatingBar } from "../epc-dual-badge";
 
 interface Props {
@@ -62,6 +62,7 @@ export function OverviewTab({
         satelliteUrl={satelliteUrl}
         epc={analysis.epc}
         enrichments={analysis.enrichments}
+        primaryRoofAzimuth={primaryRoofAzimuth(analysis)}
       />
 
       {audience === "homeowner" && <InstallerChecklist />}
@@ -84,11 +85,16 @@ function PropertyCard({
   satelliteUrl,
   epc,
   enrichments,
+  primaryRoofAzimuth,
 }: {
   address: string;
   satelliteUrl: string;
   epc: AnalyseResponse["epc"];
   enrichments: AnalyseResponse["enrichments"];
+  /** Cardinal-direction string for the largest roof segment, e.g.
+   *  "South-facing". `null` when the Solar API didn't cover the
+   *  address. */
+  primaryRoofAzimuth: string | null;
 }) {
   const listedCount = enrichments.listed?.matches.length ?? 0;
   const floodCount = enrichments.flood?.activeWarnings.length ?? 0;
@@ -152,34 +158,43 @@ function PropertyCard({
             Property details
           </p>
           {epc.found ? (
-            <dl className="grid grid-cols-2 gap-x-4 gap-y-2.5 text-sm">
-              {epc.certificate.propertyType && (
-                <Fact
-                  label="Property"
-                  value={`${epc.certificate.propertyType}${
-                    epc.certificate.builtForm
-                      ? ` · ${epc.certificate.builtForm}`
-                      : ""
-                  }`}
-                />
+            <dl className="space-y-2.5 text-sm">
+              {/* Property classification — house icon + built-form
+                  string ("Semi-detached"), no "Property:" label.
+                  Falls back to the broader propertyType ("House",
+                  "Flat") when the cert has no builtForm. */}
+              {(epc.certificate.builtForm || epc.certificate.propertyType) && (
+                <div className="flex items-center gap-2">
+                  <HomeIcon
+                    className="w-4 h-4 text-slate-500"
+                    aria-hidden="true"
+                  />
+                  <dd className="font-semibold text-navy">
+                    {epc.certificate.builtForm ?? epc.certificate.propertyType}
+                  </dd>
+                </div>
               )}
               {epc.certificate.constructionAgeBand && (
-                <Fact label="Built" value={epc.certificate.constructionAgeBand} />
+                <LabelledFact
+                  label="Built"
+                  value={epc.certificate.constructionAgeBand}
+                />
               )}
               {epc.certificate.totalFloorAreaM2 != null && (
-                <Fact
+                <LabelledFact
                   label="Floor area"
-                  value={`${Math.round(epc.certificate.totalFloorAreaM2)} m²`}
+                  value={`~${Math.round(epc.certificate.totalFloorAreaM2)} m²`}
                 />
               )}
-              {epc.certificate.mainFuel && (
-                <Fact label="Main fuel" value={epc.certificate.mainFuel} />
-              )}
-              {epc.certificate.mainHeatingDescription && (
-                <Fact
-                  label="Heating"
-                  value={epc.certificate.mainHeatingDescription}
-                />
+              {primaryRoofAzimuth && (
+                <div className="flex items-baseline gap-2">
+                  <dt className="text-slate-600">Roof:</dt>
+                  <dd>
+                    <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-sm font-medium text-navy">
+                      {primaryRoofAzimuth}
+                    </span>
+                  </dd>
+                </div>
               )}
             </dl>
           ) : (
@@ -213,15 +228,37 @@ function PropertyCard({
   );
 }
 
-function Fact({ label, value }: { label: string; value: string }) {
+// Inline "Label: value" row. Replaces the previous stacked
+// label-over-value layout — the new design uses a label + value
+// reading naturally as a sentence (e.g. "Built:  1930s").
+function LabelledFact({ label, value }: { label: string; value: string }) {
   return (
-    <div>
-      <dt className="text-[11px] uppercase tracking-wider text-slate-500 mb-0.5">
-        {label}
-      </dt>
-      <dd className="text-sm font-medium text-navy leading-tight">{value}</dd>
+    <div className="flex items-baseline gap-2">
+      <dt className="text-slate-600">{label}:</dt>
+      <dd className="font-medium text-navy">{value}</dd>
     </div>
   );
+}
+
+// Pick the cardinal-direction label for the property's largest
+// (= dominant) roof segment. Used in the Property Details column on
+// the Overview tab. Returns null when the Solar API didn't cover
+// the address.
+function primaryRoofAzimuth(analysis: AnalyseResponse): string | null {
+  if (analysis.solar.coverage !== true) return null;
+  const segments = analysis.solar.data.solarPotential.roofSegmentStats;
+  if (!segments || segments.length === 0) return null;
+  const biggest = segments
+    .filter((s) => s.azimuthDegrees != null)
+    .reduce<(typeof segments)[number] | null>((best, s) => {
+      const area = s.stats?.areaMeters2 ?? 0;
+      const bestArea = best?.stats?.areaMeters2 ?? 0;
+      return area > bestArea ? s : best;
+    }, null);
+  if (!biggest || biggest.azimuthDegrees == null) return null;
+  // describeAzimuth returns e.g. "South" — append "-facing" so the
+  // chip reads naturally on the property card ("South-facing").
+  return `${describeAzimuth(biggest.azimuthDegrees)}-facing`;
 }
 
 function Chip({

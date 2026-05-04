@@ -132,6 +132,7 @@ async function fetchCertificate(certificateNumber: string): Promise<EpcCertifica
 
   const raw = parsed.data.data;
   const normalised: EpcCertificate = {
+    // ── Identifiers + admin ─────────────────────────────────────────
     certificateNumber: raw.certificate_number ?? certificateNumber,
     uprn: raw.uprn != null ? String(raw.uprn) : null,
     address: [raw.address_line_1, raw.address_line_2, raw.address_line_3, raw.post_town]
@@ -139,25 +140,80 @@ async function fetchCertificate(certificateNumber: string): Promise<EpcCertifica
       .join(", "),
     postcode: raw.postcode ?? null,
     registrationDate: raw.registration_date ?? null,
+    transactionType: raw.transaction_type ?? null,
+    council: raw.council ?? null,
+
+    // ── Ratings + bands ─────────────────────────────────────────────
     currentEnergyBand: raw.current_energy_efficiency_band ?? null,
     potentialEnergyBand: raw.potential_energy_efficiency_band ?? null,
     currentEnergyRating: raw.current_energy_efficiency_rating ?? null,
+    potentialEnergyRating: raw.potential_energy_efficiency_rating ?? null,
+    environmentImpactCurrent: raw.environment_impact_current ?? null,
+    environmentImpactPotential: raw.environment_impact_potential ?? null,
+    energyConsumptionCurrent: raw.energy_consumption_current ?? null,
+    energyConsumptionPotential: raw.energy_consumption_potential ?? null,
+    co2EmissionsCurrent: raw.co2_emissions_current ?? null,
+    co2EmissionsPotential: raw.co2_emissions_potential ?? null,
+
+    // ── Property classification ─────────────────────────────────────
     propertyType: raw.property_type ?? null,
     builtForm: raw.built_form ?? null,
     constructionAgeBand: raw.construction_age_band ?? null,
+    tenure: raw.tenure ?? null,
     totalFloorAreaM2: parseNumber(raw.total_floor_area),
+    floorHeightM: parseNumber(raw.floor_height),
+    extensionCount: raw.extension_count ?? null,
+    numberHabitableRooms: raw.number_habitable_rooms ?? null,
+    numberHeatedRooms: raw.number_heated_rooms ?? null,
+
+    // ── Heating ─────────────────────────────────────────────────────
     mainFuel: raw.main_fuel ?? null,
     mainHeatingDescription: raw.main_heating_description ?? null,
+    mainHeatingEnergyEff: raw.mainheat_energy_eff ?? null,
+    mainHeatingControlsDescription: raw.mainheatcont_description ?? null,
+    mainHeatingControlsEnergyEff: raw.mainheatcont_energy_eff ?? null,
+    hotWaterDescription: raw.hot_water_description ?? null,
+    hotWaterEnergyEff: raw.hot_water_energy_eff ?? null,
     mainsGasFlag: raw.mains_gas_flag ?? null,
-    transactionType: raw.transaction_type ?? null,
-    council: raw.council ?? null,
+
+    // ── Fabric + glazing ────────────────────────────────────────────
+    wallsDescription: raw.walls_description ?? null,
+    wallsEnergyEff: raw.walls_energy_eff ?? null,
+    roofDescription: raw.roof_description ?? null,
+    roofEnergyEff: raw.roof_energy_eff ?? null,
+    floorDescription: raw.floor_description ?? null,
+    floorEnergyEff: raw.floor_energy_eff ?? null,
+    windowsDescription: raw.windows_description ?? null,
+    windowsEnergyEff: raw.windows_energy_eff ?? null,
+    glazedType: raw.glazed_type ?? null,
+    glazedArea: raw.glazed_area ?? null,
+    multiGlazeProportion: raw.multi_glaze_proportion ?? null,
+
+    // ── Lighting ────────────────────────────────────────────────────
+    lightingDescription: raw.lighting_description ?? null,
+    lightingEnergyEff: raw.lighting_energy_eff ?? null,
+    lowEnergyLightingPct: raw.low_energy_lighting ?? null,
+    fixedLightingOutletsCount: raw.fixed_lighting_outlets_count ?? null,
+    lowEnergyFixedLightingCount: raw.low_energy_fixed_lighting ?? null,
+
+    // ── Per-bill breakdown (£/yr) ──────────────────────────────────
+    heatingCostCurrent: parseNumber(raw.heating_cost_current),
+    heatingCostPotential: parseNumber(raw.heating_cost_potential),
+    hotWaterCostCurrent: parseNumber(raw.hot_water_cost_current),
+    hotWaterCostPotential: parseNumber(raw.hot_water_cost_potential),
+    lightingCostCurrent: parseNumber(raw.lighting_cost_current),
+    lightingCostPotential: parseNumber(raw.lighting_cost_potential),
   };
 
   await cacheSet("epc:cert", certificateNumber, normalised, TTL_SECONDS);
   return normalised;
 }
 
-// Build a cert from a search row when the detail endpoint comes back lean.
+// Build a cert from a search row when the detail endpoint comes back
+// lean. Search rows only carry identifiers + the current energy band
+// — every detail field is null. The detail endpoint fills these in
+// when it works; this fallback keeps the eligibility engine running
+// even when it doesn't.
 function certFromRow(row: EpcSearchRow): EpcCertificate {
   return {
     certificateNumber: row.certificateNumber,
@@ -165,18 +221,63 @@ function certFromRow(row: EpcSearchRow): EpcCertificate {
     address: rowAddress(row),
     postcode: row.postcode || null,
     registrationDate: row.registrationDate || null,
+    transactionType: null,
+    council: row.council || null,
+
     currentEnergyBand: row.currentEnergyEfficiencyBand || null,
     potentialEnergyBand: null,
     currentEnergyRating: null,
+    potentialEnergyRating: null,
+    environmentImpactCurrent: null,
+    environmentImpactPotential: null,
+    energyConsumptionCurrent: null,
+    energyConsumptionPotential: null,
+    co2EmissionsCurrent: null,
+    co2EmissionsPotential: null,
+
     propertyType: null,
     builtForm: null,
     constructionAgeBand: null,
+    tenure: null,
     totalFloorAreaM2: null,
+    floorHeightM: null,
+    extensionCount: null,
+    numberHabitableRooms: null,
+    numberHeatedRooms: null,
+
     mainFuel: null,
     mainHeatingDescription: null,
+    mainHeatingEnergyEff: null,
+    mainHeatingControlsDescription: null,
+    mainHeatingControlsEnergyEff: null,
+    hotWaterDescription: null,
+    hotWaterEnergyEff: null,
     mainsGasFlag: null,
-    transactionType: null,
-    council: row.council || null,
+
+    wallsDescription: null,
+    wallsEnergyEff: null,
+    roofDescription: null,
+    roofEnergyEff: null,
+    floorDescription: null,
+    floorEnergyEff: null,
+    windowsDescription: null,
+    windowsEnergyEff: null,
+    glazedType: null,
+    glazedArea: null,
+    multiGlazeProportion: null,
+
+    lightingDescription: null,
+    lightingEnergyEff: null,
+    lowEnergyLightingPct: null,
+    fixedLightingOutletsCount: null,
+    lowEnergyFixedLightingCount: null,
+
+    heatingCostCurrent: null,
+    heatingCostPotential: null,
+    hotWaterCostCurrent: null,
+    hotWaterCostPotential: null,
+    lightingCostCurrent: null,
+    lightingCostPotential: null,
   };
 }
 
