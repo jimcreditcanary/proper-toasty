@@ -67,9 +67,10 @@ export default async function AdminHomePage() {
     },
     {
       title: "Report history",
-      body: "Search every report by address, email, phone, name or 6-character ID.",
+      body: "Search every report by short ID, address, postcode, UPRN or user email.",
       icon: FileText,
-      status: "coming-soon",
+      status: "live",
+      href: "/admin/reports",
     },
   ];
 
