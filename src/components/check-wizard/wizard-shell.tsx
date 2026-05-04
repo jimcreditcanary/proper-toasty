@@ -118,17 +118,10 @@ export function CheckWizard({ initialState }: CheckWizardProps = {}) {
   return (
     <CheckWizardProvider initialState={initialState}>
       <PageTitleSync />
-      {/* Skip link — visually hidden by default, shown on keyboard focus
-          (first Tab press lands here). Lets screen reader / keyboard
-          users jump past the sticky header straight into the wizard
-          content rather than tabbing through the header chrome on
-          every step. */}
-      <a
-        href="#wizard-main"
-        className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[60] focus:bg-coral focus:text-white focus:font-semibold focus:text-sm focus:px-4 focus:py-2 focus:rounded-lg focus:shadow-lg"
-      >
-        Skip to main content
-      </a>
+      {/* (Skip-to-main-content link removed — its focus position
+          drifted inconsistently across pages, causing more confusion
+          than it solved. Users with assistive tech can still navigate
+          past the sticky header via landmarks: <header> + <main>.) */}
       <header className="bg-cream/80 backdrop-blur-md border-b border-[var(--border)] sticky top-0 z-50">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
           <Link href="/" className="flex items-center shrink-0">

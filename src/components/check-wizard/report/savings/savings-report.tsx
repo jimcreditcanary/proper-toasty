@@ -19,7 +19,7 @@
 // All numbers come from the API response — this component is
 // presentation-only.
 
-import { AlertCircle, BadgeCheck, Loader2, Star } from "lucide-react";
+import { AlertCircle, BadgeCheck, Loader2 } from "lucide-react";
 import type {
   CalculateRequest,
   CalculateResponse,
@@ -382,22 +382,21 @@ function MonthlyComparisonSection({
       title="What you pay each month"
       subtitle="Year-1 monthly outgoings — energy bills + finance/mortgage payment."
     >
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      {/* Monthly cards have a top margin so the floating "Best value"
+          badge (which extends above the card border) doesn't get
+          clipped by the grid gap. Same badge style as the option
+          cards below — single source of truth via <BestValueBadge>. */}
+      <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-3 gap-y-5">
         {cards.map((c) => (
           <div
             key={c.key}
             className={`relative rounded-xl border p-4 ${
               best === c.key
-                ? "border-coral bg-coral-pale/30"
+                ? "border-coral bg-coral-pale/30 shadow-sm"
                 : "border-slate-200 bg-white"
             }`}
           >
-            {best === c.key && (
-              <span className="absolute top-2 right-2 inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider rounded-full px-2 py-0.5 bg-coral text-white">
-                <Star className="w-3 h-3" />
-                Best value
-              </span>
-            )}
+            {best === c.key && <BestValueBadge />}
             <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
               {c.label}
             </p>
@@ -675,6 +674,20 @@ function RowKv({ label, value }: { label: string; value: string }) {
   );
 }
 
+// Single source of truth for the "Best value" badge across the
+// monthly-comparison cards and the option cards. Floats above the
+// card border (-top-2) with a BadgeCheck icon — was inconsistent
+// before (one used <Star> + sat inside, the other used <BadgeCheck>
+// + floated).
+function BestValueBadge() {
+  return (
+    <span className="absolute -top-2 right-4 inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider rounded-full px-2 py-1 bg-coral text-white shadow-sm">
+      <BadgeCheck className="w-3 h-3" />
+      Best value
+    </span>
+  );
+}
+
 function OptionCard({
   title,
   starred,
@@ -700,12 +713,7 @@ function OptionCard({
           : "border-slate-200 bg-white"
       }`}
     >
-      {starred && (
-        <span className="absolute -top-2 right-4 inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider rounded-full px-2 py-1 bg-coral text-white shadow-sm">
-          <BadgeCheck className="w-3 h-3" />
-          Best value
-        </span>
-      )}
+      {starred && <BestValueBadge />}
       <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
         {title}
       </p>

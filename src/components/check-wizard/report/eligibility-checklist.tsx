@@ -87,27 +87,23 @@ export function EligibilityChecklist({ analysis }: Props) {
     },
   ];
 
+  // Inline strip — no card wrapper. Title on the left, three pills
+  // on the right, all on one line on desktop. Renders directly under
+  // the report H1 (replacing where the address line used to sit).
+  // Wraps on narrow viewports.
   return (
     <section
       aria-label="What your home is eligible for"
-      className="rounded-2xl border border-[var(--border)] bg-white shadow-sm px-4 py-3 sm:px-5 sm:py-4"
+      className="flex flex-wrap items-center gap-x-3 gap-y-2"
     >
-      <div className="flex items-center gap-2 mb-2.5 sm:mb-3">
-        <span className="text-[11px] font-bold uppercase tracking-wider text-coral">
-          What your home is eligible for
-        </span>
-        <span className="text-xs text-slate-500 hidden sm:inline">
-          · adjust your plan on the Savings tab
-        </span>
-      </div>
+      <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mr-1">
+        What your home is eligible for
+      </p>
       <ul className="flex flex-wrap gap-x-2 gap-y-2" role="list">
         {items.map((item) => (
           <Pill key={item.id} {...item} />
         ))}
       </ul>
-      <p className="mt-2 text-[11px] text-slate-500 sm:hidden">
-        Adjust your plan on the Savings tab.
-      </p>
     </section>
   );
 }

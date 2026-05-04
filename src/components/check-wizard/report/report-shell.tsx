@@ -179,26 +179,24 @@ export function ReportShell({ audience = "homeowner" }: ReportShellProps = {}) {
 
   return (
     <div className="w-full space-y-6 sm:space-y-8">
-      {/* Persistent header — address + verdict headline. */}
-      <header>
-        <p className="text-xs font-semibold uppercase tracking-wider text-coral mb-1.5">
-          Your home
-        </p>
-        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight text-navy leading-tight">
-          {headline}
-        </h1>
-        <p className="mt-2 text-sm text-slate-600">
-          <span className="font-medium text-navy">{addr.formattedAddress}</span>
-        </p>
+      {/* Persistent header — verdict headline + inline eligibility
+          chips. Address used to render here; removed because the
+          property card on the Overview tab + the page title carry
+          the same info, and the duplicate cluttered the headline.
+          Installer-mode skips the eligibility chips (the installer
+          just sees what the homeowner chose, no eligibility summary
+          needed). */}
+      <header className="space-y-3">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wider text-coral mb-1.5">
+            Your home
+          </p>
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight text-navy leading-tight">
+            {headline}
+          </h1>
+        </div>
+        {!isInstaller && <EligibilityChecklist analysis={a} />}
       </header>
-
-      {/* Compact eligibility checklist — single row, display-only.
-          Replaced the bulky three-card RecommendationStrip that used
-          to live here; the toggle UI moved to the Savings tab where
-          it sits next to the cost figures it affects. Hidden for
-          installer mode (the installer just sees what the homeowner
-          chose, no eligibility summary needed). */}
-      {!isInstaller && <EligibilityChecklist analysis={a} />}
 
       {/* Tab nav — promoted from a thin underlined bar to a proper
           pill-button container so it's unmissable. Active state is

@@ -3,8 +3,12 @@
 // Overview tab — the front door of the report.
 //
 // Three blocks:
-//   1. Property hero — full-width satellite shot, address overlay,
-//      EPC current vs potential side-by-side, key facts row
+//   1. Property card — compact two-column tile: Energy Performance
+//      (band tile + A→G rainbow scale + current/potential labels)
+//      on the left, Property Details on the right. The previous
+//      full-width satellite hero with address overlay was too
+//      dominant; the satellite is no longer the focal point of the
+//      report. Address now lives in the report-shell header only.
 //   2. Working with installers — single checklist combining "what to
 //      ask" and "what to share/have ready" so the homeowner has one
 //      place to prep for the call. Was previously two cards (one
@@ -12,11 +16,9 @@
 //   3. Common myths — three myth/truth pairs, each row laid out as a
 //      proper horizontal pair so the icons line up with the text.
 
-import Image from "next/image";
 import {
   CheckCircle2,
   Flame,
-  Home,
   Landmark,
   MessageCircleQuestion,
   ShieldCheck,
@@ -28,7 +30,7 @@ import type { FuelTariff } from "@/lib/schemas/bill";
 import type { YesNoUnsure } from "../../types";
 import type { ReportSelection, ReportTabKey } from "../report-shell";
 import { SectionCard } from "../shared";
-import { EpcDualBadge } from "../epc-dual-badge";
+import { EpcRatingBar } from "../epc-dual-badge";
 
 interface Props {
   analysis: AnalyseResponse;
@@ -53,9 +55,7 @@ export function OverviewTab({
 }: Props) {
   return (
     <div className="space-y-6">
-      <PropertyHero
-        address={address}
-        satelliteUrl={satelliteUrl}
+      <PropertyCard
         epc={analysis.epc}
         enrichments={analysis.enrichments}
       />
@@ -67,16 +67,18 @@ export function OverviewTab({
   );
 }
 
-// ─── Property hero ─────────────────────────────────────────────────────
+// ─── Property card ─────────────────────────────────────────────────────
+// Compact two-column tile: Energy Performance on the left (with the
+// new EpcRatingBar showing current + potential bands on a single
+// A→G scale), Property Details on the right. Replaced the earlier
+// full-width satellite hero — the satellite was visually dominant
+// but added little decision-making value, and the address overlay
+// duplicated info that's already in the report-shell header.
 
-function PropertyHero({
-  address,
-  satelliteUrl,
+function PropertyCard({
   epc,
   enrichments,
 }: {
-  address: string;
-  satelliteUrl: string;
   epc: AnalyseResponse["epc"];
   enrichments: AnalyseResponse["enrichments"];
 }) {
@@ -88,67 +90,17 @@ function PropertyHero({
     (enrichments.planning?.nationalParks.length ?? 0);
 
   return (
-    <section className="rounded-2xl overflow-hidden border border-[var(--border)] bg-white shadow-sm">
-      {/* Full-width satellite image with address overlay. Wider aspect
-          on desktop so the property fills the frame. */}
-      <div className="relative w-full aspect-[16/7] sm:aspect-[16/6] bg-slate-100">
-        <Image
-          src={satelliteUrl}
-          alt={`Satellite view of ${address}`}
-          fill
-          sizes="100vw"
-          className="object-cover"
-          unoptimized
-          priority
-        />
-        {/* Gradient overlay so the address text reads cleanly over
-            light or dark satellite imagery. */}
-        <div
-          aria-hidden="true"
-          className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/65 via-black/25 to-transparent"
-        />
-        <div className="absolute inset-x-0 bottom-0 p-4 sm:p-5 text-white">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-white/80">
-            <Home className="w-3 h-3 inline -mt-0.5 mr-1" />
-            Your property
-          </p>
-          <p className="mt-0.5 text-base sm:text-lg font-semibold leading-tight">
-            {address}
-          </p>
-        </div>
-      </div>
-
-      {/* EPC dual badge + property facts. Stacked on mobile, side-by-
-          side on desktop. */}
-      <div className="p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-5 gap-5">
-        <div className="lg:col-span-2">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-coral mb-2">
+    <section className="rounded-2xl border border-[var(--border)] bg-white shadow-sm p-4 sm:p-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
+        <div>
+          <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-3">
             Energy performance
           </p>
           {epc.found ? (
-            <>
-              <EpcDualBadge
-                currentBand={epc.certificate.currentEnergyBand}
-                potentialBand={epc.certificate.potentialEnergyBand}
-                currentScore={epc.certificate.currentEnergyRating ?? null}
-              />
-              {epc.certificate.potentialEnergyBand &&
-                epc.certificate.currentEnergyBand &&
-                epc.certificate.potentialEnergyBand !==
-                  epc.certificate.currentEnergyBand && (
-                  <p className="mt-2 text-xs text-slate-600">
-                    Improvements could lift you from band{" "}
-                    <strong className="text-navy">
-                      {epc.certificate.currentEnergyBand}
-                    </strong>{" "}
-                    to band{" "}
-                    <strong className="text-navy">
-                      {epc.certificate.potentialEnergyBand}
-                    </strong>
-                    .
-                  </p>
-                )}
-            </>
+            <EpcRatingBar
+              currentBand={epc.certificate.currentEnergyBand}
+              potentialBand={epc.certificate.potentialEnergyBand}
+            />
           ) : (
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
               No EPC on file for this address — your installer will work
@@ -157,8 +109,8 @@ function PropertyHero({
           )}
         </div>
 
-        <div className="lg:col-span-3">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-coral mb-2">
+        <div>
+          <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-3">
             Property details
           </p>
           {epc.found ? (

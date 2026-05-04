@@ -22,12 +22,15 @@ interface Props {
   yAxisLabel?: string;
 }
 
-const PAD_TOP = 16;
+const PAD_TOP = 12;
 const PAD_RIGHT = 16;
-const PAD_BOTTOM = 32;
+const PAD_BOTTOM = 28;
 const PAD_LEFT = 56;
 const VIEW_W = 720;
-const VIEW_H = 320;
+// Chart was ~320 high — felt over-tall, especially when the 4 lines
+// fanned out only modestly. 240 keeps the data legible without
+// dominating the page.
+const VIEW_H = 240;
 const PLOT_W = VIEW_W - PAD_LEFT - PAD_RIGHT;
 const PLOT_H = VIEW_H - PAD_TOP - PAD_BOTTOM;
 

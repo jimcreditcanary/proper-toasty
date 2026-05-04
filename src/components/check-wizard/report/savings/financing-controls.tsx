@@ -97,12 +97,12 @@ export function FinancingControls({ value, onChange }: Props) {
         </ScenarioBlock>
 
         <p className="text-[11px] text-slate-500 leading-relaxed border-t border-slate-100 pt-3">
-          The mortgage scenario assumes a <strong>capital + interest
-          repayment</strong> over the term shown — interest-only mortgages
-          would have lower monthly payments but higher total cost.
-          Illustrative figures only — we&rsquo;re not a lender or broker.
-          Talk to a regulated mortgage adviser before adding upgrades to a
-          real mortgage.
+          The mortgage scenario assumes a{" "}
+          <strong>capital + interest repayment</strong> over the term shown —
+          interest-only mortgages would have lower monthly payments but
+          higher total cost. Illustrative figures only — we&rsquo;re not a
+          lender or broker. Talk to a regulated mortgage adviser before
+          adding upgrades to a real mortgage.
         </p>
       </div>
     </SectionCard>
