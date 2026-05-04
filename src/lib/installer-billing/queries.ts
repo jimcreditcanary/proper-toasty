@@ -5,13 +5,21 @@
 //                   receipts attached). This is what the accountant
 //                   needs for VAT returns.
 //   2. Credits out: inferred from
-//                     installer_leads (5 credits per acknowledged
-//                     lead, LEAD_ACCEPT_COST_CREDITS) +
+//                     installer_leads (5 credits per DIRECTORY lead
+//                     acknowledged, LEAD_ACCEPT_COST_CREDITS) +
 //                     installer_pre_survey_requests.total_credits_charged
 //                   We don't have a unified ledger table — credits
 //                   are deducted via the deduct_credits RPC without
 //                   an audit row — so we re-derive usage here from
 //                   the source-of-truth tables.
+//
+// Critical detail: pre-survey-sourced leads bypass the 5-credit
+// acknowledge charge. They're auto-attached at lead-capture time
+// with cost_credits = 0 (the 1-credit pre-survey send is the only
+// charge). So when we count lead acceptances for credit-cost
+// purposes we MUST filter by `pre_survey_request_id is null` —
+// otherwise we double-count: 1 credit in preSurveyCreditsUsed +
+// a phantom 5 credits in leadCreditsUsed.
 //
 // Time window: last 12 calendar months by default. Buckets oldest-
 // first with current month at the end. Numbers are pence (money) +
@@ -96,12 +104,15 @@ export async function loadBilling(
         .eq("user_id", args.userId)
         .gte("created_at", windowStart)
         .order("created_at", { ascending: false }),
+      // Directory leads only — pre-survey leads are filtered out
+      // because they don't trigger the 5-credit acknowledge charge.
       admin
         .from("installer_leads")
         .select("id, installer_acknowledged_at")
         .eq("installer_id", args.installerId)
         .gte("installer_acknowledged_at", windowStart)
-        .not("installer_acknowledged_at", "is", null),
+        .not("installer_acknowledged_at", "is", null)
+        .is("pre_survey_request_id", null),
       admin
         .from("installer_pre_survey_requests")
         .select("id, created_at, total_credits_charged, sends_count, last_sent_at")
@@ -119,7 +130,8 @@ export async function loadBilling(
         .select("id", { count: "exact", head: true })
         .eq("installer_id", args.installerId)
         .gte("installer_acknowledged_at", yearStart)
-        .not("installer_acknowledged_at", "is", null),
+        .not("installer_acknowledged_at", "is", null)
+        .is("pre_survey_request_id", null),
       admin
         .from("installer_pre_survey_requests")
         .select("total_credits_charged")
