@@ -65,8 +65,30 @@ export function HeatPumpTab({
         : "Not compatible";
 
   const grant = hp.estimatedGrantGBP;
+  // Fall back to UK-average estimates when the analysis didn't give us
+  // a property-specific number — keeps the BigStats showing real
+  // figures rather than "TBC" / "Quoted on visit", which read as
+  // "we don't know anything" and are inconsistent with what the
+  // savings tab shows. A site visit will refine.
   const sysKw = hp.recommendedSystemKW;
+  const sysKwDisplay = sysKw != null ? `${sysKw} kW` : "~8 kW typical";
+  const sysKwSub =
+    sysKw != null
+      ? "Sized to keep you warm even on the coldest UK day."
+      : "Typical for a UK home this type — confirmed on a heat-loss survey.";
+
   const costRange = finance.estimatedNetInstallCostRangeGBP;
+  // UK averages (after BUS grant): £4k–£5.5k typical for a standard
+  // ASHP install for an average home. Same magnitude as the savings
+  // calculator's £12k gross − £7.5k grant.
+  const FALLBACK_NET_LOW = 4000;
+  const FALLBACK_NET_HIGH = 5500;
+  const costLow = costRange?.[0] ?? FALLBACK_NET_LOW;
+  const costHigh = costRange?.[1] ?? FALLBACK_NET_HIGH;
+  const costSub =
+    costRange != null
+      ? "Range covers typical installer pricing for a property your size. Spread over 10 years at 6.9% if you finance it."
+      : "Typical UK installer pricing after the BUS grant. The Savings tab shows finance + payback options.";
 
   return (
     <div className="space-y-6">
@@ -83,8 +105,8 @@ export function HeatPumpTab({
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-5">
           <BigStat
             label="System size"
-            value={sysKw != null ? `${sysKw} kW` : "TBC on visit"}
-            sub="Sized to keep you warm even on the coldest UK day."
+            value={sysKwDisplay}
+            sub={sysKwSub}
           />
           <BigStat
             label="Government grant"
@@ -94,12 +116,8 @@ export function HeatPumpTab({
           />
           <BigStat
             label="What you'd actually pay"
-            value={
-              costRange
-                ? `${fmtGbp(costRange[0], { compact: true })}–${fmtGbp(costRange[1], { compact: true })}`
-                : "Quoted on visit"
-            }
-            sub="Range covers typical installer pricing for a property your size. Spread over 10 years at 6.9% if you finance it."
+            value={`${fmtGbp(costLow, { compact: true })}–${fmtGbp(costHigh, { compact: true })}`}
+            sub={costSub}
           />
         </div>
 
@@ -135,14 +153,15 @@ export function HeatPumpTab({
         >
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
             <div className="lg:col-span-3">
-              {/* canonical: false → keep photo visible (AI mode);
-                  canonical: true → hide photo, show clean drawing
-                  (user-drew mode). The component picks based on
-                  aiAutorun by default but we're explicit here. */}
+              {/* Let FloorplanReadOnly's default pick (hide photo
+                  whenever there's any drawn geometry). Removing the
+                  explicit `canonical={!aiAutorun}` override fixed
+                  the case where AI auto-ran AND produced refined
+                  walls — the photo was kept underneath the drawing
+                  and the two visibly drifted out of alignment. */}
               <FloorplanReadOnly
                 analysis={floorplan}
                 imageUrl={floorplanImageUrl}
-                canonical={!floorplan.aiAutorun}
               />
               {floorplan.aiAutorun && (
                 <p className="mt-2 inline-flex items-start gap-1.5 text-xs text-coral-dark">

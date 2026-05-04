@@ -16,9 +16,11 @@
 //   3. Common myths — three myth/truth pairs, each row laid out as a
 //      proper horizontal pair so the icons line up with the text.
 
+import Image from "next/image";
 import {
   CheckCircle2,
   Flame,
+  Home as HomeIcon,
   Landmark,
   MessageCircleQuestion,
   ShieldCheck,
@@ -56,6 +58,8 @@ export function OverviewTab({
   return (
     <div className="space-y-6">
       <PropertyCard
+        address={address}
+        satelliteUrl={satelliteUrl}
         epc={analysis.epc}
         enrichments={analysis.enrichments}
       />
@@ -76,9 +80,13 @@ export function OverviewTab({
 // duplicated info that's already in the report-shell header.
 
 function PropertyCard({
+  address,
+  satelliteUrl,
   epc,
   enrichments,
 }: {
+  address: string;
+  satelliteUrl: string;
   epc: AnalyseResponse["epc"];
   enrichments: AnalyseResponse["enrichments"];
 }) {
@@ -91,6 +99,36 @@ function PropertyCard({
 
   return (
     <section className="rounded-2xl border border-[var(--border)] bg-white shadow-sm p-4 sm:p-6">
+      {/* Header row — small satellite thumbnail + address. Restored
+          (was previously full-width hero, then removed; this compact
+          version keeps the visual context without dominating the
+          page). The thumbnail is a square so it works at the same
+          height as the address text and any planning chips. */}
+      <div className="flex items-start gap-3 sm:gap-4 mb-5 sm:mb-6">
+        <div
+          className="relative w-16 h-16 sm:w-20 sm:h-20 shrink-0 rounded-xl overflow-hidden border border-slate-200 bg-slate-100"
+          aria-hidden="true"
+        >
+          <Image
+            src={satelliteUrl}
+            alt=""
+            fill
+            sizes="80px"
+            className="object-cover"
+            unoptimized
+          />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 inline-flex items-center gap-1">
+            <HomeIcon className="w-3 h-3" />
+            Your property
+          </p>
+          <p className="mt-0.5 text-base sm:text-lg font-semibold text-navy leading-snug">
+            {address}
+          </p>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
         <div>
           <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-3">

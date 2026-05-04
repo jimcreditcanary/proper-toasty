@@ -78,7 +78,15 @@ export function FloorplanReadOnly({ analysis, imageUrl, canonical }: Props) {
       className="relative w-full overflow-hidden rounded-xl border border-slate-200 bg-cream"
       style={{ aspectRatio: "1 / 1" }}
     >
-      {imageUrl && (
+      {/* Show the photo only when there's no canonical drawing to
+          replace it with. The previous version always rendered the
+          photo and laid an 80%-opaque cream overlay on top — which
+          left the photo visibly bleeding through (20% opacity)
+          underneath the drawing. When the drawing doesn't perfectly
+          align with the photo (common with AI-refined geometry),
+          that bleed-through reads as the drawing being "out of sync"
+          with the photo — the very bug we're trying to avoid. */}
+      {imageUrl && !hidePhoto && (
         <Image
           src={imageUrl}
           alt="Your floorplan"
@@ -86,9 +94,6 @@ export function FloorplanReadOnly({ analysis, imageUrl, canonical }: Props) {
           className="object-contain"
           unoptimized
         />
-      )}
-      {imageUrl && hidePhoto && (
-        <div className="absolute inset-0 bg-cream/80" aria-hidden />
       )}
 
       <svg

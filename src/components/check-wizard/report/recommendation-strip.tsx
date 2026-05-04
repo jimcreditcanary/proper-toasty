@@ -49,6 +49,14 @@ export function RecommendationStrip({
   const hpCostHigh = finance.heatPump.estimatedNetInstallCostRangeGBP?.[1] ?? null;
   const apiSolarCost = finance.solar.installCostGBP ?? null;
   const recommendedPanels = solar.recommendedPanels ?? 0;
+  // Hard cap on the panel slider — Google Solar API tells us the
+  // most this roof can physically fit. Falls back to the recommended
+  // count + 50% headroom when the API didn't cover the address.
+  const maxPanels =
+    analysis.solar.coverage === true
+      ? (analysis.solar.data.solarPotential.maxArrayPanelsCount ??
+        Math.max(1, Math.ceil(recommendedPanels * 1.5)))
+      : Math.max(1, Math.ceil(recommendedPanels * 1.5));
   // Per-panel scaling — same logic as src/lib/savings/calc.ts so the
   // tile cost stays in sync with the cost-breakdown card below.
   const perPanelCost =
@@ -140,8 +148,9 @@ export function RecommendationStrip({
         >
           {selection.hasSolar && (
             <PanelSlider
-              value={selection.panelCount}
+              value={Math.min(selection.panelCount, maxPanels)}
               recommended={recommendedPanels}
+              max={maxPanels}
               onChange={(v) =>
                 setSelection({ ...selection, panelCount: v })
               }
@@ -342,10 +351,13 @@ function Switch({ on }: { on: boolean }) {
 function PanelSlider({
   value,
   recommended,
+  max,
   onChange,
 }: {
   value: number;
   recommended: number;
+  /** Hard cap from Google Solar API's maxArrayPanelsCount. */
+  max: number;
   onChange: (n: number) => void;
 }) {
   return (
@@ -366,7 +378,7 @@ function PanelSlider({
       <input
         type="range"
         min={1}
-        max={50}
+        max={max}
         step={1}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
@@ -375,7 +387,7 @@ function PanelSlider({
       />
       <div className="flex justify-between text-[10px] text-slate-400 mt-0.5 tabular-nums">
         <span>1</span>
-        <span>50</span>
+        <span>{max}</span>
       </div>
     </div>
   );
