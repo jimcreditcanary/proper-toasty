@@ -309,17 +309,25 @@ function FinalCta() {
             {INSTALLER_FREE_STARTER_CREDITS} free credits land in your
             balance immediately.
           </p>
-          <Link
-            href="/installer-signup"
-            className="mt-8 inline-flex items-center gap-2 h-12 px-7 rounded-full bg-cream text-coral-dark hover:bg-cream-deep font-semibold transition-colors"
-          >
-            Find my MCS profile
-            <ArrowRight className="w-4 h-4" />
-          </Link>
-          <p className="mt-5 text-xs text-cream/70 inline-flex items-center gap-1.5">
-            <CheckCircle2 className="w-3 h-3" />
-            UK MCS-certified installers only
-          </p>
+          {/* Wrap the CTA + disclaimer in a vertical stack so the
+              disclaimer sits BELOW the button. The button + the
+              disclaimer are both inline-flex; without a block-level
+              wrapper they flow on the same line, which on the wider
+              breakpoints made the disclaimer hug the button instead
+              of dropping under it. */}
+          <div className="mt-8 flex flex-col items-center gap-5">
+            <Link
+              href="/installer-signup"
+              className="inline-flex items-center gap-2 h-12 px-7 rounded-full bg-cream text-coral-dark hover:bg-cream-deep font-semibold transition-colors"
+            >
+              Find my MCS profile
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+            <p className="text-xs text-cream/70 inline-flex items-center gap-1.5">
+              <CheckCircle2 className="w-3 h-3" />
+              UK MCS-certified installers only
+            </p>
+          </div>
         </div>
       </div>
     </section>
