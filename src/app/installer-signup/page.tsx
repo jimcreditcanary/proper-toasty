@@ -143,7 +143,11 @@ export default async function InstallerSignupPage({ searchParams }: PageProps) {
   return (
     <main className="min-h-screen bg-cream-deep px-4 py-12">
       <div className="mx-auto w-full max-w-2xl">
-        <div className="text-center mb-8">
+        {/* flex-col so each child sits on its own row. Was a plain
+            text-center wrapper — Logo's <Link> is inline-block and
+            the pill is inline-flex, so they flowed on the same line
+            (pill hugging the logo's right side) instead of stacking. */}
+        <div className="flex flex-col items-center text-center mb-8">
           <Link href="/" className="inline-block mb-6">
             <Logo size="md" variant="light" />
           </Link>
