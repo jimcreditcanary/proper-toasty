@@ -584,42 +584,15 @@ export function FloorplanEditor({
             <ArrowRight className="w-4 h-4" />
           </button>
 
-          {onRequestAutorun && (
-            <button
-              type="button"
-              onClick={onRequestAutorun}
-              disabled={autorunRunning}
-              className="inline-flex items-center justify-center gap-2 h-11 px-5 rounded-full border border-coral/40 bg-white hover:bg-coral-pale/40 disabled:opacity-60 disabled:cursor-not-allowed text-coral-dark font-semibold text-sm transition-colors"
-            >
-              {autorunRunning ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Reading your floorplan…
-                </>
-              ) : (
-                <>
-                  <Wand2 className="w-4 h-4" />
-                  Let AI do it for me
-                </>
-              )}
-            </button>
-          )}
+          {/* "Let AI do it for me" button removed — the auto-detect
+              path was producing geometry that didn't reliably match
+              the underlying photo, and the resulting drift on the
+              report's heat-pump tab confused homeowners. Will be
+              re-introduced once the vision pipeline is more
+              consistent. The `onRequestAutorun` / `autorunRunning` /
+              `autorunError` props are still accepted (no behaviour
+              change for parents) — they're just not rendered. */}
         </div>
-
-        {onRequestAutorun && !autorunRunning && (
-          <p className="mt-3 text-xs text-slate-500 leading-relaxed">
-            Drawing it yourself usually gives a better result — you know your
-            home best. But if you&rsquo;re short on time, AI can have a go and
-            your installer will verify everything on site.
-          </p>
-        )}
-
-        {autorunError && (
-          <p className="mt-3 text-xs text-red-700 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
-            Couldn&rsquo;t read the floorplan automatically — {autorunError}.
-            Please try drawing it instead.
-          </p>
-        )}
       </div>
     );
   }
@@ -1121,6 +1094,27 @@ export function FloorplanEditor({
               />
             );
           })()}
+
+        {/* In-canvas "press Enter to close" prompt. Floats at the top
+            center of the canvas while the user is mid-stroke, so the
+            cue is impossible to miss while their attention is on the
+            drawing area. The original below-canvas hint is still
+            rendered (kept for touch users + as a secondary anchor),
+            but the in-viewport popup is the prominent one. */}
+        {drawingInProgress && inputMode === "mouse" && (
+          <div
+            role="status"
+            aria-live="polite"
+            className="absolute top-3 left-1/2 -translate-x-1/2 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-navy text-white text-sm font-semibold shadow-lg pointer-events-none animate-pulse"
+          >
+            <CornerDownLeft className="w-4 h-4" aria-hidden="true" />
+            Press
+            <kbd className="inline-flex items-center h-5 px-1.5 rounded border border-white/30 bg-white/15 text-[11px] font-mono font-semibold">
+              Enter
+            </kbd>
+            to close the {stage === "outdoor" ? "outdoor area" : "shape"}
+          </div>
+        )}
 
         {/* Background toggle — bottom right, only when it's useful */}
         {(stage === "adjust" || stage === "review") && imageUrl && (

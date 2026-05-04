@@ -1,11 +1,15 @@
+import type { z } from "zod";
 import { cacheGet, cacheSet } from "@/lib/services/api-cache";
 import {
+  EpcCertificateRawSchema,
   EpcSearchResponseSchema,
   EpcCertificateResponseSchema,
   type EpcByAddressResponse,
   type EpcCertificate,
   type EpcSearchRow,
 } from "@/lib/schemas/epc";
+
+type EpcCertificateRaw = z.infer<typeof EpcCertificateRawSchema>;
 
 const EPC_BASE = "https://api.get-energy-performance-data.communities.gov.uk";
 // Hit TTL for a found EPC — 30 days matches how often upstream refreshes.
@@ -114,7 +118,7 @@ async function searchByPostcode(postcode: string): Promise<EpcSearchRow[]> {
 }
 
 async function fetchCertificate(certificateNumber: string): Promise<EpcCertificate | null> {
-  const cached = await cacheGet<EpcCertificate>("epc:cert", certificateNumber);
+  const cached = await cacheGet<EpcCertificate>("epc:cert-v2", certificateNumber);
   if (cached) return cached;
 
   const url = new URL(`${EPC_BASE}/api/certificate`);
@@ -127,10 +131,39 @@ async function fetchCertificate(certificateNumber: string): Promise<EpcCertifica
     throw new Error(`EPC fetch cert failed: ${res.status} ${body.slice(0, 200)}`);
   }
 
-  const parsed = EpcCertificateResponseSchema.safeParse(await res.json());
-  if (!parsed.success) throw new Error("EPC cert returned unexpected shape");
+  // Lenient envelope handling — we've seen the API return both
+  // `{ data: {...} }` and the raw cert directly. Accept either rather
+  // than throwing on shape, so the eligibility engine still gets the
+  // detail-level fields when the envelope is missing.
+  let json: unknown;
+  try {
+    json = await res.json();
+  } catch (err) {
+    console.warn("[epc] cert detail JSON parse failed", {
+      certificateNumber,
+      err: err instanceof Error ? err.message : err,
+    });
+    return null;
+  }
 
-  const raw = parsed.data.data;
+  // Try the wrapped shape first; fall through to the raw cert.
+  let raw: EpcCertificateRaw;
+  const wrapped = EpcCertificateResponseSchema.safeParse(json);
+  if (wrapped.success) {
+    raw = wrapped.data.data;
+  } else {
+    const flat = EpcCertificateRawSchema.safeParse(json);
+    if (!flat.success) {
+      console.warn("[epc] cert detail unexpected shape", {
+        certificateNumber,
+        topLevelKeys:
+          json && typeof json === "object" ? Object.keys(json as object) : typeof json,
+        sampleIssues: flat.error.issues.slice(0, 3),
+      });
+      return null;
+    }
+    raw = flat.data;
+  }
   const normalised: EpcCertificate = {
     // ── Identifiers + admin ─────────────────────────────────────────
     certificateNumber: raw.certificate_number ?? certificateNumber,
@@ -205,7 +238,7 @@ async function fetchCertificate(certificateNumber: string): Promise<EpcCertifica
     lightingCostPotential: parseNumber(raw.lighting_cost_potential),
   };
 
-  await cacheSet("epc:cert", certificateNumber, normalised, TTL_SECONDS);
+  await cacheSet("epc:cert-v2", certificateNumber, normalised, TTL_SECONDS);
   return normalised;
 }
 
@@ -310,13 +343,13 @@ function epcCacheKey(input: GetEpcInput): string | null {
  * fields are present.
  *
  * The whole result is cached for 30 days (7 on miss) in api_cache under
- * namespace "epc:by-address". This means re-analysing the same property
+ * namespace "epc:by-address-v2". This means re-analysing the same property
  * skips the upstream UPRN/postcode search + detail fetch entirely.
  */
 export async function getEpc(input: GetEpcInput): Promise<EpcByAddressResponse> {
   const ck = epcCacheKey(input);
   if (ck) {
-    const cached = await cacheGet<EpcByAddressResponse>("epc:by-address", ck);
+    const cached = await cacheGet<EpcByAddressResponse>("epc:by-address-v2", ck);
     if (cached) return cached;
   }
 
@@ -324,7 +357,7 @@ export async function getEpc(input: GetEpcInput): Promise<EpcByAddressResponse> 
 
   if (ck) {
     const ttl = result.found ? TTL_SECONDS : MISS_TTL_SECONDS;
-    await cacheSet("epc:by-address", ck, result, ttl);
+    await cacheSet("epc:by-address-v2", ck, result, ttl);
   }
   return result;
 }
