@@ -14,6 +14,7 @@ import {
   Ban,
   Coins,
   CreditCard,
+  Download,
   Search,
   ShieldCheck,
   Users as UsersIcon,
@@ -210,11 +211,20 @@ export default async function UsersPage({ searchParams }: PageProps) {
         </div>
       </form>
 
-      <p className="text-xs text-slate-500 mb-3">
-        {rows.length === 100
-          ? "Showing first 100 — refine search to see more."
-          : `${rows.length} user${rows.length === 1 ? "" : "s"}`}
-      </p>
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-xs text-slate-500">
+          {rows.length === 100
+            ? "Showing first 100 — refine search to see more."
+            : `${rows.length} user${rows.length === 1 ? "" : "s"}`}
+        </p>
+        <a
+          href={`/api/admin/users/export?${buildExportQuery({ q, role, blocked })}`}
+          className="inline-flex items-center gap-1.5 h-7 px-3 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-700 hover:border-coral/40 hover:text-coral transition-colors"
+        >
+          <Download className="w-3 h-3" />
+          Export CSV
+        </a>
+      </div>
 
       {rows.length === 0 ? (
         <div className="rounded-xl border border-slate-200 bg-white p-8 text-center">
@@ -286,6 +296,18 @@ function buildFilterUrl(args: {
   if (args.blocked !== "all") params.set("blocked", args.blocked);
   const qs = params.toString();
   return `/admin/users${qs ? `?${qs}` : ""}`;
+}
+
+function buildExportQuery(args: {
+  q: string;
+  role: RoleFilter;
+  blocked: "all" | "active" | "blocked";
+}): string {
+  const params = new URLSearchParams();
+  if (args.q) params.set("q", args.q);
+  if (args.role !== "all") params.set("role", args.role);
+  if (args.blocked !== "all") params.set("blocked", args.blocked);
+  return params.toString();
 }
 
 function RoleAvatar({ role }: { role: string }) {

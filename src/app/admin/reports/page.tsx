@@ -26,6 +26,7 @@ import {
   FileText,
   Search,
   Calendar,
+  Download,
   ArrowRight,
   CheckCircle2,
   Clock,
@@ -246,12 +247,21 @@ export default async function ReportsPage({ searchParams }: PageProps) {
         </div>
       </form>
 
-      {/* Result count */}
-      <p className="text-xs text-slate-500 mb-3">
-        {rows.length === 50
-          ? "Showing first 50 results — refine your search to see more."
-          : `${rows.length} result${rows.length === 1 ? "" : "s"}`}
-      </p>
+      {/* Result count + export button */}
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-xs text-slate-500">
+          {rows.length === 50
+            ? "Showing first 50 results — refine your search to see more."
+            : `${rows.length} result${rows.length === 1 ? "" : "s"}`}
+        </p>
+        <a
+          href={`/api/admin/reports/export?${buildExportQuery({ q, status, range })}`}
+          className="inline-flex items-center gap-1.5 h-7 px-3 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-700 hover:border-coral/40 hover:text-coral transition-colors"
+        >
+          <Download className="w-3 h-3" />
+          Export CSV
+        </a>
+      </div>
 
       {rows.length === 0 ? (
         <EmptyState hasQuery={q.length > 0} />
@@ -314,6 +324,18 @@ function buildFilterUrl(args: {
   if (args.range !== "all") params.set("range", args.range);
   const qs = params.toString();
   return `/admin/reports${qs ? `?${qs}` : ""}`;
+}
+
+function buildExportQuery(args: {
+  q: string;
+  status: StatusFilter;
+  range: RangeFilter;
+}): string {
+  const params = new URLSearchParams();
+  if (args.q) params.set("q", args.q);
+  if (args.status !== "all") params.set("status", args.status);
+  if (args.range !== "all") params.set("range", args.range);
+  return params.toString();
 }
 
 function StatusBadge({ status }: { status: Status }) {
