@@ -228,3 +228,49 @@ h1, h2, h3 {
     border-radius: 4px;
   }
 }
+
+/* iOS Safari auto-zoom prevention. Any text input (input, textarea,
+   select) under 16px font-size on focus triggers an auto-zoom on
+   iPhone Safari that's hard to undo and feels broken. Tailwind's
+   `text-sm` (14px) is below that threshold and was used liberally on
+   wizard inputs. Bump every form input to 16px on small viewports —
+   desktop styling is unaffected (the per-component classes still
+   apply at sm+). The selector is scoped narrowly to avoid styling
+   non-input elements that happen to be tagged select. */
+@media (max-width: 640px) {
+  input[type="text"],
+  input[type="email"],
+  input[type="number"],
+  input[type="tel"],
+  input[type="date"],
+  input[type="datetime-local"],
+  input[type="password"],
+  input[type="search"],
+  input[type="url"],
+  input:not([type]),
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
+
+/* Mobile readability bump for the smallest text sizes. Tailwind's
+   `text-xs` is 12px and our explicit `text-[10px]` / `text-[11px]`
+   utilities can drop below that. On phones those sizes are below the
+   16px iOS-reading-mode minimum and feel cramped on real devices.
+   Bump them on small viewports without disturbing desktop design.
+
+   Not @apply'd in @layer base because Tailwind's preflight ordering
+   would let utility classes win regardless. Plain CSS at viewport
+   max-width 640px overrides Tailwind's utility output cleanly. */
+@media (max-width: 640px) {
+  .text-\[10px\] {
+    font-size: 12px !important;
+  }
+  .text-\[11px\] {
+    font-size: 13px !important;
+  }
+  .text-xs {
+    font-size: 13px !important;
+  }
+}
