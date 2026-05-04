@@ -20,6 +20,12 @@ export function PreSurveyForm({ balance, costPerSend }: Props) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [postcode, setPostcode] = useState("");
+  // Meeting capture — does the installer already have a site visit
+  // booked? If yes, the homeowner's report hides the Book tab and
+  // surfaces a banner with the date/time. If no, it shows the
+  // focused single-installer booking card.
+  const [meetingBooked, setMeetingBooked] = useState<"yes" | "no">("no");
+  const [meetingAt, setMeetingAt] = useState(""); // local-input "YYYY-MM-DDTHH:mm"
   const [state, setState] = useState<SubmitState>({ kind: "idle" });
 
   const insufficient = balance < costPerSend;
@@ -55,6 +61,13 @@ export function PreSurveyForm({ balance, costPerSend }: Props) {
       setState({ kind: "error", message: "Name + email needed." });
       return;
     }
+    if (meetingBooked === "yes" && !meetingAt) {
+      setState({
+        kind: "error",
+        message: "Pick the meeting date + time.",
+      });
+      return;
+    }
     setState({ kind: "submitting" });
     try {
       const res = await fetch("/api/installer/pre-survey-requests", {
@@ -64,6 +77,14 @@ export function PreSurveyForm({ balance, costPerSend }: Props) {
           contact_name: name.trim(),
           contact_email: email.trim(),
           contact_postcode: postcode.trim() || undefined,
+          meeting_status: meetingBooked === "yes" ? "booked" : "not_booked",
+          // Convert the local datetime input ("YYYY-MM-DDTHH:mm") into
+          // a full ISO 8601 string. Browser interprets the value as
+          // local time; new Date(...).toISOString() converts to UTC.
+          meeting_at:
+            meetingBooked === "yes" && meetingAt
+              ? new Date(meetingAt).toISOString()
+              : null,
         }),
       });
       const j = await res.json().catch(() => ({}));
@@ -79,6 +100,8 @@ export function PreSurveyForm({ balance, costPerSend }: Props) {
       setName("");
       setEmail("");
       setPostcode("");
+      setMeetingBooked("no");
+      setMeetingAt("");
       setState({ kind: "idle" });
       closeModal();
       router.replace("/installer/pre-survey-requests?sent=1");
@@ -135,6 +158,10 @@ export function PreSurveyForm({ balance, costPerSend }: Props) {
               setEmail={setEmail}
               postcode={postcode}
               setPostcode={setPostcode}
+              meetingBooked={meetingBooked}
+              setMeetingBooked={setMeetingBooked}
+              meetingAt={meetingAt}
+              setMeetingAt={setMeetingAt}
               state={state}
               onSubmit={onSubmit}
             />
@@ -158,6 +185,10 @@ function ModalForm(props: {
   setEmail: (s: string) => void;
   postcode: string;
   setPostcode: (s: string) => void;
+  meetingBooked: "yes" | "no";
+  setMeetingBooked: (v: "yes" | "no") => void;
+  meetingAt: string;
+  setMeetingAt: (s: string) => void;
   state: SubmitState;
   onSubmit: (e: React.FormEvent) => void;
 }) {
@@ -172,6 +203,10 @@ function ModalForm(props: {
     setEmail,
     postcode,
     setPostcode,
+    meetingBooked,
+    setMeetingBooked,
+    meetingAt,
+    setMeetingAt,
     state,
     onSubmit,
   } = props;
@@ -261,6 +296,59 @@ function ModalForm(props: {
           they spend less time hunting for their address.
         </p>
       </label>
+
+      {/* Meeting capture — drives the homeowner report's Book-tab
+          rendering. "Yes, booked" hides the Book tab + shows a
+          banner with the date/time; "Not yet" shows the focused
+          single-installer booking card (default). */}
+      <fieldset className="rounded-lg border border-slate-200 bg-slate-50/60 px-4 py-3">
+        <legend className="px-1 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+          Site visit booked already?
+        </legend>
+        <div className="flex flex-wrap items-center gap-3 mt-1">
+          <label className="inline-flex items-center gap-2 text-sm cursor-pointer">
+            <input
+              type="radio"
+              name="meeting_booked"
+              checked={meetingBooked === "no"}
+              onChange={() => setMeetingBooked("no")}
+              className="w-4 h-4 text-coral focus:ring-coral border-slate-300"
+            />
+            <span className="text-slate-700">Not yet</span>
+          </label>
+          <label className="inline-flex items-center gap-2 text-sm cursor-pointer">
+            <input
+              type="radio"
+              name="meeting_booked"
+              checked={meetingBooked === "yes"}
+              onChange={() => setMeetingBooked("yes")}
+              className="w-4 h-4 text-coral focus:ring-coral border-slate-300"
+            />
+            <span className="text-slate-700">Yes, already booked</span>
+          </label>
+        </div>
+        {meetingBooked === "yes" && (
+          <div className="mt-3">
+            <label className="block">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1.5">
+                Meeting date + time
+              </span>
+              <input
+                type="datetime-local"
+                value={meetingAt}
+                onChange={(e) => setMeetingAt(e.target.value)}
+                className="h-11 px-3 rounded-lg border border-slate-200 bg-white text-sm text-slate-900 focus:outline-none focus:border-coral focus:ring-2 focus:ring-coral/20"
+                required
+              />
+            </label>
+            <p className="text-[10px] text-slate-500 mt-1.5 leading-relaxed">
+              We&rsquo;ll show this on the customer&rsquo;s report and hide
+              the &ldquo;book a site visit&rdquo; tab — they&rsquo;ll know the
+              visit&rsquo;s already arranged with you.
+            </p>
+          </div>
+        )}
+      </fieldset>
 
       {state.kind === "error" && (
         <div className="rounded-lg border border-red-200 bg-red-50 p-3 flex items-start gap-2 text-sm">

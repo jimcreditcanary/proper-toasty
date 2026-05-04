@@ -141,3 +141,52 @@ describe("createPreSurveyRequestSchema — postcode", () => {
     }
   });
 });
+
+// ─── Meeting capture (I5 follow-up) ────────────────────────────────
+
+describe("meeting capture", () => {
+  it("defaults to not_booked when omitted", () => {
+    const parsed = createPreSurveyRequestSchema.parse(baseValid);
+    expect(parsed.meeting_status).toBe("not_booked");
+    expect(parsed.meeting_at).toBeFalsy();
+  });
+
+  it("accepts booked + an ISO datetime", () => {
+    const parsed = createPreSurveyRequestSchema.parse({
+      ...baseValid,
+      meeting_status: "booked",
+      meeting_at: "2026-06-15T14:30:00.000Z",
+    });
+    expect(parsed.meeting_status).toBe("booked");
+    expect(parsed.meeting_at).toBe("2026-06-15T14:30:00.000Z");
+  });
+
+  it("rejects booked without a meeting_at", () => {
+    expect(() =>
+      createPreSurveyRequestSchema.parse({
+        ...baseValid,
+        meeting_status: "booked",
+      }),
+    ).toThrow();
+  });
+
+  it("rejects not_booked WITH a meeting_at (consistency check)", () => {
+    expect(() =>
+      createPreSurveyRequestSchema.parse({
+        ...baseValid,
+        meeting_status: "not_booked",
+        meeting_at: "2026-06-15T14:30:00.000Z",
+      }),
+    ).toThrow();
+  });
+
+  it("rejects a non-ISO meeting_at string", () => {
+    expect(() =>
+      createPreSurveyRequestSchema.parse({
+        ...baseValid,
+        meeting_status: "booked",
+        meeting_at: "not a date",
+      }),
+    ).toThrow();
+  });
+});

@@ -57,7 +57,7 @@ async function loadPresurveyPrefill(
   const { data: request } = await admin
     .from("installer_pre_survey_requests")
     .select(
-      "id, installer_id, status, contact_name, contact_email, contact_postcode, clicked_at, completed_at, expires_at",
+      "id, installer_id, status, contact_name, contact_email, contact_postcode, clicked_at, completed_at, expires_at, meeting_status, meeting_at",
     )
     .eq("id", requestId)
     .eq("homeowner_token", token)
@@ -98,6 +98,9 @@ async function loadPresurveyPrefill(
     leadName: request.contact_name,
     preSurveyRequestId: request.id,
     preSurveyInstallerName: installer?.company_name ?? null,
+    preSurveyMeetingStatus:
+      request.meeting_status === "booked" ? "booked" : "not_booked",
+    preSurveyMeetingAt: request.meeting_at ?? null,
     prefillPostcode: request.contact_postcode,
   };
 }

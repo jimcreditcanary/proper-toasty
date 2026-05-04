@@ -88,6 +88,8 @@ export async function POST(req: Request) {
       contact_email: parsed.data.contact_email.trim().toLowerCase(),
       contact_postcode: parsed.data.contact_postcode,
       homeowner_token: homeownerToken,
+      meeting_status: parsed.data.meeting_status,
+      meeting_at: parsed.data.meeting_at ?? null,
     })
     .select("id, contact_name, contact_email, homeowner_token")
     .single();

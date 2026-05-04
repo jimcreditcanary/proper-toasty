@@ -22,6 +22,7 @@ import { useMemo, useRef, useState, type ReactNode } from "react";
 import {
   ArrowLeft,
   ArrowRight,
+  CalendarCheck2,
   CalendarDays,
   Flame,
   Home as HomeIcon,
@@ -112,13 +113,23 @@ export function ReportShell({ audience = "homeowner" }: ReportShellProps = {}) {
   const isInstaller = effectiveAudience === "installer";
   const isPreSurvey = effectiveAudience === "presurvey";
 
-  // Tabs filtered for the installer surface — drop Savings (consumer
-  // ROI tiles) and Book a site visit (booking is the homeowner's job).
-  // Pre-survey homeowners see all five tabs but the Book tab content
-  // is replaced (not the tab itself).
+  // Pre-survey + meeting already booked → the Book tab has nothing
+  // useful to offer. Hide it entirely + surface the meeting in a
+  // banner above the tab nav.
+  const meetingBooked =
+    isPreSurvey && state.preSurveyMeetingStatus === "booked";
+
+  // Tabs filtered:
+  //   - installer surface: drop Savings + Book (booking is the
+  //     homeowner's job; consumer ROI tiles are noise)
+  //   - presurvey + meeting booked: drop Book (the meeting's already
+  //     in the diary)
+  //   - everything else: all five tabs
   const visibleTabs = isInstaller
     ? TABS.filter((t) => t.key !== "savings" && t.key !== "book")
-    : TABS;
+    : meetingBooked
+      ? TABS.filter((t) => t.key !== "book")
+      : TABS;
   const a = state.analysis;
   const addr = state.address;
 
@@ -219,6 +230,12 @@ export function ReportShell({ audience = "homeowner" }: ReportShellProps = {}) {
           </h1>
         </div>
         {!isInstaller && <EligibilityChecklist analysis={a} />}
+        {meetingBooked && state.preSurveyMeetingAt && (
+          <MeetingBanner
+            installerName={state.preSurveyInstallerName ?? "your installer"}
+            meetingAt={state.preSurveyMeetingAt}
+          />
+        )}
       </header>
 
       {/* Tab nav — promoted from a thin underlined bar to a proper
@@ -447,4 +464,45 @@ function buildHeadline(a: AnalyseResponse): string {
     return `Rooftop solar looks great, but a heat pump isn't a straightforward fit right now.`;
   }
   return "We've flagged the key things an installer would want to know about your property.";
+}
+
+// Meeting-already-booked banner. Appears on the pre-survey homeowner
+// report when the installer ticked "site visit booked" + supplied a
+// date/time at send time. Replaces the Book-a-site-visit tab (which
+// is hidden in this state — there's nothing left to book).
+function MeetingBanner({
+  installerName,
+  meetingAt,
+}: {
+  installerName: string;
+  meetingAt: string;
+}) {
+  // Format the ISO string into something readable in the user's
+  // locale (Saturday 4 May 2026, 14:30). Falls back to the raw
+  // ISO if Date parsing fails — better than crashing the page.
+  let formatted: string;
+  try {
+    const d = new Date(meetingAt);
+    formatted = d.toLocaleString("en-GB", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch {
+    formatted = meetingAt;
+  }
+  return (
+    <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 flex items-start gap-3">
+      <CalendarCheck2 className="w-5 h-5 text-emerald-700 mt-0.5 shrink-0" />
+      <div className="min-w-0">
+        <p className="text-sm font-semibold text-emerald-900">
+          Site visit booked with {installerName}
+        </p>
+        <p className="mt-0.5 text-sm text-emerald-800">{formatted}</p>
+      </div>
+    </div>
+  );
 }

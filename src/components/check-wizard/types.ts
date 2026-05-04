@@ -104,6 +104,11 @@ export interface CheckWizardState {
   // pre-fills the postcode in step 1.
   preSurveyRequestId: string | null;
   preSurveyInstallerName: string | null;
+  // I5 follow-up: meeting status captured at send-time. When the
+  // installer flagged "site visit already booked", these are set.
+  // Drives the report's Book-tab visibility + the meeting banner.
+  preSurveyMeetingStatus: "not_booked" | "booked" | null;
+  preSurveyMeetingAt: string | null; // ISO 8601 UTC
   prefillPostcode: string | null;
 }
 
@@ -131,6 +136,8 @@ export const INITIAL_STATE: CheckWizardState = {
   leadId: null,
   preSurveyRequestId: null,
   preSurveyInstallerName: null,
+  preSurveyMeetingStatus: null,
+  preSurveyMeetingAt: null,
   prefillPostcode: null,
 };
 

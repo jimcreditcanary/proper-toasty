@@ -1436,6 +1436,10 @@ export interface Database {
           expires_at: string;
           created_at: string;
           updated_at: string;
+          // I5 follow-up — captured at send time, drives the
+          // homeowner report's Book-tab visibility + meeting banner.
+          meeting_status: "not_booked" | "booked";
+          meeting_at: string | null;
         };
         Insert: {
           id?: string;
@@ -1455,6 +1459,8 @@ export interface Database {
           expires_at?: string;
           created_at?: string;
           updated_at?: string;
+          meeting_status?: "not_booked" | "booked";
+          meeting_at?: string | null;
         };
         Update: Partial<Database["public"]["Tables"]["installer_pre_survey_requests"]["Insert"]>;
         Relationships: [];

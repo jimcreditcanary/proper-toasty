@@ -22,20 +22,49 @@ export const PRE_SURVEY_TOKEN_TTL_DAYS = 30;
 // uppercase + collapse before storing.
 const POSTCODE_RE = /^([A-Z]{1,2}\d[A-Z\d]?)\s*(\d[A-Z]{2})$/i;
 
-export const createPreSurveyRequestSchema = z.object({
-  contact_name: z.string().min(1, "Name needed").max(120),
-  contact_email: z.string().email("Valid email needed").max(254),
-  contact_postcode: z
-    .string()
-    .max(10)
-    .optional()
-    .transform((v) => (v ? v.trim().toUpperCase() : null))
-    .refine(
-      (v) => v == null || v === "" || POSTCODE_RE.test(v),
-      "Postcode doesn't look right",
-    )
-    .transform((v) => (v == null || v === "" ? null : normalisePostcode(v))),
-});
+export const createPreSurveyRequestSchema = z
+  .object({
+    contact_name: z.string().min(1, "Name needed").max(120),
+    contact_email: z.string().email("Valid email needed").max(254),
+    contact_postcode: z
+      .string()
+      .max(10)
+      .optional()
+      .transform((v) => (v ? v.trim().toUpperCase() : null))
+      .refine(
+        (v) => v == null || v === "" || POSTCODE_RE.test(v),
+        "Postcode doesn't look right",
+      )
+      .transform((v) =>
+        v == null || v === "" ? null : normalisePostcode(v),
+      ),
+    // Optional meeting capture. When the installer already has a site
+    // visit booked, "booked" + an ISO datetime; otherwise "not_booked"
+    // (the API default). The homeowner report branches on this:
+    // booked → hide the Book tab + show a meeting banner.
+    meeting_status: z
+      .enum(["not_booked", "booked"])
+      .optional()
+      .default("not_booked"),
+    meeting_at: z
+      .string()
+      .datetime({ message: "meeting_at must be an ISO 8601 datetime" })
+      .optional()
+      .nullable(),
+  })
+  .refine(
+    (v) =>
+      // booked → meeting_at required; not_booked → meeting_at must be
+      // empty. Mirrors the DB CHECK constraint so a bad payload 400s
+      // before we hit Postgres.
+      (v.meeting_status === "booked" && !!v.meeting_at) ||
+      (v.meeting_status === "not_booked" && !v.meeting_at),
+    {
+      message:
+        "meeting_at must be set iff meeting_status is 'booked'",
+      path: ["meeting_at"],
+    },
+  );
 export type CreatePreSurveyRequestInput = z.infer<typeof createPreSurveyRequestSchema>;
 
 function normalisePostcode(v: string): string {
