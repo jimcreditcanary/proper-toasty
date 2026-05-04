@@ -42,6 +42,10 @@ export function EligibilityChecklist({ analysis }: Props) {
   const solar = analysis.eligibility.solar;
   const solarStrong = solar.rating === "Excellent" || solar.rating === "Good";
 
+  // Verdict copy is deliberately plain English: "Compatible" /
+  // "Requires investigation" / "Not compatible". The previous mix
+  // ("Recommended", "Pairs well", "Good") was confusing — different
+  // labels per row meant the user couldn't compare at a glance.
   const items: ItemDef[] = [
     {
       id: "heatpump",
@@ -50,10 +54,10 @@ export function EligibilityChecklist({ analysis }: Props) {
       detail: hp.recommendedSystemKW ? `${hp.recommendedSystemKW} kW` : null,
       verdict:
         hp.verdict === "eligible"
-          ? "Recommended"
+          ? "Compatible"
           : hp.verdict === "conditional"
-            ? "Possible"
-            : "Not now",
+            ? "Requires investigation"
+            : "Not compatible",
       tone:
         hp.verdict === "eligible"
           ? "green"
@@ -66,7 +70,11 @@ export function EligibilityChecklist({ analysis }: Props) {
       Icon: Sun,
       title: "Solar PV",
       detail: solar.recommendedKWp ? `${solar.recommendedKWp} kWp` : null,
-      verdict: solar.rating,
+      verdict: solarStrong
+        ? "Compatible"
+        : solar.rating === "Marginal"
+          ? "Requires investigation"
+          : "Not compatible",
       tone: solarStrong ? "green" : solar.rating === "Marginal" ? "amber" : "slate",
     },
     {
@@ -74,8 +82,8 @@ export function EligibilityChecklist({ analysis }: Props) {
       Icon: Battery,
       title: "Battery",
       detail: null,
-      verdict: solarStrong ? "Pairs well" : "Optional",
-      tone: solarStrong ? "green" : "slate",
+      verdict: solarStrong ? "Compatible" : "Requires investigation",
+      tone: solarStrong ? "green" : "amber",
     },
   ];
 

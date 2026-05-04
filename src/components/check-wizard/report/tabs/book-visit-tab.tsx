@@ -336,40 +336,10 @@ export function BookVisitTab({
         ) : null}
       </SectionCard>
 
-      {/* What to ask checklist */}
-      <SectionCard
-        title="What to ask an installer when they call"
-        subtitle="A quick checklist so you know you're getting the right kind of quote."
-        icon={<Star className="w-5 h-5" />}
-      >
-        <ul className="space-y-3 text-sm text-slate-700 leading-relaxed">
-          <Check>
-            <strong className="text-navy">MCS certification number</strong> —
-            every quote should reference it. Required for the BUS grant to pay
-            out and for the export-tariff scheme.
-          </Check>
-          <Check>
-            <strong className="text-navy">Heat-loss survey on the day</strong>{" "}
-            — for heat pumps, this is non-negotiable. Walk away from anyone
-            happy to quote without measuring radiators and walls.
-          </Check>
-          <Check>
-            <strong className="text-navy">Specific kit on the quote</strong> —
-            heat pump model and serial, panel make + wattage, battery
-            chemistry. &ldquo;A 5kW heat pump&rdquo; isn&rsquo;t enough.
-          </Check>
-          <Check>
-            <strong className="text-navy">Warranty + aftercare</strong> — at
-            least 5 years on labour, 7+ on the kit. Ask who you call if
-            something breaks in year 3.
-          </Check>
-          <Check>
-            <strong className="text-navy">References from local jobs</strong>{" "}
-            — two or three properties similar to yours, with permission to
-            ring those owners. Good installers volunteer this.
-          </Check>
-        </ul>
-      </SectionCard>
+      {/* The "What to ask an installer" checklist used to live here.
+          Moved into the Overview tab's "Working with installers" card
+          so the prep checklist is the first thing the homeowner sees,
+          not buried at the bottom of the booking flow. */}
 
       {bookingFor && (
         <BookingModal
@@ -694,15 +664,6 @@ function FilterPill({
       {icon}
       {label}
     </span>
-  );
-}
-
-function Check({ children }: { children: React.ReactNode }) {
-  return (
-    <li className="flex items-start gap-2.5">
-      <span className="shrink-0 mt-1 inline-block w-1.5 h-1.5 rounded-full bg-coral" />
-      <span>{children}</span>
-    </li>
   );
 }
 
