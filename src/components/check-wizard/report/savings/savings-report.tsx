@@ -19,6 +19,7 @@
 // All numbers come from the API response — this component is
 // presentation-only.
 
+import { useState } from "react";
 import { AlertCircle, BadgeCheck, Loader2 } from "lucide-react";
 import type {
   CalculateRequest,
@@ -208,6 +209,13 @@ function TenYearOutlookSection({
   showFinance: boolean;
   showMortgage: boolean;
 }) {
+  // Two views over the same data:
+  //   - "monthly"    — what the homeowner pays per month, year by
+  //                    year (annualCost ÷ 12). Default — most
+  //                    homeowners think in monthly outgoings.
+  //   - "cumulative" — running total over the 10-year window. Best
+  //                    for comparing total spend.
+  const [view, setView] = useState<"monthly" | "cumulative">("monthly");
   const proj = result.projections;
   const series: Array<{
     key: Scenario;
@@ -253,20 +261,65 @@ function TenYearOutlookSection({
   const tableYears = [1, 3, 5, 7, 10];
   const idxFromYear = (yr: number) => yr - 1;
 
+  // Per-view chart values + axis label. Monthly view divides each
+  // scenario's annual cost by 12 — that's what shows up on a
+  // homeowner's bank statement, more relatable than running totals.
+  const chartValuesFor = (s: (typeof series)[number]): number[] =>
+    view === "cumulative" ? s.cum : s.annual.map((v) => v / 12);
+  const yAxisLabel =
+    view === "cumulative"
+      ? "Cumulative cost (£)"
+      : "Average monthly outgoings (£)";
+  const subtitleCopy =
+    view === "cumulative"
+      ? "Total running cost across each scenario over 10 years."
+      : "Average monthly outgoings (energy bills + finance/mortgage payment) — what each scenario costs you year by year.";
+
   return (
     <SectionCard
       title="Your 10-year outlook"
-      subtitle="Cumulative cost across each scenario — chart + table both show the same data."
+      subtitle={subtitleCopy}
     >
+      {/* View toggle — monthly is the default because most homeowners
+          think in monthly outgoings, not 10-year totals. */}
+      <div
+        role="tablist"
+        aria-label="Chart view"
+        className="mb-4 inline-flex rounded-full border border-slate-200 bg-slate-50 p-0.5 text-xs font-semibold"
+      >
+        {([
+          ["monthly", "Monthly outgoings"],
+          ["cumulative", "Cumulative cost"],
+        ] as const).map(([key, label]) => {
+          const active = view === key;
+          return (
+            <button
+              key={key}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              onClick={() => setView(key)}
+              className={`px-3 sm:px-4 py-1.5 rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-coral focus-visible:ring-offset-1 ${
+                active
+                  ? "bg-white text-navy shadow-sm"
+                  : "text-slate-600 hover:text-navy"
+              }`}
+            >
+              {label}
+            </button>
+          );
+        })}
+      </div>
+
       <CumulativeCostChart
         years={proj.years}
         series={series.map((s) => ({
           key: s.key,
           label: s.label,
-          values: s.cum,
+          values: chartValuesFor(s),
           color: s.color,
         }))}
-        yAxisLabel="Cumulative cost (£)"
+        yAxisLabel={yAxisLabel}
       />
 
       <div className="mt-6 overflow-x-auto">
@@ -306,7 +359,9 @@ function TenYearOutlookSection({
                     key={yr}
                     className="py-2 px-3 text-sm text-navy tabular-nums"
                   >
-                    {fmtGbp(s.annual[idxFromYear(yr)])}
+                    {view === "cumulative"
+                      ? fmtGbp(s.cum[idxFromYear(yr)])
+                      : `${fmtGbp(s.annual[idxFromYear(yr)] / 12)}/mo`}
                   </td>
                 ))}
               </tr>
@@ -314,8 +369,9 @@ function TenYearOutlookSection({
           </tbody>
         </table>
         <p className="mt-2 text-xs text-slate-500">
-          Annual cost (not cumulative) shown in the table — chart shows
-          cumulative.
+          {view === "cumulative"
+            ? "Cumulative cost up to the start of the year shown."
+            : "Average monthly outgoings during the year shown — covers both energy bills + finance/mortgage payment."}
         </p>
       </div>
     </SectionCard>
