@@ -16,9 +16,14 @@ export const config = {
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
+     * - any path ending in a static-asset extension. `.ico` was
+     *   missing from this list, which meant /installer/favicon.ico
+     *   was being auth-gated (307 to /auth/login) instead of
+     *   passing through to the rewrite rule that maps nested
+     *   favicons back to the canonical /favicon.ico. Now covered.
      * - public folder
      * - API routes that use API key auth (handled separately)
      */
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:ico|svg|png|jpg|jpeg|gif|webp|woff2?|ttf|otf)$).*)",
   ],
 };

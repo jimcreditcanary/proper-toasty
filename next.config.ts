@@ -22,14 +22,46 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "images.unsplash.com" },
     ],
   },
+  // Nested favicon paths bug: browsers + crawlers occasionally
+  // request /favicon.ico (and friends) under whatever URL they're
+  // currently on (e.g. /installer/favicon.ico, /r/<token>/favicon.ico).
+  // Without these rewrites they 404 — and because the headers rule
+  // below applied `immutable, max-age=1yr` to anything matching an
+  // asset extension at any depth, the 404 was getting cached for a
+  // YEAR. Users who hit it once saw a permanently broken favicon
+  // until the browser cache expired.
+  //
+  // beforeFiles runs before filesystem routing, so these rewrites
+  // resolve BEFORE Next tries to serve the actual file path.
+  async rewrites() {
+    return {
+      beforeFiles: [
+        { source: "/:path*/favicon.ico", destination: "/favicon.ico" },
+        { source: "/:path*/icon.svg", destination: "/icon.svg" },
+        {
+          source: "/:path*/apple-touch-icon.png",
+          destination: "/apple-touch-icon.png",
+        },
+      ],
+      afterFiles: [],
+      fallback: [],
+    };
+  },
   async headers() {
     return [
       {
         source: "/(.*)",
         headers: securityHeaders,
       },
+      // Long-cache static assets — root-level files only. The
+      // earlier `/(.*)\\.ico` pattern matched at every depth, so a
+      // 404 at /installer/favicon.ico was getting the 1-year
+      // immutable cache. The `[^/]+` segment caps the match at
+      // root-level paths; the rewrites above handle anything at
+      // a nested depth by mapping it back to the root file.
       {
-        source: "/(.*)\\.(js|css|woff2?|ttf|otf|ico|svg|png|jpg|jpeg|gif|webp)",
+        source:
+          "/:file([^/]+)\\.(js|css|woff2?|ttf|otf|ico|svg|png|jpg|jpeg|gif|webp)",
         headers: [
           {
             key: "Cache-Control",
