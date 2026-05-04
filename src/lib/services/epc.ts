@@ -35,8 +35,18 @@ function normalisePostcode(p: string): string {
   return p.trim().toUpperCase().replace(/\s+/g, "");
 }
 
-function padUprn(uprn: string | number): string {
-  return String(uprn).trim().padStart(12, "0");
+// The GOV.UK EPC API now validates UPRN as "an integer greater than
+// 0" — sending the legacy zero-padded 12-char string ("000000123456")
+// trips a 400. We send the bare integer instead, and skip the call
+// entirely when the UPRN parses to 0 / NaN / negative (the address
+// service occasionally hands us empty UPRNs for new-builds + some
+// pseudo-properties that don't have one yet).
+function uprnToInt(uprn: string | number | null | undefined): number | null {
+  if (uprn == null) return null;
+  const trimmed = typeof uprn === "number" ? uprn : String(uprn).trim();
+  if (trimmed === "" || trimmed === 0) return null;
+  const n = typeof trimmed === "number" ? trimmed : parseInt(trimmed, 10);
+  return Number.isInteger(n) && n > 0 ? n : null;
 }
 
 function parseNumber(v: string | number | undefined): number | null {
@@ -86,8 +96,10 @@ function matchScore(a: string, b: string): number {
 // ─── raw calls ────────────────────────────────────────────────────────────────
 
 async function searchByUprn(uprn: string): Promise<EpcSearchRow[]> {
+  const intUprn = uprnToInt(uprn);
+  if (intUprn == null) return [];
   const url = new URL(`${EPC_BASE}/api/domestic/search`);
-  url.searchParams.set("uprn", padUprn(uprn));
+  url.searchParams.set("uprn", String(intUprn));
   url.searchParams.set("page_size", "10");
 
   const res = await fetch(url.toString(), { headers: authHeaders() });
@@ -326,7 +338,10 @@ export interface GetEpcInput {
 // (one per property); postcode+address is the fallback. Returns null when
 // there's nothing to key on — in that case we skip the cache entirely.
 function epcCacheKey(input: GetEpcInput): string | null {
-  if (input.uprn) return `uprn:${padUprn(input.uprn)}`;
+  if (input.uprn) {
+    const n = uprnToInt(input.uprn);
+    if (n != null) return `uprn:${n}`;
+  }
   if (input.postcode && input.addressLine1) {
     const pc = normalisePostcode(input.postcode);
     const addr = input.addressLine1.toLowerCase().trim().replace(/\s+/g, " ");

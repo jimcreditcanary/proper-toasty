@@ -84,11 +84,21 @@ export async function POST(req: Request) {
       };
     });
 
-    if (rawAddresses.length > 0 && addresses.every((a) => !a.uprn.startsWith("row-"))) {
-      // all good
-    } else if (rawAddresses.length > 0) {
+    // Some Royal Mail PAF addresses genuinely don't carry a UPRN
+    // (a few new-builds, pseudo-addresses, BFPO, etc.). Our plan's
+    // addtags request UPRN and Postcoder returns it where available
+    // — the gaps are upstream data limits, not config issues. We
+    // synthesise a `row-N` key so React has stable list keys and
+    // the EPC lookup falls back to postcode+address matching for
+    // those rows.
+    //
+    // Only log if MOST rows are missing UPRN — that genuinely
+    // suggests the plan or addtags is wrong. A scattering of
+    // missing UPRNs is normal and not worth a warning.
+    const missingUprn = addresses.filter((a) => a.uprn.startsWith("row-")).length;
+    if (rawAddresses.length > 0 && missingUprn / rawAddresses.length >= 0.5) {
       console.warn(
-        `Postcoder returned ${rawAddresses.length} rows for ${formatted} but UPRN was missing on some — check the plan's addtags (uprn,udprn,latitude,longitude).`
+        `[address-lookup] ${missingUprn}/${rawAddresses.length} Postcoder rows for ${formatted} are missing UPRN — verify the plan's addtags (uprn,udprn,latitude,longitude) are still being honoured.`
       );
     }
 
