@@ -82,11 +82,22 @@ export function SiteHeader({
                 <div className="px-2 py-1.5 text-xs text-slate-500">{email}</div>
                 <DropdownMenuSeparator className="bg-slate-200" />
                 {/* Role-aware home link — admins land in /admin, installers
-                    in /installer, everyone else in the legacy /dashboard. */}
+                    in /installer, everyone else in the legacy /dashboard.
+                    Admins also get cross-portal links so they can
+                    inspect the installer + homeowner views without
+                    signing out. */}
                 {role === "admin" ? (
-                  <DropdownMenuItem render={<Link href="/admin" />} className="text-slate-500 hover:text-slate-900 focus:text-slate-900 focus:bg-slate-100">
-                    Admin portal
-                  </DropdownMenuItem>
+                  <>
+                    <DropdownMenuItem render={<Link href="/admin" />} className="text-slate-500 hover:text-slate-900 focus:text-slate-900 focus:bg-slate-100">
+                      Admin portal
+                    </DropdownMenuItem>
+                    {/* Cross-portal jump so admins can inspect the
+                        installer surface without signing out. The
+                        installer layout already permits admins. */}
+                    <DropdownMenuItem render={<Link href="/installer" />} className="text-slate-500 hover:text-slate-900 focus:text-slate-900 focus:bg-slate-100">
+                      Installer portal
+                    </DropdownMenuItem>
+                  </>
                 ) : role === "installer" ? (
                   <DropdownMenuItem render={<Link href="/installer" />} className="text-slate-500 hover:text-slate-900 focus:text-slate-900 focus:bg-slate-100">
                     Installer portal

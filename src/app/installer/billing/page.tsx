@@ -250,12 +250,12 @@ function MonthlyLedger({ data }: { data: BillingData }) {
                     </td>
                     <td className="text-right px-3 py-3">
                       {m.usage.leadAcceptances > 0
-                        ? `${m.usage.leadAcceptances} (${m.usage.leadCreditsUsed} cr)`
+                        ? `${m.usage.leadAcceptances} (${m.usage.leadCreditsUsed} ${m.usage.leadCreditsUsed === 1 ? "credit" : "credits"})`
                         : "—"}
                     </td>
                     <td className="text-right px-3 py-3">
                       {m.usage.preSurveyRequests > 0
-                        ? `${m.usage.preSurveyRequests} (${m.usage.preSurveyCreditsUsed} cr)`
+                        ? `${m.usage.preSurveyRequests} (${m.usage.preSurveyCreditsUsed} ${m.usage.preSurveyCreditsUsed === 1 ? "credit" : "credits"})`
                         : "—"}
                     </td>
                     <td
@@ -284,11 +284,13 @@ function MonthlyLedger({ data }: { data: BillingData }) {
                 </td>
                 <td className="text-right px-3 py-3 text-slate-700">
                   {data.totals.usage.leadAcceptances} (
-                  {data.totals.usage.leadCreditsUsed} cr)
+                  {data.totals.usage.leadCreditsUsed}{" "}
+                  {data.totals.usage.leadCreditsUsed === 1 ? "credit" : "credits"})
                 </td>
                 <td className="text-right px-3 py-3 text-slate-700">
                   {data.totals.usage.preSurveyRequests} (
-                  {data.totals.usage.preSurveyCreditsUsed} cr)
+                  {data.totals.usage.preSurveyCreditsUsed}{" "}
+                  {data.totals.usage.preSurveyCreditsUsed === 1 ? "credit" : "credits"})
                 </td>
                 <td className="text-right px-5 py-3 font-bold text-coral-dark">
                   −{data.totals.usage.totalCreditsUsed}

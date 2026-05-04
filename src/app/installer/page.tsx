@@ -5,13 +5,17 @@ import { PortalShell } from "@/components/portal-shell";
 import {
   AlertCircle,
   ArrowRight,
+  CalendarClock,
   CalendarDays,
   CheckCircle2,
   Circle,
+  Coins,
   CreditCard,
+  FileEdit,
   FileText,
   Inbox,
   KeyRound,
+  PoundSterling,
   Send,
   Sparkles,
   TrendingUp,
@@ -23,28 +27,36 @@ import {
   buildChecklist,
   type ChecklistResult,
 } from "@/lib/installer-onboarding/checklist";
+import { loadInstallerDashboardMetrics } from "@/lib/installer/dashboard-metrics";
+import { formatGbp } from "@/lib/proposals/schema";
 
-// Installer portal landing.
+// Installer portal landing — redesigned around deal-flow signal.
 //
-// Each card is a placeholder for a feature being shipped in
-// subsequent PRs. Cards flip to live links as the features land.
+// The previous grid of nine equally-weighted feature tiles was
+// noisy: every feature got the same screen weight regardless of
+// whether the installer needed it today. The redesign splits the
+// surface into three layers:
+//
+//   1. Onboarding wizard (kept) — hides automatically once the
+//      installer has completed the four core setup steps.
+//   2. Deal-flow tiles — what's happening right now (upcoming
+//      meetings, this-month booked, quotes out / won, value of
+//      pipeline). Plus a prominent credit balance + top-up card.
+//   3. Quick nav strip — every feature reachable in one click,
+//      compact, no body copy. The grid was duplicating navigation
+//      as a marketing pitch; here it's just a way to get there.
 
-interface FeatureCard {
+interface NavLink {
   title: string;
-  body: string;
   icon: LucideIcon;
-  status: "live" | "coming-soon";
-  href?: string;
-  /** Coral pip on the right of the tile heading. Use for actionable
-   *  state ("you've got 3 things to look at"). 0 hides it. */
+  href: string;
+  /** Coral pip on the right of the title. 0 hides it. */
   badge?: number;
 }
 
 export const dynamic = "force-dynamic";
 
 export default async function InstallerHomePage() {
-  // Pull two server-side signals: the auto-recharge failure banner
-  // + the pending-leads count badge for the Leads tile.
   const supabase = await createClient();
   const {
     data: { user },
@@ -52,13 +64,12 @@ export default async function InstallerHomePage() {
 
   let failureReason: string | null = null;
   let pendingLeads = 0;
-  // Pull the bound installer's company name so the page title can
-  // be specific ("Welcome back, Toasty Test Installer Ltd") rather
-  // than the generic "Welcome back". Massive UX win for accounts
-  // managing multiple companies — they instantly know which login
-  // they're in.
   let companyName: string | null = null;
   let checklist: ChecklistResult | null = null;
+  let creditBalance = 0;
+  let metrics: Awaited<
+    ReturnType<typeof loadInstallerDashboardMetrics>
+  > | null = null;
 
   if (user) {
     const admin = createAdminClient();
@@ -83,14 +94,12 @@ export default async function InstallerHomePage() {
       failureReason =
         profileRes.data.auto_recharge_failure_reason ?? "Card declined";
     }
+    creditBalance = profileRes.data?.credits ?? 0;
 
     if (installerRes.data) {
       companyName = installerRes.data.company_name;
-      // Pull the four onboarding signals + the pending-leads badge
-      // count in parallel — single round-trip burst keeps the
-      // landing page snappy even with the extra queries.
       const installerId = installerRes.data.id;
-      const [pendingRes, availabilityRes, preSurveyRes, proposalRes] =
+      const [pendingRes, availabilityRes, preSurveyRes, proposalRes, dealMetrics] =
         await Promise.all([
           admin
             .from("installer_leads")
@@ -110,87 +119,34 @@ export default async function InstallerHomePage() {
             .select("id", { count: "exact", head: true })
             .eq("installer_id", installerId)
             .not("sent_at", "is", null),
+          loadInstallerDashboardMetrics(admin, installerId),
         ]);
       pendingLeads = pendingRes.count ?? 0;
       checklist = buildChecklist({
         hasAvailability: (availabilityRes.count ?? 0) > 0,
-        creditBalance: profileRes.data?.credits ?? 0,
+        creditBalance,
         preSurveyRequestCount: preSurveyRes.count ?? 0,
         proposalSentCount: proposalRes.count ?? 0,
       });
+      metrics = dealMetrics;
     }
   }
 
-  const features: FeatureCard[] = [
-    {
-      title: "Availability",
-      body: "Set the times you can take site visits. Slots auto-roll forward 28 days.",
-      icon: CalendarDays,
-      status: "live",
-      href: "/installer/availability",
-    },
-    {
-      title: "Leads",
-      body: "Accept or reject site-visit requests. 5 credits per accepted lead.",
-      icon: Inbox,
-      status: "live",
-      href: "/installer/leads",
-      badge: pendingLeads,
-    },
-    {
-      title: "Reports",
-      body: "Pre-survey reports for every lead you've accepted. Search by address, postcode, name, email or phone.",
-      icon: FileText,
-      status: "live",
-      href: "/installer/reports",
-    },
-    {
-      title: "Send quote",
-      body: "Build a line-item quote and send it to the homeowner. Accept/decline tracked + emailed back to you.",
-      icon: Send,
-      status: "live",
-      href: "/installer/proposals",
-    },
-    {
-      title: "Pre-survey requests",
-      body: "Email your customers a personalised link to complete the check. 1 credit per send. Completed leads land in your inbox auto-accepted.",
-      icon: Zap,
-      status: "live",
-      href: "/installer/pre-survey-requests",
-    },
-    {
-      title: "Buy credits",
-      body: "30 / 100 / 250 / 1,000 credit packs. Auto top-up available.",
-      icon: CreditCard,
-      status: "live",
-      href: "/installer/credits",
-    },
-    {
-      title: "Performance",
-      body: "Leads received, quoted, won — with conversion rates and a 3-month trend.",
-      icon: TrendingUp,
-      status: "live",
-      href: "/installer/performance",
-    },
-    {
-      title: "Billing & receipts",
-      body: "Consolidated VAT receipts + monthly credit ledger. CSV export for accountants.",
-      icon: Wallet,
-      status: "live",
-      href: "/installer/billing",
-    },
-    {
-      title: "API access",
-      body: "Integrate pre-survey requests into your CRM. POST name, email, postcode — 1 credit per call.",
-      icon: KeyRound,
-      status: "live",
-      href: "/installer/api-access",
-    },
+  // Nav strip — every feature, compact. Order roughly by frequency
+  // of use: leads on the left (where the eye lands), credits + admin
+  // bits on the right.
+  const navLinks: NavLink[] = [
+    { title: "Leads", icon: Inbox, href: "/installer/leads", badge: pendingLeads },
+    { title: "Quotes", icon: Send, href: "/installer/proposals" },
+    { title: "Reports", icon: FileText, href: "/installer/reports" },
+    { title: "Pre-survey requests", icon: Zap, href: "/installer/pre-survey-requests" },
+    { title: "Availability", icon: CalendarDays, href: "/installer/availability" },
+    { title: "Performance", icon: TrendingUp, href: "/installer/performance" },
+    { title: "Credits", icon: CreditCard, href: "/installer/credits" },
+    { title: "Billing", icon: Wallet, href: "/installer/billing" },
+    { title: "API access", icon: KeyRound, href: "/installer/api-access" },
   ];
 
-  // Title: prefer the company name when bound. The PortalShell's
-  // "Installer portal" pill above already says they're in the
-  // installer surface, so we don't duplicate "Welcome back".
   const pageTitle = companyName ?? "Welcome back";
   const pageSubtitle = companyName
     ? "Manage your availability, accept leads, and quote with confidence."
@@ -228,64 +184,263 @@ export default async function InstallerHomePage() {
         <OnboardingChecklist checklist={checklist} companyName={companyName} />
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {features.map((f) => (
-          <FeatureTile key={f.title} feature={f} />
-        ))}
-      </div>
+      {/* ─── Credits card — pulled out of the metrics grid because
+          it's the only one with a CTA and the action is high-stakes
+          (running out kills lead acceptance). Full-width, action on
+          the right, balance on the left. ───────────────────────── */}
+      {companyName && (
+        <CreditCardBlock
+          balance={creditBalance}
+          autoRechargeFailed={Boolean(failureReason)}
+        />
+      )}
+
+      {/* ─── Deal-flow metrics ─────────────────────────────────── */}
+      {companyName && metrics && (
+        <DealFlowGrid metrics={metrics} pendingLeads={pendingLeads} />
+      )}
+
+      {/* ─── Quick nav strip ───────────────────────────────────── */}
+      {companyName && <QuickNav links={navLinks} />}
+
+      {/* If they don't have a bound installer profile yet (between
+          signup and claim), the rest of the page is empty — nothing
+          to show until claim completes. The onboarding wizard above
+          will already be prompting them to finish. */}
     </PortalShell>
   );
 }
 
-function FeatureTile({ feature }: { feature: FeatureCard }) {
-  const Icon = feature.icon;
-  const card = (
-    <div
-      className={`rounded-xl border p-5 transition-all h-full flex flex-col ${
-        feature.status === "live"
-          ? "border-slate-200 bg-white hover:border-coral/30 hover:shadow-sm cursor-pointer"
-          : "border-slate-200 bg-slate-50/60"
+// ─── Credits card ──────────────────────────────────────────────────
+
+function CreditCardBlock({
+  balance,
+  autoRechargeFailed,
+}: {
+  balance: number;
+  autoRechargeFailed: boolean;
+}) {
+  const low = balance <= 10;
+  return (
+    <section
+      className={`rounded-2xl border p-5 sm:p-6 mb-6 flex flex-col sm:flex-row sm:items-center gap-4 ${
+        autoRechargeFailed
+          ? "border-amber-200 bg-amber-50/40"
+          : low
+            ? "border-amber-200 bg-amber-50/30"
+            : "border-slate-200 bg-white"
       }`}
     >
-      <div className="flex items-center gap-3 mb-2">
-        <span
-          className={`inline-flex items-center justify-center w-9 h-9 rounded-xl ${
-            feature.status === "live"
-              ? "bg-coral-pale text-coral-dark"
-              : "bg-slate-100 text-slate-500"
-          }`}
-        >
-          <Icon className="w-4 h-4" />
+      <div className="flex items-center gap-4 flex-1 min-w-0">
+        <span className="shrink-0 inline-flex items-center justify-center w-12 h-12 rounded-xl bg-coral-pale text-coral-dark">
+          <Coins className="w-5 h-5" />
         </span>
-        <h3 className="text-base font-semibold text-navy">{feature.title}</h3>
-        {feature.status === "coming-soon" && (
-          <span className="ml-auto inline-flex items-center text-[10px] font-semibold uppercase tracking-wider text-slate-500 bg-slate-100 rounded-full px-2 py-0.5">
-            Soon
-          </span>
-        )}
-        {feature.status === "live" && feature.badge && feature.badge > 0 && (
-          <span className="ml-auto inline-flex items-center justify-center min-w-[22px] h-5 px-1.5 rounded-full text-[10px] font-bold bg-coral text-white">
-            {feature.badge}
-          </span>
-        )}
+        <div className="flex-1 min-w-0">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+            Available
+          </p>
+          <p className="text-3xl font-bold text-navy leading-tight">
+            {balance.toLocaleString("en-GB")} credit{balance === 1 ? "" : "s"}
+          </p>
+          <p className="text-xs text-slate-500 mt-0.5">
+            5 credits per accepted lead · 1 credit per pre-survey send
+          </p>
+        </div>
       </div>
-      <p className="text-sm text-slate-600 leading-relaxed">{feature.body}</p>
+      <Link
+        href="/installer/credits"
+        className="shrink-0 inline-flex items-center justify-center gap-1.5 h-11 px-5 rounded-full bg-coral hover:bg-coral-dark text-white font-semibold text-sm shadow-sm transition-colors"
+      >
+        Top up
+        <ArrowRight className="w-3.5 h-3.5" />
+      </Link>
+    </section>
+  );
+}
+
+// ─── Deal-flow metrics grid ────────────────────────────────────────
+
+function DealFlowGrid({
+  metrics,
+  pendingLeads,
+}: {
+  metrics: NonNullable<
+    Awaited<ReturnType<typeof loadInstallerDashboardMetrics>>
+  >;
+  pendingLeads: number;
+}) {
+  const nextLabel = metrics.nextMeetingAt
+    ? `Next: ${formatRelative(metrics.nextMeetingAt)}`
+    : metrics.upcomingMeetings === 0
+      ? "Nothing booked yet"
+      : "—";
+
+  return (
+    <section className="mb-6">
+      <h2 className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-3">
+        Your deal flow
+      </h2>
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        <MetricTile
+          label="Upcoming meetings"
+          value={metrics.upcomingMeetings.toLocaleString("en-GB")}
+          sub={nextLabel}
+          icon={CalendarClock}
+          accent="coral"
+        />
+        <MetricTile
+          label="Booked this month"
+          value={metrics.meetingsThisMonth.toLocaleString("en-GB")}
+          sub={
+            metrics.meetingsThisMonth === 0
+              ? "—"
+              : `${metrics.upcomingMeetings} still to come`
+          }
+          icon={CalendarDays}
+        />
+        <MetricTile
+          label="Pending leads"
+          value={pendingLeads.toLocaleString("en-GB")}
+          sub={pendingLeads === 0 ? "Inbox is clear" : "Accept to lock in"}
+          icon={Inbox}
+          accent={pendingLeads > 0 ? "coral" : undefined}
+        />
+        <MetricTile
+          label="Quotes sent this month"
+          value={metrics.quotesSentThisMonth.toLocaleString("en-GB")}
+          sub={
+            metrics.quotesSentThisMonth === 0
+              ? "Send your first this month"
+              : "Awaiting decision"
+          }
+          icon={FileEdit}
+        />
+        <MetricTile
+          label="Pipeline value"
+          value={formatGbp(metrics.quotesOutstandingPence)}
+          sub="Across quotes still out"
+          icon={TrendingUp}
+        />
+        <MetricTile
+          label="Won this month"
+          value={formatGbp(metrics.quotesWonValuePence)}
+          sub={
+            metrics.quotesWonThisMonth === 0
+              ? "—"
+              : `${metrics.quotesWonThisMonth} accepted`
+          }
+          icon={PoundSterling}
+          accent={metrics.quotesWonValuePence > 0 ? "emerald" : undefined}
+        />
+      </div>
+    </section>
+  );
+}
+
+function MetricTile({
+  label,
+  value,
+  sub,
+  icon: Icon,
+  accent,
+}: {
+  label: string;
+  value: string;
+  sub: string;
+  icon: LucideIcon;
+  accent?: "coral" | "emerald";
+}) {
+  const iconCls =
+    accent === "coral"
+      ? "bg-coral-pale text-coral-dark"
+      : accent === "emerald"
+        ? "bg-emerald-50 text-emerald-700"
+        : "bg-slate-100 text-slate-500";
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-4">
+      <div className="flex items-center gap-2 mb-2">
+        <span
+          className={`inline-flex items-center justify-center w-7 h-7 rounded-lg ${iconCls}`}
+        >
+          <Icon className="w-3.5 h-3.5" />
+        </span>
+        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+          {label}
+        </p>
+      </div>
+      <p className="text-2xl font-bold text-navy leading-none">{value}</p>
+      <p className="text-[11px] text-slate-500 mt-2 leading-snug">{sub}</p>
     </div>
   );
+}
 
-  if (feature.href) {
-    return (
-      <a href={feature.href} className="block h-full">
-        {card}
-      </a>
-    );
+function formatRelative(iso: string): string {
+  const d = new Date(iso);
+  const now = new Date();
+  const diffMs = d.getTime() - now.getTime();
+  const diffH = diffMs / (1000 * 60 * 60);
+  const time = new Intl.DateTimeFormat("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "Europe/London",
+  }).format(d);
+  if (diffH < 24) return `today ${time}`;
+  if (diffH < 48) return `tomorrow ${time}`;
+  // Within a week → "Wed 3:00 pm"
+  if (diffH < 24 * 7) {
+    const day = new Intl.DateTimeFormat("en-GB", {
+      weekday: "short",
+      timeZone: "Europe/London",
+    }).format(d);
+    return `${day} ${time}`;
   }
-  return card;
+  // Otherwise → "14 Apr"
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "numeric",
+    month: "short",
+    timeZone: "Europe/London",
+  }).format(d);
+}
+
+// ─── Quick nav strip ───────────────────────────────────────────────
+
+function QuickNav({ links }: { links: NavLink[] }) {
+  return (
+    <section>
+      <h2 className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-3">
+        Jump to
+      </h2>
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+        {links.map((l) => {
+          const Icon = l.icon;
+          return (
+            <Link
+              key={l.href}
+              href={l.href}
+              className="group flex items-center gap-2 px-3 h-12 rounded-xl border border-slate-200 bg-white hover:border-coral/40 hover:shadow-sm transition-all"
+            >
+              <span className="shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-100 text-slate-600 group-hover:bg-coral-pale group-hover:text-coral-dark transition-colors">
+                <Icon className="w-3.5 h-3.5" />
+              </span>
+              <span className="flex-1 text-sm font-medium text-navy truncate">
+                {l.title}
+              </span>
+              {l.badge && l.badge > 0 ? (
+                <span className="shrink-0 inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-[10px] font-bold bg-coral text-white">
+                  {l.badge}
+                </span>
+              ) : null}
+            </Link>
+          );
+        })}
+      </div>
+    </section>
+  );
 }
 
 // ─── Onboarding checklist ──────────────────────────────────────────
 //
-// Renders above the feature tiles when the installer hasn't yet
+// Renders above everything else when the installer hasn't yet
 // completed the four core steps. Highlights one current step at a
 // time so first-time visitors aren't presented with four equal
 // CTAs and end up doing none of them. Hides automatically once
@@ -380,3 +535,4 @@ function ChecklistRow({
     </div>
   );
 }
+

@@ -90,16 +90,20 @@ export default async function PerformancePage() {
     <PortalShell
       portalName="Installer"
       pageTitle="Performance"
-      pageSubtitle={`Last ${PERFORMANCE_WINDOW_MONTHS} months at a glance — pipeline, conversion, and what&rsquo;s working.`}
+      pageSubtitle={`Last ${PERFORMANCE_WINDOW_MONTHS} months at a glance — pipeline, conversion, and what's working.`}
       backLink={{ href: "/installer", label: "Back to installer portal" }}
     >
       {!hasAnyActivity ? (
         <EmptyState />
       ) : (
         <>
+          {/* Funnel section removed — the KPI strip already shows
+              leads → sent → accepted as totals, and the Monthly
+              trend visualises them over time. The dedicated Funnel
+              with drop-off bars was duplicate information at a
+              third viewing angle. */}
           <KpiStrip data={data} />
           <SourceBreakdown data={data} />
-          <Funnel data={data} />
           <MonthlyTrend data={data} />
         </>
       )}
@@ -118,7 +122,7 @@ function KpiStrip({ data }: { data: PerformanceData }) {
       <Kpi
         label="Leads received"
         value={t.leads.total.toLocaleString("en-GB")}
-        sub={`${t.leads.preSurvey} from your sends · ${t.leads.directory} directory`}
+        sub={`${t.leads.preSurvey} from your sends · ${t.leads.directory} from homeowners`}
         icon={<Inbox className="w-4 h-4" />}
       />
       <Kpi
@@ -221,15 +225,15 @@ function SourceBreakdown({ data }: { data: PerformanceData }) {
 
       <div className="space-y-3">
         <SourceBar
-          label="Directory"
-          tooltip="Homeowners who picked you from the pre-survey report"
+          label="From homeowners"
+          tooltip="Homeowners who picked you from their pre-survey report"
           value={t.leads.directory}
           max={max}
           color="bg-sky-500"
         />
         <SourceBar
-          label="Pre-survey requests"
-          tooltip="Customers you sent a personalised /check link to"
+          label="From your sends"
+          tooltip="Leads from pre-survey links you sent to your own customers"
           value={t.leads.preSurvey}
           max={max}
           color="bg-coral"
@@ -318,78 +322,6 @@ function MicroStat({
         {value}
       </p>
       <p className="text-[10px] text-slate-500 mt-1">{sub}</p>
-    </div>
-  );
-}
-
-// ─── Funnel ─────────────────────────────────────────────────────────
-
-function Funnel({ data }: { data: PerformanceData }) {
-  const t = data.totals;
-  // Stages are ordered by where each row enters the pipeline.
-  // "Leads received" already includes both pre-survey-completed +
-  // directory leads (per our acknowledged-at definition), so we
-  // collapse the two sources into one bar to avoid double-counting.
-  const stages: { label: string; value: number; sub?: string }[] = [
-    {
-      label: "Leads received",
-      value: t.leads.total,
-      sub: `${t.leads.preSurvey} pre-survey · ${t.leads.directory} directory`,
-    },
-    { label: "Quotes sent", value: t.quotes.sent },
-    { label: "Quotes accepted", value: t.quotes.accepted },
-  ];
-  const peak = stages[0].value || 1;
-  if (peak === 0) return null;
-
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 mb-6">
-      <div className="mb-4">
-        <h2 className="text-sm font-semibold text-navy">Pipeline funnel</h2>
-        <p className="text-xs text-slate-500 mt-0.5">
-          From lead to accepted quote over the last{" "}
-          {PERFORMANCE_WINDOW_MONTHS} months.
-        </p>
-      </div>
-      <div className="space-y-3">
-        {stages.map((s, i) => {
-          const pct = (s.value / peak) * 100;
-          const dropPct =
-            i === 0 || stages[i - 1].value === 0
-              ? null
-              : Math.round((s.value / stages[i - 1].value) * 100);
-          return (
-            <div key={s.label}>
-              <div className="flex items-baseline justify-between text-xs mb-1 flex-wrap gap-1">
-                <span className="font-semibold text-navy">{s.label}</span>
-                <span className="text-slate-700">
-                  <strong>{s.value}</strong>
-                  {dropPct != null && (
-                    <span className="text-slate-400 font-normal ml-2">
-                      ({dropPct}% of previous)
-                    </span>
-                  )}
-                </span>
-              </div>
-              {s.sub && (
-                <p className="text-[10px] text-slate-400 mb-1">{s.sub}</p>
-              )}
-              <div className="h-4 rounded-full bg-slate-100 overflow-hidden">
-                <div
-                  className={`h-full transition-all ${
-                    i === stages.length - 1
-                      ? "bg-emerald-500"
-                      : i === 0
-                        ? "bg-coral"
-                        : "bg-slate-400"
-                  }`}
-                  style={{ width: `${Math.max(pct, s.value > 0 ? 6 : 0)}%` }}
-                />
-              </div>
-            </div>
-          );
-        })}
-      </div>
     </div>
   );
 }

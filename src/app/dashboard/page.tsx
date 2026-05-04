@@ -52,6 +52,19 @@ export default async function DashboardPage() {
 
   if (!user) redirect("/auth/login");
 
+  // Role-aware redirect — there are two installer-flavoured "homes"
+  // in this app (/dashboard and /installer) and we want one canonical
+  // landing per role. /dashboard becomes the homeowner home; signed-
+  // in installers go to /installer (richer features), admins to
+  // /admin. Direct links from emails or bookmarks still resolve.
+  const { data: profile } = await supabase
+    .from("users")
+    .select("role")
+    .eq("id", user.id)
+    .maybeSingle<{ role: string | null }>();
+  if (profile?.role === "installer") redirect("/installer");
+  if (profile?.role === "admin") redirect("/admin");
+
   const unclaimed = user.email
     ? await findUnclaimedInstallerByEmail(user.email)
     : null;
