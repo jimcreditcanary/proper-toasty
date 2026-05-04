@@ -1470,6 +1470,30 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["installer_pre_survey_requests"]["Insert"]>;
         Relationships: [];
       };
+      admin_credit_adjustments: {
+        Row: {
+          id: string;
+          user_id: string;
+          admin_id: string;
+          delta: number;
+          balance_before: number;
+          balance_after: number;
+          reason: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          admin_id: string;
+          delta: number;
+          balance_before: number;
+          balance_after: number;
+          reason?: string | null;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["admin_credit_adjustments"]["Insert"]>;
+        Relationships: [];
+      };
     };
     Views: {
       [_ in never]: never;
@@ -1487,6 +1511,15 @@ export interface Database {
           p_count: number;
         };
         Returns: boolean;
+      };
+      admin_adjust_credits: {
+        Args: {
+          p_user_id: string;
+          p_admin_id: string;
+          p_delta: number;
+          p_reason: string;
+        };
+        Returns: number;
       };
     };
     Enums: {

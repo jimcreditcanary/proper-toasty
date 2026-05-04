@@ -48,9 +48,10 @@ export default async function AdminHomePage() {
     },
     {
       title: "User management",
-      body: "Add and edit users, block accounts, promote installers to admins.",
+      body: "Edit roles, block accounts, adjust credits — every action audited.",
       icon: Users,
-      status: "coming-soon",
+      status: "live",
+      href: "/admin/users",
     },
     {
       title: "Performance dashboard",
