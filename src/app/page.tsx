@@ -4,7 +4,9 @@ import { Logo } from "@/components/logo";
 import {
   ArrowRight,
   Flame,
+  Gauge,
   Leaf,
+  PoundSterling,
   Sun,
   CheckCircle2,
   Home as HomeIcon,
@@ -13,11 +15,16 @@ import {
 } from "lucide-react";
 
 // Stock imagery: Unsplash photos chosen for a warm, lived-in feel.
-// Swap these for your own photography when you have it — the paths below
-// are hotlinked via next/image (images.unsplash.com is allow-listed in
-// next.config.ts).
+// Swap these for your own photography when you have it — the paths
+// below are hotlinked via next/image (images.unsplash.com is allow-
+// listed in next.config.ts).
+//
+// HERO_IMAGE: deliberately a typical UK terraced / semi-detached
+// house, not the modern villa we used to show. The whole product is
+// pitched at the average UK household (target audience); the hero
+// image needs to look like that household's home.
 const HERO_IMAGE =
-  "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&w=1600&q=80";
+  "https://images.unsplash.com/photo-1568605114967-8130f3a36994?auto=format&w=1600&q=80";
 const HOME_SMALL =
   "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&w=900&q=80";
 
@@ -158,29 +165,48 @@ export default function Home() {
             </ul>
           </div>
 
-          {/* Hero image */}
+          {/* Hero image — switched from a modern villa to a more
+              representative UK terraced / semi-detached photo, plus
+              a 2×2 grid of UK-average context cards below. The
+              previous single-pill "Typical BUS grant" callout
+              missed three signals an average UK homeowner cares
+              about (solar potential, EPC headroom, savings). */}
           <div className="relative">
             <div className="relative aspect-[4/5] rounded-3xl overflow-hidden shadow-xl ring-1 ring-[var(--border)]">
               <Image
                 src={HERO_IMAGE}
-                alt="A warm, lived-in British home"
+                alt="A typical British semi-detached home"
                 fill
                 priority
                 sizes="(max-width: 1024px) 100vw, 560px"
                 className="object-cover"
               />
             </div>
-            {/* Floating pill with average savings */}
-            <div className="absolute -bottom-6 -left-6 bg-white rounded-2xl shadow-lg border border-[var(--border)] p-4 pr-6 max-w-[240px]">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-coral-pale text-coral flex items-center justify-center">
-                  <Flame className="w-5 h-5" />
-                </div>
-                <div>
-                  <p className="text-xs text-[var(--muted-brand)]">Typical BUS grant</p>
-                  <p className="text-lg font-semibold text-navy">£7,500 off</p>
-                </div>
-              </div>
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              <HeroStatCard
+                icon={<Flame className="w-5 h-5" />}
+                label="Typical BUS grant"
+                value="£7,500"
+                sub="off a heat pump install"
+              />
+              <HeroStatCard
+                icon={<Sun className="w-5 h-5" />}
+                label="Solar potential"
+                value="~4 kWp"
+                sub="typical UK roof fits"
+              />
+              <HeroStatCard
+                icon={<Gauge className="w-5 h-5" />}
+                label="EPC headroom"
+                value="D → B"
+                sub="average improvement"
+              />
+              <HeroStatCard
+                icon={<PoundSterling className="w-5 h-5" />}
+                label="Bill saving"
+                value="~£900/yr"
+                sub="typical UK home"
+              />
             </div>
           </div>
         </div>
@@ -287,6 +313,37 @@ export default function Home() {
       </section>
 
       <LandingFooter />
+    </div>
+  );
+}
+
+function HeroStatCard({
+  icon,
+  label,
+  value,
+  sub,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  sub: string;
+}) {
+  return (
+    <div className="bg-white rounded-2xl shadow-sm border border-[var(--border)] p-3 sm:p-4 flex items-start gap-3">
+      <div className="shrink-0 inline-flex items-center justify-center w-9 h-9 rounded-xl bg-coral-pale text-coral">
+        {icon}
+      </div>
+      <div className="min-w-0">
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--muted-brand)]">
+          {label}
+        </p>
+        <p className="text-base sm:text-lg font-semibold text-navy leading-tight">
+          {value}
+        </p>
+        <p className="text-xs text-[var(--muted-brand)] mt-0.5 leading-snug">
+          {sub}
+        </p>
+      </div>
     </div>
   );
 }
