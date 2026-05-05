@@ -1,35 +1,45 @@
 // /installer/reports/[leadId] — installer-flavoured pre-survey
-// report viewer.
+// site-visit brief.
 //
-// Wraps the same ReportShell the homeowner sees, but with
-// audience="installer" — strips consumer-flavoured cards (the
-// "what could your home benefit from", "how to get the best out
-// of installers", savings tab, book-a-visit tab, email button)
-// and leaves only the technical detail an installer needs to prep
-// for the visit.
+// Replaces the previous "wrap homeowner ReportShell with audience=
+// installer" approach with a purpose-built dense brief aimed at a
+// technical engineer arriving on site. See
+// src/components/installer-report/site-brief.tsx for the layout.
 //
-// Auth: must be signed in, must be the bound owner of the
-// installer that this lead was routed to. We never let installer
-// A peek at installer B's leads, even if they know the URL.
+// Auth: must be signed in, must be the bound owner of the installer
+// that this lead was routed to. Admins are allowed too (the
+// installer layout already lets them through). We never let
+// installer A peek at installer B's leads even if they know the URL.
 //
-// The actual report payload is loaded via the existing
-// /api/reports/[token]/load endpoint using the per-lead token
-// stamped on installer_leads.installer_report_url. This keeps the
-// data path identical to the homeowner /r/[token] view — only the
-// audience prop differs.
+// Data: read straight from installer_leads.analysis_snapshot — the
+// snapshot stored at lead-capture time. Cross-reference to the check
+// row (via homeowner_lead_id when set, post migration 055) to fish
+// out the floorplan_object_key so we can link/print the original
+// uploaded image.
 
-import Link from "next/link";
 import { redirect, notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { PortalShell } from "@/components/portal-shell";
-import { issueReportUrl } from "@/lib/booking/report-link";
-import { InstallerReportClient } from "./client";
+import { InstallerSiteBrief } from "@/components/installer-report/site-brief";
+import type { AnalyseResponse } from "@/lib/schemas/analyse";
+import type { FloorplanAnalysis } from "@/lib/schemas/floorplan";
+import type { FuelTariff } from "@/lib/schemas/bill";
 
 export const dynamic = "force-dynamic";
 
 interface PageProps {
   params: Promise<{ leadId: string }>;
+}
+
+// Shape of the snapshot blob the wizard sends to /api/leads/capture.
+// We trust the data was Zod-validated upstream — this type just
+// helps us narrow what's inside the JSONB.
+interface SnapshotShape {
+  analysis?: AnalyseResponse;
+  floorplanAnalysis?: FloorplanAnalysis | null;
+  electricityTariff?: FuelTariff | null;
+  gasTariff?: FuelTariff | null;
 }
 
 export default async function InstallerReportPage({ params }: PageProps) {
@@ -45,13 +55,24 @@ export default async function InstallerReportPage({ params }: PageProps) {
 
   const admin = createAdminClient();
 
-  // Resolve the bound installer for the calling user.
+  // Check role first so we can let admins peek at any lead for
+  // support, while still locking installer A out of installer B.
+  const { data: profile } = await supabase
+    .from("users")
+    .select("role")
+    .eq("id", user.id)
+    .maybeSingle<{ role: string | null }>();
+  const isAdmin = profile?.role === "admin";
+
+  // Resolve the bound installer for the calling user (skipped for
+  // admins — they're not bound to a specific installer record).
   const { data: installer } = await admin
     .from("installers")
     .select("id, company_name")
     .eq("user_id", user.id)
     .maybeSingle<{ id: number; company_name: string }>();
-  if (!installer) {
+
+  if (!installer && !isAdmin) {
     return (
       <PortalShell
         portalName="Installer"
@@ -70,22 +91,24 @@ export default async function InstallerReportPage({ params }: PageProps) {
   }
 
   // Load the lead — auth-gate by installer_id so installer A can't
-  // view installer B's leads even if they guess the URL.
-  const { data: lead } = await admin
+  // view installer B's leads even if they guess the URL. Admins
+  // bypass the installer match.
+  let leadQuery = admin
     .from("installer_leads")
     .select(
-      "id, installer_id, status, contact_name, property_address, property_postcode, installer_report_url, installer_acknowledged_at, homeowner_lead_id, contact_email, analysis_snapshot, property_latitude, property_longitude",
+      "id, installer_id, status, contact_name, contact_email, contact_phone, property_address, property_postcode, property_uprn, property_latitude, property_longitude, installer_acknowledged_at, visit_booked_for, wants_heat_pump, wants_solar, wants_battery, homeowner_lead_id, analysis_snapshot",
     )
-    .eq("id", leadId)
-    .eq("installer_id", installer.id)
-    .maybeSingle();
+    .eq("id", leadId);
+  if (!isAdmin && installer) {
+    leadQuery = leadQuery.eq("installer_id", installer.id);
+  }
+  const { data: lead } = await leadQuery.maybeSingle();
   if (!lead) {
     notFound();
   }
 
-  // Pre-acknowledged leads don't have a report URL yet — they
-  // haven't been accepted. Show a "accept first" nudge rather
-  // than 404 (the lead is real, just not actionable here).
+  // Pre-acknowledged leads aren't actionable here. Show a "accept
+  // first" nudge rather than the brief.
   if (!lead.installer_acknowledged_at) {
     return (
       <PortalShell
@@ -99,34 +122,15 @@ export default async function InstallerReportPage({ params }: PageProps) {
           </p>
           <p className="text-sm text-amber-900 mt-1 leading-relaxed">
             Reports unlock once you&rsquo;ve accepted a booking. Open
-            it from your inbox to accept first.
+            it from your inbox to accept.
           </p>
         </div>
       </PortalShell>
     );
   }
 
-  // Backfill the installer_report_url if it's missing — same
-  // self-heal pattern as /installer/reports listing.
-  let reportUrl = lead.installer_report_url;
-  if (!reportUrl) {
-    const appBaseUrl = (
-      process.env.NEXT_PUBLIC_APP_URL ?? "https://propertoasty.com"
-    ).replace(/\/+$/, "");
-    try {
-      reportUrl = await issueReportUrl({ admin, lead, appBaseUrl });
-      await admin
-        .from("installer_leads")
-        .update({ installer_report_url: reportUrl })
-        .eq("id", lead.id);
-    } catch (e) {
-      console.warn("[installer-report] backfill failed", {
-        leadId: lead.id,
-        err: e instanceof Error ? e.message : e,
-      });
-    }
-  }
-  if (!reportUrl) {
+  const snapshot = (lead.analysis_snapshot ?? {}) as SnapshotShape;
+  if (!snapshot.analysis) {
     return (
       <PortalShell
         portalName="Installer"
@@ -135,18 +139,32 @@ export default async function InstallerReportPage({ params }: PageProps) {
       >
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6">
           <p className="text-sm text-amber-900 leading-relaxed">
-            We couldn&rsquo;t mint a report link for this lead. Email
-            hello@propertoasty.com and we&rsquo;ll sort it out.
+            We don&rsquo;t have an analysis snapshot for this lead.
+            Either it predates the snapshot capture (very early
+            adopters) or the homeowner abandoned mid-flow. Email
+            hello@propertoasty.com and we&rsquo;ll regenerate it.
           </p>
         </div>
       </PortalShell>
     );
   }
 
-  // The URL ends in /r/<token>. Pull the token out so the client can
-  // hit /api/reports/<token>/load directly (saves a round-trip
-  // through the page render).
-  const token = reportUrl.split("/").pop() ?? "";
+  // Look up the matching check row's floorplan_object_key. Two paths
+  // depending on what's wired up:
+  //   - homeowner_lead_id is set on the lead → join via that
+  //   - otherwise nothing — rare for new flows, common for legacy.
+  // Best-effort: missing key just hides the "Open floorplan" link.
+  let floorplanObjectKey: string | null = null;
+  if (lead.homeowner_lead_id) {
+    const { data: check } = await admin
+      .from("checks")
+      .select("floorplan_object_key")
+      .eq("homeowner_lead_id", lead.homeowner_lead_id)
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle<{ floorplan_object_key: string | null }>();
+    floorplanObjectKey = check?.floorplan_object_key ?? null;
+  }
 
   return (
     <PortalShell
@@ -154,19 +172,36 @@ export default async function InstallerReportPage({ params }: PageProps) {
       pageTitle={
         lead.property_address ?? lead.property_postcode ?? "Pre-survey report"
       }
-      pageSubtitle={`Pre-survey detail for ${lead.contact_name ?? "the homeowner"}.`}
+      pageSubtitle={`Site visit brief for ${lead.contact_name ?? "the homeowner"}.`}
       backLink={{ href: "/installer/reports", label: "Back to reports" }}
     >
-      <InstallerReportClient token={token} />
-
-      <div className="mt-8 text-center">
-        <Link
-          href="/installer/leads"
-          className="text-xs text-slate-500 hover:text-coral underline"
-        >
-          ← Back to leads inbox
-        </Link>
-      </div>
+      <InstallerSiteBrief
+        contact={{
+          name: lead.contact_name ?? null,
+          email: lead.contact_email ?? null,
+          phone: lead.contact_phone ?? null,
+        }}
+        property={{
+          address: lead.property_address ?? null,
+          postcode: lead.property_postcode ?? null,
+          uprn: lead.property_uprn ?? null,
+          latitude: lead.property_latitude ?? null,
+          longitude: lead.property_longitude ?? null,
+        }}
+        lead={{
+          status: lead.status,
+          acceptedAt: lead.installer_acknowledged_at,
+          visitBookedFor: lead.visit_booked_for ?? null,
+          wantsHeatPump: lead.wants_heat_pump ?? false,
+          wantsSolar: lead.wants_solar ?? false,
+          wantsBattery: lead.wants_battery ?? false,
+        }}
+        analysis={snapshot.analysis}
+        floorplan={snapshot.floorplanAnalysis ?? null}
+        electricityTariff={snapshot.electricityTariff ?? null}
+        gasTariff={snapshot.gasTariff ?? null}
+        floorplanObjectKey={floorplanObjectKey}
+      />
     </PortalShell>
   );
 }
