@@ -16,6 +16,7 @@ import { applyAiPlacements } from "./floorplan-editor/utils";
 import {
   emptyFloorplanAnalysis,
   type FloorplanAnalysis,
+  type FloorplanMetrics,
 } from "@/lib/schemas/floorplan";
 import type { FloorplanAnalyseResponse } from "@/app/api/floorplan/analyse/route";
 import type { SuggestPlacementsResult } from "@/lib/services/claude-placements";
@@ -102,6 +103,63 @@ export function Step4Floorplan() {
   useEffect(() => {
     if (upload.kind === "uploaded") void runSatelliteCheck();
   }, [upload.kind, runSatelliteCheck]);
+
+  // Fire-and-forget Claude vision pass that reads room labels +
+  // dimensions + total area off the floorplan image. Lives next to
+  // the satellite check because both fire automatically on upload
+  // without blocking the user's flow. The metrics drop into
+  // floorplanAnalysis.metrics and surface in the report later.
+  //
+  // Two refs: one to dedupe per objectKey (so navigating back to
+  // step 4 doesn't re-trigger), one to read the LATEST analysis at
+  // resolve time (the user might have drawn walls while the call
+  // was in flight; we don't want to stomp those).
+  const metricsExtractedFor = useRef<string | null>(null);
+  const analysisRef = useRef<FloorplanAnalysis | null>(state.floorplanAnalysis);
+  useEffect(() => {
+    analysisRef.current = state.floorplanAnalysis;
+  }, [state.floorplanAnalysis]);
+
+  const runMetricsExtraction = useCallback(
+    async (objectKey: string) => {
+      if (metricsExtractedFor.current === objectKey) return;
+      metricsExtractedFor.current = objectKey;
+      try {
+        const res = await fetch("/api/floorplan/extract-metrics", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ objectKey }),
+        });
+        if (!res.ok) {
+          console.warn("[step-4] metrics extract HTTP fail", res.status);
+          return;
+        }
+        const j = (await res.json()) as {
+          ok: boolean;
+          metrics: FloorplanMetrics | null;
+        };
+        if (!j.ok || !j.metrics) return;
+        // Read the latest analysis via ref so any walls/doors the
+        // user drew while we were waiting on Claude survive.
+        update({
+          floorplanAnalysis: {
+            ...(analysisRef.current ?? emptyFloorplanAnalysis()),
+            metrics: j.metrics,
+          },
+        });
+      } catch (err) {
+        // Non-fatal — wizard continues without the metrics block.
+        console.warn("[step-4] metrics extract failed", err);
+      }
+    },
+    [update],
+  );
+
+  useEffect(() => {
+    if (upload.kind === "uploaded") {
+      void runMetricsExtraction(upload.objectKey);
+    }
+  }, [upload, runMetricsExtraction]);
 
   const handleFile = useCallback(
     async (file: File) => {

@@ -171,6 +171,47 @@ export const ClarificationQuestionSchema = z.object({
 });
 export type ClarificationQuestion = z.infer<typeof ClarificationQuestionSchema>;
 
+// ─── Extracted metrics (from floorplan text/labels) ─────────────────────────
+//
+// When the user uploads a floorplan, /api/floorplan/extract-metrics
+// runs a Claude vision pass that reads the labels on the image
+// (room names + dimensions, total floor area, "Ground floor / First
+// floor" headers) and returns structured data.
+//
+// All fields are optional — a floorplan with no text labels just
+// gets back an empty `rooms` array and null areas. Confidence flag
+// lets the report decide how prominently to surface the data.
+
+export const ExtractedRoomSchema = z.object({
+  /** "Kitchen", "Master Bedroom", "Bathroom", etc — verbatim from the floorplan label. */
+  name: z.string().min(1).max(120),
+  /** Floor this room sits on, if the floorplan separates them ("ground", "first", "second"). null if unclear. */
+  floor: z.string().nullable().default(null),
+  /** Room area in square metres. null when not labelled or only labelled in feet. */
+  sizeM2: z.number().positive().nullable().default(null),
+  /** Same area in square feet for cross-checking + UK convention. null when not derivable. */
+  sizeSqFt: z.number().positive().nullable().default(null),
+  /** Free-text dimension label as printed, e.g. "4.2m × 3.1m" — useful for the report's evidence trail. */
+  dimensionsRaw: z.string().nullable().default(null),
+});
+export type ExtractedRoom = z.infer<typeof ExtractedRoomSchema>;
+
+export const FloorplanMetricsSchema = z.object({
+  /** Per-room breakdown — empty array when no labelled rooms found. */
+  rooms: z.array(ExtractedRoomSchema).default([]),
+  /** Sum of room areas (or labelled total) in square metres. */
+  totalAreaM2: z.number().positive().nullable().default(null),
+  /** Same total in square feet. */
+  totalAreaSqFt: z.number().positive().nullable().default(null),
+  /** How many distinct floors the floorplan shows (1 for a flat, 2 for a typical UK semi, 3 for townhouses). */
+  floorsCount: z.number().int().positive().nullable().default(null),
+  /** Claude's confidence in the extraction. low when the floorplan was a sketch with no labels. */
+  confidence: z.enum(["high", "medium", "low"]).default("medium"),
+  /** ISO timestamp the extraction ran — null until the call completes. */
+  extractedAt: z.string().nullable().default(null),
+});
+export type FloorplanMetrics = z.infer<typeof FloorplanMetricsSchema>;
+
 // ─── Outdoor space check (from satellite) ────────────────────────────────────
 
 export const OutdoorSpaceCheckSchema = z.object({
@@ -224,6 +265,21 @@ export const FloorplanAnalysisSchema = z.object({
     satelliteVerdict: null,
     satelliteNotes: null,
     userConfirmed: null,
+  }),
+
+  // ─── Extracted text metrics (from floorplan labels) ──────────────────
+  // Populated by /api/floorplan/extract-metrics on upload — Claude
+  // reads room names, dimensions, total area, and floor headings off
+  // the image and returns structured data. Lives separately from the
+  // legacy summary fields below because the extraction is opt-in
+  // (only fires when the user actually uploads a floorplan).
+  metrics: FloorplanMetricsSchema.default({
+    rooms: [],
+    totalAreaM2: null,
+    totalAreaSqFt: null,
+    floorsCount: null,
+    confidence: "medium",
+    extractedAt: null,
   }),
 
   // ─── Meta ─────────────────────────────────────────────────────────────
