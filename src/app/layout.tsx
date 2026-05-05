@@ -70,17 +70,26 @@ export const metadata: Metadata = {
   //   - The metadata block below explicitly wires the <link> tags
   //     so we don't depend on file-convention auto-injection.
   icons: {
+    // Cache-bust suffix on every icon URL. Some users had a stale
+    // 404 cached under the 1-year immutable header from
+    // next.config.ts (the bug ran from before deff1a0). Server now
+    // returns 200 across every nested path, but a browser that
+    // cached the original miss keeps showing 404 until 2027.
+    // Bumping ?v= mints a fresh URL so the stale entry is no
+    // longer referenced. Bump again if we ever reintroduce a 404.
     icon: [
-      { url: "/favicon.ico", type: "image/x-icon", sizes: "any" },
-      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico?v=2", type: "image/x-icon", sizes: "any" },
+      { url: "/icon.svg?v=2", type: "image/svg+xml" },
     ],
-    shortcut: ["/favicon.ico"],
+    shortcut: ["/favicon.ico?v=2"],
     // iOS Safari + several other browsers speculatively request
     // /apple-touch-icon.png for home-screen bookmarking even when
     // it isn't referenced in the head. Without this file the
     // request 404s noisily in network logs. Generated from
     // public/icon.svg via scripts/render-apple-touch-icon.js.
-    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+    apple: [
+      { url: "/apple-touch-icon.png?v=2", sizes: "180x180", type: "image/png" },
+    ],
   },
 };
 

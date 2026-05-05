@@ -29,6 +29,8 @@ export interface Database {
           auto_recharge_failure_reason: string | null;
           // Migration 049 — one-time installer starter-credit grant
           installer_starter_credits_granted_at: string | null;
+          // Migration 056 — installer dismissed the onboarding card
+          installer_onboarding_dismissed_at: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -49,6 +51,7 @@ export interface Database {
           auto_recharge_failed_at?: string | null;
           auto_recharge_failure_reason?: string | null;
           installer_starter_credits_granted_at?: string | null;
+          installer_onboarding_dismissed_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -69,6 +72,7 @@ export interface Database {
           auto_recharge_failed_at?: string | null;
           auto_recharge_failure_reason?: string | null;
           installer_starter_credits_granted_at?: string | null;
+          installer_onboarding_dismissed_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };

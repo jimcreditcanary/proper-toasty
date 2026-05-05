@@ -29,6 +29,7 @@ import {
 } from "@/lib/installer-onboarding/checklist";
 import { loadInstallerDashboardMetrics } from "@/lib/installer/dashboard-metrics";
 import { formatGbp } from "@/lib/proposals/schema";
+import { OnboardingDismissButton } from "@/components/installer/onboarding-dismiss-button";
 
 // Installer portal landing — redesigned around deal-flow signal.
 //
@@ -67,6 +68,7 @@ export default async function InstallerHomePage() {
   let companyName: string | null = null;
   let checklist: ChecklistResult | null = null;
   let creditBalance = 0;
+  let onboardingDismissedAt: string | null = null;
   let metrics: Awaited<
     ReturnType<typeof loadInstallerDashboardMetrics>
   > | null = null;
@@ -76,12 +78,15 @@ export default async function InstallerHomePage() {
     const [profileRes, installerRes] = await Promise.all([
       supabase
         .from("users")
-        .select("auto_recharge_failed_at, auto_recharge_failure_reason, credits")
+        .select(
+          "auto_recharge_failed_at, auto_recharge_failure_reason, credits, installer_onboarding_dismissed_at",
+        )
         .eq("id", user.id)
         .maybeSingle<{
           auto_recharge_failed_at: string | null;
           auto_recharge_failure_reason: string | null;
           credits: number;
+          installer_onboarding_dismissed_at: string | null;
         }>(),
       admin
         .from("installers")
@@ -95,6 +100,8 @@ export default async function InstallerHomePage() {
         profileRes.data.auto_recharge_failure_reason ?? "Card declined";
     }
     creditBalance = profileRes.data?.credits ?? 0;
+    onboardingDismissedAt =
+      profileRes.data?.installer_onboarding_dismissed_at ?? null;
 
     if (installerRes.data) {
       companyName = installerRes.data.company_name;
@@ -180,7 +187,7 @@ export default async function InstallerHomePage() {
         </Link>
       )}
 
-      {checklist && !checklist.isComplete && (
+      {checklist && !checklist.isComplete && !onboardingDismissedAt && (
         <OnboardingChecklist checklist={checklist} companyName={companyName} />
       )}
 
@@ -444,7 +451,8 @@ function QuickNav({ links }: { links: NavLink[] }) {
 // completed the four core steps. Highlights one current step at a
 // time so first-time visitors aren't presented with four equal
 // CTAs and end up doing none of them. Hides automatically once
-// every step is done — no dismissal mechanism needed.
+// every step is done — and the installer can also dismiss it
+// manually via the X (writes installer_onboarding_dismissed_at).
 
 function OnboardingChecklist({
   checklist,
@@ -469,9 +477,12 @@ function OnboardingChecklist({
             </p>
           </div>
         </div>
-        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold bg-white border border-coral/20 text-coral-dark">
-          {checklist.doneCount} of {checklist.totalCount} done
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold bg-white border border-coral/20 text-coral-dark">
+            {checklist.doneCount} of {checklist.totalCount} done
+          </span>
+          <OnboardingDismissButton />
+        </div>
       </div>
 
       <ul className="space-y-2">

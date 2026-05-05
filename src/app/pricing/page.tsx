@@ -17,7 +17,7 @@ import {
   TrendingUp,
   Zap,
 } from "lucide-react";
-import { SiteHeader } from "@/components/site-header";
+import { MarketingHeader } from "@/components/marketing-header";
 import {
   CREDIT_PACKS,
   formatGbp,
@@ -37,7 +37,7 @@ export const metadata = {
 export default function PricingPage() {
   return (
     <div className="flex min-h-screen flex-col bg-cream text-navy">
-      <SiteHeader />
+      <MarketingHeader active="pricing" />
 
       <main className="flex-1">
         <Hero />

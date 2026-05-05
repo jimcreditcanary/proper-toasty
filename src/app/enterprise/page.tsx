@@ -24,7 +24,7 @@ import {
   TrendingUp,
   Zap,
 } from "lucide-react";
-import { SiteHeader } from "@/components/site-header";
+import { MarketingHeader } from "@/components/marketing-header";
 import { INSTALLER_FREE_STARTER_CREDITS } from "@/lib/booking/credits";
 
 export const metadata = {
@@ -37,7 +37,7 @@ export const metadata = {
 export default function EnterprisePage() {
   return (
     <div className="flex min-h-screen flex-col bg-cream text-navy">
-      <SiteHeader />
+      <MarketingHeader active="installers" />
       <main className="flex-1">
         <Hero />
         <FeatureGrid />
