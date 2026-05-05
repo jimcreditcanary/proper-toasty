@@ -29,9 +29,10 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 const SITE_URL = "https://www.propertoasty.com";
 
-// Cache for an hour — blog publishes are rare, but we want fresh
-// URLs in the sitemap when one drops. Re-renders after the TTL.
-export const revalidate = 3600;
+// Cache for a minute. Blog publishes are rare, but seeing a new
+// post in the sitemap within ~60s of going live is worth the small
+// extra cost. Was 3600 — too long when seeding bulk content.
+export const revalidate = 60;
 
 interface BlogPostRow {
   slug: string;

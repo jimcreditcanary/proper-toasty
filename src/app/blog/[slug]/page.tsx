@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { Logo } from "@/components/logo";
@@ -6,6 +7,24 @@ import { MarketingHeader } from "@/components/marketing-header";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ArrowLeft, ArrowRight, Calendar, User, ShieldCheck } from "lucide-react";
 import { BlogPostContent } from "@/components/blog-post-content";
+import { RelatedPosts } from "@/components/blog/related-posts";
+
+const SITE_URL = "https://www.propertoasty.com";
+
+// Loaded once and reused by both generateMetadata + the page render
+// to avoid two trips to Supabase. Next handles the dedupe via React's
+// per-request request cache.
+async function fetchPost(slug: string): Promise<Record<string, unknown> | null> {
+  const admin = createAdminClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data } = await (admin as any)
+    .from("blog_posts")
+    .select("*")
+    .eq("slug", slug)
+    .eq("published", true)
+    .maybeSingle();
+  return (data ?? null) as Record<string, unknown> | null;
+}
 
 const CATEGORY_COLORS: Record<string, string> = {
   "Fraud Prevention": "bg-red-50 text-red-700 border-red-200",
@@ -23,38 +42,133 @@ function formatDate(iso: string): string {
   });
 }
 
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const post = await fetchPost(slug);
+  if (!post) return { title: "Post not found" };
+  const title = post.title as string;
+  const excerpt = post.excerpt as string;
+  const url = `${SITE_URL}/blog/${slug}`;
+  return {
+    title,
+    description: excerpt,
+    alternates: { canonical: url },
+    openGraph: {
+      title,
+      description: excerpt,
+      type: "article",
+      url,
+      siteName: "Propertoasty",
+      locale: "en_GB",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description: excerpt,
+    },
+  };
+}
+
 export default async function BlogPostPage({
   params,
 }: {
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const admin = createAdminClient();
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data } = await (admin as any)
-    .from("blog_posts")
-    .select("*")
-    .eq("slug", slug)
-    .eq("published", true)
-    .single();
+  const data = await fetchPost(slug);
 
   if (!data) {
     notFound();
   }
 
-  const post = data as Record<string, unknown>;
+  const post = data;
   const title = post.title as string;
   const content = post.content as string;
   const excerpt = post.excerpt as string;
   const category = post.category as string;
   const author = post.author as string;
   const publishedAt = post.published_at as string;
+  const updatedAt = (post.updated_at as string | undefined) ?? publishedAt;
   const categoryColors =
     CATEGORY_COLORS[category] ?? "bg-slate-50 text-slate-700 border-slate-200";
 
+  // ─── JSON-LD structured data ────────────────────────────────
+  // Article: signals to Google this is editorial content + powers
+  // article rich results (date, author, headline). Properties tracked
+  // against schema.org/Article — fields that aren't applicable
+  // (image, publisher logo) are intentionally omitted rather than
+  // stubbed; partial-but-honest beats fully-populated-with-fakes.
+  //
+  // BreadcrumbList: powers the breadcrumb trail in SERPs (Home ›
+  // Journal › <title>) instead of the bare URL slug.
+  const url = `${SITE_URL}/blog/${slug}`;
+  const articleJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    headline: title,
+    description: excerpt,
+    datePublished: publishedAt,
+    dateModified: updatedAt,
+    author: { "@type": "Organization", name: author || "Propertoasty" },
+    publisher: {
+      "@type": "Organization",
+      name: "Propertoasty",
+      url: SITE_URL,
+      logo: {
+        "@type": "ImageObject",
+        url: `${SITE_URL}/icon.svg`,
+      },
+    },
+    mainEntityOfPage: {
+      "@type": "WebPage",
+      "@id": url,
+    },
+    articleSection: category,
+    inLanguage: "en-GB",
+  };
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: "Home",
+        item: SITE_URL,
+      },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: "Journal",
+        item: `${SITE_URL}/blog`,
+      },
+      {
+        "@type": "ListItem",
+        position: 3,
+        name: title,
+        item: url,
+      },
+    ],
+  };
+
   return (
     <div className="flex min-h-screen flex-col bg-cream text-slate-900">
+      {/* JSON-LD structured data — emitted in the body rather than
+          the head because Next's metadata.other doesn't accept
+          script tags. Google reads JSON-LD wherever it sits in
+          the document. */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+      />
       <MarketingHeader active="blog" />
 
       {/* Article */}
@@ -98,6 +212,11 @@ export default async function BlogPostPage({
         {/* Content */}
         <BlogPostContent content={content} />
       </article>
+
+      {/* Related posts — 3 follow-up reads, same category preferred,
+          backfills with most-recent if the category is sparse. Loads
+          server-side as part of this page's render. */}
+      <RelatedPosts currentSlug={slug} category={category} />
 
       {/* CTA */}
       <section className="border-t border-slate-200 bg-slate-50">
