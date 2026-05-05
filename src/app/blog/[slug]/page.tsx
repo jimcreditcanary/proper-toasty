@@ -1,15 +1,33 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import Image from "next/image";
 import Link from "next/link";
 import { Logo } from "@/components/logo";
 import { Button } from "@/components/ui/button";
 import { MarketingHeader } from "@/components/marketing-header";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { ArrowLeft, ArrowRight, Calendar, User, ShieldCheck } from "lucide-react";
+import { ArrowLeft, ArrowRight, Calendar, Clock, User, ShieldCheck } from "lucide-react";
 import { BlogPostContent } from "@/components/blog-post-content";
 import { RelatedPosts } from "@/components/blog/related-posts";
+import { SocialShare } from "@/components/blog/social-share";
 
 const SITE_URL = "https://www.propertoasty.com";
+
+// Default cover image for posts that don't carry their own
+// cover_image. Lives in /public so it serves from the same domain
+// (no remote-pattern config) and is already preloaded for the home
+// page hero so the byte cost is zero on the second hit.
+const DEFAULT_COVER_IMAGE = "/hero-uk-home.jpg";
+
+// Roughly the median adult reading speed for non-fiction. We strip
+// HTML tags before counting so embedded markup doesn't inflate it.
+const READING_WORDS_PER_MIN = 220;
+
+function estimateReadingMinutes(html: string): number {
+  const text = html.replace(/<[^>]*>/g, " ");
+  const words = text.split(/\s+/).filter(Boolean).length;
+  return Math.max(1, Math.round(words / READING_WORDS_PER_MIN));
+}
 
 // Loaded once and reused by both generateMetadata + the page render
 // to avoid two trips to Supabase. Next handles the dedupe via React's
@@ -53,6 +71,12 @@ export async function generateMetadata({
   const title = post.title as string;
   const excerpt = post.excerpt as string;
   const url = `${SITE_URL}/blog/${slug}`;
+  // Cover image: use the post's cover_image when set, else fall
+  // back to the home-page hero so previews on Twitter / LinkedIn /
+  // WhatsApp / Slack always render with a real photo rather than
+  // the missing-image placeholder.
+  const coverPath = (post.cover_image as string | null) ?? DEFAULT_COVER_IMAGE;
+  const ogImage = coverPath.startsWith("http") ? coverPath : `${SITE_URL}${coverPath}`;
   return {
     title,
     description: excerpt,
@@ -64,11 +88,13 @@ export async function generateMetadata({
       url,
       siteName: "Propertoasty",
       locale: "en_GB",
+      images: [{ url: ogImage, width: 1200, height: 630, alt: title }],
     },
     twitter: {
       card: "summary_large_image",
       title,
       description: excerpt,
+      images: [ogImage],
     },
   };
 }
@@ -93,6 +119,8 @@ export default async function BlogPostPage({
   const author = post.author as string;
   const publishedAt = post.published_at as string;
   const updatedAt = (post.updated_at as string | undefined) ?? publishedAt;
+  const coverImage = (post.cover_image as string | null) ?? DEFAULT_COVER_IMAGE;
+  const readingMinutes = estimateReadingMinutes(content);
   const categoryColors =
     CATEGORY_COLORS[category] ?? "bg-slate-50 text-slate-700 border-slate-200";
 
@@ -106,11 +134,15 @@ export default async function BlogPostPage({
   // BreadcrumbList: powers the breadcrumb trail in SERPs (Home ›
   // Journal › <title>) instead of the bare URL slug.
   const url = `${SITE_URL}/blog/${slug}`;
+  const absoluteCoverImage = coverImage.startsWith("http")
+    ? coverImage
+    : `${SITE_URL}${coverImage}`;
   const articleJsonLd = {
     "@context": "https://schema.org",
     "@type": "Article",
     headline: title,
     description: excerpt,
+    image: [absoluteCoverImage],
     datePublished: publishedAt,
     dateModified: updatedAt,
     author: { "@type": "Organization", name: author || "Propertoasty" },
@@ -195,6 +227,10 @@ export default async function BlogPostPage({
             <User className="size-3.5" />
             {author}
           </span>
+          <span className="flex items-center gap-1.5 text-sm text-slate-400">
+            <Clock className="size-3.5" />
+            {readingMinutes} min read
+          </span>
         </div>
 
         {/* Title */}
@@ -207,10 +243,40 @@ export default async function BlogPostPage({
           {excerpt}
         </p>
 
+        {/* Cover image — uses next/image for automatic WebP +
+            responsive sizing. Falls back to the home-page hero
+            when the post has no cover_image. priority={true} would
+            be wrong here (cover sits below the fold for short
+            screens) so we leave Next to lazy-load it. */}
+        <div className="mt-8 relative aspect-[16/9] w-full overflow-hidden rounded-2xl bg-slate-100 ring-1 ring-slate-200">
+          <Image
+            src={coverImage}
+            alt={title}
+            fill
+            sizes="(max-width: 768px) 100vw, 768px"
+            quality={80}
+            className="object-cover"
+          />
+        </div>
+
+        {/* Share row + horizontal rule introducing the body copy. */}
+        <div className="mt-8 mb-2">
+          <SocialShare url={url} title={title} />
+        </div>
+
         <hr className="my-8 border-slate-200" />
 
         {/* Content */}
         <BlogPostContent content={content} />
+
+        {/* Repeat the share row at the bottom — readers who finish
+            the post are the ones most likely to share it. */}
+        <div className="mt-12 pt-8 border-t border-slate-200">
+          <p className="text-sm font-semibold text-navy mb-3">
+            Found this useful? Pass it on.
+          </p>
+          <SocialShare url={url} title={title} />
+        </div>
       </article>
 
       {/* Related posts — 3 follow-up reads, same category preferred,
