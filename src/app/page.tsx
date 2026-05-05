@@ -1,12 +1,12 @@
 import Link from "next/link";
 import Image from "next/image";
 import { Logo } from "@/components/logo";
+import { MarketingHeader } from "@/components/marketing-header";
 import {
   ArrowRight,
   Flame,
   Gauge,
   Leaf,
-  Menu,
   PoundSterling,
   Sun,
   CheckCircle2,
@@ -14,13 +14,6 @@ import {
   BatteryCharging,
   Zap,
 } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 
 // Hero image: a real UK semi-detached on a Steepside cul-de-sac
 // — red brick, bay window, green garage door, post-war estate
@@ -28,96 +21,6 @@ import {
 // (no Unsplash hop, no remote-pattern config). Replace the file
 // with your own photography to swap.
 const HERO_IMAGE = "/hero-uk-home.jpg";
-// HOME_SMALL is still on Unsplash for the "what you get" section
-// further down. Swap when you have proper photography for that
-// block too.
-const HOME_SMALL =
-  "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&w=900&q=80";
-
-function LandingHeader() {
-  return (
-    <header className="bg-cream/80 backdrop-blur-md border-b border-[var(--border)] sticky top-0 z-50">
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
-        <Link href="/" className="flex items-center">
-          <Logo size="sm" variant="light" />
-        </Link>
-        <nav className="hidden sm:flex items-center gap-7 text-sm">
-          <Link href="/enterprise" className="text-[var(--muted-brand)] hover:text-navy transition-colors">
-            For installers
-          </Link>
-          <Link href="/pricing" className="text-[var(--muted-brand)] hover:text-navy transition-colors">
-            Pricing
-          </Link>
-          <Link href="/blog" className="text-[var(--muted-brand)] hover:text-navy transition-colors">
-            Journal
-          </Link>
-        </nav>
-        <div className="flex items-center gap-2">
-          {/* Desktop CTA — keeps the prominent pill button on tablet+. */}
-          <Link
-            href="/check"
-            className="hidden sm:inline-flex items-center gap-1.5 h-10 px-5 rounded-full bg-coral hover:bg-coral-dark text-cream font-medium text-sm transition-colors"
-          >
-            Check my home
-            <ArrowRight className="w-4 h-4" />
-          </Link>
-          {/* Mobile: hamburger menu. The pill CTA + logo were
-              cramming side-by-side on phones so we collapse the
-              CTA + the desktop nav links into a single dropdown. */}
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <button
-                  aria-label="Open menu"
-                  className="sm:hidden inline-flex items-center justify-center h-11 w-11 rounded-lg text-navy hover:bg-cream-deep transition-colors outline-none focus-visible:ring-2 focus-visible:ring-coral"
-                />
-              }
-            >
-              <Menu className="w-5 h-5" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent
-              align="end"
-              className="sm:hidden w-56 bg-white border-[var(--border)] text-navy"
-            >
-              <DropdownMenuItem
-                render={<Link href="/check" />}
-                className="text-base text-coral-dark font-semibold focus:bg-coral-pale focus:text-coral-dark"
-              >
-                Check my home
-              </DropdownMenuItem>
-              <DropdownMenuSeparator className="bg-[var(--border)]" />
-              <DropdownMenuItem
-                render={<Link href="/enterprise" />}
-                className="text-base text-navy focus:bg-cream-deep focus:text-navy"
-              >
-                For installers
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                render={<Link href="/pricing" />}
-                className="text-base text-navy focus:bg-cream-deep focus:text-navy"
-              >
-                Pricing
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                render={<Link href="/blog" />}
-                className="text-base text-navy focus:bg-cream-deep focus:text-navy"
-              >
-                Journal
-              </DropdownMenuItem>
-              <DropdownMenuSeparator className="bg-[var(--border)]" />
-              <DropdownMenuItem
-                render={<Link href="/auth/login" />}
-                className="text-base text-navy focus:bg-cream-deep focus:text-navy"
-              >
-                Sign in
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </div>
-    </header>
-  );
-}
 
 function LandingFooter() {
   const year = new Date().getFullYear();
@@ -173,7 +76,7 @@ function LandingFooter() {
 export default function Home() {
   return (
     <div className="bg-cream">
-      <LandingHeader />
+      <MarketingHeader />
 
       {/* Hero */}
       <section className="relative overflow-hidden">
@@ -240,6 +143,13 @@ export default function Home() {
                 alt="A typical British semi-detached home with red brick, bay window and a green garage door"
                 fill
                 priority
+                // priority sets fetchpriority=high + preload, which is
+                // what we want for the LCP element. sizes tells the
+                // browser which downscaled variant to fetch — at
+                // mobile this picks the ~640w WebP (~50KB) instead of
+                // the source 442KB JPG. quality=80 trims another
+                // ~10% off the JPEG before WebP encoding.
+                quality={80}
                 sizes="(max-width: 1024px) 100vw, 560px"
                 className="object-cover"
               />
@@ -307,45 +217,40 @@ export default function Home() {
         </div>
       </section>
 
-      {/* What you get */}
-      <section className="mx-auto max-w-6xl px-4 sm:px-6 py-20 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-        <div className="relative rounded-3xl overflow-hidden aspect-[4/3] ring-1 ring-[var(--border)] shadow-xl order-2 lg:order-1">
-          <Image
-            src={HOME_SMALL}
-            alt="A modern, well-insulated home at dusk"
-            fill
-            sizes="(max-width: 1024px) 100vw, 560px"
-            className="object-cover"
-          />
-        </div>
-        <div className="order-1 lg:order-2">
+      {/* What you get — image-free 2-column grid for the four
+          features. Was previously paired with an Unsplash photo on
+          the left, which cost a third-party DNS + TLS hop and ~150KB
+          on mobile for a below-the-fold image. The four feature
+          cards do the visual work on their own. */}
+      <section className="mx-auto max-w-6xl px-4 sm:px-6 py-20">
+        <div className="max-w-xl">
           <p className="eyebrow">What you get</p>
           <h2 className="mt-3 text-3xl sm:text-4xl text-navy">
             A proper report, not a postcode-level guess.
           </h2>
-          <ul className="mt-8 space-y-5">
-            <Feature
-              icon={<Flame className="w-5 h-5" />}
-              title="Heat pump eligibility"
-              body="Boiler Upgrade Scheme grant check (up to £7,500) against the latest Ofgem rules — blockers, warnings, and a system-size indication."
-            />
-            <Feature
-              icon={<Sun className="w-5 h-5" />}
-              title="Solar suitability"
-              body="Roof pitch, shading, and annual kWh from PVGIS — plus savings and payback as a range, never a single made-up number."
-            />
-            <Feature
-              icon={<BatteryCharging className="w-5 h-5" />}
-              title="Home battery sizing"
-              body="How much storage actually pays back for your usage pattern — paired with your solar output and any overnight heat-pump load."
-            />
-            <Feature
-              icon={<Zap className="w-5 h-5" />}
-              title="EV-ready electrics"
-              body="Headroom for a 7 kW charger when you need it, sized against your likely future draw so your installer isn't back out for a second visit."
-            />
-          </ul>
         </div>
+        <ul className="mt-10 grid grid-cols-1 sm:grid-cols-2 gap-5">
+          <Feature
+            icon={<Flame className="w-5 h-5" />}
+            title="Heat pump eligibility"
+            body="Boiler Upgrade Scheme grant check (up to £7,500) against the latest Ofgem rules — blockers, warnings, and a system-size indication."
+          />
+          <Feature
+            icon={<Sun className="w-5 h-5" />}
+            title="Solar suitability"
+            body="Roof pitch, shading, and annual kWh from PVGIS — plus savings and payback as a range, never a single made-up number."
+          />
+          <Feature
+            icon={<BatteryCharging className="w-5 h-5" />}
+            title="Home battery sizing"
+            body="How much storage actually pays back for your usage pattern — paired with your solar output and any overnight heat-pump load."
+          />
+          <Feature
+            icon={<Zap className="w-5 h-5" />}
+            title="EV-ready electrics"
+            body="Headroom for a 7 kW charger when you need it, sized against your likely future draw so your installer isn't back out for a second visit."
+          />
+        </ul>
       </section>
 
       {/* CTA */}

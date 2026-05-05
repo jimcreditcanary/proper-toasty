@@ -2,44 +2,10 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { Logo } from "@/components/logo";
 import { Button } from "@/components/ui/button";
+import { MarketingHeader } from "@/components/marketing-header";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ArrowLeft, ArrowRight, Calendar, User, ShieldCheck } from "lucide-react";
 import { BlogPostContent } from "@/components/blog-post-content";
-
-function BlogHeader() {
-  return (
-    <header className="bg-white/80 backdrop-blur-md border-b border-slate-200 sticky top-0 z-50">
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
-        <Link href="/" className="flex items-center">
-          <Logo size="sm" variant="light" />
-        </Link>
-        <nav className="hidden sm:flex items-center gap-6">
-          <Link href="/enterprise" className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors">
-            Enterprise
-          </Link>
-          <Link href="/blog" className="text-sm font-semibold text-slate-900 transition-colors">
-            Blog
-          </Link>
-        </nav>
-        <nav className="flex items-center gap-3">
-          <Button
-            className="h-10 bg-coral hover:bg-coral-dark text-white font-semibold text-sm px-5 rounded-lg shadow-sm hover:shadow-md transition-all"
-            render={<Link href="/verify" />}
-          >
-            Make a check
-          </Button>
-          <Button
-            variant="ghost"
-            className="h-10 text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg"
-            render={<Link href="/auth/login" />}
-          >
-            Sign in
-          </Button>
-        </nav>
-      </div>
-    </header>
-  );
-}
 
 const CATEGORY_COLORS: Record<string, string> = {
   "Fraud Prevention": "bg-red-50 text-red-700 border-red-200",
@@ -88,8 +54,8 @@ export default async function BlogPostPage({
     CATEGORY_COLORS[category] ?? "bg-slate-50 text-slate-700 border-slate-200";
 
   return (
-    <div className="flex min-h-screen flex-col bg-white text-slate-900">
-      <BlogHeader />
+    <div className="flex min-h-screen flex-col bg-cream text-slate-900">
+      <MarketingHeader active="blog" />
 
       {/* Article */}
       <article className="mx-auto w-full max-w-3xl px-6 py-12 sm:py-16">
@@ -145,9 +111,9 @@ export default async function BlogPostPage({
           </p>
           <Button
             className="mt-5 h-12 px-8 text-[15px] font-semibold rounded-lg bg-coral hover:bg-coral-dark text-white shadow-sm transition-all"
-            render={<Link href="/verify" />}
+            render={<Link href="/check" />}
           >
-            Make a check — free
+            Check my home — free
             <ArrowRight className="size-5 ml-2" />
           </Button>
         </div>
@@ -162,7 +128,7 @@ export default async function BlogPostPage({
               <Link href="/#how-it-works" className="hover:text-slate-900 transition-colors">How it works</Link>
               <Link href="/enterprise" className="hover:text-slate-900 transition-colors">Enterprise</Link>
               <Link href="/blog" className="hover:text-slate-900 transition-colors">Blog</Link>
-              <Link href="/verify" className="hover:text-slate-900 transition-colors">Make a check</Link>
+              <Link href="/check" className="hover:text-slate-900 transition-colors">Check my home</Link>
               <Link href="/auth/login" className="hover:text-slate-900 transition-colors">Sign in</Link>
             </nav>
           </div>

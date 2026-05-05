@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Logo } from "@/components/logo";
+import { MarketingHeader } from "@/components/marketing-header";
 import { Leaf, ArrowRight, Calendar, Mail } from "lucide-react";
 
 type BlogPost = {
@@ -37,33 +37,6 @@ function CategoryBadge({ category }: { category: string }) {
   );
 }
 
-function BlogHeader() {
-  return (
-    <header className="bg-cream/80 backdrop-blur-md border-b border-[var(--border)] sticky top-0 z-50">
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
-        <Link href="/" className="flex items-center">
-          <Logo size="sm" variant="light" />
-        </Link>
-        <nav className="hidden sm:flex items-center gap-7 text-sm">
-          <Link href="/enterprise" className="text-[var(--muted-brand)] hover:text-navy transition-colors">
-            For installers
-          </Link>
-          <Link href="/blog" className="text-navy font-semibold">
-            Journal
-          </Link>
-        </nav>
-        <Link
-          href="/check"
-          className="inline-flex items-center gap-1.5 h-10 px-5 rounded-full bg-coral hover:bg-coral-dark text-cream font-medium text-sm transition-colors"
-        >
-          Check my home
-          <ArrowRight className="w-4 h-4" />
-        </Link>
-      </div>
-    </header>
-  );
-}
-
 async function fetchPosts(): Promise<BlogPost[]> {
   try {
     // Dynamically import so a missing Supabase connection / missing table on
@@ -95,7 +68,7 @@ export default async function BlogPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-cream text-navy">
-      <BlogHeader />
+      <MarketingHeader active="blog" />
 
       {/* Hero */}
       <section className="border-b border-[var(--border)]">
