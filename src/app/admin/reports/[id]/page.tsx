@@ -69,11 +69,15 @@ async function loadReport(id: string): Promise<LoadedReport | null> {
   // Fan out for the rest. All admin-client so RLS doesn't block.
   const [resultsRes, userRes, signedUrl] = await Promise.all([
     admin.from("check_results").select("*").eq("check_id", check.id).maybeSingle(),
-    admin
-      .from("users")
-      .select("id, email, role")
-      .eq("id", check.user_id)
-      .maybeSingle(),
+    // user_id is nullable now (anonymous guest checks per migration 055)
+    // — only run the user lookup when we have one.
+    check.user_id
+      ? admin
+          .from("users")
+          .select("id, email, role")
+          .eq("id", check.user_id)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
     check.floorplan_object_key
       ? admin.storage
           .from("floorplans")

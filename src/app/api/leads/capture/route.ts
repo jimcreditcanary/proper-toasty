@@ -134,6 +134,45 @@ export async function POST(req: Request) {
     });
   }
 
+  // Migration 055 — close the loop on check ↔ lead linkage. The
+  // wizard sends checkId once it has one (or clientSessionId as
+  // fallback for very early captures). We update the matching row
+  // with homeowner_lead_id so admin queries can join straight from
+  // checks → homeowner_leads. Best-effort: if no check row matches
+  // (anonymous flow that never fired upsert) we silently skip.
+  try {
+    let checkUpdate: { id: string } | null = null;
+    if (input.checkId) {
+      const { data } = await admin
+        .from("checks")
+        .select("id")
+        .eq("id", input.checkId)
+        .maybeSingle();
+      checkUpdate = data ?? null;
+    }
+    if (!checkUpdate && input.clientSessionId) {
+      const { data } = await admin
+        .from("checks")
+        .select("id")
+        .eq("client_session_id", input.clientSessionId)
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      checkUpdate = data ?? null;
+    }
+    if (checkUpdate) {
+      const { error: linkErr } = await admin
+        .from("checks")
+        .update({ homeowner_lead_id: homeownerLeadId })
+        .eq("id", checkUpdate.id);
+      if (linkErr) {
+        console.warn("[leads] check link update failed", linkErr);
+      }
+    }
+  } catch (err) {
+    console.warn("[leads] check link lookup threw", err);
+  }
+
   // Primary homeowner conversion event — the moment they're
   // captured into the platform. via_pre_survey lets us measure
   // organic vs installer-sourced funnel separately.

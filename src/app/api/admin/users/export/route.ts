@@ -66,6 +66,9 @@ export async function GET(req: Request): Promise<Response> {
       .select("user_id")
       .in("user_id", userIds);
     for (const c of checks ?? []) {
+      // user_id is nullable post-migration 055 — guest rows can't
+      // attribute to any user, skip them.
+      if (!c.user_id) continue;
       checkCount.set(c.user_id, (checkCount.get(c.user_id) ?? 0) + 1);
     }
   }

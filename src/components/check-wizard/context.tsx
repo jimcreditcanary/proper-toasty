@@ -92,6 +92,22 @@ export function CheckWizardProvider({
     setHydrated(true);
   }, [disablePersistence]);
 
+  // Mint a clientSessionId after hydration if the saved state didn't
+  // already have one. This is the dedupe key for /api/checks/upsert
+  // — every wizard session needs one so the same draft check stays
+  // updateable across reloads. crypto.randomUUID() is the obvious
+  // choice; fallback to Math.random for stale browsers (very rare).
+  useEffect(() => {
+    if (disablePersistence) return;
+    if (!hydrated) return;
+    if (state.clientSessionId) return;
+    const sid =
+      typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+        ? crypto.randomUUID()
+        : Math.random().toString(36).slice(2) + Date.now().toString(36);
+    dispatch({ type: "UPDATE", patch: { clientSessionId: sid } });
+  }, [hydrated, disablePersistence, state.clientSessionId]);
+
   useEffect(() => {
     if (disablePersistence) return;
     if (!hydrated || typeof window === "undefined") return;

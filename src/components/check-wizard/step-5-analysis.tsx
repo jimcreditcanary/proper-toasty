@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, CheckCircle2, Loader2, AlertCircle } from "lucide-react";
 import { useCheckWizard } from "./context";
+import { upsertCheck } from "./persist";
 import type { AnalyseResponse } from "@/lib/schemas/analyse";
 
 type Stage = "idle" | "running" | "done" | "error";
@@ -21,6 +22,12 @@ export function Step5Analysis() {
   const [error, setError] = useState<string | null>(null);
   const [messageIdx, setMessageIdx] = useState(0);
   const firedRef = useRef(false);
+  // Latest-state ref so the upsert call inside the .then closure
+  // doesn't trigger an exhaustive-deps re-fire of the analyse effect.
+  const stateRef = useRef(state);
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
 
   useEffect(() => {
     if (firedRef.current) return;
@@ -72,6 +79,14 @@ export function Step5Analysis() {
       .then((data) => {
         update({ analysis: data });
         setStage("done");
+        // Persist final state — flips check.status from 'draft' to
+        // 'complete' and writes the floorplan analysis (with metrics)
+        // to check_results. Fire-and-forget; failures don't gate
+        // the report viewing.
+        void upsertCheck({
+          state: { ...stateRef.current, analysis: data },
+          status: "complete",
+        });
         // Brief pause so users see the "done" state, then auto-advance.
         setTimeout(() => next(), 900);
       })

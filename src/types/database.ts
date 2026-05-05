@@ -679,7 +679,13 @@ export interface Database {
         Row: {
           id: string;
           short_id: string;
-          user_id: string;
+          // Migration 055 — nullable for anonymous guest checks
+          user_id: string | null;
+          // Migration 055 — UUID minted client-side, kept in localStorage,
+          // used as the dedupe key for guest upserts.
+          client_session_id: string | null;
+          // Migration 055 — set on /api/leads/capture to link check → lead.
+          homeowner_lead_id: string | null;
           created_at: string;
           updated_at: string;
           status: "draft" | "running" | "complete" | "failed";
@@ -702,6 +708,11 @@ export interface Database {
           gas_tariff: Json | null;
           floorplan_object_key: string | null;
           floorplan_uploaded_at: string | null;
+          // Migration 055 — denormalised floorplan metrics.
+          room_count: number | null;
+          floors_count: number | null;
+          total_area_m2: number | null;
+          total_area_sqft: number | null;
           share_token: string | null;
           share_expires_at: string | null;
           credits_spent: number;
@@ -712,7 +723,13 @@ export interface Database {
           // optional on insert — supplying one is allowed for tests
           // but normal application code should let the DB pick.
           short_id?: string;
-          user_id: string;
+          user_id?: string | null;
+          client_session_id?: string | null;
+          homeowner_lead_id?: string | null;
+          room_count?: number | null;
+          floors_count?: number | null;
+          total_area_m2?: number | null;
+          total_area_sqft?: number | null;
           created_at?: string;
           updated_at?: string;
           status?: "draft" | "running" | "complete" | "failed";

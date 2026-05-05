@@ -110,6 +110,15 @@ export interface CheckWizardState {
   preSurveyMeetingStatus: "not_booked" | "booked" | null;
   preSurveyMeetingAt: string | null; // ISO 8601 UTC
   prefillPostcode: string | null;
+
+  // Migration 055 — guest persistence. clientSessionId is minted on
+  // first wizard load (kept in localStorage with the rest of state)
+  // and sent on every /api/checks/upsert so the same draft can be
+  // updated across reloads. checkId is the server-side row id once
+  // the first upsert returns; subsequent calls send it back so the
+  // server doesn't need to re-find the row.
+  clientSessionId: string | null;
+  checkId: string | null;
 }
 
 export const INITIAL_STATE: CheckWizardState = {
@@ -139,6 +148,8 @@ export const INITIAL_STATE: CheckWizardState = {
   preSurveyMeetingStatus: null,
   preSurveyMeetingAt: null,
   prefillPostcode: null,
+  clientSessionId: null,
+  checkId: null,
 };
 
 export type CheckWizardAction =

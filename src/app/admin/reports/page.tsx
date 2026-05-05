@@ -143,8 +143,12 @@ async function loadReports(args: {
 
   // Hydrate emails for the rows we ended up with. Single batched
   // lookup against public.users keeps it to 2 round trips total.
+  // user_id is nullable for guest checks — filter nulls out before
+  // the .in() lookup so we don't query "in (null, null, …)".
   const rows = (data ?? []) as CheckRow[];
-  const uniqueUserIds = Array.from(new Set(rows.map((r) => r.user_id)));
+  const uniqueUserIds = Array.from(
+    new Set(rows.map((r) => r.user_id).filter((id): id is string => Boolean(id))),
+  );
   let emailByUserId = new Map<string, string>();
   if (uniqueUserIds.length > 0) {
     const { data: profiles } = await admin
@@ -158,7 +162,7 @@ async function loadReports(args: {
 
   return rows.map((r) => ({
     ...r,
-    user_email: emailByUserId.get(r.user_id) ?? null,
+    user_email: r.user_id ? emailByUserId.get(r.user_id) ?? null : null,
   }));
 }
 

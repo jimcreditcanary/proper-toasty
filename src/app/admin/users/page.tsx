@@ -108,6 +108,9 @@ async function loadUsers(args: {
       .select("user_id")
       .in("user_id", userIds);
     for (const c of checks ?? []) {
+      // user_id is nullable post-migration 055 — skip guest rows
+      // here, they're not associated with any of our user rows.
+      if (!c.user_id) continue;
       checkCountByUser.set(c.user_id, (checkCountByUser.get(c.user_id) ?? 0) + 1);
     }
   }

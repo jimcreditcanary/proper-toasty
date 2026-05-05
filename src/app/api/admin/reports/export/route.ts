@@ -90,7 +90,10 @@ export async function GET(req: Request): Promise<Response> {
   const rows = (checks ?? []) as CheckRow[];
 
   // Hydrate emails so the CSV has a human column rather than a uuid.
-  const uniqueUserIds = Array.from(new Set(rows.map((r) => r.user_id)));
+  // user_id is nullable for guest checks — strip nulls before lookup.
+  const uniqueUserIds = Array.from(
+    new Set(rows.map((r) => r.user_id).filter((id): id is string => Boolean(id))),
+  );
   let emailByUserId = new Map<string, string>();
   if (uniqueUserIds.length > 0) {
     const { data: profiles } = await admin
@@ -122,7 +125,7 @@ export async function GET(req: Request): Promise<Response> {
     r.short_id,
     r.id,
     r.status,
-    emailByUserId.get(r.user_id) ?? "",
+    r.user_id ? emailByUserId.get(r.user_id) ?? "" : "",
     r.address_formatted ?? "",
     r.postcode ?? "",
     r.uprn ?? "",

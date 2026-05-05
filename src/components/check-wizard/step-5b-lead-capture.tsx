@@ -76,6 +76,11 @@ export function Step5bLeadCapture() {
         // installer_lead gets auto-created + the request row marked
         // completed when the customer arrived via /check?presurvey=…
         preSurveyRequestId: state.preSurveyRequestId ?? null,
+        // Migration 055 — let the lead capture route find the
+        // matching check row and stamp homeowner_lead_id on it,
+        // closing the check ↔ lead loop for admin queries.
+        checkId: state.checkId ?? null,
+        clientSessionId: state.clientSessionId ?? null,
       };
       try {
         const res = await fetch("/api/leads/capture", {

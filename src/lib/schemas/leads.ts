@@ -24,6 +24,12 @@ export const LeadCaptureRequestSchema = z.object({
   // installer_lead attributed to the requesting installer + flips
   // the request row to 'completed'.
   preSurveyRequestId: z.string().uuid().optional().nullable(),
+  // Migration 055 — wizard's check id, sent so the lead capture
+  // route can stamp homeowner_lead_id back on the check row.
+  // clientSessionId is the fallback when checkId hasn't been minted
+  // yet (early lead capture before any /api/checks/upsert ran).
+  checkId: z.string().uuid().optional().nullable(),
+  clientSessionId: z.string().min(8).max(64).optional().nullable(),
 });
 export type LeadCaptureRequest = z.infer<typeof LeadCaptureRequestSchema>;
 

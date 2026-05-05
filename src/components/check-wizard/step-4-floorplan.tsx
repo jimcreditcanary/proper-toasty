@@ -20,6 +20,7 @@ import {
 } from "@/lib/schemas/floorplan";
 import type { FloorplanAnalyseResponse } from "@/app/api/floorplan/analyse/route";
 import type { SuggestPlacementsResult } from "@/lib/services/claude-placements";
+import { upsertCheck } from "./persist";
 
 // Step 4 (v3 — user-annotation model):
 //   1. Upload floorplan image → store object key
@@ -116,9 +117,11 @@ export function Step4Floorplan() {
   // was in flight; we don't want to stomp those).
   const metricsExtractedFor = useRef<string | null>(null);
   const analysisRef = useRef<FloorplanAnalysis | null>(state.floorplanAnalysis);
+  const stateRef = useRef(state);
   useEffect(() => {
     analysisRef.current = state.floorplanAnalysis;
-  }, [state.floorplanAnalysis]);
+    stateRef.current = state;
+  }, [state]);
 
   const runMetricsExtraction = useCallback(
     async (objectKey: string) => {
@@ -141,11 +144,24 @@ export function Step4Floorplan() {
         if (!j.ok || !j.metrics) return;
         // Read the latest analysis via ref so any walls/doors the
         // user drew while we were waiting on Claude survive.
-        update({
-          floorplanAnalysis: {
-            ...(analysisRef.current ?? emptyFloorplanAnalysis()),
-            metrics: j.metrics,
-          },
+        const mergedAnalysis = {
+          ...(analysisRef.current ?? emptyFloorplanAnalysis()),
+          metrics: j.metrics,
+        };
+        update({ floorplanAnalysis: mergedAnalysis });
+
+        // Persist to DB now that the headline metrics are in. The
+        // upsert is fire-and-forget; failures don't block the wizard.
+        // We construct a synthetic state with the merged analysis so
+        // the upsert sees the new metrics without waiting for the
+        // useReducer flush.
+        void upsertCheck({
+          state: { ...stateRef.current, floorplanAnalysis: mergedAnalysis },
+          status: "draft",
+        }).then((r) => {
+          if (r.ok && r.id && r.id !== stateRef.current.checkId) {
+            update({ checkId: r.id });
+          }
         });
       } catch (err) {
         // Non-fatal — wizard continues without the metrics block.
@@ -214,6 +230,24 @@ export function Step4Floorplan() {
           floorplanDegraded: false,
           floorplanDegradedReason: null,
           satelliteOutdoorVerdict: null,
+        });
+
+        // Persist the floorplan_object_key now so the check row
+        // exists before metrics extraction runs. Fire-and-forget —
+        // failures don't block the upload flow. The metrics
+        // extraction will fire its own follow-up upsert when Claude
+        // returns.
+        void upsertCheck({
+          state: {
+            ...stateRef.current,
+            floorplanObjectKey: j.objectKey,
+            floorplanAnalysis: emptyFloorplanAnalysis(),
+          },
+          status: "draft",
+        }).then((r) => {
+          if (r.ok && r.id && r.id !== stateRef.current.checkId) {
+            update({ checkId: r.id });
+          }
         });
       } catch (err) {
         URL.revokeObjectURL(previewUrl);
