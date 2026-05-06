@@ -393,6 +393,12 @@ async function fetchCertificate(certificateNumber: string): Promise<EpcCertifica
 
     // ── Property classification ─────────────────────────────────────
     propertyType: raw.property_type ?? null,
+    // Prefer the upstream `dwelling_type` when present; otherwise
+    // synthesise from property_type + built_form so the wizard's
+    // "Property Type" row never falls back to a bare "House".
+    dwellingType:
+      raw.dwelling_type ??
+      ([raw.property_type, raw.built_form].filter(Boolean).join(" — ") || null),
     builtForm: raw.built_form ?? null,
     constructionAgeBand: raw.construction_age_band ?? null,
     tenure: raw.tenure ?? null,
@@ -498,6 +504,7 @@ function certFromRow(row: EpcSearchRow): EpcCertificate {
     co2EmissionsPotential: null,
 
     propertyType: null,
+    dwellingType: null,
     builtForm: null,
     constructionAgeBand: null,
     tenure: null,

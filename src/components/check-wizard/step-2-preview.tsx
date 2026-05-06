@@ -5,7 +5,6 @@ import Image from "next/image";
 import {
   ArrowLeft,
   CheckCircle2,
-  Flame,
   Sun,
   Zap,
   Info,
@@ -390,58 +389,33 @@ function EpcCard({ state }: { state: Loadable<EpcByAddressResponse> }) {
       title="EPC"
       headerRight={matchBadge}
     >
-      {/* Rating squares — current + potential side-by-side, mirrors
-          the GOV.UK certificate's headline visual. */}
-      <div className="flex items-stretch gap-3">
-        <RatingTile
-          label="Current"
-          band={c.currentEnergyBand}
-          rating={c.currentEnergyRating}
-        />
-        <RatingTile
-          label="Potential"
-          band={c.potentialEnergyBand}
-          rating={c.potentialEnergyRating}
-        />
-      </div>
-
-      {/* Property type + valid till — the two facts an installer
-          asks for first. */}
-      <dl className="mt-4 space-y-1.5 text-sm">
-        {(c.propertyType || c.builtForm) && (
-          <Row label="Property type">
-            <span className="font-medium text-navy">
-              {[c.propertyType, c.builtForm].filter(Boolean).join(" · ") || "—"}
-            </span>
-          </Row>
-        )}
-        {c.validUntil && (
-          <Row label="Valid till">
-            <span
-              className={
-                stale
-                  ? "font-medium text-red-700"
-                  : "font-medium text-navy"
-              }
-            >
-              {formatDate(c.validUntil)}
-              {stale && <span className="ml-1 text-xs">(expired)</span>}
-            </span>
-          </Row>
-        )}
-        {c.totalFloorAreaM2 != null && (
-          <Row label="Floor area">
-            <span className="font-medium text-navy">{Math.round(c.totalFloorAreaM2)} m²</span>
-          </Row>
-        )}
-        {c.mainFuel && (
-          <Row label="Main fuel">
-            <span className="font-medium text-navy inline-flex items-center gap-1">
-              <Flame className="w-3.5 h-3.5 text-coral" />
-              {c.mainFuel}
-            </span>
-          </Row>
-        )}
+      {/* Plain key/value rows — mirrors the Solar potential card's
+          format. Visual rating tiles were tried in 0b91729 but the
+          card felt heavier than the rest of the preview row. */}
+      <dl className="space-y-1.5 text-sm">
+        <Row label="Current Energy Rating">
+          <span className="font-medium text-navy">
+            {c.currentEnergyBand || "—"}
+          </span>
+        </Row>
+        <Row label="Potential Energy Rating">
+          <span className="font-medium text-navy">
+            {c.potentialEnergyBand || "—"}
+          </span>
+        </Row>
+        <Row label="Property Type">
+          <span className="font-medium text-navy">
+            {c.dwellingType || c.propertyType || "—"}
+          </span>
+        </Row>
+        <Row label="Valid Till">
+          <span
+            className={stale ? "font-medium text-red-700" : "font-medium text-navy"}
+          >
+            {c.validUntil ? formatDateDDMMYYYY(c.validUntil) : "—"}
+            {stale && <span className="ml-1 text-xs">(expired)</span>}
+          </span>
+        </Row>
       </dl>
 
       {stale && (
@@ -453,73 +427,16 @@ function EpcCard({ state }: { state: Loadable<EpcByAddressResponse> }) {
   );
 }
 
-/** Tiny date formatter for the valid-till row. Returns DD MMM YYYY
- *  (e.g. "20 Nov 2034") which is unambiguous for UK readers without
- *  the day-month-year-vs-month-day confusion of all-numeric dates. */
-function formatDate(iso: string): string {
+/** Format an ISO date as DD/MM/YYYY (UK convention). Falls back to
+ *  the raw input when parsing fails so we never silently swallow a
+ *  malformed date. */
+function formatDateDDMMYYYY(iso: string): string {
   const d = new Date(iso);
   if (isNaN(d.getTime())) return iso;
-  return d.toLocaleDateString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
-}
-
-/** Coloured A-G band tile, mirroring the GOV.UK EPC certificate
- *  visual. The band letter is the eye-catching part; the optional
- *  numeric SAP rating sits underneath in smaller type. */
-function RatingTile({
-  label,
-  band,
-  rating,
-}: {
-  label: string;
-  band: string | null;
-  rating: number | null;
-}) {
-  const palette = bandPalette(band);
-  return (
-    <div className="flex-1 rounded-lg border border-slate-200 bg-slate-50 p-3 text-center">
-      <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-2">
-        {label}
-      </p>
-      <div
-        className="mx-auto inline-flex items-center justify-center w-12 h-12 rounded-md text-white text-2xl font-bold shadow-sm"
-        style={{ backgroundColor: palette.bg }}
-      >
-        {band ?? "—"}
-      </div>
-      {rating != null && (
-        <p className="mt-2 text-xs text-slate-600">
-          SAP <span className="font-semibold text-navy">{rating}</span>
-        </p>
-      )}
-    </div>
-  );
-}
-
-/** GOV.UK EPC band colours. Matches the canonical EPC certificate
- *  palette so a homeowner who's seen their cert recognises it. */
-function bandPalette(band: string | null): { bg: string } {
-  switch ((band ?? "").toUpperCase()) {
-    case "A":
-      return { bg: "#008054" }; // dark green
-    case "B":
-      return { bg: "#19b459" }; // green
-    case "C":
-      return { bg: "#8dce46" }; // light green
-    case "D":
-      return { bg: "#ffd500" }; // yellow
-    case "E":
-      return { bg: "#fcaa65" }; // orange
-    case "F":
-      return { bg: "#ef8023" }; // dark orange
-    case "G":
-      return { bg: "#e9153b" }; // red
-    default:
-      return { bg: "#94a3b8" }; // slate-400 — unknown
-  }
+  const dd = String(d.getUTCDate()).padStart(2, "0");
+  const mm = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const yyyy = d.getUTCFullYear();
+  return `${dd}/${mm}/${yyyy}`;
 }
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {

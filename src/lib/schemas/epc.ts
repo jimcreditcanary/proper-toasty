@@ -112,7 +112,12 @@ export const EpcCertificateRawSchema = z
     co2_emissions_potential: z.number().optional(),
 
     // Property classification
+    // - property_type: top-level category ("House", "Flat", "Bungalow", "Maisonette", "Park home")
+    // - dwelling_type: combined classification ("Detached house",
+    //   "Semi-detached house", etc.) — present in some API releases,
+    //   conceptually property_type + built_form merged.
     property_type: z.string().optional(),
+    dwelling_type: z.string().optional(),
     built_form: z.string().optional(),
     construction_age_band: z.string().optional(),
     tenure: z.string().optional(),
@@ -225,6 +230,10 @@ export const EpcCertificateSchema = z.object({
 
   // Property classification
   propertyType: z.string().nullable(),
+  /** Combined classification e.g. "Detached house". Falls back to
+   *  `${propertyType} ${builtForm}` when the upstream payload doesn't
+   *  ship the separate dwelling_type field. */
+  dwellingType: z.string().nullable(),
   builtForm: z.string().nullable(),
   constructionAgeBand: z.string().nullable(),
   tenure: z.string().nullable(),
