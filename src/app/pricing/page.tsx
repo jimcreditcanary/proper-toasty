@@ -37,7 +37,7 @@ export const metadata = {
 export default function PricingPage() {
   return (
     <div className="flex min-h-screen flex-col bg-cream text-navy">
-      <MarketingHeader active="pricing" />
+      <MarketingHeader audience="installer" active="pricing" />
 
       <main className="flex-1">
         <Hero />
