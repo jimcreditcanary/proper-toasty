@@ -357,20 +357,34 @@ export interface GetEpcInput {
   uprn?: string | null;
   postcode?: string | null;
   addressLine1?: string | null;
+  // Optional: the full single-line address, e.g. "Flat 12, The Old Mill,
+  // Mill Road, Halifax". When present, the fuzzy matcher scores both
+  // addressLine1 and addressFull against each EPC search row and keeps
+  // the higher score. For multi-flat blocks where Postcoder collapses
+  // the flat number into a different field than addressLine1, this is
+  // the difference between matching the right flat and matching its
+  // neighbour at threshold.
+  addressFull?: string | null;
 }
 
 // Build a stable cache key from the input. UPRN is the preferred anchor
 // (one per property); postcode+address is the fallback. Returns null when
 // there's nothing to key on — in that case we skip the cache entirely.
+//
+// Note: when addressFull is supplied we key on it (more specific than
+// line1) so two flats sharing the same line1 don't collide in the cache.
 function epcCacheKey(input: GetEpcInput): string | null {
   if (input.uprn) {
     const n = uprnToInt(input.uprn);
     if (n != null) return `uprn:${n}`;
   }
-  if (input.postcode && input.addressLine1) {
+  if (input.postcode && (input.addressFull || input.addressLine1)) {
     const pc = normalisePostcode(input.postcode);
-    const addr = input.addressLine1.toLowerCase().trim().replace(/\s+/g, " ");
-    return `pcaddr:${pc}:${addr}`;
+    const addr = (input.addressFull ?? input.addressLine1 ?? "")
+      .toLowerCase()
+      .trim()
+      .replace(/\s+/g, " ");
+    return `pcaddr-v2:${pc}:${addr}`;
   }
   return null;
 }
@@ -415,7 +429,7 @@ async function resolveEpcUncached(input: GetEpcInput): Promise<EpcByAddressRespo
     }
   }
 
-  if (rows.length === 0 && input.postcode && input.addressLine1) {
+  if (rows.length === 0 && input.postcode && (input.addressLine1 || input.addressFull)) {
     rows = await searchByPostcode(input.postcode);
     matchMethod = "postcode+address";
     if (rows.length === 0) return { found: false, reason: "No EPC lodged at this postcode." };
@@ -431,23 +445,43 @@ async function resolveEpcUncached(input: GetEpcInput): Promise<EpcByAddressRespo
     // the most recently registered.
     best = rows.sort((a, b) => (b.registrationDate || "").localeCompare(a.registrationDate || ""))[0];
   } else {
+    // Score against BOTH addressLine1 and addressFull (when present) and
+    // keep the higher score. addressFull is a one-liner like
+    // "Flat 12, The Old Mill, Mill Road, Halifax" — much more specific
+    // than line1 alone in multi-occupancy buildings, where line1 is
+    // often just the building name shared by 67 flats.
+    const candidates = [input.addressLine1, input.addressFull].filter(
+      (s): s is string => typeof s === "string" && s.length > 0
+    );
     const scored = rows
-      .map((r) => ({ r, score: matchScore(input.addressLine1 ?? "", rowAddress(r)) }))
+      .map((r) => {
+        const rowAddr = rowAddress(r);
+        const best = candidates.reduce((max, c) => Math.max(max, matchScore(c, rowAddr)), 0);
+        return { r, score: best };
+      })
       .sort((a, b) => {
         if (b.score !== a.score) return b.score - a.score;
         return (b.r.registrationDate || "").localeCompare(a.r.registrationDate || "");
       });
     const top = scored[0];
-    // Threshold lowered 0.5 → 0.35 to forgive minor address-shape
-    // mismatches between Postcoder (PAF) and the EPC API. The
-    // door-number heuristic in matchScore guards against false-
-    // positive neighbour matches.
-    if (!top || top.score < 0.35) {
+    // Threshold 0.35 forgives minor address-shape mismatches between
+    // Postcoder (PAF) and the EPC API. The door-number heuristic in
+    // matchScore guards against false-positive neighbour matches.
+    //
+    // For multi-flat blocks (>5 candidates), bump to 0.55 — at lower
+    // scores we'd be matching by building name alone, which happily
+    // returns whichever flat happens to be first in the list. Better
+    // to return "no match" honestly than confidently match the wrong
+    // flat.
+    const threshold = rows.length > 5 ? 0.55 : 0.35;
+    if (!top || top.score < threshold) {
       // Log the top candidates so we can diagnose stubborn cases
       // where an EPC clearly exists but no row scores high enough.
       console.warn("[epc] no postcode+address match above threshold", {
-        input: input.addressLine1,
+        input: input.addressFull ?? input.addressLine1,
         postcode: input.postcode,
+        threshold,
+        candidatePool: rows.length,
         topCandidates: scored.slice(0, 3).map((c) => ({
           address: rowAddress(c.r),
           score: Math.round(c.score * 100) / 100,

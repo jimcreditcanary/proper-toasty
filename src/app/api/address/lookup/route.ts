@@ -14,6 +14,11 @@ const RequestSchema = z.object({
 const UK_POSTCODE_REGEX =
   /^(GIR 0AA|[A-PR-UWYZ]([0-9]{1,2}|([A-HK-Y][0-9]([0-9ABEHMNPRV-Y])?)|[0-9][A-HJKPS-UW]) ?[0-9][ABD-HJLNP-UW-Z]{2})$/i;
 
+// In-memory dedupe for the "Postcoder is not returning UPRNs" warning.
+// Cleared on cold-start; that's fine — it's an operations signal, not
+// state we need to persist. Prevents a spammed log on a busy postcode.
+const UPRN_WARNING_LOGGED = new Set<string>();
+
 function formatPostcode(raw: string): string {
   const s = raw.trim().toUpperCase().replace(/\s+/g, "");
   if (s.length < 5) return raw.trim();
@@ -63,11 +68,17 @@ export async function POST(req: Request) {
     const centroidLat = postcodeMeta?.latitude ?? 0;
     const centroidLng = postcodeMeta?.longitude ?? 0;
 
-    const addresses = rawAddresses.map((a, i) => {
+    const addresses = rawAddresses.map((a) => {
       const lat = Number(a.latitude) || centroidLat || 0;
       const lng = Number(a.longitude) || centroidLng || 0;
-      const uprn = a.uprn || `row-${i}`; // synthetic key keeps React happy; the
-      // EPC lookup will fall back to postcode+address when UPRN is missing.
+      // CRITICAL: never synthesise a UPRN. A real UPRN is a 1-12 digit
+      // integer; downstream (EPC, OS) services try to look it up. If we
+      // make one up ("row-12"), the EPC service can't parse it, silently
+      // skips the UPRN-first path, and falls back to a fuzzy postcode+
+      // address match — which is lossy in multi-flat blocks like HX3 7DG.
+      // Pass `null` instead so the EPC route hits postcode+address with
+      // the FULL address summary (see step-2-preview + analyse routes).
+      const uprn = a.uprn && /^\d{1,12}$/.test(a.uprn.trim()) ? a.uprn.trim() : null;
       return {
         uprn,
         udprn: a.udprn || null,
@@ -84,21 +95,19 @@ export async function POST(req: Request) {
       };
     });
 
-    // Some Royal Mail PAF addresses genuinely don't carry a UPRN
-    // (a few new-builds, pseudo-addresses, BFPO, etc.). Our plan's
-    // addtags request UPRN and Postcoder returns it where available
-    // — the gaps are upstream data limits, not config issues. We
-    // synthesise a `row-N` key so React has stable list keys and
-    // the EPC lookup falls back to postcode+address matching for
-    // those rows.
-    //
-    // Only log if MOST rows are missing UPRN — that genuinely
-    // suggests the plan or addtags is wrong. A scattering of
-    // missing UPRNs is normal and not worth a warning.
-    const missingUprn = addresses.filter((a) => a.uprn.startsWith("row-")).length;
-    if (rawAddresses.length > 0 && missingUprn / rawAddresses.length >= 0.5) {
+    // Diagnostics for the Postcoder UPRN addtag — only useful once
+    // per postcode per process boot. After that, repeating the same
+    // warning on every lookup is noise, and the underlying issue is
+    // an account/plan config matter, not a code-path bug.
+    const missingUprn = addresses.filter((a) => a.uprn === null).length;
+    if (
+      rawAddresses.length > 0 &&
+      missingUprn / rawAddresses.length >= 0.5 &&
+      !UPRN_WARNING_LOGGED.has(formatted)
+    ) {
+      UPRN_WARNING_LOGGED.add(formatted);
       console.warn(
-        `[address-lookup] ${missingUprn}/${rawAddresses.length} Postcoder rows for ${formatted} are missing UPRN — verify the plan's addtags (uprn,udprn,latitude,longitude) are still being honoured.`
+        `[address-lookup] ${missingUprn}/${rawAddresses.length} Postcoder rows for ${formatted} are missing UPRN. EPC will fall back to postcode+address fuzzy match. To restore exact-UPRN lookups, ensure your Postcoder plan includes the OS AddressBase / UPRN addtag (PAF-only plans don't return it).`
       );
     }
 

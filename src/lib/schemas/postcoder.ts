@@ -28,10 +28,15 @@ export type PostcoderAddress = z.infer<typeof PostcoderAddressSchema>;
 
 // Shape returned to the client. Typed + pre-normalised so the wizard doesn't
 // have to defend against weird Postcoder edge cases.
+//
+// `uprn` is nullable — Postcoder only returns UPRNs on plans that include
+// the OS AddressBase addtag. PAF-only plans return `null` for every row.
+// Downstream services (EPC, OS) MUST treat null as "no UPRN, fall back
+// to postcode + address matching" rather than synthesising a placeholder.
 export const AddressLookupResponseSchema = z.object({
   addresses: z.array(
     z.object({
-      uprn: z.string(),
+      uprn: z.string().nullable(),
       udprn: z.string().nullable(),
       summary: z.string(),
       addressLine1: z.string(),

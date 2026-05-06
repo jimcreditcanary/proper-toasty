@@ -59,6 +59,10 @@ export async function POST(req: Request) {
           uprn: address.uprn,
           postcode: address.postcode ?? undefined,
           addressLine1: address.line1,
+          // Pass the full single-line address so the EPC fuzzy matcher
+          // can disambiguate flats in multi-occupancy buildings — see
+          // GetEpcInput.addressFull in src/lib/services/epc.ts.
+          addressFull: address.formattedAddress || undefined,
         }).catch((err) => {
           console.warn("EPC failed during analyse:", err);
           return { found: false, reason: "EPC lookup failed." } as EpcByAddressResponse;

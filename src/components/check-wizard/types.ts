@@ -28,7 +28,11 @@ export type HeatingFuel = "gas" | "electric" | "other";
 export type YesNoUnsure = "yes" | "no" | "unsure";
 
 export interface SelectedAddress {
-  uprn: string;
+  // Real OS UPRN when Postcoder's plan supplies it; null otherwise.
+  // Never a synthetic placeholder — downstream services (EPC, OS) must
+  // be free to skip UPRN-first lookups and use postcode + address
+  // matching instead.
+  uprn: string | null;
   formattedAddress: string;
   line1: string;
   line2: string | null;

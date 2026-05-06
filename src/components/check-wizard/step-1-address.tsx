@@ -188,8 +188,12 @@ export function Step1Address() {
             Pick your property · {addresses.length} found
           </p>
           <ul className="rounded-xl border border-[var(--border)] bg-white shadow-sm divide-y divide-[var(--border)] max-h-96 overflow-y-auto">
-            {addresses.map((a) => (
-              <li key={a.uprn}>
+            {addresses.map((a, i) => (
+              // UPRN can be null (PAF-only Postcoder plans). Compose a
+              // stable React key from UPRN OR (UDPRN + summary + index)
+              // so the list still has unique keys without us having to
+              // mint a fake UPRN that would leak downstream.
+              <li key={a.uprn ?? `${a.udprn ?? "row"}-${i}-${a.summary}`}>
                 <button
                   type="button"
                   onClick={() => pick(a)}

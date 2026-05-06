@@ -142,7 +142,7 @@ function SharedReportInner({ data }: { data: LoadReportResponse }) {
 
   const initialState: Partial<CheckWizardState> = {
     address: {
-      uprn: property.uprn ?? "",
+      uprn: property.uprn ?? null,
       formattedAddress: property.address ?? "",
       line1: "",
       line2: null,

@@ -15,7 +15,10 @@ import { EligibilitySchema, FinanceSchema } from "@/lib/schemas/eligibility";
 
 export const AnalyseRequestSchema = z.object({
   address: z.object({
-    uprn: z.string().min(1),
+    // Real UPRN when Postcoder supplies one; null otherwise. The EPC
+    // and OS services skip UPRN-first lookups when null and use
+    // postcode + address matching instead. See /api/address/lookup.
+    uprn: z.string().nullable(),
     formattedAddress: z.string(),
     line1: z.string(),
     line2: z.string().nullable().optional(),

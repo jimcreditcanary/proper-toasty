@@ -18,7 +18,7 @@ function initial<T>(): Loadable<T> {
 }
 
 export function Step2Preview() {
-  const { state, back, next } = useCheckWizard();
+  const { state, update, back, next } = useCheckWizard();
   const address = state.address;
 
   const [solar, setSolar] = useState<Loadable<BuildingInsightsResponse>>(initial);
@@ -49,14 +49,29 @@ export function Step2Preview() {
 
     if (address.uprn || (address.postcode && address.line1)) {
       setEpc({ status: "loading", data: null, error: null });
+      // Only include `uprn` in the body when it's a real UPRN.
+      // Sending null/empty would either fail the route's zod
+      // validation or — worse — cause the EPC service to skip
+      // the postcode+address fallback path it needs in PAF-only
+      // postcodes (HX3 7DG and similar multi-flat blocks).
+      const body: {
+        uprn?: string;
+        postcode: string;
+        addressLine1: string;
+        addressFull?: string;
+      } = {
+        postcode: address.postcode,
+        addressLine1: address.line1,
+        // Pass the FULL summary (e.g. "Flat 12, The Old Mill, Mill Road, Halifax")
+        // so the EPC fuzzy matcher has more to work with than addressLine1
+        // alone in multi-occupancy buildings.
+        addressFull: address.formattedAddress || undefined,
+      };
+      if (address.uprn) body.uprn = address.uprn;
       fetch("/api/epc/by-address", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          uprn: address.uprn,
-          postcode: address.postcode,
-          addressLine1: address.line1,
-        }),
+        body: JSON.stringify(body),
       })
         .then(async (r) => {
           if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -65,6 +80,35 @@ export function Step2Preview() {
         .then((data) => {
           if (cancelled) return;
           setEpc({ status: "ready", data, error: null });
+
+          // UPRN backfill from EPC.
+          //
+          // Postcoder doesn't always return UPRNs (depends on plan tier).
+          // The EPC API does — every certificate row carries the UPRN of
+          // the property it was lodged against. When our address has no
+          // UPRN but the matched EPC does, copy it back into wizard state
+          // so every downstream call (analyse, share, book) carries a
+          // real OS UPRN, and the next /api/checks/upsert persists it
+          // to checks.uprn for future runs.
+          //
+          // We only backfill when:
+          //   - the EPC was actually found (not a 'no match' response)
+          //   - the cert carries a non-empty UPRN
+          //   - the wizard's current address has no UPRN
+          //   - postcodes match (sanity check — the cert's UPRN is for
+          //     this property, not a neighbour from a fuzzy mismatch)
+          if (
+            data.found &&
+            data.certificate.uprn &&
+            !address.uprn &&
+            (data.certificate.postcode ?? "").replace(/\s+/g, "").toUpperCase() ===
+              address.postcode.replace(/\s+/g, "").toUpperCase()
+          ) {
+            console.info(
+              `[wizard] backfilled UPRN ${data.certificate.uprn} from EPC for ${address.formattedAddress}`
+            );
+            update({ address: { ...address, uprn: data.certificate.uprn } });
+          }
         })
         .catch((e) => {
           if (cancelled) return;

@@ -4,11 +4,16 @@ import { getEpc } from "@/lib/services/epc";
 
 export const runtime = "nodejs";
 
+// `uprn` accepts string or null. Null means "Postcoder didn't give us
+// one for this address" (PAF-only plan). The route falls back to
+// postcode+address matching, scored against `addressFull` if present
+// (richer than line1 for multi-flat blocks) and `addressLine1` otherwise.
 const RequestSchema = z
   .object({
-    uprn: z.string().min(1).max(12).optional(),
+    uprn: z.string().max(12).nullable().optional(),
     postcode: z.string().min(2).max(10).optional(),
     addressLine1: z.string().min(1).max(200).optional(),
+    addressFull: z.string().min(1).max(400).optional(),
   })
   .refine((v) => v.uprn || (v.postcode && v.addressLine1), {
     message: "Provide uprn, or both postcode and addressLine1",
@@ -31,7 +36,12 @@ export async function POST(req: Request) {
   }
 
   try {
-    const result = await getEpc(parsed.data);
+    const result = await getEpc({
+      uprn: parsed.data.uprn ?? null,
+      postcode: parsed.data.postcode ?? null,
+      addressLine1: parsed.data.addressLine1 ?? null,
+      addressFull: parsed.data.addressFull ?? null,
+    });
     // The route returns 200 in both found / not-found cases — that's
     // the right semantic, but it makes "no data came back" hard to
     // diagnose from logs alone. Log the outcome explicitly with

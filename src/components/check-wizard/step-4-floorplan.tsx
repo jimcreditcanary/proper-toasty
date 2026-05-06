@@ -580,7 +580,7 @@ export function Step4Floorplan() {
 function FindFloorplanHelp({
   address,
 }: {
-  address: { uprn: string; postcode: string } | null;
+  address: { uprn: string | null; postcode: string } | null;
 }) {
   // Build a sensible Zoopla URL. UPRN deep-link is the precise
   // match; falls back to a postcode search when UPRN isn't
