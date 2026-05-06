@@ -196,9 +196,16 @@ async function main() {
   console.log(`📂 Reading ${absPath}…`);
   const buf = readFileSync(absPath);
   const wb = XLSX.read(buf, { type: "buffer" });
-  const sheet = wb.Sheets["MCS Installers"];
+  // Prefer the named "MCS Installers" sheet (the original XLSX export
+  // shipped that sheet name). CSV imports come in as a single sheet
+  // named "Sheet1" — fall back to whatever the first sheet is so we
+  // accept either format without manual fiddling.
+  const sheet =
+    wb.Sheets["MCS Installers"] ?? wb.Sheets[wb.SheetNames[0]];
   if (!sheet) {
-    console.error('Could not find sheet "MCS Installers" in the workbook');
+    console.error(
+      `No sheet found. Workbook has: ${JSON.stringify(wb.SheetNames)}`,
+    );
     process.exit(1);
   }
   const rows = XLSX.utils.sheet_to_json<RawRow>(sheet, { defval: null });

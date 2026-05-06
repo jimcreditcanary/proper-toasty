@@ -72,6 +72,7 @@ src/
 
 - England & Wales only for BUS. Gate Scottish/NI postcodes with a "coming soon" state.
 - Never represent output as a final engineering assessment. Copy says "pre-survey indication" / "suitability check" — never "quote" or "design".
+- **Never wipe `public.installers` or `public.blog_posts`.** Both hold expensively-acquired content (5,500-row MCS directory import; hand-written SEO blog posts). Any nuke / truncate / wipe script — including the dynamic "loop through pg_tables" pattern — MUST add `'installers'` and `'blog_posts'` to the keep-list alongside `admin_settings` and `api_cache`. If a script in this repo is missing them, fix it before running.
 - MCS / BUS terminology must be accurate. Do not invent grant numbers.
 
 ## Commands
