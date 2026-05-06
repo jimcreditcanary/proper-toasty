@@ -12,41 +12,73 @@
 // audience as the active segment, and navigates to that audience's
 // landing page on switch.
 //
-// Page → audience mapping is explicit (the `audience` prop) rather
-// than path-derived: keeps the component pure, lets us override on
-// edge cases (legal pages defaulted to homeowner since their referrers
-// are usually homeowners).
+// Audience precedence:
+//   1. `audience` prop          — explicit override (canonical pages)
+//   2. `pt_audience` cookie     — pinned by proxy on canonical visits
+//   3. "homeowner"              — default for new visitors
 //
-// Mobile menu: <details>/<summary> rather than a JS dropdown so this
-// stays a pure server component with zero hydration cost.
+// Auth-aware:
+//   - Signed in → "Account" link to the user's role-based home
+//     (admin → /admin, installer → /installer, else /dashboard).
+//   - Signed out + installer audience → "Sign in" link.
+//   - Signed out + homeowner audience → no auth surface (homeowners
+//     don't need to sign in for a free check).
+//
+// Async server component — reads cookies + Supabase session at
+// render time. Mobile menu still <details>/<summary> so no client JS.
 
 import Link from "next/link";
-import { ArrowRight, Hammer, Home, Menu } from "lucide-react";
+import { ArrowRight, CircleUserRound, Hammer, Home, Menu } from "lucide-react";
 import { Logo } from "@/components/logo";
-
-export type MarketingAudience = "homeowner" | "installer";
+import { createClient } from "@/lib/supabase/server";
+import {
+  type MarketingAudience,
+  getAudienceFromCookie,
+} from "@/lib/marketing/audience";
 
 interface MarketingHeaderProps {
-  /** Which audience this page is for. Drives the toggle's "you are
-   *  here" highlight + which nav links + CTA appear. Defaults to
-   *  homeowner since /, /blog/* are the most-trafficked routes. */
+  /** Which audience this page is for. When omitted, the cookie
+   *  (pinned by the proxy on canonical-page visits) decides. */
   audience?: MarketingAudience;
   /** Highlight whichever nav item matches the current page so it
-   *  reads as "you are here". Optional — leave undefined on pages
-   *  that don't map cleanly to the nav (legal, shared report, etc). */
+   *  reads as "you are here". */
   active?: "home" | "blog" | "overview" | "pricing" | "signin";
-  /** Compact mode hides the nav links and the audience toggle —
-   *  just logo + a single CTA. Used on the shared-report page where
+  /** Compact mode hides the nav and the audience toggle — just
+   *  logo + a single CTA. Used on the shared-report page where
    *  the homeowner is mid-session and shouldn't see distractions. */
   compact?: boolean;
 }
 
-export function MarketingHeader({
-  audience = "homeowner",
+export async function MarketingHeader({
+  audience,
   active,
   compact = false,
 }: MarketingHeaderProps) {
-  const isInstaller = audience === "installer";
+  const resolvedAudience = audience ?? (await getAudienceFromCookie());
+  const isInstaller = resolvedAudience === "installer";
+
+  // Auth state. Signed-in users get an "Account" link instead of
+  // "Sign in". Their target depends on role — looked up from the
+  // users table when there's a logged-in user.
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  let accountHref: string | null = null;
+  if (user) {
+    const { data: profile } = await supabase
+      .from("users")
+      .select("role")
+      .eq("id", user.id)
+      .maybeSingle<{ role: string | null }>();
+    const role = profile?.role ?? "user";
+    accountHref =
+      role === "admin"
+        ? "/admin"
+        : role === "installer"
+          ? "/installer"
+          : "/dashboard";
+  }
 
   return (
     <header className="bg-cream/80 backdrop-blur-md border-b border-[var(--border)] sticky top-0 z-50">
@@ -61,7 +93,7 @@ export function MarketingHeader({
                 hidden on small screens where it lives in the mobile
                 menu instead (otherwise the header gets cramped). */}
             <div className="hidden md:flex items-center">
-              <AudienceToggle current={audience} />
+              <AudienceToggle current={resolvedAudience} />
             </div>
 
             {/* Audience-specific nav links. Kept short — toggle
@@ -81,17 +113,43 @@ export function MarketingHeader({
                   >
                     Pricing
                   </Link>
-                  <Link
-                    href="/auth/login"
-                    className={navItemClasses(active === "signin")}
-                  >
-                    Sign in
-                  </Link>
+                  {accountHref ? (
+                    <Link
+                      href={accountHref}
+                      className={navItemClasses(active === "signin")}
+                    >
+                      Account
+                    </Link>
+                  ) : (
+                    <Link
+                      href="/auth/login"
+                      className={navItemClasses(active === "signin")}
+                    >
+                      Sign in
+                    </Link>
+                  )}
                 </>
               ) : (
-                <Link href="/blog" className={navItemClasses(active === "blog")}>
-                  Journal
-                </Link>
+                <>
+                  <Link
+                    href="/blog"
+                    className={navItemClasses(active === "blog")}
+                  >
+                    Journal
+                  </Link>
+                  {/* Homeowners don't need a sign-in surface when
+                      logged out — they fill in the wizard guest-style.
+                      But signed-in users still benefit from a quick
+                      hop to their dashboard. */}
+                  {accountHref && (
+                    <Link
+                      href={accountHref}
+                      className={navItemClasses(false)}
+                    >
+                      Account
+                    </Link>
+                  )}
+                </>
               )}
             </nav>
           </>
@@ -122,7 +180,7 @@ export function MarketingHeader({
               </summary>
               <div className="absolute right-0 top-full mt-2 w-72 rounded-xl border border-[var(--border)] bg-white shadow-lg overflow-hidden">
                 <div className="p-3 bg-cream-deep/40">
-                  <AudienceToggle current={audience} fullWidth />
+                  <AudienceToggle current={resolvedAudience} fullWidth />
                 </div>
                 {isInstaller ? (
                   <>
@@ -146,12 +204,24 @@ export function MarketingHeader({
                       Pricing
                     </Link>
                     <div className="border-t border-[var(--border)]" />
-                    <Link
-                      href="/auth/login"
-                      className={mobileNavItemClasses(active === "signin")}
-                    >
-                      Sign in
-                    </Link>
+                    {accountHref ? (
+                      <Link
+                        href={accountHref}
+                        className={mobileNavItemClasses(false)}
+                      >
+                        <span className="inline-flex items-center gap-2">
+                          <CircleUserRound className="w-4 h-4 text-coral" />
+                          Account
+                        </span>
+                      </Link>
+                    ) : (
+                      <Link
+                        href="/auth/login"
+                        className={mobileNavItemClasses(active === "signin")}
+                      >
+                        Sign in
+                      </Link>
+                    )}
                   </>
                 ) : (
                   <>
@@ -168,6 +238,20 @@ export function MarketingHeader({
                     >
                       Journal
                     </Link>
+                    {accountHref && (
+                      <>
+                        <div className="border-t border-[var(--border)]" />
+                        <Link
+                          href={accountHref}
+                          className={mobileNavItemClasses(false)}
+                        >
+                          <span className="inline-flex items-center gap-2">
+                            <CircleUserRound className="w-4 h-4 text-coral" />
+                            Account
+                          </span>
+                        </Link>
+                      </>
+                    )}
                   </>
                 )}
               </div>
@@ -187,7 +271,8 @@ export function MarketingHeader({
  * Switching navigates rather than just toggling a cookie — the page
  * the user lands on after a switch is the canonical "this is what
  * the other audience sees" experience, which beats half-translating
- * the current page.
+ * the current page. The proxy then pins the new audience in the
+ * `pt_audience` cookie for downstream non-canonical pages.
  */
 function AudienceToggle({
   current,
