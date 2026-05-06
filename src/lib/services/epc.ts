@@ -353,18 +353,32 @@ async function fetchCertificate(certificateNumber: string): Promise<EpcCertifica
   }
   const raw: EpcCertificateRaw = parsed.data;
 
-  // Diagnostic — if we successfully parsed but every band field is
-  // undefined, that's a strong signal the API has shifted under us
-  // again. Log so we can chase the new field names without waiting
-  // for a user report.
+  // Diagnostic — if we successfully parsed but key fields are still
+  // missing, log all the keys the cert actually carries. Catches
+  // upstream renames (e.g. potential_energy_band vs
+  // potential_energy_efficiency_band) on the first request rather
+  // than waiting for a user report.
+  const missing: string[] = [];
   if (
     raw.current_energy_efficiency_band == null &&
+    raw.current_energy_band == null
+  )
+    missing.push("currentEnergyBand");
+  if (
     raw.potential_energy_efficiency_band == null &&
-    raw.current_energy_efficiency_rating == null
-  ) {
-    console.warn("[epc] cert parsed but all band/rating fields are null", {
+    raw.potential_energy_band == null
+  )
+    missing.push("potentialEnergyBand");
+  if (raw.property_type == null && raw.dwelling_type == null)
+    missing.push("propertyType");
+  if (missing.length > 0) {
+    console.warn("[epc] cert parsed but key fields are missing", {
       certificateNumber,
-      sampleKeys: Object.keys(raw).slice(0, 12),
+      missing,
+      // Full key list — paste into a follow-up alias if a new name
+      // appears here (e.g. raw.dwelling_class would suggest the API
+      // renamed property_type to dwelling_class).
+      allKeys: Object.keys(raw),
     });
   }
   const normalised: EpcCertificate = {
@@ -380,10 +394,22 @@ async function fetchCertificate(certificateNumber: string): Promise<EpcCertifica
     council: raw.council ?? null,
 
     // ── Ratings + bands ─────────────────────────────────────────────
-    currentEnergyBand: raw.current_energy_efficiency_band ?? null,
-    potentialEnergyBand: raw.potential_energy_efficiency_band ?? null,
-    currentEnergyRating: raw.current_energy_efficiency_rating ?? null,
-    potentialEnergyRating: raw.potential_energy_efficiency_rating ?? null,
+    // Try the legacy-API name first, then the newer-API alias.
+    // pickFirst skips empties so we never end up with "" on the card.
+    currentEnergyBand: pickFirst(
+      raw.current_energy_efficiency_band,
+      raw.current_energy_band
+    ),
+    potentialEnergyBand: pickFirst(
+      raw.potential_energy_efficiency_band,
+      raw.potential_energy_band
+    ),
+    currentEnergyRating:
+      raw.current_energy_efficiency_rating ?? raw.current_energy_rating ?? null,
+    potentialEnergyRating:
+      raw.potential_energy_efficiency_rating ??
+      raw.potential_energy_rating ??
+      null,
     environmentImpactCurrent: raw.environment_impact_current ?? null,
     environmentImpactPotential: raw.environment_impact_potential ?? null,
     energyConsumptionCurrent: raw.energy_consumption_current ?? null,
@@ -392,7 +418,7 @@ async function fetchCertificate(certificateNumber: string): Promise<EpcCertifica
     co2EmissionsPotential: raw.co2_emissions_potential ?? null,
 
     // ── Property classification ─────────────────────────────────────
-    propertyType: raw.property_type ?? null,
+    propertyType: pickFirst(raw.property_type, raw.dwelling_type),
     // Prefer the upstream `dwelling_type` when present; otherwise
     // synthesise from property_type + built_form so the wizard's
     // "Property Type" row never falls back to a bare "House".
@@ -400,7 +426,8 @@ async function fetchCertificate(certificateNumber: string): Promise<EpcCertifica
       raw.dwelling_type ??
       ([raw.property_type, raw.built_form].filter(Boolean).join(" — ") || null),
     builtForm: raw.built_form ?? null,
-    constructionAgeBand: raw.construction_age_band ?? null,
+    constructionAgeBand:
+      raw.construction_age_band ?? raw.construction_age ?? null,
     tenure: raw.tenure ?? null,
     totalFloorAreaM2: parseNumber(raw.total_floor_area),
     floorHeightM: parseNumber(raw.floor_height),

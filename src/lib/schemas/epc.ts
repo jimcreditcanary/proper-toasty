@@ -99,11 +99,23 @@ export const EpcCertificateRawSchema = z
     council: z.string().optional(),
     constituency: z.string().optional(),
 
-    // Ratings + bands
+    // Ratings + bands. The EPC API has shipped at least three naming
+    // conventions for the same data:
+    //   - current_energy_efficiency_band  (legacy open-data)
+    //   - current_energy_band              (newer API)
+    //   - current_energy_rating            (occasionally — but this is
+    //                                       usually the SAP number,
+    //                                       not the A-G letter)
+    // We accept all of them and the service-layer mapper picks the
+    // first non-empty value.
     current_energy_efficiency_band: z.string().optional(),
+    current_energy_band: z.string().optional(),
     potential_energy_efficiency_band: z.string().optional(),
+    potential_energy_band: z.string().optional(),
     current_energy_efficiency_rating: z.number().optional(),
+    current_energy_rating: z.number().optional(),
     potential_energy_efficiency_rating: z.number().optional(),
+    potential_energy_rating: z.number().optional(),
     environment_impact_current: z.number().optional(),
     environment_impact_potential: z.number().optional(),
     energy_consumption_current: z.number().optional(),
@@ -119,7 +131,10 @@ export const EpcCertificateRawSchema = z
     property_type: z.string().optional(),
     dwelling_type: z.string().optional(),
     built_form: z.string().optional(),
+    // Some API releases trim the suffix from "construction_age_band"
+    // to a bare "construction_age" — accept either.
     construction_age_band: z.string().optional(),
+    construction_age: z.string().optional(),
     tenure: z.string().optional(),
     total_floor_area: numLike,
     floor_height: numLike,
