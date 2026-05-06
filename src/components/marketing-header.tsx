@@ -82,24 +82,28 @@ export async function MarketingHeader({
 
   return (
     <header className="bg-cream/80 backdrop-blur-md border-b border-[var(--border)] sticky top-0 z-50">
-      {/* Audience-switcher rail. Thin row above the main nav,
-          dedicated to the homeowner ↔ installer toggle. Promoting it
-          out of the main nav makes the dual-audience nature of the
-          site obvious on first paint and keeps the main nav row
-          uncluttered. Pattern borrowed from Stripe / Atlassian top
-          bars. Hidden in compact mode (shared-report page). */}
-      {!compact && (
-        <div className="bg-cream-deep/50 border-b border-[var(--border)]">
-          <div className="mx-auto flex h-9 max-w-6xl items-center justify-center px-4 sm:px-6">
-            <AudienceToggle current={resolvedAudience} />
-          </div>
-        </div>
-      )}
-
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
-        <Link href="/" className="flex items-center shrink-0">
-          <Logo size="sm" variant="light" />
-        </Link>
+        <div className="flex items-center gap-5 sm:gap-7">
+          <Link href="/" className="flex items-center shrink-0">
+            <Logo size="sm" variant="light" />
+          </Link>
+
+          {/* Audience tabs. Inline tab-style switcher sitting next to
+              the logo — acts as a sub-brand identifier for the current
+              audience. Active tab has a coral underline that meets
+              the header's bottom border, the standard tabbed-nav idiom
+              ("you are in this section of the site"). Hidden on small
+              screens where the burger menu carries the choice. */}
+          {!compact && (
+            <>
+              <div
+                aria-hidden="true"
+                className="hidden md:block h-6 w-px bg-[var(--border)]"
+              />
+              <AudienceTabs current={resolvedAudience} />
+            </>
+          )}
+        </div>
 
         {/* Right-hand cluster: nav links sit immediately to the left
             of the CTA. Internal gap-6 keeps the links tight so they
@@ -188,11 +192,12 @@ export async function MarketingHeader({
                 <Menu className="w-5 h-5" />
               </summary>
               <div className="absolute right-0 top-full mt-2 w-72 rounded-xl border border-[var(--border)] bg-white shadow-lg overflow-hidden">
-                {/* The audience toggle lives in the dedicated top
-                    bar above the main nav and is visible on every
-                    screen size — no need to duplicate it inside the
-                    burger menu. The menu now opens straight to the
-                    audience-specific links. */}
+                {/* Audience switcher at the top of the panel — the
+                    inline tabs don't fit in the small-screen header
+                    so we surface the choice here as a pill toggle. */}
+                <div className="p-3 bg-cream-deep/40">
+                  <AudienceTogglePill current={resolvedAudience} />
+                </div>
                 {isInstaller ? (
                   <>
                     <Link
@@ -275,62 +280,44 @@ export async function MarketingHeader({
 }
 
 /**
- * Pill-shaped two-segment control that switches between Homeowner and
- * Installer. The current segment carries the brand colour; the other
- * is muted and clickable, navigating to that audience's landing page.
+ * Inline tab-style audience switcher. Two text links with a coral
+ * underline on the active one — the standard "tabbed sections of a
+ * site" idiom (Stripe docs, Linear changelog, Vercel templates).
  *
- * Switching navigates rather than just toggling a cookie — the page
- * the user lands on after a switch is the canonical "this is what
- * the other audience sees" experience, which beats half-translating
- * the current page. The proxy then pins the new audience in the
- * `pt_audience` cookie for downstream non-canonical pages.
+ * Sits inline next to the logo on desktop. Switching navigates to
+ * that audience's canonical landing page (/ or /enterprise); the
+ * proxy then pins the choice in the `pt_audience` cookie so it
+ * persists across non-canonical pages.
  */
-function AudienceToggle({
-  current,
-  fullWidth = false,
-}: {
-  current: MarketingAudience;
-  fullWidth?: boolean;
-}) {
+function AudienceTabs({ current }: { current: MarketingAudience }) {
   return (
-    <div
-      className={[
-        "inline-flex p-0.5 rounded-full bg-cream-deep/60 border border-[var(--border)]",
-        fullWidth ? "w-full" : "",
-      ].join(" ")}
+    <nav
       role="tablist"
       aria-label="Switch audience"
+      className="hidden md:flex items-center gap-1"
     >
-      <ToggleSegment
+      <AudienceTab
         href="/"
         active={current === "homeowner"}
-        icon={<Home className="w-3.5 h-3.5" />}
-        label="Homeowners"
-        fullWidth={fullWidth}
+        label="For homeowners"
       />
-      <ToggleSegment
+      <AudienceTab
         href="/enterprise"
         active={current === "installer"}
-        icon={<Hammer className="w-3.5 h-3.5" />}
-        label="Installers"
-        fullWidth={fullWidth}
+        label="For installers"
       />
-    </div>
+    </nav>
   );
 }
 
-function ToggleSegment({
+function AudienceTab({
   href,
   active,
-  icon,
   label,
-  fullWidth,
 }: {
   href: string;
   active: boolean;
-  icon: React.ReactNode;
   label: string;
-  fullWidth?: boolean;
 }) {
   return (
     <Link
@@ -338,8 +325,82 @@ function ToggleSegment({
       role="tab"
       aria-selected={active}
       className={[
-        "inline-flex items-center justify-center gap-1.5 h-8 px-4 rounded-full text-xs font-semibold transition-colors",
-        fullWidth ? "flex-1" : "",
+        // Tab geometry — fits inside the 64px header. Bottom padding
+        // matches the offset of the active underline so inactive tabs
+        // don't visually shift on hover.
+        "relative inline-flex items-center h-16 px-3 text-sm font-medium transition-colors",
+        active
+          ? "text-navy"
+          : "text-[var(--muted-brand)] hover:text-navy",
+      ].join(" ")}
+    >
+      {label}
+      {/* Underline indicator. Sits at the bottom of the tab, flush
+          with the header's bottom border so it reads as "this section
+          of the site is open". Coloured coral for the active tab; a
+          transparent placeholder on inactive tabs keeps the layout
+          identical (no jump on hover/switch). */}
+      <span
+        aria-hidden="true"
+        className={[
+          "absolute left-3 right-3 bottom-0 h-0.5 rounded-t-full",
+          active ? "bg-coral" : "bg-transparent",
+        ].join(" ")}
+      />
+    </Link>
+  );
+}
+
+/**
+ * Pill-shaped two-segment toggle. Used inside the mobile burger
+ * menu where the inline tabs don't fit. Same navigation behaviour
+ * as the desktop tabs.
+ */
+function AudienceTogglePill({
+  current,
+}: {
+  current: MarketingAudience;
+}) {
+  return (
+    <div
+      className="inline-flex w-full p-0.5 rounded-full bg-white border border-[var(--border)]"
+      role="tablist"
+      aria-label="Switch audience"
+    >
+      <PillSegment
+        href="/"
+        active={current === "homeowner"}
+        icon={<Home className="w-3.5 h-3.5" />}
+        label="Homeowners"
+      />
+      <PillSegment
+        href="/enterprise"
+        active={current === "installer"}
+        icon={<Hammer className="w-3.5 h-3.5" />}
+        label="Installers"
+      />
+    </div>
+  );
+}
+
+function PillSegment({
+  href,
+  active,
+  icon,
+  label,
+}: {
+  href: string;
+  active: boolean;
+  icon: React.ReactNode;
+  label: string;
+}) {
+  return (
+    <Link
+      href={href}
+      role="tab"
+      aria-selected={active}
+      className={[
+        "flex-1 inline-flex items-center justify-center gap-1.5 h-9 px-4 rounded-full text-xs font-semibold transition-colors",
         active
           ? "bg-coral text-cream shadow-sm"
           : "text-navy hover:text-coral-dark",
