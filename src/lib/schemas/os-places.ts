@@ -35,16 +35,22 @@ export const OsPlacesDpaRowSchema = z
     THOROUGHFARE_NAME: z.string().optional(),
     DOUBLE_DEPENDENT_LOCALITY: z.string().optional(),
     DEPENDENT_LOCALITY: z.string().optional(),
-    POST_TOWN: z.string(),
-    POSTCODE: z.string(),
+    // POST_TOWN and POSTCODE are present on every well-formed DPA row,
+    // but loosened to optional so a single oddball row (occasionally
+    // seen on brand-new builds before postal-routing gets registered)
+    // doesn't fail the whole postcode batch via zod validation. The
+    // address-lookup route fills with sensible defaults.
+    POST_TOWN: z.string().optional(),
+    POSTCODE: z.string().optional(),
     POSTAL_ADDRESS_CODE: z.string().optional(),
     POSTAL_ADDRESS_CODE_DESCRIPTION: z.string().optional(),
     DELIVERY_POINT_SUFFIX: z.string().optional(),
 
     // ── Coordinates ─────────────────────────────────────────────────
-    // WGS84 — what we want.
-    LAT: z.number(),
-    LNG: z.number(),
+    // WGS84 — what we want. Optional defensively (see POST_TOWN above);
+    // address-lookup falls back to the postcode centroid if missing.
+    LAT: z.number().optional(),
+    LNG: z.number().optional(),
     // OSGB easting/northing — useful for OS MasterMap pivot, kept verbatim.
     X_COORDINATE: z.number().optional(),
     Y_COORDINATE: z.number().optional(),

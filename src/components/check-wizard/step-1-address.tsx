@@ -33,8 +33,18 @@ export function Step1Address() {
         body: JSON.stringify({ postcode: trimmed }),
       });
       if (!res.ok) {
-        const j = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(j.error ?? `Lookup failed (${res.status})`);
+        const j = (await res.json().catch(() => ({}))) as {
+          error?: string;
+          detail?: string;
+        };
+        // Surface the upstream detail (e.g. "OS Places auth rejected")
+        // so we don't have to open Vercel logs to diagnose a misconfigured
+        // env var or expired API key. Falls back to generic copy when
+        // the route omits detail.
+        const composed = j.detail
+          ? `${j.error ?? "Lookup failed"} — ${j.detail}`
+          : j.error ?? `Lookup failed (${res.status})`;
+        throw new Error(composed);
       }
       const data = (await res.json()) as AddressLookupResponse;
       if (data.addresses.length === 0) {

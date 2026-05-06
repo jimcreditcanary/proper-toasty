@@ -73,21 +73,62 @@ export async function lookupAddressesByPostcode(
   url.searchParams.set("key", requireKey());
 
   const res = await fetch(url.toString());
+
+  // Read the body once for diagnostics — most OS error responses
+  // include a JSON `{ error: { ... } }` body that's far more useful
+  // than just the status code. We log it (with the API key stripped)
+  // before deciding what to do.
+  const rawBody = await res.text().catch(() => "");
+  const previewBody = rawBody.length > 400 ? rawBody.slice(0, 400) + "…" : rawBody;
+
   // 400 with no results vs genuine bad postcode — OS returns 400 for
-  // "no results" too. Treat as empty rather than throwing.
-  if (res.status === 400 || res.status === 404) return [];
-  if (res.status === 401 || res.status === 403) {
-    throw new Error("OS Places rejected our request (auth / licence)");
+  // "no results" too. Distinguish by inspecting the body: a "no
+  // matches" response typically carries a specific error message.
+  if (res.status === 400 || res.status === 404) {
+    if (
+      rawBody.toLowerCase().includes("no matches") ||
+      rawBody.toLowerCase().includes("not found") ||
+      rawBody === ""
+    ) {
+      return [];
+    }
+    // Otherwise it's a real validation error — surface it.
+    throw new Error(
+      `OS Places ${res.status} for "${spaced}": ${previewBody}`
+    );
   }
-  if (res.status === 429) throw new Error("OS Places rate limit (429)");
+  if (res.status === 401 || res.status === 403) {
+    throw new Error(
+      `OS Places auth rejected (${res.status}) — check OS_PLACES_API_KEY: ${previewBody}`
+    );
+  }
+  if (res.status === 429) {
+    throw new Error(`OS Places rate limit (429): ${previewBody}`);
+  }
   if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    throw new Error(`OS Places failed: ${res.status} ${body.slice(0, 200)}`);
+    throw new Error(`OS Places failed: ${res.status} ${previewBody}`);
   }
 
-  const parsed = OsPlacesPostcodeResponseSchema.safeParse(await res.json());
+  let json: unknown;
+  try {
+    json = JSON.parse(rawBody);
+  } catch (err) {
+    throw new Error(
+      `OS Places returned non-JSON body (${res.status}): ${previewBody}; parse error: ${err instanceof Error ? err.message : err}`
+    );
+  }
+
+  const parsed = OsPlacesPostcodeResponseSchema.safeParse(json);
   if (!parsed.success) {
-    throw new Error("OS Places returned unexpected shape");
+    // Log the actual issues — schema mismatches are usually a single
+    // missing field that's easy to fix once we see the shape.
+    console.warn(
+      "[os-places] schema validation failed",
+      JSON.stringify(parsed.error.issues.slice(0, 5))
+    );
+    throw new Error(
+      `OS Places response shape changed; first issue: ${parsed.error.issues[0]?.message ?? "unknown"}`
+    );
   }
 
   const rows: OsPlacesDpaRow[] = (parsed.data.results ?? [])
