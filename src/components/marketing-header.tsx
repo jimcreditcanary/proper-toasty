@@ -82,20 +82,24 @@ export async function MarketingHeader({
 
   return (
     <header className="bg-cream/80 backdrop-blur-md border-b border-[var(--border)] sticky top-0 z-50">
+      {/* Audience-switcher rail. Thin row above the main nav,
+          dedicated to the homeowner ↔ installer toggle. Promoting it
+          out of the main nav makes the dual-audience nature of the
+          site obvious on first paint and keeps the main nav row
+          uncluttered. Pattern borrowed from Stripe / Atlassian top
+          bars. Hidden in compact mode (shared-report page). */}
+      {!compact && (
+        <div className="bg-cream-deep/50 border-b border-[var(--border)]">
+          <div className="mx-auto flex h-9 max-w-6xl items-center justify-center px-4 sm:px-6">
+            <AudienceToggle current={resolvedAudience} />
+          </div>
+        </div>
+      )}
+
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
         <Link href="/" className="flex items-center shrink-0">
           <Logo size="sm" variant="light" />
         </Link>
-
-        {/* Audience toggle. Sits between logo and the right-hand
-            nav+CTA cluster. With justify-between on the parent and
-            three top-level children (logo, toggle, right cluster)
-            the toggle naturally floats in the middle of the bar. */}
-        {!compact && (
-          <div className="hidden md:flex items-center">
-            <AudienceToggle current={resolvedAudience} />
-          </div>
-        )}
 
         {/* Right-hand cluster: nav links sit immediately to the left
             of the CTA. Internal gap-6 keeps the links tight so they
@@ -184,9 +188,11 @@ export async function MarketingHeader({
                 <Menu className="w-5 h-5" />
               </summary>
               <div className="absolute right-0 top-full mt-2 w-72 rounded-xl border border-[var(--border)] bg-white shadow-lg overflow-hidden">
-                <div className="p-3 bg-cream-deep/40">
-                  <AudienceToggle current={resolvedAudience} fullWidth />
-                </div>
+                {/* The audience toggle lives in the dedicated top
+                    bar above the main nav and is visible on every
+                    screen size — no need to duplicate it inside the
+                    burger menu. The menu now opens straight to the
+                    audience-specific links. */}
                 {isInstaller ? (
                   <>
                     <Link
