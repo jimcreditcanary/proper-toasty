@@ -75,8 +75,16 @@ export default async function InstallerHomePage() {
 
   if (user) {
     const admin = createAdminClient();
+    // Read public.users via the admin client (RLS-bypassed) — when
+    // we did this through the user-scoped supabase client, an
+    // accidentally-strict SELECT policy on public.users returned
+    // empty rows for the freshly-claimed installer, surfacing as
+    // "0 credits" on the dashboard despite the row carrying 30.
+    // We've already authenticated the user above; the lookup is
+    // keyed on user.id, so admin-keying the read is safe and
+    // consistent with how we read public.installers next door.
     const [profileRes, installerRes] = await Promise.all([
-      supabase
+      admin
         .from("users")
         .select(
           "auto_recharge_failed_at, auto_recharge_failure_reason, credits, installer_onboarding_dismissed_at",
