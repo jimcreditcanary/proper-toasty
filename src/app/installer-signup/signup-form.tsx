@@ -127,10 +127,15 @@ export function ClaimSignupForm({
             You&rsquo;ve already got a Propertoasty account
           </p>
           <p className="text-amber-900 mt-1">
-            <strong>{existing.email}</strong> is already registered.
-            Sign in and we&rsquo;ll bind {installerName} straight to
-            your existing account — no second password, no extra
-            email.
+            {/* Explicit {" "} separators — JSX swallowed the spaces
+                between <strong>email</strong> and the next word, and
+                between {installerName} and "straight", in production
+                builds. The literals make the spacing impossible to
+                lose to a future formatter. */}
+            <strong>{existing.email}</strong>{" "}is already registered.
+            Sign in and we&rsquo;ll bind{" "}
+            <strong>{installerName}</strong>{" "}straight to your
+            existing account — no second password, no extra email.
           </p>
         </div>
         <Link
