@@ -77,143 +77,150 @@ export const EpcSearchResponseSchema = z.object({
 });
 
 // Raw certificate fetch shape (snake_case, from /api/certificate).
-// The API note says "structure varies by certificate type and schema version"
-// — we take a lenient shape and let zod drop unknown fields.
 //
-// We capture the full breadth of EPC detail fields here so callers can
-// surface as much or as little as they need. The normalised
-// `EpcCertificate` shape below is the camelCase contract for the rest
-// of the app.
-const numLike = z.union([z.number(), z.string()]).optional();
+// IMPORTANT: every declared field is `z.unknown().optional()` rather
+// than its "real" type. The new GOV.UK EPC API ships the same logical
+// fields as flat strings, integer enum codes, or { value, language }
+// objects depending on the field, often within the same response.
+// Examples observed in production:
+//
+//   "current_energy_efficiency_band":  "D"                       string
+//   "property_type":                   0                          int code
+//   "built_form":                      4                          int code
+//   "tenure":                          1                          int code
+//   "dwelling_type":                   { value: "Mid-terrace
+//                                        house", language: "1" } object
+//   "glazed_area":                     2                          number
+//                                                                 (was string)
+//   "heating_cost_current":            { value: 1080,
+//                                        currency: "GBP" }        object
+//                                                                 (was number)
+//   "transaction_type":                1                          number
+//                                                                 (was string)
+//
+// If we declare a strict type and the API ships a different shape,
+// zod's parse fails the whole cert, fetchCertificate returns null,
+// and the service falls back to certFromRow() — which only knows
+// about the search row's fields. That produces the partial-data
+// pattern (Current rating populated, Potential / Property Type blank)
+// reported in production.
+//
+// Every type unwrap therefore happens at the service layer
+// (src/lib/services/epc.ts) via unwrapValueLike() / unwrapNumberLike().
+// .passthrough() is preserved so any field we haven't named survives
+// for future surfacing.
+// Helper — every declared field is z.unknown().optional(). Saves
+// repeating the type and signals "type-unwrap happens downstream".
+const u = z.unknown().optional();
 export const EpcCertificateRawSchema = z
   .object({
-    certificate_number: z.string().optional(),
-    uprn: z.union([z.number(), z.string()]).nullable().optional(),
-    address_line_1: z.string().optional(),
-    address_line_2: z.string().nullable().optional(),
-    address_line_3: z.string().nullable().optional(),
-    address_line_4: z.string().nullable().optional(),
-    post_town: z.string().optional(),
-    postcode: z.string().optional(),
-    assessment_type: z.string().optional(),
-    council: z.string().optional(),
-    constituency: z.string().optional(),
+    // Identifiers + admin
+    certificate_number: u,
+    uprn: u,
+    address_line_1: u,
+    address_line_2: u,
+    address_line_3: u,
+    address_line_4: u,
+    post_town: u,
+    postcode: u,
+    assessment_type: u,
+    council: u,
+    constituency: u,
 
-    // Ratings + bands. The EPC API has shipped at least three naming
-    // conventions for the same data:
-    //   - current_energy_efficiency_band  (legacy open-data)
-    //   - current_energy_band              (newer API)
-    //   - current_energy_rating            (occasionally — but this is
-    //                                       usually the SAP number,
-    //                                       not the A-G letter)
-    // We accept all of them and the service-layer mapper picks the
-    // first non-empty value.
-    current_energy_efficiency_band: z.string().optional(),
-    current_energy_band: z.string().optional(),
-    potential_energy_efficiency_band: z.string().optional(),
-    potential_energy_band: z.string().optional(),
-    current_energy_efficiency_rating: z.number().optional(),
-    current_energy_rating: z.number().optional(),
-    potential_energy_efficiency_rating: z.number().optional(),
-    potential_energy_rating: z.number().optional(),
-    environment_impact_current: z.number().optional(),
-    environment_impact_potential: z.number().optional(),
-    energy_consumption_current: z.number().optional(),
-    energy_consumption_potential: z.number().optional(),
-    co2_emissions_current: z.number().optional(),
-    co2_emissions_potential: z.number().optional(),
+    // Ratings + bands — multiple naming conventions accepted.
+    current_energy_efficiency_band: u,
+    current_energy_band: u,
+    potential_energy_efficiency_band: u,
+    potential_energy_band: u,
+    current_energy_efficiency_rating: u,
+    current_energy_rating: u,
+    potential_energy_efficiency_rating: u,
+    potential_energy_rating: u,
+    energy_rating_current: u, // newer alias
+    energy_rating_potential: u, // newer alias
+    environment_impact_current: u,
+    environment_impact_potential: u,
+    environmental_impact_current: u, // newer spelling
+    environmental_impact_potential: u, // newer spelling
+    energy_consumption_current: u,
+    energy_consumption_potential: u,
+    co2_emissions_current: u,
+    co2_emissions_potential: u,
 
-    // Property classification.
-    //
-    // The new GOV.UK EPC API returns these as ENUM CODES + NESTED
-    // DESCRIPTION OBJECTS — not the flat strings the legacy open-data
-    // API used. Concretely we've observed:
-    //   property_type: 0          (integer code)
-    //   built_form:    4          (integer code)
-    //   tenure:        1          (integer code)
-    //   dwelling_type: { value: "Mid-terrace house", language: "1" }
-    //
-    // We accept any of [string, number, { value: ... }] for these
-    // fields and let the service-layer mapper unwrap to a string via
-    // unwrapValueLike(). Without this the schema fails on the object
-    // shape, the parse falls back to the search row, and the wizard
-    // shows partial data ("Current rating D, Potential —, Type —").
-    property_type: z.unknown().optional(),
-    dwelling_type: z.unknown().optional(),
-    built_form: z.unknown().optional(),
-    tenure: z.unknown().optional(),
-    construction_age_band: z.unknown().optional(),
-    construction_age: z.unknown().optional(),
-    total_floor_area: numLike,
-    floor_height: numLike,
-    extension_count: z.number().optional(),
-    extensions_count: z.number().optional(), // newer alias
-    number_habitable_rooms: z.number().optional(),
-    habitable_room_count: z.number().optional(), // newer alias
-    number_heated_rooms: z.number().optional(),
-    heated_room_count: z.number().optional(), // newer alias
+    // Property classification
+    property_type: u,
+    dwelling_type: u,
+    built_form: u,
+    tenure: u,
+    construction_age_band: u,
+    construction_age: u,
+    total_floor_area: u,
+    floor_height: u,
+    extension_count: u,
+    extensions_count: u, // newer alias
+    number_habitable_rooms: u,
+    habitable_room_count: u, // newer alias
+    number_heated_rooms: u,
+    heated_room_count: u, // newer alias
 
     // Heating
-    main_fuel: z.string().optional(),
-    main_heating_description: z.string().optional(),
-    mainheat_energy_eff: z.string().optional(),
-    mainheatcont_description: z.string().optional(),
-    mainheatcont_energy_eff: z.string().optional(),
-    hot_water_description: z.string().optional(),
-    hot_water_energy_eff: z.string().optional(),
-    mains_gas_flag: z.string().optional(),
+    main_fuel: u,
+    main_heating_description: u,
+    mainheat_energy_eff: u,
+    mainheatcont_description: u,
+    mainheatcont_energy_eff: u,
+    hot_water_description: u,
+    hot_water_energy_eff: u,
+    mains_gas_flag: u,
 
     // Fabric + glazing
-    walls_description: z.string().optional(),
-    walls_energy_eff: z.string().optional(),
-    roof_description: z.string().optional(),
-    roof_energy_eff: z.string().optional(),
-    floor_description: z.string().optional(),
-    floor_energy_eff: z.string().optional(),
-    windows_description: z.string().optional(),
-    windows_energy_eff: z.string().optional(),
-    glazed_type: z.string().optional(),
-    glazed_area: z.string().optional(),
-    multi_glaze_proportion: z.number().optional(),
+    walls_description: u,
+    walls_energy_eff: u,
+    roof_description: u,
+    roof_energy_eff: u,
+    floor_description: u,
+    floor_energy_eff: u,
+    windows_description: u,
+    windows_energy_eff: u,
+    glazed_type: u,
+    glazed_area: u,
+    multi_glaze_proportion: u,
+    multiple_glazed_proportion: u, // newer alias
 
     // Lighting
-    lighting_description: z.string().optional(),
-    lighting_energy_eff: z.string().optional(),
-    low_energy_lighting: z.number().optional(),
-    fixed_lighting_outlets_count: z.number().optional(),
-    low_energy_fixed_lighting: z.number().optional(),
+    lighting_description: u,
+    lighting_energy_eff: u,
+    low_energy_lighting: u,
+    fixed_lighting_outlets_count: u,
+    low_energy_fixed_lighting: u,
+    low_energy_fixed_lighting_outlets_count: u, // newer alias
 
-    // Per-bill breakdown (£/yr)
-    heating_cost_current: numLike,
-    heating_cost_potential: numLike,
-    hot_water_cost_current: numLike,
-    hot_water_cost_potential: numLike,
-    lighting_cost_current: numLike,
-    lighting_cost_potential: numLike,
+    // Per-bill breakdown (£/yr) — new API ships these as
+    // { value, currency } objects rather than flat numbers.
+    heating_cost_current: u,
+    heating_cost_potential: u,
+    hot_water_cost_current: u,
+    hot_water_cost_potential: u,
+    lighting_cost_current: u,
+    lighting_cost_potential: u,
 
     // Admin
-    transaction_type: z.string().optional(),
-    registration_date: z.string().optional(),
+    transaction_type: u,
+    registration_date: u,
+    inspection_date: u,
+    lodgement_date: u,
+    lodgement_datetime: u,
+    completion_date: u,
 
-    // Lodgement + inspection — modern API names. The historical
-    // open-data endpoint exposed `inspection_date` + `lodgement_date`;
-    // the new GOV.UK one ships both plus an ISO datetime variant.
-    inspection_date: z.string().optional(),
-    lodgement_date: z.string().optional(),
-    lodgement_datetime: z.string().optional(),
-
-    // Assessor / accreditation. Different schemes name these slightly
-    // differently across releases — we keep all the variants we've
-    // seen in the wild and expose the first non-empty value as the
-    // canonical field downstream.
-    assessor_name: z.string().optional(),
-    inspector_name: z.string().optional(),
-    inspector_company_name: z.string().optional(),
-    accreditation_scheme: z.string().optional(),
-    accredited_assessor_id: z.string().optional(),
-    energy_assessor_email: z.string().optional(),
-    assessor_email: z.string().optional(),
-    inspector_email: z.string().optional(),
+    // Assessor / accreditation
+    assessor_name: u,
+    inspector_name: u,
+    inspector_company_name: u,
+    accreditation_scheme: u,
+    accredited_assessor_id: u,
+    energy_assessor_email: u,
+    assessor_email: u,
+    inspector_email: u,
   })
   .passthrough();
 

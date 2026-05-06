@@ -153,6 +153,31 @@ function unwrapValueLike(input: unknown): string | null {
   return null;
 }
 
+/** Like unwrapValueLike but coerces to number. Cost fields ship as
+ *  { value: 1080, currency: "GBP" } in the new API — we just want the
+ *  £ figure. Strips trailing currency strings ("£1,080") for the
+ *  legacy-string path. Returns null on anything that can't sensibly
+ *  cast (NaN, empty objects, etc.). */
+function unwrapNumberLike(input: unknown): number | null {
+  if (input == null) return null;
+  if (typeof input === "number") return Number.isFinite(input) ? input : null;
+  if (typeof input === "string") {
+    const cleaned = input.replace(/[^\d.-]/g, "");
+    const n = Number(cleaned);
+    return Number.isFinite(n) ? n : null;
+  }
+  if (typeof input === "object" && "value" in input) {
+    const v = (input as { value: unknown }).value;
+    if (typeof v === "number") return Number.isFinite(v) ? v : null;
+    if (typeof v === "string") {
+      const cleaned = v.replace(/[^\d.-]/g, "");
+      const n = Number(cleaned);
+      return Number.isFinite(n) ? n : null;
+    }
+  }
+  return null;
+}
+
 /** EPC certificates are valid for 10 years from registration. Derive
  *  the canonical `validUntil` date + `expired` boolean from any ISO
  *  date string. Returns nulls when the input can't be parsed. */
@@ -172,11 +197,10 @@ function computeValidity(
   return { validUntil, expired };
 }
 
-function parseNumber(v: string | number | undefined): number | null {
-  if (v == null) return null;
-  const n = typeof v === "number" ? v : Number(String(v).replace(/[^\d.]/g, ""));
-  return Number.isFinite(n) ? n : null;
-}
+// `parseNumber` was the legacy string|number coercer used before the
+// schema went fully permissive. unwrapNumberLike (above) supersedes
+// it — also handles the new {value, currency} object shape.
+// Kept removed; uses migrated to unwrapNumberLike.
 
 function yearsBetween(iso: string | null, now = new Date()): number | null {
   if (!iso) return null;
@@ -294,7 +318,7 @@ async function searchByPostcode(postcode: string): Promise<EpcSearchRow[]> {
 }
 
 async function fetchCertificate(certificateNumber: string): Promise<EpcCertificate | null> {
-  const cached = await cacheGet<EpcCertificate>("epc:cert-v3", certificateNumber);
+  const cached = await cacheGet<EpcCertificate>("epc:cert-v4", certificateNumber);
   if (cached) return cached;
 
   const url = new URL(`${EPC_BASE}/api/certificate`);
@@ -375,86 +399,81 @@ async function fetchCertificate(certificateNumber: string): Promise<EpcCertifica
   }
   const raw: EpcCertificateRaw = parsed.data;
 
-  // Diagnostic — if we successfully parsed but key fields are still
-  // missing, log all the keys the cert actually carries. Catches
-  // upstream renames (e.g. potential_energy_band vs
-  // potential_energy_efficiency_band) on the first request rather
-  // than waiting for a user report.
+  // Pre-unwrap the band/property fields. Duplicating the unwrap
+  // calls in the diagnostic and in `normalised` would be lossy
+  // — keep them in one place.
+  const currentBand = pickFirst(
+    unwrapValueLike(raw.current_energy_efficiency_band),
+    unwrapValueLike(raw.current_energy_band)
+  );
+  const potentialBand = pickFirst(
+    unwrapValueLike(raw.potential_energy_efficiency_band),
+    unwrapValueLike(raw.potential_energy_band)
+  );
+  const dwellingTypeStr = unwrapValueLike(raw.dwelling_type);
+  const propertyTypeStr = unwrapValueLike(raw.property_type);
+
+  // Diagnostic — fires on first request when a key field is still
+  // missing after unwrapping. Logs the FULL raw key list so we can
+  // chase the next renamed field without waiting for a user report.
   const missing: string[] = [];
-  if (
-    raw.current_energy_efficiency_band == null &&
-    raw.current_energy_band == null
-  )
-    missing.push("currentEnergyBand");
-  if (
-    raw.potential_energy_efficiency_band == null &&
-    raw.potential_energy_band == null
-  )
-    missing.push("potentialEnergyBand");
-  if (raw.property_type == null && raw.dwelling_type == null)
-    missing.push("propertyType");
+  if (!currentBand) missing.push("currentEnergyBand");
+  if (!potentialBand) missing.push("potentialEnergyBand");
+  if (!dwellingTypeStr && !propertyTypeStr) missing.push("propertyType");
   if (missing.length > 0) {
     console.warn("[epc] cert parsed but key fields are missing", {
       certificateNumber,
       missing,
-      // Full key list — paste into a follow-up alias if a new name
-      // appears here (e.g. raw.dwelling_class would suggest the API
-      // renamed property_type to dwelling_class).
       allKeys: Object.keys(raw),
     });
   }
+
   const normalised: EpcCertificate = {
     // ── Identifiers + admin ─────────────────────────────────────────
-    certificateNumber: raw.certificate_number ?? certificateNumber,
-    uprn: raw.uprn != null ? String(raw.uprn) : null,
-    address: [raw.address_line_1, raw.address_line_2, raw.address_line_3, raw.post_town]
+    certificateNumber: unwrapValueLike(raw.certificate_number) ?? certificateNumber,
+    uprn: unwrapValueLike(raw.uprn),
+    address: [
+      unwrapValueLike(raw.address_line_1),
+      unwrapValueLike(raw.address_line_2),
+      unwrapValueLike(raw.address_line_3),
+      unwrapValueLike(raw.post_town),
+    ]
       .filter(Boolean)
       .join(", "),
-    postcode: raw.postcode ?? null,
-    registrationDate: raw.registration_date ?? null,
-    transactionType: raw.transaction_type ?? null,
-    council: raw.council ?? null,
+    postcode: unwrapValueLike(raw.postcode),
+    registrationDate: unwrapValueLike(raw.registration_date),
+    transactionType: unwrapValueLike(raw.transaction_type),
+    council: unwrapValueLike(raw.council),
 
     // ── Ratings + bands ─────────────────────────────────────────────
-    // Try the legacy-API name first, then the newer-API alias.
-    // pickFirst skips empties so we never end up with "" on the card.
-    currentEnergyBand: pickFirst(
-      raw.current_energy_efficiency_band,
-      raw.current_energy_band
+    currentEnergyBand: currentBand,
+    potentialEnergyBand: potentialBand,
+    currentEnergyRating: unwrapNumberLike(
+      raw.current_energy_efficiency_rating ??
+        raw.current_energy_rating ??
+        raw.energy_rating_current
     ),
-    potentialEnergyBand: pickFirst(
-      raw.potential_energy_efficiency_band,
-      raw.potential_energy_band
-    ),
-    currentEnergyRating:
-      raw.current_energy_efficiency_rating ?? raw.current_energy_rating ?? null,
-    potentialEnergyRating:
+    potentialEnergyRating: unwrapNumberLike(
       raw.potential_energy_efficiency_rating ??
-      raw.potential_energy_rating ??
-      null,
-    environmentImpactCurrent: raw.environment_impact_current ?? null,
-    environmentImpactPotential: raw.environment_impact_potential ?? null,
-    energyConsumptionCurrent: raw.energy_consumption_current ?? null,
-    energyConsumptionPotential: raw.energy_consumption_potential ?? null,
-    co2EmissionsCurrent: raw.co2_emissions_current ?? null,
-    co2EmissionsPotential: raw.co2_emissions_potential ?? null,
+        raw.potential_energy_rating ??
+        raw.energy_rating_potential
+    ),
+    environmentImpactCurrent: unwrapNumberLike(
+      raw.environment_impact_current ?? raw.environmental_impact_current
+    ),
+    environmentImpactPotential: unwrapNumberLike(
+      raw.environment_impact_potential ?? raw.environmental_impact_potential
+    ),
+    energyConsumptionCurrent: unwrapNumberLike(raw.energy_consumption_current),
+    energyConsumptionPotential: unwrapNumberLike(raw.energy_consumption_potential),
+    co2EmissionsCurrent: unwrapNumberLike(raw.co2_emissions_current),
+    co2EmissionsPotential: unwrapNumberLike(raw.co2_emissions_potential),
 
     // ── Property classification ─────────────────────────────────────
-    // Each of these may arrive as a flat string, a number code, or
-    // a { value, language } object — see unwrapValueLike() for why.
-    propertyType: pickFirst(
-      unwrapValueLike(raw.property_type),
-      unwrapValueLike(raw.dwelling_type)
-    ),
-    // dwelling_type is the most useful single-field "what is this"
-    // ("Mid-terrace house"). Prefer it; synthesise from property
-    // type + built form when it's missing.
+    propertyType: pickFirst(propertyTypeStr, dwellingTypeStr),
     dwellingType:
-      unwrapValueLike(raw.dwelling_type) ??
-      ([
-        unwrapValueLike(raw.property_type),
-        unwrapValueLike(raw.built_form),
-      ]
+      dwellingTypeStr ??
+      ([propertyTypeStr, unwrapValueLike(raw.built_form)]
         .filter(Boolean)
         .join(" — ") || null),
     builtForm: unwrapValueLike(raw.built_form),
@@ -462,79 +481,94 @@ async function fetchCertificate(certificateNumber: string): Promise<EpcCertifica
       unwrapValueLike(raw.construction_age_band) ??
       unwrapValueLike(raw.construction_age),
     tenure: unwrapValueLike(raw.tenure),
-    totalFloorAreaM2: parseNumber(raw.total_floor_area),
-    floorHeightM: parseNumber(raw.floor_height),
-    extensionCount: raw.extension_count ?? raw.extensions_count ?? null,
-    numberHabitableRooms:
-      raw.number_habitable_rooms ?? raw.habitable_room_count ?? null,
-    numberHeatedRooms: raw.number_heated_rooms ?? raw.heated_room_count ?? null,
+    totalFloorAreaM2: unwrapNumberLike(raw.total_floor_area),
+    floorHeightM: unwrapNumberLike(raw.floor_height),
+    extensionCount: unwrapNumberLike(raw.extension_count ?? raw.extensions_count),
+    numberHabitableRooms: unwrapNumberLike(
+      raw.number_habitable_rooms ?? raw.habitable_room_count
+    ),
+    numberHeatedRooms: unwrapNumberLike(
+      raw.number_heated_rooms ?? raw.heated_room_count
+    ),
 
     // ── Heating ─────────────────────────────────────────────────────
-    mainFuel: raw.main_fuel ?? null,
-    mainHeatingDescription: raw.main_heating_description ?? null,
-    mainHeatingEnergyEff: raw.mainheat_energy_eff ?? null,
-    mainHeatingControlsDescription: raw.mainheatcont_description ?? null,
-    mainHeatingControlsEnergyEff: raw.mainheatcont_energy_eff ?? null,
-    hotWaterDescription: raw.hot_water_description ?? null,
-    hotWaterEnergyEff: raw.hot_water_energy_eff ?? null,
-    mainsGasFlag: raw.mains_gas_flag ?? null,
+    mainFuel: unwrapValueLike(raw.main_fuel),
+    mainHeatingDescription: unwrapValueLike(raw.main_heating_description),
+    mainHeatingEnergyEff: unwrapValueLike(raw.mainheat_energy_eff),
+    mainHeatingControlsDescription: unwrapValueLike(raw.mainheatcont_description),
+    mainHeatingControlsEnergyEff: unwrapValueLike(raw.mainheatcont_energy_eff),
+    hotWaterDescription: unwrapValueLike(raw.hot_water_description),
+    hotWaterEnergyEff: unwrapValueLike(raw.hot_water_energy_eff),
+    mainsGasFlag: unwrapValueLike(raw.mains_gas_flag),
 
     // ── Fabric + glazing ────────────────────────────────────────────
-    wallsDescription: raw.walls_description ?? null,
-    wallsEnergyEff: raw.walls_energy_eff ?? null,
-    roofDescription: raw.roof_description ?? null,
-    roofEnergyEff: raw.roof_energy_eff ?? null,
-    floorDescription: raw.floor_description ?? null,
-    floorEnergyEff: raw.floor_energy_eff ?? null,
-    windowsDescription: raw.windows_description ?? null,
-    windowsEnergyEff: raw.windows_energy_eff ?? null,
-    glazedType: raw.glazed_type ?? null,
-    glazedArea: raw.glazed_area ?? null,
-    multiGlazeProportion: raw.multi_glaze_proportion ?? null,
+    wallsDescription: unwrapValueLike(raw.walls_description),
+    wallsEnergyEff: unwrapValueLike(raw.walls_energy_eff),
+    roofDescription: unwrapValueLike(raw.roof_description),
+    roofEnergyEff: unwrapValueLike(raw.roof_energy_eff),
+    floorDescription: unwrapValueLike(raw.floor_description),
+    floorEnergyEff: unwrapValueLike(raw.floor_energy_eff),
+    windowsDescription: unwrapValueLike(raw.windows_description),
+    windowsEnergyEff: unwrapValueLike(raw.windows_energy_eff),
+    glazedType: unwrapValueLike(raw.glazed_type),
+    glazedArea: unwrapValueLike(raw.glazed_area),
+    multiGlazeProportion: unwrapNumberLike(
+      raw.multi_glaze_proportion ?? raw.multiple_glazed_proportion
+    ),
 
     // ── Lighting ────────────────────────────────────────────────────
-    lightingDescription: raw.lighting_description ?? null,
-    lightingEnergyEff: raw.lighting_energy_eff ?? null,
-    lowEnergyLightingPct: raw.low_energy_lighting ?? null,
-    fixedLightingOutletsCount: raw.fixed_lighting_outlets_count ?? null,
-    lowEnergyFixedLightingCount: raw.low_energy_fixed_lighting ?? null,
+    lightingDescription: unwrapValueLike(raw.lighting_description),
+    lightingEnergyEff: unwrapValueLike(raw.lighting_energy_eff),
+    lowEnergyLightingPct: unwrapNumberLike(raw.low_energy_lighting),
+    fixedLightingOutletsCount: unwrapNumberLike(raw.fixed_lighting_outlets_count),
+    lowEnergyFixedLightingCount: unwrapNumberLike(
+      raw.low_energy_fixed_lighting ?? raw.low_energy_fixed_lighting_outlets_count
+    ),
 
     // ── Per-bill breakdown (£/yr) ──────────────────────────────────
-    heatingCostCurrent: parseNumber(raw.heating_cost_current),
-    heatingCostPotential: parseNumber(raw.heating_cost_potential),
-    hotWaterCostCurrent: parseNumber(raw.hot_water_cost_current),
-    hotWaterCostPotential: parseNumber(raw.hot_water_cost_potential),
-    lightingCostCurrent: parseNumber(raw.lighting_cost_current),
-    lightingCostPotential: parseNumber(raw.lighting_cost_potential),
+    // New API ships these as { value, currency }; legacy as numbers
+    // or strings. unwrapNumberLike handles all three shapes.
+    heatingCostCurrent: unwrapNumberLike(raw.heating_cost_current),
+    heatingCostPotential: unwrapNumberLike(raw.heating_cost_potential),
+    hotWaterCostCurrent: unwrapNumberLike(raw.hot_water_cost_current),
+    hotWaterCostPotential: unwrapNumberLike(raw.hot_water_cost_potential),
+    lightingCostCurrent: unwrapNumberLike(raw.lighting_cost_current),
+    lightingCostPotential: unwrapNumberLike(raw.lighting_cost_potential),
 
     // ── Lodgement + inspection ─────────────────────────────────────
-    inspectionDate: raw.inspection_date ?? null,
+    inspectionDate: unwrapValueLike(raw.inspection_date),
     lodgementDate:
-      raw.lodgement_date ??
-      (raw.lodgement_datetime ? raw.lodgement_datetime.slice(0, 10) : null),
+      unwrapValueLike(raw.lodgement_date) ??
+      (typeof raw.lodgement_datetime === "string"
+        ? raw.lodgement_datetime.slice(0, 10)
+        : null),
 
     // ── Assessor / accreditation ───────────────────────────────────
-    // Pick the first non-empty across the field-name variants the
-    // EPC API has used historically. Modern responses settle on
-    // `inspector_*`, older ones used `assessor_*`.
-    assessorName: pickFirst(raw.inspector_name, raw.assessor_name),
-    assessorEmail: pickFirst(
-      raw.energy_assessor_email,
-      raw.assessor_email,
-      raw.inspector_email
+    assessorName: pickFirst(
+      unwrapValueLike(raw.inspector_name),
+      unwrapValueLike(raw.assessor_name)
     ),
-    assessorCompany: raw.inspector_company_name ?? null,
-    accreditationScheme: raw.accreditation_scheme ?? null,
+    assessorEmail: pickFirst(
+      unwrapValueLike(raw.energy_assessor_email),
+      unwrapValueLike(raw.assessor_email),
+      unwrapValueLike(raw.inspector_email)
+    ),
+    assessorCompany: unwrapValueLike(raw.inspector_company_name),
+    accreditationScheme: unwrapValueLike(raw.accreditation_scheme),
 
     // ── Validity (computed) ────────────────────────────────────────
     // EPCs are valid for 10 years from the registration / lodgement
     // date. We anchor on registration_date when present (matches the
     // displayed "valid until" on the GOV.UK certificate page) and
     // fall back to lodgement_date.
-    ...computeValidity(raw.registration_date ?? raw.lodgement_date ?? null),
+    ...computeValidity(
+      unwrapValueLike(raw.registration_date) ??
+        unwrapValueLike(raw.lodgement_date) ??
+        null
+    ),
   };
 
-  await cacheSet("epc:cert-v3", certificateNumber, normalised, TTL_SECONDS);
+  await cacheSet("epc:cert-v4", certificateNumber, normalised, TTL_SECONDS);
   return normalised;
 }
 
@@ -672,13 +706,13 @@ function epcCacheKey(input: GetEpcInput): string | null {
  * fields are present.
  *
  * The whole result is cached for 30 days (7 on miss) in api_cache under
- * namespace "epc:by-address-v3". This means re-analysing the same property
+ * namespace "epc:by-address-v4". This means re-analysing the same property
  * skips the upstream UPRN/postcode search + detail fetch entirely.
  */
 export async function getEpc(input: GetEpcInput): Promise<EpcByAddressResponse> {
   const ck = epcCacheKey(input);
   if (ck) {
-    const cached = await cacheGet<EpcByAddressResponse>("epc:by-address-v3", ck);
+    const cached = await cacheGet<EpcByAddressResponse>("epc:by-address-v4", ck);
     if (cached) return cached;
   }
 
@@ -686,7 +720,7 @@ export async function getEpc(input: GetEpcInput): Promise<EpcByAddressResponse> 
 
   if (ck) {
     const ttl = result.found ? TTL_SECONDS : MISS_TTL_SECONDS;
-    await cacheSet("epc:by-address-v3", ck, result, ttl);
+    await cacheSet("epc:by-address-v4", ck, result, ttl);
   }
   return result;
 }
