@@ -299,12 +299,12 @@ function AudienceTabs({ current }: { current: MarketingAudience }) {
       <AudienceTab
         href="/"
         active={current === "homeowner"}
-        label="For homeowners"
+        label="Homeowners"
       />
       <AudienceTab
         href="/enterprise"
         active={current === "installer"}
-        label="For installers"
+        label="Installers"
       />
     </nav>
   );
