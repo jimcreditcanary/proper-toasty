@@ -15,13 +15,20 @@ import { z } from "zod";
  * survives via `.passthrough()` so we can pivot into new fields later
  * (e.g. CLASSIFICATION_CODE_DESCRIPTION sub-codes) without a schema bump.
  */
+// OS Places' published spec says UPRN/UDPRN are numbers, but in practice
+// the JSON response often serialises them as strings (12-digit integers
+// don't fit JS Number safely without rounding, so OS hedge their bets).
+// `z.coerce.number()` handles both shapes — strings parse, numbers pass
+// through — and "12345" becomes 12345 cleanly.
+const numericIdField = z.coerce.number();
+
 export const OsPlacesDpaRowSchema = z
   .object({
     // ── Identifiers ─────────────────────────────────────────────────
-    UPRN: z.number(),
-    UDPRN: z.number().optional(),
-    PARENT_UPRN: z.number().optional(),
-    USRN: z.number().optional(), // Unique Street Reference Number
+    UPRN: numericIdField,
+    UDPRN: numericIdField.optional(),
+    PARENT_UPRN: numericIdField.optional(),
+    USRN: numericIdField.optional(), // Unique Street Reference Number
     TOPOGRAPHY_LAYER_TOID: z.string().optional(),
 
     // ── Address ─────────────────────────────────────────────────────
@@ -49,11 +56,13 @@ export const OsPlacesDpaRowSchema = z
     // ── Coordinates ─────────────────────────────────────────────────
     // WGS84 — what we want. Optional defensively (see POST_TOWN above);
     // address-lookup falls back to the postcode centroid if missing.
-    LAT: z.number().optional(),
-    LNG: z.number().optional(),
+    // Coerced because OS Places sometimes serialises numbers as strings
+    // (same logic as UPRN above).
+    LAT: z.coerce.number().optional(),
+    LNG: z.coerce.number().optional(),
     // OSGB easting/northing — useful for OS MasterMap pivot, kept verbatim.
-    X_COORDINATE: z.number().optional(),
-    Y_COORDINATE: z.number().optional(),
+    X_COORDINATE: z.coerce.number().optional(),
+    Y_COORDINATE: z.coerce.number().optional(),
 
     // ── Classification ──────────────────────────────────────────────
     // RD = Residential Dwelling, CR = Commercial / Retail, etc.
@@ -75,7 +84,7 @@ export const OsPlacesDpaRowSchema = z
     MATCH_DESCRIPTION: z.string().optional(),
 
     // ── Administrative geography ────────────────────────────────────
-    LOCAL_CUSTODIAN_CODE: z.number().optional(),
+    LOCAL_CUSTODIAN_CODE: z.coerce.number().optional(),
     LOCAL_CUSTODIAN_CODE_DESCRIPTION: z.string().optional(),
     COUNTRY_CODE: z.string().optional(), // E92000001 = England, W92000004 = Wales
     COUNTRY_CODE_DESCRIPTION: z.string().optional(),
