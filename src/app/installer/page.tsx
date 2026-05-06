@@ -111,15 +111,17 @@ export default async function InstallerHomePage() {
     onboardingDismissedAt =
       profileRes.data?.installer_onboarding_dismissed_at ?? null;
 
-    // TEMP diagnostic — remove once the "30 in DB, 0 on dashboard"
-    // bug is identified. Logs the exact state the page rendered with
-    // so we can compare against the SQL truth.
-    console.log("[installer-dashboard] profile read", {
+    // TEMP diagnostic v2 — log AND surface as a header to make this
+    // bypass the Vercel runtime-logs UI entirely. Right-click → view
+    // page source on /installer and search for "PT-DEBUG" to see what
+    // the server actually computed at render time.
+    console.log("[PT-DEBUG-installer-dashboard] profile read", {
       userId: user.id,
       userEmail: user.email,
       profileFound: !!profileRes.data,
       profileError: profileRes.error?.message ?? null,
       creditBalance,
+      buildSha: process.env.VERCEL_GIT_COMMIT_SHA ?? "unknown",
     });
 
     if (installerRes.data) {
@@ -178,12 +180,18 @@ export default async function InstallerHomePage() {
     ? "Manage your availability, accept leads, and quote with confidence."
     : "Claim your installer profile to start accepting leads.";
 
+  // TEMP — visible in "View Page Source" so we can verify what the
+  // server actually rendered without depending on Vercel's logs UI.
+  // Search for PT-DEBUG in the page source.
+  const debugBanner = `<!-- PT-DEBUG creditBalance=${creditBalance} userId=${user?.id ?? "no-user"} sha=${process.env.VERCEL_GIT_COMMIT_SHA ?? "unknown"} -->`;
+
   return (
     <PortalShell
       portalName="Installer"
       pageTitle={pageTitle}
       pageSubtitle={pageSubtitle}
     >
+      <div dangerouslySetInnerHTML={{ __html: debugBanner }} />
       {failureReason && (
         <Link
           href="/installer/credits"
