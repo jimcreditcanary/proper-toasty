@@ -131,6 +131,28 @@ function pickFirst(...vals: Array<string | undefined | null>): string | null {
   return null;
 }
 
+/** The new GOV.UK EPC API returns several classification fields in one
+ *  of three shapes for the same logical value:
+ *    "Mid-terrace house"                                 — flat string
+ *    4                                                   — integer enum code
+ *    { value: "Mid-terrace house", language: "1" }       — coded object
+ *
+ *  We want a human-readable string everywhere downstream. Strings
+ *  pass through, numbers become their stringified form (admin tooling
+ *  can still join against the code), and objects yield `.value`.
+ *  Returns null when nothing usable is present. */
+function unwrapValueLike(input: unknown): string | null {
+  if (input == null) return null;
+  if (typeof input === "string") return input.trim() || null;
+  if (typeof input === "number") return String(input);
+  if (typeof input === "object" && "value" in input) {
+    const v = (input as { value: unknown }).value;
+    if (typeof v === "string") return v.trim() || null;
+    if (typeof v === "number") return String(v);
+  }
+  return null;
+}
+
 /** EPC certificates are valid for 10 years from registration. Derive
  *  the canonical `validUntil` date + `expired` boolean from any ISO
  *  date string. Returns nulls when the input can't be parsed. */
@@ -272,7 +294,7 @@ async function searchByPostcode(postcode: string): Promise<EpcSearchRow[]> {
 }
 
 async function fetchCertificate(certificateNumber: string): Promise<EpcCertificate | null> {
-  const cached = await cacheGet<EpcCertificate>("epc:cert-v2", certificateNumber);
+  const cached = await cacheGet<EpcCertificate>("epc:cert-v3", certificateNumber);
   if (cached) return cached;
 
   const url = new URL(`${EPC_BASE}/api/certificate`);
@@ -418,22 +440,34 @@ async function fetchCertificate(certificateNumber: string): Promise<EpcCertifica
     co2EmissionsPotential: raw.co2_emissions_potential ?? null,
 
     // ── Property classification ─────────────────────────────────────
-    propertyType: pickFirst(raw.property_type, raw.dwelling_type),
-    // Prefer the upstream `dwelling_type` when present; otherwise
-    // synthesise from property_type + built_form so the wizard's
-    // "Property Type" row never falls back to a bare "House".
+    // Each of these may arrive as a flat string, a number code, or
+    // a { value, language } object — see unwrapValueLike() for why.
+    propertyType: pickFirst(
+      unwrapValueLike(raw.property_type),
+      unwrapValueLike(raw.dwelling_type)
+    ),
+    // dwelling_type is the most useful single-field "what is this"
+    // ("Mid-terrace house"). Prefer it; synthesise from property
+    // type + built form when it's missing.
     dwellingType:
-      raw.dwelling_type ??
-      ([raw.property_type, raw.built_form].filter(Boolean).join(" — ") || null),
-    builtForm: raw.built_form ?? null,
+      unwrapValueLike(raw.dwelling_type) ??
+      ([
+        unwrapValueLike(raw.property_type),
+        unwrapValueLike(raw.built_form),
+      ]
+        .filter(Boolean)
+        .join(" — ") || null),
+    builtForm: unwrapValueLike(raw.built_form),
     constructionAgeBand:
-      raw.construction_age_band ?? raw.construction_age ?? null,
-    tenure: raw.tenure ?? null,
+      unwrapValueLike(raw.construction_age_band) ??
+      unwrapValueLike(raw.construction_age),
+    tenure: unwrapValueLike(raw.tenure),
     totalFloorAreaM2: parseNumber(raw.total_floor_area),
     floorHeightM: parseNumber(raw.floor_height),
-    extensionCount: raw.extension_count ?? null,
-    numberHabitableRooms: raw.number_habitable_rooms ?? null,
-    numberHeatedRooms: raw.number_heated_rooms ?? null,
+    extensionCount: raw.extension_count ?? raw.extensions_count ?? null,
+    numberHabitableRooms:
+      raw.number_habitable_rooms ?? raw.habitable_room_count ?? null,
+    numberHeatedRooms: raw.number_heated_rooms ?? raw.heated_room_count ?? null,
 
     // ── Heating ─────────────────────────────────────────────────────
     mainFuel: raw.main_fuel ?? null,
@@ -500,7 +534,7 @@ async function fetchCertificate(certificateNumber: string): Promise<EpcCertifica
     ...computeValidity(raw.registration_date ?? raw.lodgement_date ?? null),
   };
 
-  await cacheSet("epc:cert-v2", certificateNumber, normalised, TTL_SECONDS);
+  await cacheSet("epc:cert-v3", certificateNumber, normalised, TTL_SECONDS);
   return normalised;
 }
 
@@ -638,13 +672,13 @@ function epcCacheKey(input: GetEpcInput): string | null {
  * fields are present.
  *
  * The whole result is cached for 30 days (7 on miss) in api_cache under
- * namespace "epc:by-address-v2". This means re-analysing the same property
+ * namespace "epc:by-address-v3". This means re-analysing the same property
  * skips the upstream UPRN/postcode search + detail fetch entirely.
  */
 export async function getEpc(input: GetEpcInput): Promise<EpcByAddressResponse> {
   const ck = epcCacheKey(input);
   if (ck) {
-    const cached = await cacheGet<EpcByAddressResponse>("epc:by-address-v2", ck);
+    const cached = await cacheGet<EpcByAddressResponse>("epc:by-address-v3", ck);
     if (cached) return cached;
   }
 
@@ -652,7 +686,7 @@ export async function getEpc(input: GetEpcInput): Promise<EpcByAddressResponse> 
 
   if (ck) {
     const ttl = result.found ? TTL_SECONDS : MISS_TTL_SECONDS;
-    await cacheSet("epc:by-address-v2", ck, result, ttl);
+    await cacheSet("epc:by-address-v3", ck, result, ttl);
   }
   return result;
 }

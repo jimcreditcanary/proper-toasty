@@ -123,24 +123,35 @@ export const EpcCertificateRawSchema = z
     co2_emissions_current: z.number().optional(),
     co2_emissions_potential: z.number().optional(),
 
-    // Property classification
-    // - property_type: top-level category ("House", "Flat", "Bungalow", "Maisonette", "Park home")
-    // - dwelling_type: combined classification ("Detached house",
-    //   "Semi-detached house", etc.) — present in some API releases,
-    //   conceptually property_type + built_form merged.
-    property_type: z.string().optional(),
-    dwelling_type: z.string().optional(),
-    built_form: z.string().optional(),
-    // Some API releases trim the suffix from "construction_age_band"
-    // to a bare "construction_age" — accept either.
-    construction_age_band: z.string().optional(),
-    construction_age: z.string().optional(),
-    tenure: z.string().optional(),
+    // Property classification.
+    //
+    // The new GOV.UK EPC API returns these as ENUM CODES + NESTED
+    // DESCRIPTION OBJECTS — not the flat strings the legacy open-data
+    // API used. Concretely we've observed:
+    //   property_type: 0          (integer code)
+    //   built_form:    4          (integer code)
+    //   tenure:        1          (integer code)
+    //   dwelling_type: { value: "Mid-terrace house", language: "1" }
+    //
+    // We accept any of [string, number, { value: ... }] for these
+    // fields and let the service-layer mapper unwrap to a string via
+    // unwrapValueLike(). Without this the schema fails on the object
+    // shape, the parse falls back to the search row, and the wizard
+    // shows partial data ("Current rating D, Potential —, Type —").
+    property_type: z.unknown().optional(),
+    dwelling_type: z.unknown().optional(),
+    built_form: z.unknown().optional(),
+    tenure: z.unknown().optional(),
+    construction_age_band: z.unknown().optional(),
+    construction_age: z.unknown().optional(),
     total_floor_area: numLike,
     floor_height: numLike,
     extension_count: z.number().optional(),
+    extensions_count: z.number().optional(), // newer alias
     number_habitable_rooms: z.number().optional(),
+    habitable_room_count: z.number().optional(), // newer alias
     number_heated_rooms: z.number().optional(),
+    heated_room_count: z.number().optional(), // newer alias
 
     // Heating
     main_fuel: z.string().optional(),
