@@ -500,13 +500,18 @@ function InstallerChecklist({
       }
       icon={<ShieldCheck className="w-5 h-5" />}
     >
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-5">
-        <ChecklistColumn
+      {/* Single column layout. The two checklists used to sit
+          side-by-side, but at narrow widths the items wrapped
+          awkwardly and the subheadings got lost. Stacking them gives
+          each checklist the full row to breathe and lets the
+          subheadings carry their own visual weight. */}
+      <div className="space-y-7">
+        <ChecklistSection
           title={isPreSurvey ? "What to share before the visit" : "What to share with the installer"}
           icon={<MessageCircleQuestion className="w-4 h-4" />}
           items={shareItems}
         />
-        <ChecklistColumn
+        <ChecklistSection
           title={isPreSurvey ? "Questions worth asking on the day" : "Questions to ask before booking"}
           icon={<Flame className="w-4 h-4" />}
           items={askItems}
@@ -516,7 +521,7 @@ function InstallerChecklist({
   );
 }
 
-function ChecklistColumn({
+function ChecklistSection({
   title,
   icon,
   items,
@@ -527,13 +532,23 @@ function ChecklistColumn({
 }) {
   return (
     <div>
-      <p className="inline-flex items-center gap-1.5 text-sm font-semibold text-navy mb-3">
-        <span className="text-coral">{icon}</span>
-        {title}
-      </p>
+      {/* Bumped subheading from text-sm font-semibold to a chunkier
+          treatment: text-base font-bold + a coral icon chip + a
+          hairline rule under it that anchors the subhead to the list
+          beneath. Reads as a proper section header rather than a
+          column label. */}
+      <div className="flex items-center gap-2.5 pb-2 mb-3 border-b border-slate-200">
+        <span className="inline-flex items-center justify-center w-7 h-7 rounded-md bg-coral-pale text-coral">
+          {icon}
+        </span>
+        <h4 className="text-base font-bold text-navy">{title}</h4>
+      </div>
       <ul className="space-y-2.5">
         {items.map((item, i) => (
-          <li key={i} className="flex items-start gap-2.5 text-sm text-slate-700 leading-relaxed">
+          <li
+            key={i}
+            className="flex items-start gap-2.5 text-sm text-slate-700 leading-relaxed"
+          >
             <CheckCircle2
               className="w-4 h-4 mt-0.5 shrink-0 text-emerald-500"
               aria-hidden="true"
