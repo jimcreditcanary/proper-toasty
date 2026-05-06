@@ -3,7 +3,6 @@ import { cacheGet, cacheSet } from "@/lib/services/api-cache";
 import {
   EpcCertificateRawSchema,
   EpcSearchResponseSchema,
-  EpcCertificateResponseSchema,
   epcSearchRowFromRaw,
   type EpcByAddressResponse,
   type EpcCertificate,
@@ -64,6 +63,54 @@ function camelToSnakeKeys(input: unknown): unknown {
     out[snake] = camelToSnakeKeys(value);
   }
   return out;
+}
+
+/**
+ * Extract the actual cert object from whatever envelope the EPC API
+ * decided to use today. Returns the most cert-like object it can find,
+ * or null if there isn't one. Handles:
+ *
+ *   { ...cert... }           → returns input
+ *   { data: { ...cert... } } → returns input.data
+ *   { data: [{ ...cert... }] } → returns input.data[0]
+ *
+ * "Cert-like" is recognised by the presence of `certificate_number`
+ * (snake_case after key normalisation). Falling back to the candidate
+ * itself if it has *any* cert fields lets us cope with future shapes.
+ */
+function unwrapCertEnvelope(input: unknown): unknown {
+  if (input == null || typeof input !== "object") return null;
+  const obj = input as Record<string, unknown>;
+
+  // Already looks like a cert.
+  if ("certificate_number" in obj) return obj;
+
+  // { data: {...} } or { data: [...] }
+  if ("data" in obj) {
+    const inner = obj.data;
+    if (Array.isArray(inner)) {
+      // Pick the first object element. EPC detail responses occasionally
+      // come back with a single-element array; longer arrays would be
+      // unusual but we'd still rather take the first match than fail.
+      const first = inner.find((v) => v && typeof v === "object");
+      if (first) return first;
+    } else if (inner && typeof inner === "object") {
+      return inner;
+    }
+  }
+
+  // Last-ditch: maybe the cert fields are at the top level mixed with
+  // envelope fields. If we see at least one cert-style key, return as-is.
+  const certKeyHints = [
+    "current_energy_efficiency_band",
+    "potential_energy_efficiency_band",
+    "current_energy_efficiency_rating",
+    "uprn",
+    "address_line_1",
+  ];
+  if (certKeyHints.some((k) => k in obj)) return obj;
+
+  return null;
 }
 
 function uprnToInt(uprn: string | number | null | undefined): number | null {
@@ -235,26 +282,47 @@ async function fetchCertificate(certificateNumber: string): Promise<EpcCertifica
   // keep the schema canonical.
   const normalisedJson = camelToSnakeKeys(json);
 
-  // Try the wrapped shape first; fall through to the raw cert.
-  let raw: EpcCertificateRaw;
-  const wrapped = EpcCertificateResponseSchema.safeParse(normalisedJson);
-  if (wrapped.success) {
-    raw = wrapped.data.data;
-  } else {
-    const flat = EpcCertificateRawSchema.safeParse(normalisedJson);
-    if (!flat.success) {
-      console.warn("[epc] cert detail unexpected shape", {
-        certificateNumber,
-        topLevelKeys:
-          normalisedJson && typeof normalisedJson === "object"
-            ? Object.keys(normalisedJson as object)
-            : typeof normalisedJson,
-        sampleIssues: flat.error.issues.slice(0, 3),
-      });
-      return null;
-    }
-    raw = flat.data;
+  // The EPC API has shipped at least three envelope shapes for the
+  // cert detail endpoint:
+  //
+  //   1. flat:           { current_energy_efficiency_band: "C", ... }
+  //   2. wrapped object: { data: { current_energy_efficiency_band: "C", ... } }
+  //   3. wrapped array:  { data: [ { current_energy_efficiency_band: "C", ... } ] }
+  //
+  // Observed in production (cert 8106-6225-0229-4107-9633): shape (3).
+  // The previous wrapped schema only accepted shape (2), so the parser
+  // fell through to the flat shape, which (via .passthrough()) accepted
+  // `{ data: [...] }` as a vacuous flat cert with `data` as an unknown
+  // top-level field. Result: every typed band/rating field undefined.
+  //
+  // Fix: peel back any wrapping to find the actual cert object, then
+  // validate that. The EpcCertificateRawSchema is the single source of
+  // truth for the cert shape regardless of envelope.
+  const candidate = unwrapCertEnvelope(normalisedJson);
+  if (!candidate) {
+    console.warn("[epc] cert detail: couldn't locate cert object in response", {
+      certificateNumber,
+      topLevelKeys:
+        normalisedJson && typeof normalisedJson === "object"
+          ? Object.keys(normalisedJson as object)
+          : typeof normalisedJson,
+    });
+    return null;
   }
+
+  const parsed = EpcCertificateRawSchema.safeParse(candidate);
+  if (!parsed.success) {
+    console.warn("[epc] cert detail unexpected shape", {
+      certificateNumber,
+      candidateKeys:
+        candidate && typeof candidate === "object"
+          ? Object.keys(candidate as object).slice(0, 16)
+          : typeof candidate,
+      sampleIssues: parsed.error.issues.slice(0, 3),
+    });
+    return null;
+  }
+  const raw: EpcCertificateRaw = parsed.data;
 
   // Diagnostic — if we successfully parsed but every band field is
   // undefined, that's a strong signal the API has shifted under us
