@@ -289,6 +289,19 @@ export interface FinanceInput {
   floorAreaM2: number | null;
   heatPumpGrantGBP: number;
   solar: Eligibility["solar"];
+  /** True when the EPC has expired (>10y from registration). Drives
+   *  the EPC renewal line in additionalCostsGBP — BUS requires a
+   *  non-expired EPC at application time. */
+  epcExpired?: boolean;
+  /** True when no EPC was found at all. Same effect — homeowner
+   *  needs to commission a new one for BUS eligibility. */
+  epcMissing?: boolean;
+}
+
+// Average UK domestic EPC cost (mid 2024). Configurable via env so
+// it tracks reality without a code change.
+function epcRenewalCostGBP(): number {
+  return num("EPC_RENEWAL_COST_GBP", 90);
 }
 
 export function financeModel(input: FinanceInput): Finance {
@@ -302,6 +315,16 @@ export function financeModel(input: FinanceInput): Finance {
   const netRange: [number, number] | null = band
     ? [Math.max(0, band[0] - input.heatPumpGrantGBP), Math.max(0, band[1] - input.heatPumpGrantGBP)]
     : null;
+
+  // Additional pre-install costs that fall on the homeowner.
+  const additionalCosts: Finance["heatPump"]["additionalCostsGBP"] = [];
+  if (input.epcExpired || input.epcMissing) {
+    additionalCosts.push({
+      label: input.epcExpired ? "New EPC (existing expired)" : "New EPC certificate",
+      gbp: epcRenewalCostGBP(),
+      note: "Required by Ofgem to apply for the Boiler Upgrade Scheme. Typical UK cost £60–£120; we use £90 average.",
+    });
+  }
 
   // Solar: install cost = kWp × £/kWp. Savings = self-consumed @import + exported @export.
   let installCostGBP: number | null = null;
@@ -327,6 +350,7 @@ export function financeModel(input: FinanceInput): Finance {
     heatPump: {
       grantGBP: input.heatPumpGrantGBP,
       estimatedNetInstallCostRangeGBP: netRange,
+      additionalCostsGBP: additionalCosts,
     },
     solar: {
       installCostGBP,
@@ -384,6 +408,8 @@ export function buildEligibility(input: BuildEligibilityInput): {
     floorAreaM2,
     heatPumpGrantGBP: heatPump.estimatedGrantGBP,
     solar,
+    epcExpired: input.epc.found ? input.epc.certificate.expired : false,
+    epcMissing: !input.epc.found,
   });
 
   return { eligibility, finance };

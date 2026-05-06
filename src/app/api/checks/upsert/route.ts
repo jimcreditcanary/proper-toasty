@@ -119,6 +119,21 @@ const RequestSchema = z.object({
     .passthrough()
     .nullable()
     .optional(),
+
+  // Other API blobs from the analyse step. Each lands in its
+  // dedicated check_results JSONB column (migration 022). Loose
+  // schemas — the canonical ones live in src/lib/schemas; we
+  // store-and-forward rather than re-parse on every upsert.
+  solarRaw: z.unknown().nullable().optional(),
+  pvgisRaw: z.unknown().nullable().optional(),
+  floodRaw: z.unknown().nullable().optional(),
+  listedRaw: z.unknown().nullable().optional(),
+  planningRaw: z.unknown().nullable().optional(),
+  // Eligibility + finance summaries from the rules engine. Smaller
+  // and shape-stable; still permissive to avoid coupling the upsert
+  // schema to the eligibility-engine release cadence.
+  eligibility: z.unknown().nullable().optional(),
+  finance: z.unknown().nullable().optional(),
 });
 
 type CheckInsert = Database["public"]["Tables"]["checks"]["Insert"];
@@ -323,6 +338,31 @@ export async function POST(req: Request) {
   }
   if (input.epcCertificate !== undefined) {
     resultsPatch.epc_raw = (input.epcCertificate ?? null) as Json | null;
+  }
+  // Each external-API blob lands in its dedicated JSONB column
+  // (migration 022). We send only the fields that are explicitly
+  // present so a partial upsert can't blank a previously-stored
+  // blob — undefined means "leave alone", null means "clear".
+  if (input.solarRaw !== undefined) {
+    resultsPatch.solar_raw = (input.solarRaw ?? null) as Json | null;
+  }
+  if (input.pvgisRaw !== undefined) {
+    resultsPatch.pvgis_raw = (input.pvgisRaw ?? null) as Json | null;
+  }
+  if (input.floodRaw !== undefined) {
+    resultsPatch.flood_raw = (input.floodRaw ?? null) as Json | null;
+  }
+  if (input.listedRaw !== undefined) {
+    resultsPatch.listed_raw = (input.listedRaw ?? null) as Json | null;
+  }
+  if (input.planningRaw !== undefined) {
+    resultsPatch.planning_raw = (input.planningRaw ?? null) as Json | null;
+  }
+  if (input.eligibility !== undefined) {
+    resultsPatch.eligibility = (input.eligibility ?? null) as Json | null;
+  }
+  if (input.finance !== undefined) {
+    resultsPatch.finance = (input.finance ?? null) as Json | null;
   }
   if (Object.keys(resultsPatch).length > 0) {
     const { error: resultsErr } = await admin

@@ -121,6 +121,35 @@ function uprnToInt(uprn: string | number | null | undefined): number | null {
   return Number.isInteger(n) && n > 0 ? n : null;
 }
 
+/** First non-empty string from a list of optional candidates. Used to
+ *  collapse the EPC API's many spellings of the same logical field
+ *  (assessor name, email, etc.) into a single canonical column. */
+function pickFirst(...vals: Array<string | undefined | null>): string | null {
+  for (const v of vals) {
+    if (v != null && v.trim() !== "") return v.trim();
+  }
+  return null;
+}
+
+/** EPC certificates are valid for 10 years from registration. Derive
+ *  the canonical `validUntil` date + `expired` boolean from any ISO
+ *  date string. Returns nulls when the input can't be parsed. */
+function computeValidity(
+  isoDateLike: string | null
+): { validUntil: string | null; expired: boolean } {
+  if (!isoDateLike) return { validUntil: null, expired: false };
+  // Accept date-only ("2014-11-20") or datetime ("2014-11-20T..."). Slice
+  // first to a date-only ISO so we don't get tripped up by timezone math.
+  const datePart = isoDateLike.slice(0, 10);
+  const start = new Date(datePart);
+  if (isNaN(start.getTime())) return { validUntil: null, expired: false };
+  const end = new Date(start);
+  end.setUTCFullYear(end.getUTCFullYear() + 10);
+  const validUntil = end.toISOString().slice(0, 10);
+  const expired = end.getTime() < Date.now();
+  return { validUntil, expired };
+}
+
 function parseNumber(v: string | number | undefined): number | null {
   if (v == null) return null;
   const n = typeof v === "number" ? v : Number(String(v).replace(/[^\d.]/g, ""));
@@ -410,6 +439,32 @@ async function fetchCertificate(certificateNumber: string): Promise<EpcCertifica
     hotWaterCostPotential: parseNumber(raw.hot_water_cost_potential),
     lightingCostCurrent: parseNumber(raw.lighting_cost_current),
     lightingCostPotential: parseNumber(raw.lighting_cost_potential),
+
+    // ── Lodgement + inspection ─────────────────────────────────────
+    inspectionDate: raw.inspection_date ?? null,
+    lodgementDate:
+      raw.lodgement_date ??
+      (raw.lodgement_datetime ? raw.lodgement_datetime.slice(0, 10) : null),
+
+    // ── Assessor / accreditation ───────────────────────────────────
+    // Pick the first non-empty across the field-name variants the
+    // EPC API has used historically. Modern responses settle on
+    // `inspector_*`, older ones used `assessor_*`.
+    assessorName: pickFirst(raw.inspector_name, raw.assessor_name),
+    assessorEmail: pickFirst(
+      raw.energy_assessor_email,
+      raw.assessor_email,
+      raw.inspector_email
+    ),
+    assessorCompany: raw.inspector_company_name ?? null,
+    accreditationScheme: raw.accreditation_scheme ?? null,
+
+    // ── Validity (computed) ────────────────────────────────────────
+    // EPCs are valid for 10 years from the registration / lodgement
+    // date. We anchor on registration_date when present (matches the
+    // displayed "valid until" on the GOV.UK certificate page) and
+    // fall back to lodgement_date.
+    ...computeValidity(raw.registration_date ?? raw.lodgement_date ?? null),
   };
 
   await cacheSet("epc:cert-v2", certificateNumber, normalised, TTL_SECONDS);
@@ -485,6 +540,21 @@ function certFromRow(row: EpcSearchRow): EpcCertificate {
     hotWaterCostPotential: null,
     lightingCostCurrent: null,
     lightingCostPotential: null,
+
+    // The search row carries no assessor / lodgement detail; only the
+    // detail endpoint does. Leave the typed fields null so the rest
+    // of the app can degrade gracefully.
+    inspectionDate: null,
+    lodgementDate: null,
+    assessorName: null,
+    assessorEmail: null,
+    assessorCompany: null,
+    accreditationScheme: null,
+
+    // Validity: derive from the search row's registration date when
+    // we have one. Means a degraded "search row only" cert still
+    // surfaces a sensible "valid until" + expired flag.
+    ...computeValidity(row.registrationDate || null),
   };
 }
 

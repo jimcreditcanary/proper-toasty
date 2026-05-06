@@ -41,6 +41,7 @@ import type { AnalyseResponse } from "@/lib/schemas/analyse";
 import type { FloorplanAnalysis } from "@/lib/schemas/floorplan";
 import type { FuelTariff } from "@/lib/schemas/bill";
 import type { AddressMetadata } from "@/lib/schemas/address-lookup";
+import { epcCertificateUrl } from "@/lib/schemas/epc";
 import { PrintButton } from "./print-button";
 
 // ─── Types the route hands us ───────────────────────────────────────
@@ -478,7 +479,38 @@ function PropertyCard({
         </div>
 
         <div className="space-y-4">
-          <Subhead>EPC fabric (last assessed{epc?.registrationDate ? ` ${formatDate(epc.registrationDate)}` : ""})</Subhead>
+          {/* EPC heading row — assessor + valid-till + link to GOV.UK
+              certificate page. Lets the installer verify everything
+              against the original document in one click. */}
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <Subhead>EPC fabric{epc?.registrationDate ? ` (assessed ${formatDate(epc.registrationDate)})` : ""}</Subhead>
+            {epc?.certificateNumber && (
+              <a
+                href={epcCertificateUrl(epc.certificateNumber)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs font-semibold text-coral hover:text-coral-dark inline-flex items-center gap-1 print:hidden"
+              >
+                View on GOV.UK ↗
+              </a>
+            )}
+          </div>
+          {(epc?.assessorName || epc?.assessorCompany || epc?.validUntil) && (
+            <div className="text-xs text-slate-600 -mt-2">
+              {epc?.assessorName && <span>Assessor: <span className="font-semibold text-navy">{epc.assessorName}</span></span>}
+              {epc?.assessorCompany && <span> · {epc.assessorCompany}</span>}
+              {epc?.validUntil && (
+                <span>
+                  {epc?.assessorName || epc?.assessorCompany ? " · " : ""}
+                  Valid till{" "}
+                  <span className={epc.expired ? "font-semibold text-red-700" : "font-semibold text-navy"}>
+                    {formatDate(epc.validUntil)}
+                    {epc.expired && " (expired)"}
+                  </span>
+                </span>
+              )}
+            </div>
+          )}
           <Dl>
             <Dt>Walls</Dt>
             <Dd>

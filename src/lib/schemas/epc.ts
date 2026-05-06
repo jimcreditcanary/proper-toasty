@@ -163,6 +163,26 @@ export const EpcCertificateRawSchema = z
     // Admin
     transaction_type: z.string().optional(),
     registration_date: z.string().optional(),
+
+    // Lodgement + inspection — modern API names. The historical
+    // open-data endpoint exposed `inspection_date` + `lodgement_date`;
+    // the new GOV.UK one ships both plus an ISO datetime variant.
+    inspection_date: z.string().optional(),
+    lodgement_date: z.string().optional(),
+    lodgement_datetime: z.string().optional(),
+
+    // Assessor / accreditation. Different schemes name these slightly
+    // differently across releases — we keep all the variants we've
+    // seen in the wild and expose the first non-empty value as the
+    // canonical field downstream.
+    assessor_name: z.string().optional(),
+    inspector_name: z.string().optional(),
+    inspector_company_name: z.string().optional(),
+    accreditation_scheme: z.string().optional(),
+    accredited_assessor_id: z.string().optional(),
+    energy_assessor_email: z.string().optional(),
+    assessor_email: z.string().optional(),
+    inspector_email: z.string().optional(),
   })
   .passthrough();
 
@@ -251,8 +271,35 @@ export const EpcCertificateSchema = z.object({
   hotWaterCostPotential: z.number().nullable(),
   lightingCostCurrent: z.number().nullable(),
   lightingCostPotential: z.number().nullable(),
+
+  // Lodgement + inspection
+  inspectionDate: z.string().nullable(),
+  lodgementDate: z.string().nullable(),
+
+  // Assessor / accreditation — we surface the first non-empty value
+  // from the variants the API ships under different keys.
+  assessorName: z.string().nullable(),
+  assessorEmail: z.string().nullable(),
+  assessorCompany: z.string().nullable(),
+  accreditationScheme: z.string().nullable(),
+
+  // Computed fields — derived in the service layer, not from the
+  // upstream payload directly. Cert is valid for 10 years from
+  // registration; `validUntil` is the date it expires; `expired`
+  // is true once today is past it.
+  validUntil: z.string().nullable(),
+  expired: z.boolean(),
 });
 export type EpcCertificate = z.infer<typeof EpcCertificateSchema>;
+
+/**
+ * Build the public GOV.UK URL for an EPC certificate. Used in the
+ * installer brief and the wizard's preview so installers can verify
+ * the cert end-to-end without leaving the report.
+ */
+export function epcCertificateUrl(certificateNumber: string): string {
+  return `https://find-energy-certificate.service.gov.uk/energy-certificate/${certificateNumber}`;
+}
 
 // Shape returned by /api/epc/by-address
 export const EpcByAddressResponseSchema = z.union([

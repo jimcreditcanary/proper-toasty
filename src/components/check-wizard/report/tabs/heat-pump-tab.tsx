@@ -83,8 +83,16 @@ export function HeatPumpTab({
   // calculator's £12k gross − £7.5k grant.
   const FALLBACK_NET_LOW = 4000;
   const FALLBACK_NET_HIGH = 5500;
-  const costLow = costRange?.[0] ?? FALLBACK_NET_LOW;
-  const costHigh = costRange?.[1] ?? FALLBACK_NET_HIGH;
+  const baseCostLow = costRange?.[0] ?? FALLBACK_NET_LOW;
+  const baseCostHigh = costRange?.[1] ?? FALLBACK_NET_HIGH;
+  // Extra one-off costs (EPC renewal etc.) get folded into the
+  // headline so the homeowner sees the all-in figure they'll pay,
+  // and listed separately below the cost stat so they understand
+  // *why* the figure is what it is.
+  const extras = finance.additionalCostsGBP ?? [];
+  const extrasTotal = extras.reduce((sum, e) => sum + e.gbp, 0);
+  const costLow = baseCostLow + extrasTotal;
+  const costHigh = baseCostHigh + extrasTotal;
   const costSub =
     costRange != null
       ? "Range covers typical installer pricing for a property your size. Spread over 10 years at 6.9% if you finance it."
@@ -120,6 +128,30 @@ export function HeatPumpTab({
             sub={costSub}
           />
         </div>
+
+        {/* Itemised extras — currently only EPC renewal but the
+            structure scales. Shown only when something would otherwise
+            be hidden inside the headline figure. */}
+        {extras.length > 0 && (
+          <div className="mb-4 rounded-lg bg-slate-50 border border-slate-200 px-4 py-3 text-xs">
+            <p className="font-semibold uppercase tracking-wider text-slate-500 mb-1.5">
+              Includes
+            </p>
+            <ul className="space-y-1">
+              {extras.map((e) => (
+                <li key={e.label} className="flex items-baseline justify-between gap-3">
+                  <span className="text-slate-700">{e.label}</span>
+                  <span className="font-mono text-navy">{fmtGbp(e.gbp)}</span>
+                </li>
+              ))}
+            </ul>
+            {extras[0]?.note && (
+              <p className="mt-2 text-[11px] text-slate-500 leading-snug">
+                {extras[0].note}
+              </p>
+            )}
+          </div>
+        )}
 
         {hp.blockers.length > 0 && (
           <div className="mb-3">

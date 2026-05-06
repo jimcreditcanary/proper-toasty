@@ -92,6 +92,18 @@ export async function upsertCheck(args: UpsertCheckArgs): Promise<UpsertCheckRes
       state.analysis?.epc.found && state.analysis.epc.certificate
         ? state.analysis.epc.certificate
         : undefined,
+
+    // Other API blobs from the analyse step. Each lands in its
+    // dedicated check_results JSONB column. Sent only once the
+    // analyse step has produced a result so partial mid-wizard
+    // upserts don't blank previously-stored data.
+    solarRaw: state.analysis?.solar ?? undefined,
+    pvgisRaw: state.analysis?.pvgis ?? undefined,
+    floodRaw: state.analysis?.enrichments?.flood ?? undefined,
+    listedRaw: state.analysis?.enrichments?.listed ?? undefined,
+    planningRaw: state.analysis?.enrichments?.planning ?? undefined,
+    eligibility: state.analysis?.eligibility ?? undefined,
+    finance: state.analysis?.finance ?? undefined,
   };
 
   try {

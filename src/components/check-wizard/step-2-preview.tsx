@@ -2,10 +2,20 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
-import { ArrowLeft, CheckCircle2, Flame, Sun, Zap, Info, Loader2 } from "lucide-react";
+import {
+  ArrowLeft,
+  CheckCircle2,
+  ExternalLink,
+  Flame,
+  Sun,
+  Zap,
+  Info,
+  Loader2,
+} from "lucide-react";
 import { useCheckWizard } from "./context";
 import type { BuildingInsightsResponse } from "@/lib/schemas/solar";
 import type { EpcByAddressResponse } from "@/lib/schemas/epc";
+import { epcCertificateUrl } from "@/lib/schemas/epc";
 
 interface Loadable<T> {
   status: "idle" | "loading" | "ready" | "error";
@@ -121,6 +131,10 @@ export function Step2Preview() {
     return () => {
       cancelled = true;
     };
+    // `update` is the wizard reducer dispatch — stable across renders.
+    // It's referenced inside the EPC backfill block but doesn't need
+    // to retrigger the effect when the address hasn't changed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [address]);
 
   const satelliteUrl = useMemo(() => {
@@ -226,10 +240,14 @@ export function Step2Preview() {
 function CardShell({
   icon,
   title,
+  headerRight,
   children,
 }: {
   icon: React.ReactNode;
   title: string;
+  /** Optional content rendered at the top-right of the card header.
+   *  Used by the EPC card to host the "Matched Exactly" badge. */
+  headerRight?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
@@ -239,6 +257,7 @@ function CardShell({
           {icon}
         </div>
         <h3 className="text-sm font-semibold text-navy">{title}</h3>
+        {headerRight && <div className="ml-auto">{headerRight}</div>}
       </div>
       {children}
     </div>
@@ -344,34 +363,72 @@ function EpcCard({ state }: { state: Loadable<EpcByAddressResponse> }) {
   }
 
   const c = state.data.certificate;
-  const age = state.data.ageYears;
-  const stale = typeof age === "number" && age > 10;
+  const stale = c.expired;
+
+  // Compact "Matched Exactly" / "Matched (postcode)" badge for the
+  // top-right of the card header. Tells installers at a glance how
+  // confident the match is.
+  const matchBadge =
+    state.data.matchMethod === "uprn" ? (
+      <span
+        title="Matched by OS UPRN"
+        className="inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-full px-2 py-0.5"
+      >
+        <CheckCircle2 className="w-3 h-3" />
+        Matched Exactly
+      </span>
+    ) : (
+      <span
+        title="Matched by postcode + address fuzzy match"
+        className="inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide text-amber-700 bg-amber-50 border border-amber-100 rounded-full px-2 py-0.5"
+      >
+        Postcode match
+      </span>
+    );
 
   return (
-    <CardShell icon={<Zap className="w-4 h-4" />} title="EPC">
-      <dl className="space-y-1.5 text-sm">
-        <Row label="Current rating">
-          <span className="font-medium text-navy">
-            {c.currentEnergyBand || "—"}
-            {c.currentEnergyRating != null ? ` · ${c.currentEnergyRating}` : ""}
-          </span>
-        </Row>
-        {c.potentialEnergyBand && (
-          <Row label="Potential">
-            <span className="font-medium text-navy">{c.potentialEnergyBand}</span>
-          </Row>
-        )}
-        {c.propertyType && (
-          <Row label="Type">
+    <CardShell
+      icon={<Zap className="w-4 h-4" />}
+      title="EPC"
+      headerRight={matchBadge}
+    >
+      {/* Rating squares — current + potential side-by-side, mirrors
+          the GOV.UK certificate's headline visual. */}
+      <div className="flex items-stretch gap-3">
+        <RatingTile
+          label="Current"
+          band={c.currentEnergyBand}
+          rating={c.currentEnergyRating}
+        />
+        <RatingTile
+          label="Potential"
+          band={c.potentialEnergyBand}
+          rating={c.potentialEnergyRating}
+        />
+      </div>
+
+      {/* Property type + valid till — the two facts an installer
+          asks for first. */}
+      <dl className="mt-4 space-y-1.5 text-sm">
+        {(c.propertyType || c.builtForm) && (
+          <Row label="Property type">
             <span className="font-medium text-navy">
-              {c.propertyType}
-              {c.builtForm ? ` · ${c.builtForm}` : ""}
+              {[c.propertyType, c.builtForm].filter(Boolean).join(" · ") || "—"}
             </span>
           </Row>
         )}
-        {c.constructionAgeBand && (
-          <Row label="Age band">
-            <span className="font-medium text-navy">{c.constructionAgeBand}</span>
+        {c.validUntil && (
+          <Row label="Valid till">
+            <span
+              className={
+                stale
+                  ? "font-medium text-red-700"
+                  : "font-medium text-navy"
+              }
+            >
+              {formatDate(c.validUntil)}
+              {stale && <span className="ml-1 text-xs">(expired)</span>}
+            </span>
           </Row>
         )}
         {c.totalFloorAreaM2 != null && (
@@ -388,16 +445,95 @@ function EpcCard({ state }: { state: Loadable<EpcByAddressResponse> }) {
           </Row>
         )}
       </dl>
-      <p className="mt-3 text-xs text-slate-500">
-        Matched by {state.data.matchMethod === "uprn" ? "UPRN (exact)" : "postcode + address"}.
-      </p>
+
+      {/* Link out to the GOV.UK certificate page so the homeowner
+          can verify everything matches their original document. */}
+      <a
+        href={epcCertificateUrl(c.certificateNumber)}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="mt-4 inline-flex items-center gap-1.5 text-xs font-semibold text-coral hover:text-coral-dark"
+      >
+        View on GOV.UK
+        <ExternalLink className="w-3 h-3" />
+      </a>
+
       {stale && (
-        <p className="mt-2 text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded px-3 py-2">
-          This EPC is over 10 years old — you&rsquo;ll need a new one for a BUS application.
+        <p className="mt-3 text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded px-3 py-2">
+          This EPC has expired — you&rsquo;ll need a new one (typical cost £60–£120) before a BUS application.
         </p>
       )}
     </CardShell>
   );
+}
+
+/** Tiny date formatter for the valid-till row. Returns DD MMM YYYY
+ *  (e.g. "20 Nov 2034") which is unambiguous for UK readers without
+ *  the day-month-year-vs-month-day confusion of all-numeric dates. */
+function formatDate(iso: string): string {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+/** Coloured A-G band tile, mirroring the GOV.UK EPC certificate
+ *  visual. The band letter is the eye-catching part; the optional
+ *  numeric SAP rating sits underneath in smaller type. */
+function RatingTile({
+  label,
+  band,
+  rating,
+}: {
+  label: string;
+  band: string | null;
+  rating: number | null;
+}) {
+  const palette = bandPalette(band);
+  return (
+    <div className="flex-1 rounded-lg border border-slate-200 bg-slate-50 p-3 text-center">
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-2">
+        {label}
+      </p>
+      <div
+        className="mx-auto inline-flex items-center justify-center w-12 h-12 rounded-md text-white text-2xl font-bold shadow-sm"
+        style={{ backgroundColor: palette.bg }}
+      >
+        {band ?? "—"}
+      </div>
+      {rating != null && (
+        <p className="mt-2 text-xs text-slate-600">
+          SAP <span className="font-semibold text-navy">{rating}</span>
+        </p>
+      )}
+    </div>
+  );
+}
+
+/** GOV.UK EPC band colours. Matches the canonical EPC certificate
+ *  palette so a homeowner who's seen their cert recognises it. */
+function bandPalette(band: string | null): { bg: string } {
+  switch ((band ?? "").toUpperCase()) {
+    case "A":
+      return { bg: "#008054" }; // dark green
+    case "B":
+      return { bg: "#19b459" }; // green
+    case "C":
+      return { bg: "#8dce46" }; // light green
+    case "D":
+      return { bg: "#ffd500" }; // yellow
+    case "E":
+      return { bg: "#fcaa65" }; // orange
+    case "F":
+      return { bg: "#ef8023" }; // dark orange
+    case "G":
+      return { bg: "#e9153b" }; // red
+    default:
+      return { bg: "#94a3b8" }; // slate-400 — unknown
+  }
 }
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
