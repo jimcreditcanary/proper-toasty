@@ -16,11 +16,11 @@
 //   3. Common myths — three myth/truth pairs, each row laid out as a
 //      proper horizontal pair so the icons line up with the text.
 
+import React from "react";
 import Image from "next/image";
 import {
   CheckCircle2,
   Flame,
-  Home as HomeIcon,
   Landmark,
   MessageCircleQuestion,
   ShieldCheck,
@@ -31,8 +31,9 @@ import type { AnalyseResponse } from "@/lib/schemas/analyse";
 import type { FuelTariff } from "@/lib/schemas/bill";
 import type { YesNoUnsure } from "../../types";
 import type { ReportSelection, ReportTabKey } from "../report-shell";
-import { describeAzimuth, SectionCard } from "../shared";
+import { SectionCard } from "../shared";
 import { EpcRatingBar } from "../epc-dual-badge";
+import { titleCaseAddress } from "@/lib/format/address";
 
 interface Props {
   analysis: AnalyseResponse;
@@ -70,11 +71,10 @@ export function OverviewTab({
   return (
     <div className="space-y-6">
       <PropertyCard
-        address={address}
+        address={titleCaseAddress(address)}
         satelliteUrl={satelliteUrl}
         epc={analysis.epc}
         enrichments={analysis.enrichments}
-        primaryRoofAzimuth={primaryRoofAzimuth(analysis)}
       />
 
       {showHomeownerCards && (
@@ -102,16 +102,11 @@ function PropertyCard({
   satelliteUrl,
   epc,
   enrichments,
-  primaryRoofAzimuth,
 }: {
   address: string;
   satelliteUrl: string;
   epc: AnalyseResponse["epc"];
   enrichments: AnalyseResponse["enrichments"];
-  /** Cardinal-direction string for the largest roof segment, e.g.
-   *  "South-facing". `null` when the Solar API didn't cover the
-   *  address. */
-  primaryRoofAzimuth: string | null;
 }) {
   const listedCount = enrichments.listed?.matches.length ?? 0;
   const floodCount = enrichments.flood?.activeWarnings.length ?? 0;
@@ -122,18 +117,13 @@ function PropertyCard({
 
   return (
     <section className="rounded-2xl border border-[var(--border)] bg-white shadow-sm p-4 sm:p-6">
-      {/* 1×3 grid — Property | Energy Performance | Property Details.
-          Was previously a header row + 2-col grid; flattening to a
-          single 3-col row uses the horizontal space better and keeps
-          all three blocks visually balanced. Stacks on mobile. */}
+      {/* 1×3 grid — Your Property | Energy Performance | Property Details.
+          Mirrors the design reference: satellite tile with address
+          overlay, vertical EPC band ladder with current + potential
+          arrows, and a tidy key/value table on the right. Stacks on
+          mobile. */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
-        {/* Column 1: Property thumbnail with address overlaid on the
-            bottom. Tighter aspect ratio (16:9 — was 4:3 with the
-            address sitting underneath) so the column doesn't tower
-            over the EPC/Details columns next to it. Gradient overlay
-            keeps the address legible across light/dark imagery.
-            Heading is plain text (no icon) so it baseline-aligns
-            with "Energy performance" + "Property details". */}
+        {/* Column 1: Property thumbnail with address overlay. */}
         <div>
           <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-3">
             Your property
@@ -157,7 +147,9 @@ function PropertyCard({
           </div>
         </div>
 
-        {/* Column 2: Energy performance */}
+        {/* Column 2: Energy performance — vertical A→G ladder with
+            current + potential arrows. Visual matches the GOV.UK
+            EPC certificate page itself. */}
         <div>
           <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-3">
             Energy performance
@@ -166,6 +158,8 @@ function PropertyCard({
             <EpcRatingBar
               currentBand={epc.certificate.currentEnergyBand}
               potentialBand={epc.certificate.potentialEnergyBand}
+              currentRating={epc.certificate.currentEnergyRating}
+              potentialRating={epc.certificate.potentialEnergyRating}
             />
           ) : (
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
@@ -175,58 +169,13 @@ function PropertyCard({
           )}
         </div>
 
-        {/* Column 3: Property details */}
+        {/* Column 3: Property details — denormalised EPC fields. */}
         <div>
           <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-3">
             Property details
           </p>
           {epc.found ? (
-            // Two-column "table" layout: labels in column 1 (auto
-            // width = widest label), values in column 2 (the rest).
-            // Was a flex row per item, which left each value at a
-            // different x-offset based on its label's length —
-            // looked ragged. The 2-col grid lines values up cleanly.
-            <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-2 text-sm items-baseline">
-              {/* Property classification — spans both columns since
-                  it has no label, just the icon + built-form. */}
-              {(epc.certificate.builtForm || epc.certificate.propertyType) && (
-                <div className="col-span-2 flex items-center gap-2">
-                  <HomeIcon
-                    className="w-4 h-4 text-slate-500"
-                    aria-hidden="true"
-                  />
-                  <dd className="font-semibold text-navy">
-                    {epc.certificate.builtForm ?? epc.certificate.propertyType}
-                  </dd>
-                </div>
-              )}
-              {epc.certificate.constructionAgeBand && (
-                <>
-                  <dt className="text-slate-600">Built:</dt>
-                  <dd className="font-medium text-navy">
-                    {epc.certificate.constructionAgeBand}
-                  </dd>
-                </>
-              )}
-              {epc.certificate.totalFloorAreaM2 != null && (
-                <>
-                  <dt className="text-slate-600">Floor area:</dt>
-                  <dd className="font-medium text-navy">
-                    ~{Math.round(epc.certificate.totalFloorAreaM2)} m²
-                  </dd>
-                </>
-              )}
-              {primaryRoofAzimuth && (
-                <>
-                  <dt className="text-slate-600">Roof:</dt>
-                  <dd>
-                    <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-sm font-medium text-navy">
-                      {primaryRoofAzimuth}
-                    </span>
-                  </dd>
-                </>
-              )}
-            </dl>
+            <PropertyDetailsList epc={epc.certificate} />
           ) : (
             <p className="text-sm text-slate-500">
               We&rsquo;ll work from your floorplan + satellite imagery.
@@ -258,25 +207,91 @@ function PropertyCard({
   );
 }
 
-// Pick the cardinal-direction label for the property's largest
-// (= dominant) roof segment. Used in the Property Details column on
-// the Overview tab. Returns null when the Solar API didn't cover
-// the address.
-function primaryRoofAzimuth(analysis: AnalyseResponse): string | null {
-  if (analysis.solar.coverage !== true) return null;
-  const segments = analysis.solar.data.solarPotential.roofSegmentStats;
-  if (!segments || segments.length === 0) return null;
-  const biggest = segments
-    .filter((s) => s.azimuthDegrees != null)
-    .reduce<(typeof segments)[number] | null>((best, s) => {
-      const area = s.stats?.areaMeters2 ?? 0;
-      const bestArea = best?.stats?.areaMeters2 ?? 0;
-      return area > bestArea ? s : best;
-    }, null);
-  if (!biggest || biggest.azimuthDegrees == null) return null;
-  // describeAzimuth returns e.g. "South" — append "-facing" so the
-  // chip reads naturally on the property card ("South-facing").
-  return `${describeAzimuth(biggest.azimuthDegrees)}-facing`;
+// ─── Property details list ────────────────────────────────────────────
+// Six rows mirroring the design reference. Each row gracefully omits
+// when the EPC didn't carry that field, so a sparse cert doesn't
+// leave a column of "—"s.
+
+function PropertyDetailsList({
+  epc,
+}: {
+  epc: NonNullable<AnalyseResponse["epc"] & { found: true }>["certificate"];
+}) {
+  const validUntil = formatDateDDMMYYYY(epc.validUntil);
+  const propertyType = epc.dwellingType ?? epc.propertyType ?? null;
+  const floorArea =
+    epc.totalFloorAreaM2 != null
+      ? `${Math.round(epc.totalFloorAreaM2)} square metres`
+      : null;
+  const habitableRooms = epc.numberHabitableRooms;
+  const heatedRooms = epc.numberHeatedRooms;
+  const mainsGas = formatYesNoFlag(epc.mainsGasFlag);
+
+  const rows: Array<[string, React.ReactNode]> = [];
+  if (validUntil) {
+    rows.push([
+      "Valid Until",
+      <span
+        key="valid-until-value"
+        className={
+          epc.expired ? "font-semibold text-red-700" : "font-semibold text-navy"
+        }
+      >
+        {validUntil}
+        {epc.expired && (
+          <span className="ml-1 text-xs font-normal">(expired)</span>
+        )}
+      </span>,
+    ]);
+  }
+  if (propertyType) rows.push(["Property Type", propertyType]);
+  if (floorArea) rows.push(["Total Floor Area", floorArea]);
+  if (habitableRooms != null) rows.push(["Habitable Rooms", habitableRooms]);
+  if (heatedRooms != null) rows.push(["Heated Rooms", heatedRooms]);
+  if (mainsGas) rows.push(["Mains Gas", mainsGas]);
+
+  if (rows.length === 0) {
+    return (
+      <p className="text-sm text-slate-500">
+        EPC found, but the certificate didn&rsquo;t carry the usual
+        property-detail fields.
+      </p>
+    );
+  }
+
+  return (
+    <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2.5 text-sm items-baseline">
+      {rows.map(([label, value]) => (
+        <React.Fragment key={label}>
+          <dt className="font-semibold text-navy whitespace-nowrap">{label}</dt>
+          <dd className="text-right text-navy">{value}</dd>
+        </React.Fragment>
+      ))}
+    </dl>
+  );
+}
+
+/** EPC API ships mainsGasFlag as "Y" / "N" / null. Render as Yes / No
+ *  (or null to skip the row entirely). */
+function formatYesNoFlag(flag: string | null | undefined): string | null {
+  if (!flag) return null;
+  const f = flag.trim().toUpperCase();
+  if (f === "Y" || f === "YES" || f === "1") return "Yes";
+  if (f === "N" || f === "NO" || f === "0") return "No";
+  return null;
+}
+
+/** Format an ISO date string as DD/MM/YYYY (UK convention). Returns
+ *  null when the input is empty or unparseable so the caller can
+ *  omit the row. */
+function formatDateDDMMYYYY(iso: string | null): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return null;
+  const dd = String(d.getUTCDate()).padStart(2, "0");
+  const mm = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const yyyy = d.getUTCFullYear();
+  return `${dd}/${mm}/${yyyy}`;
 }
 
 function Chip({
