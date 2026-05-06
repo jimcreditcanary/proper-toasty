@@ -219,9 +219,11 @@ function PropertyCard({
 }
 
 // ─── Property details list ────────────────────────────────────────────
-// Six rows mirroring the design reference. Each row gracefully omits
-// when the EPC didn't carry that field, so a sparse cert doesn't
-// leave a column of "—"s.
+// Two grouped sections: property facts on top, emissions footprint
+// below — separated by a hairline + extra spacing so they read as
+// distinct semantic groups rather than one long list. Each row
+// gracefully omits when the EPC didn't carry that field, so a sparse
+// cert doesn't leave a column of "—"s.
 
 function PropertyDetailsList({
   epc,
@@ -237,10 +239,12 @@ function PropertyDetailsList({
   const habitableRooms = epc.numberHabitableRooms;
   const heatedRooms = epc.numberHeatedRooms;
   const mainsGas = formatYesNoFlag(epc.mainsGasFlag);
+  const co2Current = formatTonnesPerYear(epc.co2EmissionsCurrent);
+  const co2Potential = formatTonnesPerYear(epc.co2EmissionsPotential);
 
-  const rows: Array<[string, React.ReactNode]> = [];
+  const propertyRows: Array<[string, React.ReactNode]> = [];
   if (validUntil) {
-    rows.push([
+    propertyRows.push([
       "Valid Until",
       <span
         key="valid-until-value"
@@ -255,13 +259,26 @@ function PropertyDetailsList({
       </span>,
     ]);
   }
-  if (propertyType) rows.push(["Property Type", propertyType]);
-  if (floorArea) rows.push(["Total Floor Area", floorArea]);
-  if (habitableRooms != null) rows.push(["Habitable Rooms", habitableRooms]);
-  if (heatedRooms != null) rows.push(["Heated Rooms", heatedRooms]);
-  if (mainsGas) rows.push(["Mains Gas", mainsGas]);
+  if (propertyType) propertyRows.push(["Property Type", propertyType]);
+  if (floorArea) propertyRows.push(["Total Floor Area", floorArea]);
+  if (habitableRooms != null)
+    propertyRows.push(["Habitable Rooms", habitableRooms]);
+  if (heatedRooms != null) propertyRows.push(["Heated Rooms", heatedRooms]);
+  if (mainsGas) propertyRows.push(["Mains Gas", mainsGas]);
 
-  if (rows.length === 0) {
+  // Emissions group rendered as its own block when either value is
+  // present. Both omitted = no group, no separator — keeps the panel
+  // tidy on certs that didn't carry CO2 figures.
+  const emissionsRows: Array<[string, React.ReactNode]> = [];
+  if (co2Current)
+    emissionsRows.push(["CO₂ Emissions (tonnes/yr) Actual", co2Current]);
+  if (co2Potential)
+    emissionsRows.push([
+      "CO₂ Emissions (tonnes/yr) Potential",
+      co2Potential,
+    ]);
+
+  if (propertyRows.length === 0 && emissionsRows.length === 0) {
     return (
       <p className="text-sm text-slate-500">
         EPC found, but the certificate didn&rsquo;t carry the usual
@@ -270,6 +287,23 @@ function PropertyDetailsList({
     );
   }
 
+  return (
+    <div>
+      {propertyRows.length > 0 && <DetailsGrid rows={propertyRows} />}
+      {emissionsRows.length > 0 && (
+        <div className="mt-5 pt-4 border-t border-slate-100">
+          <DetailsGrid rows={emissionsRows} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DetailsGrid({
+  rows,
+}: {
+  rows: Array<[string, React.ReactNode]>;
+}) {
   return (
     <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2.5 text-sm items-baseline">
       {rows.map(([label, value]) => (
@@ -280,6 +314,15 @@ function PropertyDetailsList({
       ))}
     </dl>
   );
+}
+
+/** Format a CO₂ figure (already in tonnes/yr per the EPC API) for
+ *  display. One decimal place — the certificate publishes one too,
+ *  matching that lets the homeowner cross-reference the GOV.UK page.
+ *  Returns null on null/non-finite so the row is omitted entirely. */
+function formatTonnesPerYear(value: number | null | undefined): string | null {
+  if (value == null || !Number.isFinite(value)) return null;
+  return `${value.toFixed(1)} tonnes`;
 }
 
 /** EPC API ships mainsGasFlag as "Y" / "N" / null. Render as Yes / No
