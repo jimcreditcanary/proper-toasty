@@ -87,17 +87,24 @@ export async function MarketingHeader({
           <Logo size="sm" variant="light" />
         </Link>
 
+        {/* Audience toggle. Sits between logo and the right-hand
+            nav+CTA cluster. With justify-between on the parent and
+            three top-level children (logo, toggle, right cluster)
+            the toggle naturally floats in the middle of the bar. */}
         {!compact && (
-          <>
-            {/* Audience toggle. Centred between logo + CTA on desktop;
-                hidden on small screens where it lives in the mobile
-                menu instead (otherwise the header gets cramped). */}
-            <div className="hidden md:flex items-center">
-              <AudienceToggle current={resolvedAudience} />
-            </div>
+          <div className="hidden md:flex items-center">
+            <AudienceToggle current={resolvedAudience} />
+          </div>
+        )}
 
-            {/* Audience-specific nav links. Kept short — toggle
-                already conveys the dual surface. */}
+        {/* Right-hand cluster: nav links sit immediately to the left
+            of the CTA. Internal gap-6 keeps the links tight so they
+            read as a single right-aligned group rather than a third
+            distributed section. The CTA is the visual anchor on the
+            far right. */}
+        <div className="flex items-center gap-6">
+          {/* Audience-specific nav links. */}
+          {!compact && (
             <nav className="hidden md:flex items-center gap-6 text-sm">
               {isInstaller ? (
                 <>
@@ -152,10 +159,8 @@ export async function MarketingHeader({
                 </>
               )}
             </nav>
-          </>
-        )}
+          )}
 
-        <div className="flex items-center gap-2">
           {/* Desktop CTA. Audience-specific:
                 Homeowner → "Check my home" (the free pre-survey tool)
                 Installer → "Get started" (signup) */}
