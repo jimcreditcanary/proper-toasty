@@ -121,14 +121,25 @@ function PropertyCard({
           Mirrors the design reference: satellite tile with address
           overlay, vertical EPC band ladder with current + potential
           arrows, and a tidy key/value table on the right. Stacks on
-          mobile. */}
+          mobile.
+
+          items-stretch (the grid default) ensures all three columns
+          take the height of the tallest one — the EPC ladder column
+          drives that height. Each column is then flex-col so the
+          satellite image and the property-details list can flex-1
+          to fill the column vertically rather than pinning to a
+          fixed aspect ratio. */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
-        {/* Column 1: Property thumbnail with address overlay. */}
-        <div>
+        {/* Column 1: Property thumbnail with address overlay. The image
+            container uses flex-1 so it grows to match the EPC column's
+            height instead of forcing a 16:9 letterbox that left a
+            visual gap below it. min-h-[220px] keeps the image sensibly
+            sized when it stacks on mobile (no flex stretching there). */}
+        <div className="flex flex-col">
           <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-3">
             Your property
           </p>
-          <div className="relative w-full aspect-[16/9] rounded-xl overflow-hidden border border-slate-200 bg-slate-100">
+          <div className="relative w-full flex-1 min-h-[220px] rounded-xl overflow-hidden border border-slate-200 bg-slate-100">
             <Image
               src={satelliteUrl}
               alt={`Satellite view of ${address}`}
