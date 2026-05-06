@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowRight, Loader2, MapPin, Search } from "lucide-react";
 import type { UkCountry } from "@/lib/postcode/region";
 import { isV1SupportedCountry } from "@/lib/postcode/region";
-import type { AddressLookupResponse } from "@/lib/schemas/postcoder";
+import type { AddressLookupResponse } from "@/lib/schemas/address-lookup";
 import { useCheckWizard } from "./context";
 
 type Phase = "idle" | "searching" | "picking" | "resolving";
@@ -56,10 +56,11 @@ export function Step1Address() {
       setPhase("resolving");
       setError(null);
 
-      // Every address at a given postcode from Postcoder can share the same
-      // centroid lat/lng (when the plan doesn't carry per-property
-      // addtags). Geocode the specific address Google-side so the satellite
-      // tile + Solar API call centre on the actual property.
+      // OS Places returns per-property WGS84 lat/lng directly, but we
+      // still pass through Google geocoding for satellite tile + Solar
+      // API alignment — Google's centroid sometimes lands a few metres
+      // off the actual roof and that misalignment hurts the Solar
+      // building-insights match. Cheap belt-and-braces.
       let lat = a.latitude;
       let lng = a.longitude;
       try {
@@ -190,10 +191,10 @@ export function Step1Address() {
           </p>
           <ul className="rounded-xl border border-[var(--border)] bg-white shadow-sm divide-y divide-[var(--border)] max-h-96 overflow-y-auto">
             {addresses.map((a, i) => (
-              // UPRN can be null (PAF-only Postcoder plans). Compose a
-              // stable React key from UPRN OR (UDPRN + summary + index)
-              // so the list still has unique keys without us having to
-              // mint a fake UPRN that would leak downstream.
+              // OS Places returns a UPRN for every row, but we keep
+              // the null-safe React key for two reasons: (1) defensive
+              // against transient API edge cases, (2) legacy reports
+              // re-rendered through this list may carry null UPRNs.
               <li key={a.uprn ?? `${a.udprn ?? "row"}-${i}-${a.summary}`}>
                 <button
                   type="button"

@@ -35,8 +35,8 @@ export const maxDuration = 15;
 // optional because the wizard upserts at multiple points and earlier
 // upserts won't have everything yet).
 //
-// `metadata` is the OS Places (or fallback Postcoder) rich-fields blob —
-// see src/lib/schemas/postcoder.ts AddressMetadataSchema. Persisted to
+// `metadata` is the OS Places rich-fields blob — see
+// src/lib/schemas/address-lookup.ts AddressMetadataSchema. Persisted to
 // public.checks.address_metadata as JSONB (migration 057). Validated
 // loosely as a generic record so a future addition to AddressMetadata
 // doesn't break older clients still sending the old shape.
@@ -148,9 +148,9 @@ export async function POST(req: Request) {
     if (input.address.latitude !== undefined) patch.latitude = input.address.latitude;
     if (input.address.longitude !== undefined) patch.longitude = input.address.longitude;
     if (input.address.country !== undefined) patch.country = input.address.country;
-    // Rich OS Places (or Postcoder fallback) metadata — JSONB column,
-    // see migration 057. Sent fresh on the address-pick upsert; later
-    // upserts omit it (undefined) so we don't clobber the captured row.
+    // Rich OS Places metadata — JSONB column, see migration 057.
+    // Sent fresh on the address-pick upsert; later upserts omit it
+    // (undefined) so we don't clobber the captured row.
     // Cast to Json — Postgres JSONB accepts the same shapes our zod
     // record schema produces; the Supabase Json type is recursive and
     // a generic Record<string, unknown> doesn't structurally match.

@@ -717,9 +717,9 @@ export interface Database {
           floors_count: number | null;
           total_area_m2: number | null;
           total_area_sqft: number | null;
-          // Migration 057 — rich OS Places (or Postcoder fallback) metadata
-          // captured at address-pick time. Schema: AddressMetadataSchema
-          // in src/lib/schemas/postcoder.ts.
+          // Migration 057 — rich OS Places metadata captured at
+          // address-pick time. Schema: AddressMetadataSchema
+          // in src/lib/schemas/address-lookup.ts.
           address_metadata: Json | null;
           share_token: string | null;
           share_expires_at: string | null;

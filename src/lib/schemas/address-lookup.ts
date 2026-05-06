@@ -1,41 +1,21 @@
 import { z } from "zod";
 
 /**
- * Postcoder /address/UK/{postcode} response row. All fields are optional because
- * Postcoder omits empty keys; we normalise to an empty string / null at the
- * service layer.
+ * Rich metadata captured at address-pick time, sourced from OS Places
+ * (the only address provider we use; see src/lib/services/os-places.ts).
+ *
+ * All fields are optional because OS Places omits empties and we'd
+ * rather store `null` than fail validation. Persisted verbatim to
+ * public.checks.address_metadata as a JSONB blob — migration 057.
+ *
+ * The `source` discriminator stays for forward compatibility: if we
+ * ever add a second provider it'll go here.
  */
-export const PostcoderAddressSchema = z.object({
-  summaryline: z.string().optional().default(""),
-  addressline1: z.string().optional().default(""),
-  addressline2: z.string().optional().default(""),
-  organisation: z.string().optional().default(""),
-  buildingname: z.string().optional().default(""),
-  subbuildingname: z.string().optional().default(""),
-  premise: z.string().optional().default(""),
-  street: z.string().optional().default(""),
-  dependentlocality: z.string().optional().default(""),
-  posttown: z.string().optional().default(""),
-  county: z.string().optional().default(""),
-  postcode: z.string().optional().default(""),
-  uprn: z.string().optional().default(""),
-  udprn: z.string().optional().default(""),
-  latitude: z.string().optional().default(""),
-  longitude: z.string().optional().default(""),
-});
-
-export type PostcoderAddress = z.infer<typeof PostcoderAddressSchema>;
-
-// Rich metadata captured at address-pick time. Populated from the
-// underlying provider (OS Places when configured, Postcoder otherwise).
-// All fields are optional because the Postcoder fallback path can't fill
-// most of them — null is a legitimate signal of "we don't know" and the
-// rest of the app must handle it gracefully.
-//
-// Persisted to public.checks.address_metadata as a JSONB blob — see
-// supabase/migrations/057_checks_address_metadata.sql for the column.
 export const AddressMetadataSchema = z.object({
-  source: z.enum(["os-places", "postcoder"]),
+  // Always "os-places" on new writes. Kept as a free-form string so
+  // legacy rows persisted by a previous Postcoder-fallback build still
+  // load (we don't gate-validate stored JSONB on read).
+  source: z.string(),
 
   // OS classification — RD* = residential, CR* = commercial, etc.
   // RD06 is "Self-Contained Flat" which is BUS-relevant.
@@ -82,16 +62,20 @@ export const AddressMetadataSchema = z.object({
 
 export type AddressMetadata = z.infer<typeof AddressMetadataSchema>;
 
-// Shape returned to the client. Typed + pre-normalised so the wizard doesn't
-// have to defend against weird Postcoder edge cases.
-//
-// `uprn` is nullable — Postcoder only returns UPRNs on plans that include
-// the OS AddressBase addtag. PAF-only plans return `null` for every row.
-// Downstream services (EPC, OS) MUST treat null as "no UPRN, fall back
-// to postcode + address matching" rather than synthesising a placeholder.
+/**
+ * Shape returned by /api/address/lookup to the client. Typed +
+ * pre-normalised so the wizard doesn't need to know about OS Places
+ * field naming conventions.
+ *
+ * Every row carries a real OS UPRN (12-digit integer) and per-property
+ * WGS84 lat/lng — there is no synthetic-key path any more.
+ */
 export const AddressLookupResponseSchema = z.object({
   addresses: z.array(
     z.object({
+      // OS Places returns a real UPRN for every row, but the type stays
+      // nullable to keep downstream code (SelectedAddress, /api/checks/upsert,
+      // EPC service) which already handles null defensively.
       uprn: z.string().nullable(),
       udprn: z.string().nullable(),
       summary: z.string(),
@@ -101,8 +85,6 @@ export const AddressLookupResponseSchema = z.object({
       postTown: z.string(),
       latitude: z.number(),
       longitude: z.number(),
-      // Per-row rich metadata from OS Places (or null when on the
-      // Postcoder fallback path with no equivalent fields).
       metadata: AddressMetadataSchema.nullable().optional(),
     })
   ),

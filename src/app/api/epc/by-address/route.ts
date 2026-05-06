@@ -4,10 +4,11 @@ import { getEpc } from "@/lib/services/epc";
 
 export const runtime = "nodejs";
 
-// `uprn` accepts string or null. Null means "Postcoder didn't give us
-// one for this address" (PAF-only plan). The route falls back to
-// postcode+address matching, scored against `addressFull` if present
-// (richer than line1 for multi-flat blocks) and `addressLine1` otherwise.
+// `uprn` accepts string or null. Null means OS Places didn't return one
+// (rare — only seen on brand-new builds before AddressBase ingest). The
+// route falls back to postcode+address matching, scored against
+// `addressFull` if present (richer than line1 for multi-flat blocks)
+// and `addressLine1` otherwise.
 const RequestSchema = z
   .object({
     uprn: z.string().max(12).nullable().optional(),

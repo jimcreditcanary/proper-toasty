@@ -40,7 +40,7 @@ import {
 import type { AnalyseResponse } from "@/lib/schemas/analyse";
 import type { FloorplanAnalysis } from "@/lib/schemas/floorplan";
 import type { FuelTariff } from "@/lib/schemas/bill";
-import type { AddressMetadata } from "@/lib/schemas/postcoder";
+import type { AddressMetadata } from "@/lib/schemas/address-lookup";
 import { PrintButton } from "./print-button";
 
 // ─── Types the route hands us ───────────────────────────────────────
@@ -59,8 +59,8 @@ export interface InstallerSiteBriefProps {
     uprn: string | null;
     latitude: number | null;
     longitude: number | null;
-    /** OS Places (or Postcoder fallback) rich-fields blob. Optional —
-     *  legacy leads predate migration 057. */
+    /** OS Places rich-fields blob. Optional — legacy leads predate
+     *  migration 057. */
     metadata?: AddressMetadata | null;
   };
   /** Lead status + key milestones. */

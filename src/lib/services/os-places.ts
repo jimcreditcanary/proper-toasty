@@ -38,8 +38,9 @@ function normalisePostcode(p: string): string {
   return p.trim().toUpperCase().replace(/\s+/g, "");
 }
 
-/** True when the OS_PLACES_API_KEY env var is set. Lets the caller
- *  decide between OS Places primary or Postcoder fallback at runtime. */
+/** True when the OS_PLACES_API_KEY env var is set. The address-lookup
+ *  route throws a 502 with a clear message when this returns false —
+ *  there is no longer a fallback provider. */
 export function osPlacesConfigured(): boolean {
   return !!process.env.OS_PLACES_API_KEY;
 }

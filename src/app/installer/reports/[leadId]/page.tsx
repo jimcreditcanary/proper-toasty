@@ -25,7 +25,7 @@ import { InstallerSiteBrief } from "@/components/installer-report/site-brief";
 import type { AnalyseResponse } from "@/lib/schemas/analyse";
 import type { FloorplanAnalysis } from "@/lib/schemas/floorplan";
 import type { FuelTariff } from "@/lib/schemas/bill";
-import type { AddressMetadata } from "@/lib/schemas/postcoder";
+import type { AddressMetadata } from "@/lib/schemas/address-lookup";
 
 export const dynamic = "force-dynamic";
 

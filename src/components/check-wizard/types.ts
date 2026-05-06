@@ -2,7 +2,7 @@ import type { UkCountry } from "@/lib/postcode/region";
 import type { AnalyseResponse } from "@/lib/schemas/analyse";
 import type { FuelTariff } from "@/lib/schemas/bill";
 import type { FloorplanAnalysis } from "@/lib/schemas/floorplan";
-import type { AddressMetadata } from "@/lib/schemas/postcoder";
+import type { AddressMetadata } from "@/lib/schemas/address-lookup";
 
 export type CheckStep =
   | "address"
@@ -29,10 +29,9 @@ export type HeatingFuel = "gas" | "electric" | "other";
 export type YesNoUnsure = "yes" | "no" | "unsure";
 
 export interface SelectedAddress {
-  // Real OS UPRN when Postcoder's plan supplies it; null otherwise.
-  // Never a synthetic placeholder — downstream services (EPC, OS) must
-  // be free to skip UPRN-first lookups and use postcode + address
-  // matching instead.
+  // Real OS UPRN supplied by OS Places. Nullable because the type is
+  // shared with legacy reports (some predate the OS Places switch);
+  // new wizard flows always populate it.
   uprn: string | null;
   formattedAddress: string;
   line1: string;
