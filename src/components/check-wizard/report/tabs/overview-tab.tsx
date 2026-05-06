@@ -116,105 +116,99 @@ function PropertyCard({
     (enrichments.planning?.nationalParks.length ?? 0);
 
   return (
-    <section className="rounded-2xl border border-[var(--border)] bg-white shadow-sm p-4 sm:p-6">
-      {/* 1×3 grid — Your Property | Energy Performance | Property Details.
-          Mirrors the design reference: satellite tile with address
-          overlay, vertical EPC band ladder with current + potential
-          arrows, and a tidy key/value table on the right. Stacks on
-          mobile.
+    /* Three sibling cards in a 1×3 grid (stacks on mobile). Each
+       column is now its own bordered card rather than three sub-blocks
+       inside one shell — gives each section more breathing room and
+       lets the cards size independently rather than all matching the
+       tallest one's content.
 
-          items-stretch (the grid default) ensures all three columns
-          take the height of the tallest one — the EPC ladder column
-          drives that height. Each column is then flex-col so the
-          satellite image and the property-details list can flex-1
-          to fill the column vertically rather than pinning to a
-          fixed aspect ratio. */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
-        {/* Column 1: Property thumbnail with address overlay. The image
-            container uses flex-1 so it grows to match the EPC column's
-            height instead of forcing a 16:9 letterbox that left a
-            visual gap below it. min-h-[220px] keeps the image sensibly
-            sized when it stacks on mobile (no flex stretching there). */}
-        <div className="flex flex-col">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-3">
-            Your property
+       Card padding is identical across all three so the headings sit
+       on the same baseline horizontally. The grid's items-stretch
+       default still keeps the cards equal-height, so the satellite
+       image's flex-1 fill behaviour continues to work. */
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-5">
+      {/* Card 1: Property thumbnail with address overlay. */}
+      <section className="flex flex-col rounded-2xl border border-[var(--border)] bg-white shadow-sm p-4 sm:p-6">
+        <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-3">
+          Your property
+        </p>
+        <div className="relative w-full flex-1 min-h-[220px] rounded-xl overflow-hidden border border-slate-200 bg-slate-100">
+          <Image
+            src={satelliteUrl}
+            alt={`Satellite view of ${address}`}
+            fill
+            sizes="(max-width: 1024px) 100vw, 33vw"
+            className="object-cover"
+            unoptimized
+          />
+          <div
+            aria-hidden="true"
+            className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/70 via-black/30 to-transparent"
+          />
+          <p className="absolute inset-x-0 bottom-0 p-3 text-sm sm:text-base font-semibold text-white leading-snug">
+            {address}
           </p>
-          <div className="relative w-full flex-1 min-h-[220px] rounded-xl overflow-hidden border border-slate-200 bg-slate-100">
-            <Image
-              src={satelliteUrl}
-              alt={`Satellite view of ${address}`}
-              fill
-              sizes="(max-width: 1024px) 100vw, 33vw"
-              className="object-cover"
-              unoptimized
-            />
-            <div
-              aria-hidden="true"
-              className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/70 via-black/30 to-transparent"
-            />
-            <p className="absolute inset-x-0 bottom-0 p-3 text-sm sm:text-base font-semibold text-white leading-snug">
-              {address}
-            </p>
+        </div>
+      </section>
+
+      {/* Card 2: Energy performance — vertical A→G ladder with current
+          + potential arrows. Visual matches the GOV.UK EPC certificate
+          page itself. */}
+      <section className="rounded-2xl border border-[var(--border)] bg-white shadow-sm p-4 sm:p-6">
+        <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-3">
+          Energy performance
+        </p>
+        {epc.found ? (
+          <EpcRatingBar
+            currentBand={epc.certificate.currentEnergyBand}
+            potentialBand={epc.certificate.potentialEnergyBand}
+            currentRating={epc.certificate.currentEnergyRating}
+            potentialRating={epc.certificate.potentialEnergyRating}
+          />
+        ) : (
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+            No EPC on file for this address — your installer will work
+            from the on-site survey instead.
           </div>
-        </div>
+        )}
+      </section>
 
-        {/* Column 2: Energy performance — vertical A→G ladder with
-            current + potential arrows. Visual matches the GOV.UK
-            EPC certificate page itself. */}
-        <div>
-          <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-3">
-            Energy performance
+      {/* Card 3: Property details — denormalised EPC fields plus any
+          property-context chips (listed building / conservation area /
+          active flood warning). */}
+      <section className="rounded-2xl border border-[var(--border)] bg-white shadow-sm p-4 sm:p-6">
+        <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-3">
+          Property details
+        </p>
+        {epc.found ? (
+          <PropertyDetailsList epc={epc.certificate} />
+        ) : (
+          <p className="text-sm text-slate-500">
+            We&rsquo;ll work from your floorplan + satellite imagery.
           </p>
-          {epc.found ? (
-            <EpcRatingBar
-              currentBand={epc.certificate.currentEnergyBand}
-              potentialBand={epc.certificate.potentialEnergyBand}
-              currentRating={epc.certificate.currentEnergyRating}
-              potentialRating={epc.certificate.potentialEnergyRating}
-            />
-          ) : (
-            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
-              No EPC on file for this address — your installer will work
-              from the on-site survey instead.
-            </div>
-          )}
-        </div>
+        )}
 
-        {/* Column 3: Property details — denormalised EPC fields. */}
-        <div>
-          <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-3">
-            Property details
-          </p>
-          {epc.found ? (
-            <PropertyDetailsList epc={epc.certificate} />
-          ) : (
-            <p className="text-sm text-slate-500">
-              We&rsquo;ll work from your floorplan + satellite imagery.
-            </p>
-          )}
-
-          {(listedCount > 0 || conservationCount > 0 || floodCount > 0) && (
-            <div className="mt-4 flex flex-wrap gap-1.5">
-              {listedCount > 0 && (
-                <Chip tone="amber" icon={<Landmark className="w-3 h-3" />}>
-                  Listed building
-                </Chip>
-              )}
-              {conservationCount > 0 && (
-                <Chip tone="amber" icon={<Landmark className="w-3 h-3" />}>
-                  Conservation area
-                </Chip>
-              )}
-              {floodCount > 0 && (
-                <Chip tone="red" icon={<Waves className="w-3 h-3" />}>
-                  Flood warning active
-                </Chip>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-    </section>
+        {(listedCount > 0 || conservationCount > 0 || floodCount > 0) && (
+          <div className="mt-4 flex flex-wrap gap-1.5">
+            {listedCount > 0 && (
+              <Chip tone="amber" icon={<Landmark className="w-3 h-3" />}>
+                Listed building
+              </Chip>
+            )}
+            {conservationCount > 0 && (
+              <Chip tone="amber" icon={<Landmark className="w-3 h-3" />}>
+                Conservation area
+              </Chip>
+            )}
+            {floodCount > 0 && (
+              <Chip tone="red" icon={<Waves className="w-3 h-3" />}>
+                Flood warning active
+              </Chip>
+            )}
+          </div>
+        )}
+      </section>
+    </div>
   );
 }
 
@@ -413,11 +407,6 @@ function InstallerChecklist({
         </>,
       ]
     : [
-        <>
-          <strong className="text-navy">This report</strong> — saves them
-          measuring twice and means everyone&rsquo;s starting from the same
-          numbers.
-        </>,
         <>
           <strong className="text-navy">Your floorplan</strong> — even a rough
           sketch helps them size radiators, find pipework runs, and spot space

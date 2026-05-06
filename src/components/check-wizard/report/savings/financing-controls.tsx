@@ -35,7 +35,12 @@ export function FinancingControls({ value, onChange }: Props) {
       subtitle="Tick the scenarios you want to compare. The chart and tables update with your settings."
       icon={<Coins className="w-5 h-5" />}
     >
-      <div className="space-y-5">
+      {/* Two scenario blocks side-by-side on md+ — loan on the left,
+          mortgage on the right. Stack to a single column on mobile.
+          items-stretch (the grid default) keeps both blocks the same
+          height even when only one is checked, so the layout doesn't
+          jump as the user toggles them. */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch">
         <ScenarioBlock
           icon={<Coins className="w-4 h-4" />}
           title="Personal loan"
@@ -43,7 +48,10 @@ export function FinancingControls({ value, onChange }: Props) {
           onCheck={(c) => set({ wantFinance: c })}
         >
           {value.wantFinance && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            // Sliders stack vertically inside each block since the
+            // block itself is now half-width on desktop. Two-column
+            // sliders inside a half-width card got cramped.
+            <div className="space-y-5">
               <SliderField
                 label="Loan APR"
                 value={value.loanApr * 100}
@@ -73,7 +81,7 @@ export function FinancingControls({ value, onChange }: Props) {
           onCheck={(c) => set({ wantMortgage: c })}
         >
           {value.wantMortgage && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            <div className="space-y-5">
               <SliderField
                 label="Mortgage rate"
                 value={value.mortgageRate * 100}
@@ -95,16 +103,16 @@ export function FinancingControls({ value, onChange }: Props) {
             </div>
           )}
         </ScenarioBlock>
-
-        <p className="text-[11px] text-slate-500 leading-relaxed border-t border-slate-100 pt-3">
-          The mortgage scenario assumes a{" "}
-          <strong>capital + interest repayment</strong> over the term shown —
-          interest-only mortgages would have lower monthly payments but
-          higher total cost. Illustrative figures only — we&rsquo;re not a
-          lender or broker. Talk to a regulated mortgage adviser before
-          adding upgrades to a real mortgage.
-        </p>
       </div>
+
+      <p className="mt-5 text-[11px] text-slate-500 leading-relaxed border-t border-slate-100 pt-3">
+        The mortgage scenario assumes a{" "}
+        <strong>capital + interest repayment</strong> over the term shown —
+        interest-only mortgages would have lower monthly payments but
+        higher total cost. Illustrative figures only — we&rsquo;re not a
+        lender or broker. Talk to a regulated mortgage adviser before
+        adding upgrades to a real mortgage.
+      </p>
     </SectionCard>
   );
 }
@@ -129,7 +137,7 @@ function ScenarioBlock({
   children: React.ReactNode;
 }) {
   return (
-    <fieldset className="rounded-xl border border-slate-200 bg-white p-4">
+    <fieldset className="h-full rounded-xl border border-slate-200 bg-white p-4">
       <legend className="px-2 -ml-2">
         <label className="inline-flex items-center gap-2.5 cursor-pointer select-none">
           <input
