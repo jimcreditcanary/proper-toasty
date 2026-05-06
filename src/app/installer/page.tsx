@@ -183,7 +183,15 @@ export default async function InstallerHomePage() {
   // TEMP — visible in "View Page Source" so we can verify what the
   // server actually rendered without depending on Vercel's logs UI.
   // Search for PT-DEBUG in the page source.
-  const debugBanner = `<!-- PT-DEBUG creditBalance=${creditBalance} userId=${user?.id ?? "no-user"} sha=${process.env.VERCEL_GIT_COMMIT_SHA ?? "unknown"} -->`;
+  //
+  // serviceRoleSet tells us whether SUPABASE_SERVICE_ROLE_KEY is
+  // actually present at runtime. If it shows "no", that's the smoking
+  // gun for the "DB has 30, dashboard reads 0" bug — the admin client
+  // falls back to the anon key, RLS blocks the read.
+  const serviceRoleSet = process.env.SUPABASE_SERVICE_ROLE_KEY
+    ? `yes-len${process.env.SUPABASE_SERVICE_ROLE_KEY.length}`
+    : "no";
+  const debugBanner = `<!-- PT-DEBUG creditBalance=${creditBalance} userId=${user?.id ?? "no-user"} sha=${process.env.VERCEL_GIT_COMMIT_SHA ?? "unknown"} serviceRoleSet=${serviceRoleSet} -->`;
 
   return (
     <PortalShell
