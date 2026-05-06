@@ -5,7 +5,6 @@ import Image from "next/image";
 import {
   ArrowLeft,
   CheckCircle2,
-  ExternalLink,
   Flame,
   Sun,
   Zap,
@@ -15,7 +14,6 @@ import {
 import { useCheckWizard } from "./context";
 import type { BuildingInsightsResponse } from "@/lib/schemas/solar";
 import type { EpcByAddressResponse } from "@/lib/schemas/epc";
-import { epcCertificateUrl } from "@/lib/schemas/epc";
 
 interface Loadable<T> {
   status: "idle" | "loading" | "ready" | "error";
@@ -445,18 +443,6 @@ function EpcCard({ state }: { state: Loadable<EpcByAddressResponse> }) {
           </Row>
         )}
       </dl>
-
-      {/* Link out to the GOV.UK certificate page so the homeowner
-          can verify everything matches their original document. */}
-      <a
-        href={epcCertificateUrl(c.certificateNumber)}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="mt-4 inline-flex items-center gap-1.5 text-xs font-semibold text-coral hover:text-coral-dark"
-      >
-        View on GOV.UK
-        <ExternalLink className="w-3 h-3" />
-      </a>
 
       {stale && (
         <p className="mt-3 text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded px-3 py-2">
