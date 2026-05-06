@@ -2,6 +2,7 @@ import type { UkCountry } from "@/lib/postcode/region";
 import type { AnalyseResponse } from "@/lib/schemas/analyse";
 import type { FuelTariff } from "@/lib/schemas/bill";
 import type { FloorplanAnalysis } from "@/lib/schemas/floorplan";
+import type { AddressMetadata } from "@/lib/schemas/postcoder";
 
 export type CheckStep =
   | "address"
@@ -40,6 +41,10 @@ export interface SelectedAddress {
   postTown: string;
   latitude: number;
   longitude: number;
+  // Rich OS Places metadata captured at address-pick time. Persisted
+  // to checks.address_metadata (migration 057) and surfaced in the
+  // installer site brief.
+  metadata?: AddressMetadata | null;
 }
 
 export interface CheckWizardState {

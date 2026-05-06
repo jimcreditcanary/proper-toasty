@@ -717,6 +717,10 @@ export interface Database {
           floors_count: number | null;
           total_area_m2: number | null;
           total_area_sqft: number | null;
+          // Migration 057 — rich OS Places (or Postcoder fallback) metadata
+          // captured at address-pick time. Schema: AddressMetadataSchema
+          // in src/lib/schemas/postcoder.ts.
+          address_metadata: Json | null;
           share_token: string | null;
           share_expires_at: string | null;
           credits_spent: number;
@@ -756,6 +760,7 @@ export interface Database {
           gas_tariff?: Json | null;
           floorplan_object_key?: string | null;
           floorplan_uploaded_at?: string | null;
+          address_metadata?: Json | null;
           share_token?: string | null;
           share_expires_at?: string | null;
           credits_spent?: number;

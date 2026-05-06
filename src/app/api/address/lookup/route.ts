@@ -8,7 +8,8 @@ import {
   osPlacesConfigured,
 } from "@/lib/services/os-places";
 import { validatePostcode } from "@/lib/services/postcodes";
-import type { AddressLookupResponse } from "@/lib/schemas/postcoder";
+import type { AddressLookupResponse, AddressMetadata } from "@/lib/schemas/postcoder";
+import { osCountryCodeToUkCountry } from "@/lib/schemas/os-places";
 
 export const runtime = "nodejs";
 
@@ -42,11 +43,26 @@ async function resolveAddresses(
   addresses: AddressLookupResponse["addresses"];
   source: "os-places" | "postcoder";
   rawCount: number;
+  // OS Places gives us a per-property COUNTRY_CODE; when present we
+  // prefer it over the Postcodes.io centroid country.
+  countryCodeOverride: "England" | "Wales" | "Scotland" | "Northern Ireland" | null;
 }> {
   if (osPlacesConfigured()) {
     try {
       const rows = await lookupViaOsPlaces(postcode);
-      const addresses = rows.map((r) => {
+
+      // Filter out historical / closed entries (LOGICAL_STATUS_CODE 8)
+      // before display. OS keeps demolished or split addresses in DPA
+      // for delivery-history continuity but they shouldn't appear in
+      // a homeowner picker.
+      const liveRows = rows.filter((r) => {
+        const status = typeof r.LOGICAL_STATUS_CODE === "number"
+          ? r.LOGICAL_STATUS_CODE
+          : Number(r.LOGICAL_STATUS_CODE ?? 1);
+        return Number.isFinite(status) ? status === 1 : true;
+      });
+
+      const addresses: AddressLookupResponse["addresses"] = liveRows.map((r) => {
         // OS Places gives us a real UPRN for every row plus per-property
         // WGS84 coords. Build the same shape Postcoder produces so the
         // wizard doesn't need to know which provider answered.
@@ -70,6 +86,33 @@ async function resolveAddresses(
         const addressLine1 = line1Parts.join(", ");
         const addressLine2 = dependentThoroughfare || null;
 
+        const logicalStatus = typeof r.LOGICAL_STATUS_CODE === "number"
+          ? r.LOGICAL_STATUS_CODE
+          : Number(r.LOGICAL_STATUS_CODE ?? NaN);
+        const blpuState = typeof r.BLPU_STATE_CODE === "number"
+          ? r.BLPU_STATE_CODE
+          : Number(r.BLPU_STATE_CODE ?? NaN);
+
+        const metadata: AddressMetadata = {
+          source: "os-places",
+          classificationCode: r.CLASSIFICATION_CODE ?? null,
+          classificationDescription: r.CLASSIFICATION_CODE_DESCRIPTION ?? null,
+          countryCode: r.COUNTRY_CODE ?? null,
+          localCustodianCode: r.LOCAL_CUSTODIAN_CODE ?? null,
+          wardCode: r.WARD_CODE ?? null,
+          parishCode: r.PARISH_CODE ?? null,
+          parentUprn: r.PARENT_UPRN != null ? String(r.PARENT_UPRN) : null,
+          topographyLayerToid: r.TOPOGRAPHY_LAYER_TOID ?? null,
+          logicalStatusCode: Number.isFinite(logicalStatus) ? logicalStatus : null,
+          deliveryPointSuffix: r.DELIVERY_POINT_SUFFIX ?? null,
+          blpuStateCode: Number.isFinite(blpuState) ? blpuState : null,
+          lastUpdateDate: r.LAST_UPDATE_DATE ?? null,
+          // The full row, preserved verbatim. Lets the installer report
+          // and admin tooling pivot into fields we haven't typed without
+          // a schema bump.
+          raw: r as unknown as Record<string, unknown>,
+        };
+
         return {
           uprn: String(r.UPRN),
           udprn: r.UDPRN != null ? String(r.UDPRN) : null,
@@ -80,9 +123,24 @@ async function resolveAddresses(
           postTown: r.POST_TOWN,
           latitude: r.LAT,
           longitude: r.LNG,
+          metadata,
         };
       });
-      return { addresses, source: "os-places", rawCount: rows.length };
+
+      // Use the OS-supplied country code (per-property) when available.
+      // All rows in a postcode resolve to the same country; sample the
+      // first one with a code.
+      const countryCodeOverride =
+        addresses
+          .map((a) => osCountryCodeToUkCountry(a.metadata?.countryCode ?? undefined))
+          .find((c): c is "England" | "Wales" | "Scotland" | "Northern Ireland" => c !== null) ?? null;
+
+      return {
+        addresses,
+        source: "os-places",
+        rawCount: rows.length,
+        countryCodeOverride,
+      };
     } catch (err) {
       console.warn(
         "[address-lookup] OS Places failed, falling back to Postcoder:",
@@ -93,7 +151,7 @@ async function resolveAddresses(
   }
 
   const rawAddresses = await lookupViaPostcoder(postcode);
-  const addresses = rawAddresses.map((a) => {
+  const addresses: AddressLookupResponse["addresses"] = rawAddresses.map((a) => {
     const lat = Number(a.latitude) || centroidLat || 0;
     const lng = Number(a.longitude) || centroidLng || 0;
     // CRITICAL: never synthesise a UPRN. A real UPRN is a 1-12 digit
@@ -117,9 +175,20 @@ async function resolveAddresses(
       postTown: a.posttown || "",
       latitude: lat,
       longitude: lng,
+      // Postcoder doesn't have OS-equivalent rich fields; stash the raw
+      // row so admin tooling can still see what came back.
+      metadata: {
+        source: "postcoder",
+        raw: a as unknown as Record<string, unknown>,
+      },
     };
   });
-  return { addresses, source: "postcoder", rawCount: rawAddresses.length };
+  return {
+    addresses,
+    source: "postcoder",
+    rawCount: rawAddresses.length,
+    countryCodeOverride: null,
+  };
 }
 
 export async function POST(req: Request) {
@@ -161,11 +230,8 @@ export async function POST(req: Request) {
     const centroidLat = postcodeMeta?.latitude ?? 0;
     const centroidLng = postcodeMeta?.longitude ?? 0;
 
-    const { addresses, source, rawCount } = await resolveAddresses(
-      formatted,
-      centroidLat,
-      centroidLng
-    );
+    const { addresses, source, rawCount, countryCodeOverride } =
+      await resolveAddresses(formatted, centroidLat, centroidLng);
 
     // UPRN-coverage diagnostics. With OS Places we expect 100% UPRN
     // coverage; with Postcoder it depends on the plan's addtags. Log
@@ -189,7 +255,10 @@ export async function POST(req: Request) {
 
     const response: AddressLookupResponse = {
       addresses,
-      country: postcodeMeta?.country ?? null,
+      // Per-property OS country code beats the postcode-centroid lookup
+      // when available — it correctly handles a few hundred edge cases
+      // where a postcode straddles the England/Wales border.
+      country: countryCodeOverride ?? postcodeMeta?.country ?? null,
     };
     return NextResponse.json(response);
   } catch (err) {

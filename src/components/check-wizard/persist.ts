@@ -39,6 +39,7 @@ export async function upsertCheck(args: UpsertCheckArgs): Promise<UpsertCheckRes
     address: state.address
       ? {
           uprn: state.address.uprn ?? null,
+          udprn: null, // not currently surfaced through wizard state
           formatted: state.address.formattedAddress ?? null,
           line1: state.address.line1 ?? null,
           line2: state.address.line2 ?? null,
@@ -47,6 +48,7 @@ export async function upsertCheck(args: UpsertCheckArgs): Promise<UpsertCheckRes
           latitude: state.address.latitude ?? null,
           longitude: state.address.longitude ?? null,
           country: state.country ?? null,
+          metadata: state.address.metadata ?? null,
         }
       : undefined,
     context: {

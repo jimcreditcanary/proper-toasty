@@ -26,7 +26,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import type { Database } from "@/types/database";
+import type { Database, Json } from "@/types/database";
 
 export const runtime = "nodejs";
 export const maxDuration = 15;
@@ -34,6 +34,12 @@ export const maxDuration = 15;
 // Mirrors the wizard's address shape (kept loose — fields are all
 // optional because the wizard upserts at multiple points and earlier
 // upserts won't have everything yet).
+//
+// `metadata` is the OS Places (or fallback Postcoder) rich-fields blob —
+// see src/lib/schemas/postcoder.ts AddressMetadataSchema. Persisted to
+// public.checks.address_metadata as JSONB (migration 057). Validated
+// loosely as a generic record so a future addition to AddressMetadata
+// doesn't break older clients still sending the old shape.
 const AddressSchema = z.object({
   uprn: z.string().nullable().optional(),
   udprn: z.string().nullable().optional(),
@@ -45,6 +51,7 @@ const AddressSchema = z.object({
   latitude: z.number().nullable().optional(),
   longitude: z.number().nullable().optional(),
   country: z.enum(["England", "Wales", "Scotland", "Northern Ireland"]).nullable().optional(),
+  metadata: z.record(z.string(), z.unknown()).nullable().optional(),
 });
 
 const ContextSchema = z.object({
@@ -141,6 +148,17 @@ export async function POST(req: Request) {
     if (input.address.latitude !== undefined) patch.latitude = input.address.latitude;
     if (input.address.longitude !== undefined) patch.longitude = input.address.longitude;
     if (input.address.country !== undefined) patch.country = input.address.country;
+    // Rich OS Places (or Postcoder fallback) metadata — JSONB column,
+    // see migration 057. Sent fresh on the address-pick upsert; later
+    // upserts omit it (undefined) so we don't clobber the captured row.
+    // Cast to Json — Postgres JSONB accepts the same shapes our zod
+    // record schema produces; the Supabase Json type is recursive and
+    // a generic Record<string, unknown> doesn't structurally match.
+    if (input.address.metadata !== undefined) {
+      patch.address_metadata = (input.address.metadata ?? null) as
+        | Json
+        | null;
+    }
   }
   if (input.context) {
     if (input.context.tenure !== undefined) patch.tenure = input.context.tenure;

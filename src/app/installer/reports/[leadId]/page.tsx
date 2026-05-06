@@ -25,6 +25,7 @@ import { InstallerSiteBrief } from "@/components/installer-report/site-brief";
 import type { AnalyseResponse } from "@/lib/schemas/analyse";
 import type { FloorplanAnalysis } from "@/lib/schemas/floorplan";
 import type { FuelTariff } from "@/lib/schemas/bill";
+import type { AddressMetadata } from "@/lib/schemas/postcoder";
 
 export const dynamic = "force-dynamic";
 
@@ -155,15 +156,20 @@ export default async function InstallerReportPage({ params }: PageProps) {
   //   - otherwise nothing — rare for new flows, common for legacy.
   // Best-effort: missing key just hides the "Open floorplan" link.
   let floorplanObjectKey: string | null = null;
+  let addressMetadata: AddressMetadata | null = null;
   if (lead.homeowner_lead_id) {
     const { data: check } = await admin
       .from("checks")
-      .select("floorplan_object_key")
+      .select("floorplan_object_key, address_metadata")
       .eq("homeowner_lead_id", lead.homeowner_lead_id)
       .order("updated_at", { ascending: false })
       .limit(1)
-      .maybeSingle<{ floorplan_object_key: string | null }>();
+      .maybeSingle<{
+        floorplan_object_key: string | null;
+        address_metadata: AddressMetadata | null;
+      }>();
     floorplanObjectKey = check?.floorplan_object_key ?? null;
+    addressMetadata = check?.address_metadata ?? null;
   }
 
   return (
@@ -187,6 +193,7 @@ export default async function InstallerReportPage({ params }: PageProps) {
           uprn: lead.property_uprn ?? null,
           latitude: lead.property_latitude ?? null,
           longitude: lead.property_longitude ?? null,
+          metadata: addressMetadata,
         }}
         lead={{
           status: lead.status,

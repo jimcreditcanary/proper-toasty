@@ -40,6 +40,7 @@ import {
 import type { AnalyseResponse } from "@/lib/schemas/analyse";
 import type { FloorplanAnalysis } from "@/lib/schemas/floorplan";
 import type { FuelTariff } from "@/lib/schemas/bill";
+import type { AddressMetadata } from "@/lib/schemas/postcoder";
 import { PrintButton } from "./print-button";
 
 // ─── Types the route hands us ───────────────────────────────────────
@@ -58,6 +59,9 @@ export interface InstallerSiteBriefProps {
     uprn: string | null;
     latitude: number | null;
     longitude: number | null;
+    /** OS Places (or Postcoder fallback) rich-fields blob. Optional —
+     *  legacy leads predate migration 057. */
+    metadata?: AddressMetadata | null;
   };
   /** Lead status + key milestones. */
   lead: {
@@ -125,6 +129,19 @@ function HeaderCard({
           {property.uprn && (
             <p className="text-xs text-slate-500 mt-0.5 font-mono">
               UPRN {property.uprn}
+              {property.metadata?.parentUprn && (
+                <span className="ml-2">
+                  · parent UPRN {property.metadata.parentUprn}
+                </span>
+              )}
+            </p>
+          )}
+          {property.metadata?.classificationDescription && (
+            <p className="text-xs text-slate-500 mt-0.5">
+              <span className="font-mono uppercase tracking-wide">
+                {property.metadata.classificationCode ?? "—"}
+              </span>{" "}
+              {property.metadata.classificationDescription}
             </p>
           )}
         </div>

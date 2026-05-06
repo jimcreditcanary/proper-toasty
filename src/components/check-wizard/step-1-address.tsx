@@ -88,6 +88,7 @@ export function Step1Address() {
           postTown: a.postTown,
           latitude: lat,
           longitude: lng,
+          metadata: a.metadata ?? null,
         },
         country,
       });
