@@ -111,6 +111,17 @@ export default async function InstallerHomePage() {
     onboardingDismissedAt =
       profileRes.data?.installer_onboarding_dismissed_at ?? null;
 
+    // TEMP diagnostic — remove once the "30 in DB, 0 on dashboard"
+    // bug is identified. Logs the exact state the page rendered with
+    // so we can compare against the SQL truth.
+    console.log("[installer-dashboard] profile read", {
+      userId: user.id,
+      userEmail: user.email,
+      profileFound: !!profileRes.data,
+      profileError: profileRes.error?.message ?? null,
+      creditBalance,
+    });
+
     if (installerRes.data) {
       companyName = installerRes.data.company_name;
       const installerId = installerRes.data.id;
