@@ -82,6 +82,16 @@ export async function upsertCheck(args: UpsertCheckArgs): Promise<UpsertCheckRes
     floorplanAnalysis: state.floorplanAnalysis ?? undefined,
     electricityTariff: state.electricityTariff ?? undefined,
     gasTariff: state.gasTariff ?? undefined,
+    // EPC cert from the analyse step. Forwarded to /api/checks/upsert
+    // which (a) writes the full cert to check_results.epc_raw and
+    // (b) denormalises high-cardinality fields onto the checks row
+    // — see migration 058. Sent when the analyse step has produced
+    // a found:true response; omitted otherwise to avoid blanking
+    // a previously-stored cert.
+    epcCertificate:
+      state.analysis?.epc.found && state.analysis.epc.certificate
+        ? state.analysis.epc.certificate
+        : undefined,
   };
 
   try {

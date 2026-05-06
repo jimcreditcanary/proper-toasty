@@ -98,6 +98,27 @@ const RequestSchema = z.object({
   // Tariff blobs — pass-through. Schema-validated upstream.
   electricityTariff: z.unknown().nullable().optional(),
   gasTariff: z.unknown().nullable().optional(),
+  // EPC certificate — when the wizard's analyse step completes it
+  // forwards the full normalised cert here. We write the JSONB blob
+  // to check_results.epc_raw and denormalise the high-cardinality
+  // fields onto the checks row (migration 058) for admin queries.
+  // Schema kept loose so a future EpcCertificate field addition
+  // doesn't need a coordinated client+server release.
+  epcCertificate: z
+    .object({
+      certificateNumber: z.string().nullable().optional(),
+      currentEnergyBand: z.string().nullable().optional(),
+      potentialEnergyBand: z.string().nullable().optional(),
+      propertyType: z.string().nullable().optional(),
+      builtForm: z.string().nullable().optional(),
+      constructionAgeBand: z.string().nullable().optional(),
+      mainFuel: z.string().nullable().optional(),
+      totalFloorAreaM2: z.number().nullable().optional(),
+      registrationDate: z.string().nullable().optional(),
+    })
+    .passthrough()
+    .nullable()
+    .optional(),
 });
 
 type CheckInsert = Database["public"]["Tables"]["checks"]["Insert"];
@@ -194,6 +215,30 @@ export async function POST(req: Request) {
     patch.gas_tariff = input.gasTariff as never;
   }
 
+  // EPC denormalised fields — migration 058. Source-of-truth JSONB
+  // lives in check_results.epc_raw (written below). These columns
+  // exist for indexed admin queries + BUS rules without JSONB paths.
+  // Each is set only when the cert carries it so partial sends don't
+  // blank previously-stored values.
+  if (input.epcCertificate) {
+    const c = input.epcCertificate;
+    if (c.certificateNumber !== undefined) patch.epc_certificate_number = c.certificateNumber;
+    if (c.currentEnergyBand !== undefined) patch.epc_band = c.currentEnergyBand;
+    if (c.potentialEnergyBand !== undefined) patch.epc_band_potential = c.potentialEnergyBand;
+    if (c.propertyType !== undefined) patch.epc_property_type = c.propertyType;
+    if (c.builtForm !== undefined) patch.epc_built_form = c.builtForm;
+    if (c.constructionAgeBand !== undefined) patch.epc_construction_age_band = c.constructionAgeBand;
+    if (c.mainFuel !== undefined) patch.epc_main_fuel = c.mainFuel;
+    if (c.totalFloorAreaM2 !== undefined) patch.epc_total_floor_area_m2 = c.totalFloorAreaM2;
+    // EPC API returns ISO date "2024-11-20" or sometimes a full datetime.
+    // Postgres `date` accepts both — slice to YYYY-MM-DD defensively.
+    if (c.registrationDate !== undefined) {
+      patch.epc_registration_date = c.registrationDate
+        ? c.registrationDate.slice(0, 10)
+        : null;
+    }
+  }
+
   // ─── Find existing row ──────────────────────────────────────────
   // Order of preference:
   //   1. Explicit checkId in the request (cheapest — no scan).
@@ -263,19 +308,29 @@ export async function POST(req: Request) {
     created = true;
   }
 
-  // ─── Upsert check_results when full analysis blob present ───────
-  // The floorplanAnalysis blob carries the full per-room breakdown +
-  // walls/doors/AI placements. We write it to check_results.floorplan_analysis
-  // as JSONB so the data survives beyond the wizard session.
-  // Skipped silently when not provided — early upserts only write the
-  // checks row.
+  // ─── Upsert check_results when blobby analysis present ──────────
+  // Two JSONB blobs land here:
+  //   - floorplan_analysis (per-room breakdown + walls/doors + AI placements)
+  //   - epc_raw            (full EPC certificate — every field GOV.UK
+  //                         returned, plus the .passthrough() leftovers)
+  // Either, both, or neither may be present on a given upsert. We
+  // build the patch lazily so a wizard step that only has floorplan
+  // doesn't blank a previously-stored EPC and vice versa.
+  type CheckResultsInsert = Database["public"]["Tables"]["check_results"]["Insert"];
+  const resultsPatch: Partial<CheckResultsInsert> = {};
   if (input.floorplanAnalysis !== undefined) {
+    resultsPatch.floorplan_analysis = input.floorplanAnalysis as never;
+  }
+  if (input.epcCertificate !== undefined) {
+    resultsPatch.epc_raw = (input.epcCertificate ?? null) as Json | null;
+  }
+  if (Object.keys(resultsPatch).length > 0) {
     const { error: resultsErr } = await admin
       .from("check_results")
       .upsert(
         {
           check_id: resultId,
-          floorplan_analysis: input.floorplanAnalysis as never,
+          ...resultsPatch,
         },
         { onConflict: "check_id" },
       );

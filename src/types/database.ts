@@ -721,6 +721,18 @@ export interface Database {
           // address-pick time. Schema: AddressMetadataSchema
           // in src/lib/schemas/address-lookup.ts.
           address_metadata: Json | null;
+          // Migration 058 — denormalised EPC fields. Source of truth
+          // for the full cert is check_results.epc_raw; these columns
+          // exist for admin queries + BUS rules without JSONB paths.
+          epc_certificate_number: string | null;
+          epc_band: string | null;
+          epc_band_potential: string | null;
+          epc_property_type: string | null;
+          epc_built_form: string | null;
+          epc_construction_age_band: string | null;
+          epc_main_fuel: string | null;
+          epc_total_floor_area_m2: number | null;
+          epc_registration_date: string | null;
           share_token: string | null;
           share_expires_at: string | null;
           credits_spent: number;
@@ -761,6 +773,15 @@ export interface Database {
           floorplan_object_key?: string | null;
           floorplan_uploaded_at?: string | null;
           address_metadata?: Json | null;
+          epc_certificate_number?: string | null;
+          epc_band?: string | null;
+          epc_band_potential?: string | null;
+          epc_property_type?: string | null;
+          epc_built_form?: string | null;
+          epc_construction_age_band?: string | null;
+          epc_main_fuel?: string | null;
+          epc_total_floor_area_m2?: number | null;
+          epc_registration_date?: string | null;
           share_token?: string | null;
           share_expires_at?: string | null;
           credits_spent?: number;
