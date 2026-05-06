@@ -4,6 +4,7 @@ import {
   EpcCertificateRawSchema,
   EpcSearchResponseSchema,
   EpcCertificateResponseSchema,
+  epcSearchRowFromRaw,
   type EpcByAddressResponse,
   type EpcCertificate,
   type EpcSearchRow,
@@ -41,6 +42,30 @@ function normalisePostcode(p: string): string {
 // entirely when the UPRN parses to 0 / NaN / negative (the address
 // service occasionally hands us empty UPRNs for new-builds + some
 // pseudo-properties that don't have one yet).
+/**
+ * Normalise object keys to snake_case recursively. The EPC API has
+ * moved between camelCase and snake_case across releases — sometimes
+ * within the same response shape (search vs detail). Rather than
+ * maintain two parallel schemas that drift apart, we coerce every
+ * incoming key to snake_case before zod validation, then keep our
+ * canonical types in snake_case.
+ *
+ * Pure key transform — values pass through untouched. Cheap; the
+ * cert detail payload is a few KB at most.
+ */
+function camelToSnakeKeys(input: unknown): unknown {
+  if (input == null || typeof input !== "object") return input;
+  if (Array.isArray(input)) return input.map(camelToSnakeKeys);
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(input as Record<string, unknown>)) {
+    // Insert underscore before any capital letter that follows a
+    // lower-case letter, then lowercase the lot.
+    const snake = key.replace(/([a-z0-9])([A-Z])/g, "$1_$2").toLowerCase();
+    out[snake] = camelToSnakeKeys(value);
+  }
+  return out;
+}
+
 function uprnToInt(uprn: string | number | null | undefined): number | null {
   if (uprn == null) return null;
   const trimmed = typeof uprn === "number" ? uprn : String(uprn).trim();
@@ -133,9 +158,18 @@ async function searchByUprn(uprn: string): Promise<EpcSearchRow[]> {
     const body = await res.text().catch(() => "");
     throw new Error(`EPC search(uprn) failed: ${res.status} ${body.slice(0, 200)}`);
   }
-  const parsed = EpcSearchResponseSchema.safeParse(await res.json());
-  if (!parsed.success) throw new Error("EPC search returned unexpected shape");
-  return parsed.data.data;
+  // Normalise camelCase → snake_case so we don't depend on which casing
+  // the API ships this week. See camelToSnakeKeys for the why.
+  const normalised = camelToSnakeKeys(await res.json());
+  const parsed = EpcSearchResponseSchema.safeParse(normalised);
+  if (!parsed.success) {
+    console.warn("[epc] search(uprn) unexpected shape", {
+      uprn: intUprn,
+      sampleIssues: parsed.error.issues.slice(0, 3),
+    });
+    throw new Error("EPC search returned unexpected shape");
+  }
+  return parsed.data.data.map(epcSearchRowFromRaw);
 }
 
 async function searchByPostcode(postcode: string): Promise<EpcSearchRow[]> {
@@ -149,9 +183,16 @@ async function searchByPostcode(postcode: string): Promise<EpcSearchRow[]> {
     const body = await res.text().catch(() => "");
     throw new Error(`EPC search(postcode) failed: ${res.status} ${body.slice(0, 200)}`);
   }
-  const parsed = EpcSearchResponseSchema.safeParse(await res.json());
-  if (!parsed.success) throw new Error("EPC search returned unexpected shape");
-  return parsed.data.data;
+  const normalised = camelToSnakeKeys(await res.json());
+  const parsed = EpcSearchResponseSchema.safeParse(normalised);
+  if (!parsed.success) {
+    console.warn("[epc] search(postcode) unexpected shape", {
+      postcode,
+      sampleIssues: parsed.error.issues.slice(0, 3),
+    });
+    throw new Error("EPC search returned unexpected shape");
+  }
+  return parsed.data.data.map(epcSearchRowFromRaw);
 }
 
 async function fetchCertificate(certificateNumber: string): Promise<EpcCertificate | null> {
@@ -183,23 +224,51 @@ async function fetchCertificate(certificateNumber: string): Promise<EpcCertifica
     return null;
   }
 
+  // Normalise keys to snake_case before validating. GOV.UK's EPC API
+  // has switched between camelCase and snake_case in past releases —
+  // observed in production: cert detail rows arriving with
+  // `currentEnergyEfficiencyBand` (camelCase) while our schema expects
+  // `current_energy_efficiency_band` (snake_case). The validator
+  // happily accepts the row but every typed field is undefined,
+  // resulting in a "found: true, certBand: null" surface that's much
+  // worse than a clean schema failure. Coerce keys to one shape and
+  // keep the schema canonical.
+  const normalisedJson = camelToSnakeKeys(json);
+
   // Try the wrapped shape first; fall through to the raw cert.
   let raw: EpcCertificateRaw;
-  const wrapped = EpcCertificateResponseSchema.safeParse(json);
+  const wrapped = EpcCertificateResponseSchema.safeParse(normalisedJson);
   if (wrapped.success) {
     raw = wrapped.data.data;
   } else {
-    const flat = EpcCertificateRawSchema.safeParse(json);
+    const flat = EpcCertificateRawSchema.safeParse(normalisedJson);
     if (!flat.success) {
       console.warn("[epc] cert detail unexpected shape", {
         certificateNumber,
         topLevelKeys:
-          json && typeof json === "object" ? Object.keys(json as object) : typeof json,
+          normalisedJson && typeof normalisedJson === "object"
+            ? Object.keys(normalisedJson as object)
+            : typeof normalisedJson,
         sampleIssues: flat.error.issues.slice(0, 3),
       });
       return null;
     }
     raw = flat.data;
+  }
+
+  // Diagnostic — if we successfully parsed but every band field is
+  // undefined, that's a strong signal the API has shifted under us
+  // again. Log so we can chase the new field names without waiting
+  // for a user report.
+  if (
+    raw.current_energy_efficiency_band == null &&
+    raw.potential_energy_efficiency_band == null &&
+    raw.current_energy_efficiency_rating == null
+  ) {
+    console.warn("[epc] cert parsed but all band/rating fields are null", {
+      certificateNumber,
+      sampleKeys: Object.keys(raw).slice(0, 12),
+    });
   }
   const normalised: EpcCertificate = {
     // ── Identifiers + admin ─────────────────────────────────────────

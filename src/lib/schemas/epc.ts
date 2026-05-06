@@ -9,22 +9,60 @@ import { z } from "zod";
  * surfacing to the rest of the app.
  */
 
-// Raw search-row shape (camelCase, from /api/domestic/search)
+// Raw search-row shape. The EPC API has shipped both camelCase and
+// snake_case across releases — the service layer normalises keys to
+// snake_case before validation (see camelToSnakeKeys in
+// src/lib/services/epc.ts), so this schema is in snake_case.
 export const EpcSearchRowSchema = z.object({
-  certificateNumber: z.string(),
+  certificate_number: z.string(),
   uprn: z.number().nullable().optional(),
-  addressLine1: z.string().optional().default(""),
-  addressLine2: z.string().nullable().optional().default(""),
-  addressLine3: z.string().nullable().optional().default(""),
-  addressLine4: z.string().nullable().optional().default(""),
+  address_line_1: z.string().optional().default(""),
+  address_line_2: z.string().nullable().optional().default(""),
+  address_line_3: z.string().nullable().optional().default(""),
+  address_line_4: z.string().nullable().optional().default(""),
   postcode: z.string().optional().default(""),
-  postTown: z.string().optional().default(""),
+  post_town: z.string().optional().default(""),
   council: z.string().optional().default(""),
   constituency: z.string().optional().default(""),
-  currentEnergyEfficiencyBand: z.string().optional().default(""),
-  registrationDate: z.string().optional().default(""),
+  current_energy_efficiency_band: z.string().optional().default(""),
+  registration_date: z.string().optional().default(""),
 });
-export type EpcSearchRow = z.infer<typeof EpcSearchRowSchema>;
+type EpcSearchRowRaw = z.infer<typeof EpcSearchRowSchema>;
+
+// External-facing row shape — camelCase, what the rest of the codebase
+// has always seen. The service layer translates from the snake_case raw
+// shape into this.
+export interface EpcSearchRow {
+  certificateNumber: string;
+  uprn?: number | null;
+  addressLine1: string;
+  addressLine2: string | null;
+  addressLine3: string | null;
+  addressLine4: string | null;
+  postcode: string;
+  postTown: string;
+  council: string;
+  constituency: string;
+  currentEnergyEfficiencyBand: string;
+  registrationDate: string;
+}
+
+export function epcSearchRowFromRaw(raw: EpcSearchRowRaw): EpcSearchRow {
+  return {
+    certificateNumber: raw.certificate_number,
+    uprn: raw.uprn ?? null,
+    addressLine1: raw.address_line_1,
+    addressLine2: raw.address_line_2,
+    addressLine3: raw.address_line_3,
+    addressLine4: raw.address_line_4,
+    postcode: raw.postcode,
+    postTown: raw.post_town,
+    council: raw.council,
+    constituency: raw.constituency,
+    currentEnergyEfficiencyBand: raw.current_energy_efficiency_band,
+    registrationDate: raw.registration_date,
+  };
+}
 
 export const EpcSearchResponseSchema = z.object({
   data: z.array(EpcSearchRowSchema).default([]),
