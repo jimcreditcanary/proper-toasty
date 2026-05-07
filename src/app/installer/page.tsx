@@ -209,32 +209,46 @@ export default async function InstallerHomePage() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
   const urlHost = url.match(/https?:\/\/([^./]+)/)?.[1] ?? "unknown";
 
-  // Run a real RLS-bypass test. Service role can count every row in
-  // public.users; anon can only count rows the SELECT policy allows.
-  // If admin really is service_role, this returns the full row count.
-  // If something's stripping the role, it returns 0 or matches the
-  // anon-allowed subset.
+  // Real-world admin client tests. Dump:
+  //   - adminUsersCount: total row count via service-role
+  //   - allRows:         id+credits of every row (we know it's 1 row;
+  //                      lets us see if the id matches user.id)
+  //   - targetedRow:     result of the actual .eq("id", user.id)
+  //                      query we use on the page — shows us whether
+  //                      data is null (no match) or present
   let adminUsersCount: string = "n/a";
-  let adminProfileError: string | null = null;
+  let allRows: string = "n/a";
+  let targetedRow: string = "n/a";
   try {
     const admin = createAdminClient();
     const { count, error } = await admin
       .from("users")
       .select("id", { count: "exact", head: true });
     adminUsersCount = error ? `err:${error.message}` : String(count ?? "null");
+
+    const { data: dump, error: dumpErr } = await admin
+      .from("users")
+      .select("id, credits")
+      .limit(5);
+    allRows = dumpErr
+      ? `err:${dumpErr.message}`
+      : JSON.stringify(dump);
+
     if (user) {
-      const { error: pErr } = await admin
+      const { data: pData, error: pErr } = await admin
         .from("users")
-        .select("credits")
+        .select("id, credits, role")
         .eq("id", user.id)
         .maybeSingle();
-      adminProfileError = pErr?.message ?? null;
+      targetedRow = pErr
+        ? `err:${pErr.message}`
+        : JSON.stringify(pData);
     }
   } catch (e) {
     adminUsersCount = `threw:${e instanceof Error ? e.message : String(e)}`;
   }
 
-  const debugBanner = `<!-- PT-DEBUG creditBalance=${creditBalance} userId=${user?.id ?? "no-user"} sha=${process.env.VERCEL_GIT_COMMIT_SHA ?? "unknown"} role=${jwtRole} jwtRef=${jwtRef} urlHost=${urlHost} adminUsersCount=${adminUsersCount} adminProfileError=${adminProfileError ?? "null"} -->`;
+  const debugBanner = `<!-- PT-DEBUG creditBalance=${creditBalance} userId=${user?.id ?? "no-user"} sha=${process.env.VERCEL_GIT_COMMIT_SHA ?? "unknown"} role=${jwtRole} jwtRef=${jwtRef} urlHost=${urlHost} adminUsersCount=${adminUsersCount} allRows=${allRows} targetedRow=${targetedRow} -->`;
 
   return (
     <PortalShell
