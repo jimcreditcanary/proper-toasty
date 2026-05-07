@@ -310,7 +310,8 @@ export function ProposalViewClient({ token }: Props) {
           <Logo size="sm" variant="light" />
         </a>
         <span className="text-xs text-slate-500 text-right">
-          Quote from <strong className="text-navy">{installerName}</strong>
+          Quote from{" "}
+          <strong className="text-navy">{installerName}</strong>
         </span>
       </div>
 
@@ -402,7 +403,9 @@ export function ProposalViewClient({ token }: Props) {
             Got questions?
           </p>
           <p className="text-sm text-slate-700 mb-3 leading-relaxed">
-            Reach <strong className="text-navy">{installer.company_name}</strong> directly:
+            Reach{" "}
+            <strong className="text-navy">{installer.company_name}</strong>
+            {" "}directly:
           </p>
           <div className="space-y-1.5 text-sm">
             {installer.email && (

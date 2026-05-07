@@ -25,6 +25,7 @@ import {
   Award,
   Battery,
   Calendar,
+  CalendarCheck2,
   CalendarDays,
   CheckCircle2,
   ChevronLeft,
@@ -45,6 +46,11 @@ import type {
   InstallerCard,
   NearbyInstallersResponse,
 } from "@/lib/schemas/installers";
+import {
+  isValidUkMobile,
+  type AvailabilityResponse,
+  type BookableSlot,
+} from "@/lib/schemas/booking";
 import { useCheckWizard } from "../../context";
 import type { ReportSelection } from "../report-shell";
 import { SectionCard } from "../shared";
@@ -219,7 +225,9 @@ export function BookVisitTab({
 
   // Pre-survey audience: the homeowner is already engaged with a
   // specific installer, so swapping in a generic "find an installer"
-  // grid is off-message. Render a focused booking card instead.
+  // grid is off-message. Render a focused booking card with the
+  // installer's actual availability slots so the homeowner can lock
+  // in a time directly from the report.
   if (audience === "presurvey") {
     return (
       <PreSurveyBookingCard
@@ -228,6 +236,9 @@ export function BookVisitTab({
       />
     );
   }
+  // Note: when state.preSurveyMeetingStatus === "booked" the report
+  // shell hides this tab entirely and shows the meeting banner —
+  // we only get here when the installer flagged "not_booked".
 
   return (
     <div className="space-y-6">
@@ -691,11 +702,17 @@ function FilterPill({
   );
 }
 
-// Pre-survey audience booking card. Replaces the nearby-installers
-// grid when the homeowner arrived via /check?presurvey=<token>.
-// Just acknowledges the next step is the visit with the specific
-// installer who sent the report — we don't surface other installers
-// because the homeowner is already engaged.
+// Pre-survey audience booking card. The homeowner clicked through
+// from a pre-survey email where the installer ticked "site visit
+// NOT yet booked" — so they need to lock a slot in. Renders a
+// focused single-installer slot picker for the requesting installer
+// and books the meeting via /api/pre-survey-requests/book (which
+// hangs the meeting off the EXISTING installer_lead row, rather than
+// creating a new one).
+//
+// On success the wizard state flips to booked → the parent tab nav
+// drops the Book tab and the meeting banner appears at the top of
+// the report. No reload required.
 function PreSurveyBookingCard({
   installerName,
   techPhrase,
@@ -703,53 +720,348 @@ function PreSurveyBookingCard({
   installerName: string;
   techPhrase: string;
 }) {
+  const { state, update } = useCheckWizard();
+  const installerId = state.preSurveyInstallerId;
+  const homeownerToken = state.preSurveyToken;
+  const requestId = state.preSurveyRequestId;
+
+  const [slots, setSlots] = useState<BookableSlot[] | null>(null);
+  const [slotsLoading, setSlotsLoading] = useState(true);
+  const [slotsError, setSlotsError] = useState<string | null>(null);
+  const [activeDayKey, setActiveDayKey] = useState<string | null>(null);
+  const [selectedSlot, setSelectedSlot] = useState<BookableSlot | null>(null);
+
+  const [phone, setPhone] = useState("");
+  const [phoneTouched, setPhoneTouched] = useState(false);
+  const [notes, setNotes] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<{ scheduledAtUtc: string } | null>(null);
+
+  // Fetch the installer's availability once we have the id.
+  useEffect(() => {
+    if (!installerId) return;
+    let cancelled = false;
+    setSlotsLoading(true);
+    void (async () => {
+      try {
+        const res = await fetch("/api/installers/availability", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ installerId }),
+        });
+        const json = (await res.json()) as AvailabilityResponse;
+        if (cancelled) return;
+        if (!json.ok) {
+          setSlotsError(json.error ?? "Couldn't load availability");
+          setSlots([]);
+        } else {
+          setSlots(json.slots);
+          setActiveDayKey(json.slots[0]?.dayKey ?? null);
+        }
+      } catch (e) {
+        if (cancelled) return;
+        setSlotsError(e instanceof Error ? e.message : "Network error");
+        setSlots([]);
+      } finally {
+        if (!cancelled) setSlotsLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [installerId]);
+
+  // Group slots by day for the picker.
+  const slotsByDay = useMemo(() => {
+    const map = new Map<string, { dayLabel: string; slots: BookableSlot[] }>();
+    for (const s of slots ?? []) {
+      const entry = map.get(s.dayKey);
+      if (entry) entry.slots.push(s);
+      else map.set(s.dayKey, { dayLabel: s.dayLabel, slots: [s] });
+    }
+    return Array.from(map.entries()).map(([dayKey, v]) => ({
+      dayKey,
+      dayLabel: v.dayLabel,
+      slots: v.slots,
+    }));
+  }, [slots]);
+
+  const slotsForActiveDay = useMemo(() => {
+    if (!activeDayKey) return [];
+    return slotsByDay.find((d) => d.dayKey === activeDayKey)?.slots ?? [];
+  }, [slotsByDay, activeDayKey]);
+
+  const phoneInvalid =
+    phoneTouched && phone.trim() !== "" && !isValidUkMobile(phone);
+  const phoneEmpty = phoneTouched && phone.trim() === "";
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setPhoneTouched(true);
+    setSubmitError(null);
+    if (!selectedSlot) {
+      setSubmitError("Pick a time first.");
+      return;
+    }
+    if (!isValidUkMobile(phone)) {
+      setSubmitError("Enter a valid UK mobile so the installer can confirm.");
+      return;
+    }
+    if (!requestId || !homeownerToken) {
+      setSubmitError("This booking link is missing — try opening it from the email again.");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/pre-survey-requests/book", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          preSurveyRequestId: requestId,
+          homeownerToken,
+          scheduledAtUtc: selectedSlot.startUtc,
+          contactPhone: phone.trim(),
+          notes: notes.trim() || null,
+        }),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        ok: boolean;
+        error?: string;
+        meetingAtUtc?: string;
+      };
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error ?? `Couldn't save (${res.status})`);
+      }
+      // Flip the wizard state — the report shell watches this and
+      // will hide the Book tab + show the meeting banner up top.
+      update({
+        preSurveyMeetingStatus: "booked",
+        preSurveyMeetingAt: data.meetingAtUtc ?? selectedSlot.startUtc,
+      });
+      setSuccess({ scheduledAtUtc: data.meetingAtUtc ?? selectedSlot.startUtc });
+    } catch (err) {
+      setSubmitError(
+        err instanceof Error ? err.message : "Something went wrong — try again",
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  // Done state — shown briefly before the parent shell re-renders
+  // and hides the tab. Acts as a confirmation for users whose
+  // wizard state takes a beat to propagate.
+  if (success) {
+    let formatted: string;
+    try {
+      formatted = new Date(success.scheduledAtUtc).toLocaleString("en-GB", {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    } catch {
+      formatted = success.scheduledAtUtc;
+    }
+    return (
+      <div className="space-y-6">
+        <SectionCard
+          title={`Visit booked with ${installerName}`}
+          subtitle="They'll confirm by email — a calendar invite will follow."
+          icon={<CalendarCheck2 className="w-5 h-5 text-emerald-700" />}
+        >
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+            <p className="text-sm font-semibold text-emerald-900">{formatted}</p>
+            <p className="mt-1 text-xs text-emerald-800">
+              We&rsquo;ve sent the request to {installerName} and a copy to your
+              inbox. They&rsquo;ll reach out on the phone you provided to
+              confirm.
+            </p>
+          </div>
+        </SectionCard>
+      </div>
+    );
+  }
+
+  // Defensive fallback — if the link landed on the report but didn't
+  // carry the installer id (older tokens, edge cases) we can't fetch
+  // availability. Fall back to the previous "they'll be in touch"
+  // copy rather than render a broken empty picker.
+  if (!installerId || !requestId || !homeownerToken) {
+    return (
+      <div className="space-y-6">
+        <SectionCard
+          title={`Your visit with ${installerName}`}
+          subtitle="That visit's the next step — here's what to expect."
+          icon={<MapPin className="w-5 h-5" />}
+        >
+          <div className="space-y-4 text-sm text-slate-700 leading-relaxed">
+            <p>
+              {/* Explicit {" "} separators around the company name —
+                  literal-space JSX text was occasionally rendering
+                  as `Ltdshared` in production builds (formatter +
+                  React string-children whitespace folding). The
+                  spacers make it unambiguous. */}
+              <strong className="text-navy">{installerName}</strong>
+              {" "}shared this report with you ahead of the visit, so
+              you&rsquo;re both starting from the same numbers on{" "}
+              {techPhrase}. They&rsquo;ll be in touch to confirm a time
+              if they haven&rsquo;t already.
+            </p>
+          </div>
+        </SectionCard>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <SectionCard
-        title={`Your visit with ${installerName}`}
-        subtitle="That visit's the next step — here's what to expect."
-        icon={<MapPin className="w-5 h-5" />}
+        title={`Book your visit with ${installerName}`}
+        subtitle={`Pick a time that works for you. ${installerName} will confirm by email + phone.`}
+        icon={<CalendarDays className="w-5 h-5" />}
       >
-        <div className="space-y-4 text-sm text-slate-700 leading-relaxed">
-          <p>
-            <strong className="text-navy">{installerName}</strong> shared this
-            report with you ahead of the visit, so you&rsquo;re both starting
-            from the same numbers on {techPhrase}. They&rsquo;ll be in touch
-            to confirm a time if they haven&rsquo;t already.
-          </p>
-          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">
-              On the day, expect them to
+        <form onSubmit={submit} className="space-y-5">
+          {/* Slot picker */}
+          {slotsLoading ? (
+            <div className="flex items-center justify-center py-10 text-sm text-slate-500">
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              Loading {installerName}&rsquo;s next available slots…
+            </div>
+          ) : slotsError ? (
+            <div className="text-sm text-red-700 bg-red-50 border border-red-100 rounded-lg p-4">
+              {slotsError}
+            </div>
+          ) : (slots?.length ?? 0) === 0 ? (
+            <div className="rounded-xl bg-amber-50 border border-amber-100 p-4 text-sm text-amber-900">
+              <p className="font-semibold">No slots available right now.</p>
+              <p className="mt-1.5 leading-relaxed">
+                {installerName} hasn&rsquo;t opened any visit slots yet. They
+                may reach out by phone or email to arrange a time directly.
+              </p>
+            </div>
+          ) : (
+            <>
+              {/* Day tabs */}
+              <div className="flex flex-wrap gap-1.5">
+                {slotsByDay.map((d) => {
+                  const active = d.dayKey === activeDayKey;
+                  return (
+                    <button
+                      key={d.dayKey}
+                      type="button"
+                      onClick={() => setActiveDayKey(d.dayKey)}
+                      className={`px-3 h-9 rounded-full text-sm font-semibold transition-colors ${
+                        active
+                          ? "bg-coral text-white"
+                          : "bg-slate-100 text-slate-700 hover:bg-coral-pale/40 hover:text-coral-dark"
+                      }`}
+                    >
+                      {d.dayLabel}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Time pills */}
+              <div className="flex flex-wrap gap-1.5">
+                {slotsForActiveDay.map((s) => {
+                  const isSelected =
+                    selectedSlot?.startUtc === s.startUtc;
+                  return (
+                    <button
+                      key={s.startUtc}
+                      type="button"
+                      onClick={() => setSelectedSlot(s)}
+                      className={`px-3 h-10 rounded-lg text-sm font-medium border transition-colors ${
+                        isSelected
+                          ? "bg-coral text-white border-coral"
+                          : "bg-white text-slate-700 border-slate-200 hover:border-coral/40 hover:text-coral-dark"
+                      }`}
+                    >
+                      {s.timeLabel}
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          )}
+
+          {/* Phone + notes — only show once a slot is picked so the
+              UI doesn't feel like a giant form on first paint. */}
+          {selectedSlot && (
+            <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 space-y-3">
+              <label className="block">
+                <span className="text-xs font-semibold text-navy inline-flex items-center gap-1.5">
+                  <Phone className="w-3.5 h-3.5" />
+                  Mobile number
+                  <span className="text-coral" aria-hidden="true">
+                    *
+                  </span>
+                </span>
+                <input
+                  type="tel"
+                  required
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  onBlur={() => setPhoneTouched(true)}
+                  placeholder="07700 900123"
+                  className={`mt-1 w-full h-11 rounded-lg border bg-white px-3 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-coral focus-visible:border-coral ${
+                    phoneInvalid || phoneEmpty
+                      ? "border-red-300"
+                      : "border-slate-200"
+                  }`}
+                  autoComplete="tel"
+                  inputMode="tel"
+                />
+                <span className="mt-1 block text-[11px] text-slate-500">
+                  So {installerName} can confirm the slot quickly.
+                </span>
+              </label>
+              <label className="block">
+                <span className="text-xs font-semibold text-navy">
+                  Anything to mention? (optional)
+                </span>
+                <textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  rows={2}
+                  placeholder="Access, parking, parts of the property to focus on…"
+                  className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-coral focus-visible:border-coral"
+                />
+              </label>
+            </div>
+          )}
+
+          {submitError && (
+            <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
+              {submitError}
             </p>
-            <ul className="space-y-2 text-sm">
-              <li className="flex items-start gap-2">
-                <span className="shrink-0 mt-1 inline-block w-1.5 h-1.5 rounded-full bg-coral" />
-                <span>
-                  Walk through your property and verify the report&rsquo;s
-                  measurements + assumptions in person.
-                </span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="shrink-0 mt-1 inline-block w-1.5 h-1.5 rounded-full bg-coral" />
-                <span>
-                  Run a heat-loss survey (for heat pumps) — a real one, not
-                  a 5-minute look-around.
-                </span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="shrink-0 mt-1 inline-block w-1.5 h-1.5 rounded-full bg-coral" />
-                <span>
-                  Confirm the kit, sizing, and timeline before producing a
-                  written quote.
-                </span>
-              </li>
-            </ul>
-          </div>
-          <p className="text-xs text-slate-500">
-            See the &ldquo;Prepping for your visit with {installerName}&rdquo;
-            card on the Overview tab for the prep checklist.
-          </p>
-        </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={submitting || !selectedSlot || (slots?.length ?? 0) === 0}
+            className="inline-flex items-center justify-center gap-2 h-11 px-5 rounded-full bg-coral hover:bg-coral-dark text-white font-semibold text-sm shadow-sm disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors"
+          >
+            {submitting ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Booking…
+              </>
+            ) : (
+              <>
+                <CheckCircle2 className="w-4 h-4" />
+                {selectedSlot
+                  ? `Book ${selectedSlot.timeLabel} with ${installerName}`
+                  : "Pick a time to continue"}
+              </>
+            )}
+          </button>
+        </form>
       </SectionCard>
     </div>
   );

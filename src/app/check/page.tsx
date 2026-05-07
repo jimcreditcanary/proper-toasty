@@ -98,6 +98,8 @@ async function loadPresurveyPrefill(
     leadName: request.contact_name,
     preSurveyRequestId: request.id,
     preSurveyInstallerName: installer?.company_name ?? null,
+    preSurveyInstallerId: request.installer_id,
+    preSurveyToken: token,
     preSurveyMeetingStatus:
       request.meeting_status === "booked" ? "booked" : "not_booked",
     preSurveyMeetingAt: request.meeting_at ?? null,

@@ -112,6 +112,16 @@ export interface CheckWizardState {
   // pre-fills the postcode in step 1.
   preSurveyRequestId: string | null;
   preSurveyInstallerName: string | null;
+  // The numeric installer id behind the pre-survey request — needed
+  // by the report's Book tab so it can fetch THIS installer's
+  // availability slots when the installer didn't already book a
+  // meeting at send-time. Surfaced separately from the name so the
+  // booking call doesn't have to re-resolve the installer.
+  preSurveyInstallerId: number | null;
+  // The token from the pre-survey email link. Stashed so the
+  // homeowner-side booking endpoint can re-validate they actually
+  // came from the link, without re-asking them to authenticate.
+  preSurveyToken: string | null;
   // I5 follow-up: meeting status captured at send-time. When the
   // installer flagged "site visit already booked", these are set.
   // Drives the report's Book-tab visibility + the meeting banner.
@@ -153,6 +163,8 @@ export const INITIAL_STATE: CheckWizardState = {
   leadId: null,
   preSurveyRequestId: null,
   preSurveyInstallerName: null,
+  preSurveyInstallerId: null,
+  preSurveyToken: null,
   preSurveyMeetingStatus: null,
   preSurveyMeetingAt: null,
   prefillPostcode: null,
