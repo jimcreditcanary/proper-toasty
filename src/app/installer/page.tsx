@@ -69,6 +69,13 @@ export default async function InstallerHomePage() {
   let checklist: ChecklistResult | null = null;
   let creditBalance = 0;
   let onboardingDismissedAt: string | null = null;
+  // PT-DEBUG — surface the page-level read error to the HTML marker
+  // because Vercel's runtime-logs UI keeps reporting "no logs" for
+  // these requests. If profileRes.error is non-null, that error
+  // explains why creditBalance silently defaults to 0 even though
+  // the row exists with credits=30.
+  let pageReadError: string | null = null;
+  let pageReadDataKeys: string = "n/a";
   let metrics: Awaited<
     ReturnType<typeof loadInstallerDashboardMetrics>
   > | null = null;
@@ -102,6 +109,11 @@ export default async function InstallerHomePage() {
         .eq("user_id", user.id)
         .maybeSingle<{ id: number; company_name: string }>(),
     ]);
+
+    pageReadError = profileRes.error?.message ?? null;
+    pageReadDataKeys = profileRes.data
+      ? Object.keys(profileRes.data).join(",")
+      : "data-is-null";
 
     if (profileRes.data?.auto_recharge_failed_at) {
       failureReason =
@@ -248,7 +260,7 @@ export default async function InstallerHomePage() {
     adminUsersCount = `threw:${e instanceof Error ? e.message : String(e)}`;
   }
 
-  const debugBanner = `<!-- PT-DEBUG creditBalance=${creditBalance} userId=${user?.id ?? "no-user"} sha=${process.env.VERCEL_GIT_COMMIT_SHA ?? "unknown"} role=${jwtRole} jwtRef=${jwtRef} urlHost=${urlHost} adminUsersCount=${adminUsersCount} allRows=${allRows} targetedRow=${targetedRow} -->`;
+  const debugBanner = `<!-- PT-DEBUG creditBalance=${creditBalance} userId=${user?.id ?? "no-user"} sha=${process.env.VERCEL_GIT_COMMIT_SHA ?? "unknown"} role=${jwtRole} jwtRef=${jwtRef} urlHost=${urlHost} adminUsersCount=${adminUsersCount} allRows=${allRows} targetedRow=${targetedRow} pageReadError=${pageReadError ?? "null"} pageReadDataKeys=${pageReadDataKeys} -->`;
 
   return (
     <PortalShell
