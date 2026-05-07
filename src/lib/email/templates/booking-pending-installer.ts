@@ -29,9 +29,11 @@ export interface PendingInstallerEmailInput {
   solarRating?: string | null;
   // Magic link to /api/installer-leads/acknowledge
   acknowledgeUrl: string;
-  // Credits this lead would cost (5 today; will become installer-
-  // configurable later). For display only — no debit happens until
-  // the credit ledger lands in C1.
+  // Credits this lead would cost. For display only — no debit happens
+  // until the installer accepts. Pass 0 to switch the copy to "no
+  // additional credits" — used when the lead arrived via a pre-survey
+  // (the installer already paid 1 credit when sending the pre-survey
+  // request, and accepting must not double-charge).
   creditCost: number;
 }
 
@@ -99,7 +101,9 @@ export function buildPendingInstallerEmail(input: PendingInstallerEmailInput): {
     `To confirm, please follow this link:`,
     input.acknowledgeUrl,
     ``,
-    `Confirming uses ${input.creditCost} credit${input.creditCost === 1 ? "" : "s"} from your account. The homeowner's full contact details will then be shared with you.`,
+    input.creditCost > 0
+      ? `Confirming uses ${input.creditCost} credit${input.creditCost === 1 ? "" : "s"} from your account. The homeowner's full contact details will then be shared with you.`
+      : `Confirming this booking uses no additional credits — you already paid when sending the pre-survey. The homeowner's full contact details will be shared with you on confirmation.`,
     ``,
     `If you can't take this visit, no need to do anything — the request will lapse after 24 hours.`,
     ``,
@@ -161,8 +165,13 @@ export function buildPendingInstallerEmail(input: PendingInstallerEmailInput): {
     </p>
 
     <p style="font-size:14px;line-height:1.55;color:#0f172a;margin:0 0 14px;">
-      Confirming uses ${input.creditCost} credit${input.creditCost === 1 ? "" : "s"} from your account.
-      The homeowner's full contact details will then be shared with you.
+      ${
+        input.creditCost > 0
+          ? `Confirming uses ${input.creditCost} credit${input.creditCost === 1 ? "" : "s"} from your account.
+             The homeowner's full contact details will then be shared with you.`
+          : `Confirming this booking uses no additional credits &mdash; you already paid when sending the pre-survey.
+             The homeowner&rsquo;s full contact details will be shared with you on confirmation.`
+      }
     </p>
     <p style="font-size:14px;line-height:1.55;color:#0f172a;margin:0 0 18px;">
       If you can&rsquo;t take this visit, you don&rsquo;t need to do anything &mdash;

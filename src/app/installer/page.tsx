@@ -433,7 +433,7 @@ function DealFlowGrid({
           icon={TrendingUp}
         />
         <MetricTile
-          label="Won this month"
+          label="Won this month (ex VAT)"
           value={formatGbp(metrics.quotesWonValuePence)}
           sub={
             metrics.quotesWonThisMonth === 0

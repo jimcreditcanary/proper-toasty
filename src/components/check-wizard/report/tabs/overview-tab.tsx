@@ -262,15 +262,14 @@ function PropertyDetailsList({
 
   // Emissions group rendered as its own block when either value is
   // present. Both omitted = no group, no separator — keeps the panel
-  // tidy on certs that didn't carry CO2 figures.
+  // tidy on certs that didn't carry CO2 figures. Labels shortened
+  // (was "CO₂ Emissions (tonnes/yr) Actual") because at narrow widths
+  // the long label was stealing all the horizontal space and the
+  // value column was wrapping `6.8 tonnes` onto two lines.
   const emissionsRows: Array<[string, React.ReactNode]> = [];
   if (co2Current)
-    emissionsRows.push(["CO₂ Emissions (tonnes/yr) Actual", co2Current]);
-  if (co2Potential)
-    emissionsRows.push([
-      "CO₂ Emissions (tonnes/yr) Potential",
-      co2Potential,
-    ]);
+    emissionsRows.push(["CO₂ Actual", co2Current]);
+  if (co2Potential) emissionsRows.push(["CO₂ Potential", co2Potential]);
 
   if (propertyRows.length === 0 && emissionsRows.length === 0) {
     return (
@@ -303,7 +302,10 @@ function DetailsGrid({
       {rows.map(([label, value]) => (
         <React.Fragment key={label}>
           <dt className="font-semibold text-navy whitespace-nowrap">{label}</dt>
-          <dd className="text-right text-navy">{value}</dd>
+          {/* whitespace-nowrap on the value too — otherwise short
+              two-word values like "6.8 tonnes" could wrap onto a
+              second line at narrow widths. */}
+          <dd className="text-right text-navy whitespace-nowrap">{value}</dd>
         </React.Fragment>
       ))}
     </dl>

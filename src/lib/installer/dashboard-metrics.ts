@@ -92,9 +92,13 @@ export async function loadInstallerDashboardMetrics(
       .eq("installer_id", installerId)
       .eq("status", "sent"),
     // Won this month — accepted quotes with the timestamp in this month.
+    // Pull subtotal (ex-VAT) for the dashboard tile because installers
+    // think of "won" in terms of revenue they retain, not the gross
+    // figure including VAT pass-through. total_pence still drives the
+    // detailed proposal view + invoices.
     admin
       .from("installer_proposals")
-      .select("total_pence")
+      .select("subtotal_pence, total_pence")
       .eq("installer_id", installerId)
       .eq("status", "accepted")
       .gte("accepted_at", monthStart),
@@ -106,7 +110,7 @@ export async function loadInstallerDashboardMetrics(
   );
   const wonRows = wonRes.data ?? [];
   const quotesWonValuePence = wonRows.reduce(
-    (acc, r) => acc + (r.total_pence ?? 0),
+    (acc, r) => acc + (r.subtotal_pence ?? r.total_pence ?? 0),
     0,
   );
 

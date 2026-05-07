@@ -175,10 +175,11 @@ export default async function InstallerReportPage({ params }: PageProps) {
   return (
     <PortalShell
       portalName="Installer"
-      pageTitle={
-        lead.property_address ?? lead.property_postcode ?? "Pre-survey report"
-      }
-      pageSubtitle={`Site visit brief for ${lead.contact_name ?? "the homeowner"}.`}
+      // Generic page title — the InstallerSiteBrief inside owns the
+      // property identity (address + UPRN + classification). Showing
+      // the address here too caused two giant H1s on the same page.
+      pageTitle="Pre-survey site brief"
+      pageSubtitle={`For ${lead.contact_name ?? "the homeowner"}.`}
       backLink={{ href: "/installer/reports", label: "Back to reports" }}
     >
       <InstallerSiteBrief

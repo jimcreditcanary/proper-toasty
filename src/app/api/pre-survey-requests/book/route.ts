@@ -23,9 +23,9 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendEmail } from "@/lib/email/client";
-import { parsePreSurveyToken } from "@/lib/email/tokens";
-import { buildInstallerEmail } from "@/lib/email/templates/booking-installer";
-import { buildHomeownerEmail } from "@/lib/email/templates/booking-homeowner";
+import { parsePreSurveyToken, signLeadAckToken } from "@/lib/email/tokens";
+import { buildPendingInstallerEmail } from "@/lib/email/templates/booking-pending-installer";
+import { buildPendingHomeownerEmail } from "@/lib/email/templates/booking-pending-homeowner";
 import { isValidUkMobile } from "@/lib/schemas/booking";
 
 // Mirrors the slice of CreateInstallerLeadRequest we still need —
@@ -49,12 +49,21 @@ interface PreSurveyBookResponse {
   meetingAtUtc?: string;
 }
 
-// (No URL helpers needed — pre-survey homeowner-bookings auto-
-// confirm and send the post-accept confirmation email directly,
-// rather than the pending/accept-link email used by from-scratch
-// directory bookings. The installer already paid 1 credit when
-// they sent the pre-survey request, so accepting the meeting
-// must NOT debit the standard 5-credit lead-accept charge.)
+function postcodeArea(postcode: string | null): string | null {
+  if (!postcode) return null;
+  const m = postcode.trim().toUpperCase().match(/^[A-Z]{1,2}\d[A-Z\d]?/);
+  return m ? m[0] : null;
+}
+
+// /lead/accept reads `lead` + `token` (NOT `id` — that was the
+// 'this link isn't quite right' bug). Both query params get
+// percent-encoded so installer email clients that aggressively
+// re-link don't mangle anything.
+function buildAcknowledgeUrl(leadId: string, token: string): string {
+  const base =
+    process.env.NEXT_PUBLIC_APP_URL ?? process.env.APP_BASE_URL ?? "https://www.propertoasty.com";
+  return `${base.replace(/\/+$/, "")}/lead/accept?lead=${encodeURIComponent(leadId)}&token=${encodeURIComponent(token)}`;
+}
 
 export async function POST(req: Request) {
   let raw: unknown;
@@ -178,19 +187,11 @@ export async function POST(req: Request) {
   const meetingDurationMin = installer.meeting_duration_min ?? 60;
   const travelBufferMin = installer.travel_buffer_min ?? 30;
 
-  // 4. Insert the meeting against the EXISTING installer_lead row.
-  //    Crucially, status='booked' (NOT 'pending'). Pre-survey leads
-  //    are already paid for + locked to this installer, so there's
-  //    nothing for the installer to "accept" or "claim" — the lead
-  //    is already theirs and the credit was already debited at
-  //    pre-survey send time. Auto-confirming here means:
-  //
-  //    - the installer's email is the post-accept "details" variant
-  //      (full contact info, no accept CTA, no '5 credits' line)
-  //    - they don't get bounced through /lead/accept which would
-  //      double-debit credits + reject the link as not-yet-paid
-  //    - the homeowner's email is the confirmed flavour rather
-  //      than the pending "they have 24h to confirm" copy
+  // 4. Insert the meeting at status='pending'. The installer still
+  //    needs to confirm via /lead/accept so they have the option to
+  //    decline / reschedule if they can't make the time. They DON'T
+  //    pay 5 extra credits to confirm — the acknowledge route reads
+  //    pre_survey_request_id off the lead and skips the debit.
   const contactEmail = (lead.contact_email ?? request.contact_email).trim().toLowerCase();
   const contactName = lead.contact_name ?? request.contact_name ?? "Homeowner";
 
@@ -207,7 +208,7 @@ export async function POST(req: Request) {
       contact_email: contactEmail,
       contact_phone: input.contactPhone,
       notes: input.notes ?? null,
-      status: "booked",
+      status: "pending",
     });
   if (meetingError) {
     console.error("[pre-survey-book] meeting insert failed", meetingError);
@@ -217,40 +218,43 @@ export async function POST(req: Request) {
     );
   }
 
-  // 5. Stamp the request booked. After this the report's Book tab
-  //    will hide on next load + the meeting banner appears at the top.
-  const { error: stampError } = await admin
+  // 5. Stamp the request booked + the homeowner's phone onto the
+  //    lead so the installer has it on accept.
+  await admin
     .from("installer_pre_survey_requests")
     .update({
       meeting_status: "booked",
       meeting_at: input.scheduledAtUtc,
     })
     .eq("id", request.id);
-  if (stampError) {
-    // Non-fatal — the meeting row is the source of truth. Log + carry
-    // on so the homeowner doesn't get a confusing failure.
-    console.warn("[pre-survey-book] request status stamp failed", stampError);
-  }
-
-  // 6. Bump the lead row to 'visit_booked' + persist the homeowner's
-  //    phone (so the installer can call them) + stamp visit_booked_for.
-  //    Mirrors what the /lead/acknowledge route does for from-scratch
-  //    bookings, minus the credit debit (already paid at pre-survey
-  //    send time) and minus the acknowledge_clicked_at stamp (no
-  //    accept click happens for this flow).
   await admin
     .from("installer_leads")
-    .update({
-      contact_phone: input.contactPhone,
-      status: "visit_booked",
-      visit_booked_for: input.scheduledAtUtc,
-    })
+    .update({ contact_phone: input.contactPhone })
     .eq("id", lead.id);
 
-  // 7. Build the confirmed (post-accept) email variants — full
-  //    homeowner contact for the installer, full installer contact
-  //    for the homeowner. No accept link, no credit cost, no
-  //    pending status. The slot is locked the moment this returns.
+  // 6. Sign the accept token + build the URL. The accept page
+  //    expects ?lead= and ?token= (matches /api/installer-leads/
+  //    create's URL format). Earlier ?id=... was the broken-link
+  //    error the user saw on first round.
+  let acknowledgeToken: string;
+  try {
+    acknowledgeToken = signLeadAckToken(lead.id);
+  } catch (e) {
+    console.warn(
+      "[pre-survey-book] ack secret missing — skipping notifications",
+      e instanceof Error ? e.message : e,
+    );
+    return NextResponse.json<PreSurveyBookResponse>({
+      ok: true,
+      meetingAtUtc: input.scheduledAtUtc,
+    });
+  }
+  const acknowledgeUrl = buildAcknowledgeUrl(lead.id, acknowledgeToken);
+
+  // 7. Build emails. Pending-flavour both sides — installer still
+  //    needs to confirm. creditCost: 0 swaps the "5 credits" copy in
+  //    the installer email for "no additional credits — already
+  //    paid" (template handles the branch).
   let hpVerdict: string | null = null;
   let solarRating: string | null = null;
   try {
@@ -260,18 +264,15 @@ export async function POST(req: Request) {
     hpVerdict = snap?.analysis?.eligibility?.heatPump?.verdict ?? null;
     solarRating = snap?.analysis?.eligibility?.solar?.rating ?? null;
   } catch {
-    // ignore — analysis_snapshot is optional
+    // ignore
   }
 
   const installerEmail = installer.email
-    ? buildInstallerEmail({
+    ? buildPendingInstallerEmail({
         installerCompanyName: installer.company_name,
-        homeownerName: contactName,
-        homeownerEmail: contactEmail,
-        homeownerPhone: input.contactPhone,
-        notes: input.notes ?? null,
-        propertyAddress: lead.property_address ?? null,
-        propertyPostcode: lead.property_postcode ?? request.contact_postcode ?? null,
+        propertyPostcodeArea: postcodeArea(
+          lead.property_postcode ?? request.contact_postcode ?? null,
+        ),
         meetingStartUtc: input.scheduledAtUtc,
         meetingDurationMin,
         travelBufferMin,
@@ -280,25 +281,23 @@ export async function POST(req: Request) {
         wantsBattery: lead.wants_battery ?? false,
         hpVerdict,
         solarRating,
+        acknowledgeUrl,
+        creditCost: 0, // already paid at pre-survey send time
       })
     : null;
 
-  const homeownerEmail = buildHomeownerEmail({
+  const homeownerEmail = buildPendingHomeownerEmail({
     homeownerName: contactName,
     installerCompanyName: installer.company_name,
     installerEmail: installer.email,
     installerTelephone: installer.telephone,
-    installerWebsite: null,
     propertyAddress: lead.property_address ?? null,
     meetingStartUtc: input.scheduledAtUtc,
-    meetingDurationMin,
     wantsHeatPump: lead.wants_heat_pump ?? false,
     wantsSolar: lead.wants_solar ?? false,
     wantsBattery: lead.wants_battery ?? false,
   });
 
-  // Fire both emails in parallel; log failures but don't fail the
-  // booking call — the meeting + status stamp landed already.
   await Promise.all([
     installerEmail && installer.email
       ? sendEmail({
@@ -308,7 +307,7 @@ export async function POST(req: Request) {
           text: installerEmail.text,
           replyTo: contactEmail,
           tags: [
-            { name: "kind", value: "booking_confirmed_installer" },
+            { name: "kind", value: "booking_pending_installer" },
             { name: "lead_id", value: lead.id },
             { name: "via_pre_survey", value: "true" },
           ],
@@ -322,7 +321,7 @@ export async function POST(req: Request) {
       html: homeownerEmail.html,
       text: homeownerEmail.text,
       tags: [
-        { name: "kind", value: "booking_confirmed_homeowner" },
+        { name: "kind", value: "booking_pending_homeowner" },
         { name: "lead_id", value: lead.id },
         { name: "via_pre_survey", value: "true" },
       ],

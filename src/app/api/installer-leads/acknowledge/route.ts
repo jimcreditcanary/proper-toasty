@@ -174,7 +174,7 @@ export async function POST(req: Request) {
     .select(
       "id, installer_id, status, contact_name, contact_email, contact_phone, " +
         "property_address, property_postcode, property_latitude, property_longitude, " +
-        "homeowner_lead_id, " +
+        "homeowner_lead_id, pre_survey_request_id, " +
         "wants_heat_pump, wants_solar, wants_battery, notes, analysis_snapshot",
     )
     .eq("id", leadId)
@@ -192,6 +192,7 @@ export async function POST(req: Request) {
         | "property_latitude"
         | "property_longitude"
         | "homeowner_lead_id"
+        | "pre_survey_request_id"
         | "wants_heat_pump"
         | "wants_solar"
         | "wants_battery"
@@ -314,7 +315,15 @@ export async function POST(req: Request) {
     });
     return NextResponse.redirect(new URL(backToAcceptUrl(leadId, token), url), 303);
   }
-  if (profile.credits < LEAD_ACCEPT_COST_CREDITS) {
+  // Pre-survey leads were paid for at send time (1 credit per send).
+  // Skip the standard 5-credit lead-accept charge — the homeowner
+  // has already booked a slot from the report and the installer is
+  // just confirming. Doing this both:
+  //   - waives the credit-balance gate (so a low-balance installer
+  //     can still confirm a meeting that's already lined up)
+  //   - skips the deduct_credits RPC further down via the same flag
+  const skipCreditDebit = lead.pre_survey_request_id != null;
+  if (!skipCreditDebit && profile.credits < LEAD_ACCEPT_COST_CREDITS) {
     console.warn("[ack] insufficient credits at submit", {
       userId: profile.id,
       credits: profile.credits,
@@ -357,52 +366,66 @@ export async function POST(req: Request) {
   }
 
   // ── Atomic credit debit ────────────────────────────────────────
-  const { data: debited, error: debitErr } = await admin.rpc("deduct_credits", {
-    p_user_id: profile.id,
-    p_count: LEAD_ACCEPT_COST_CREDITS,
-  });
-  if (debitErr || !debited) {
-    console.error("[ack] credit debit failed — rolling back meeting", {
-      err: debitErr,
-      ok: debited,
-    });
-    if (meeting) {
-      await admin
-        .from("installer_meetings")
-        .update({ status: "pending" })
-        .eq("id", meeting.id);
+  // Pre-survey leads bypass — already paid 1 credit at send time.
+  if (!skipCreditDebit) {
+    const { data: debited, error: debitErr } = await admin.rpc(
+      "deduct_credits",
+      {
+        p_user_id: profile.id,
+        p_count: LEAD_ACCEPT_COST_CREDITS,
+      },
+    );
+    if (debitErr || !debited) {
+      console.error("[ack] credit debit failed — rolling back meeting", {
+        err: debitErr,
+        ok: debited,
+      });
+      if (meeting) {
+        await admin
+          .from("installer_meetings")
+          .update({ status: "pending" })
+          .eq("id", meeting.id);
+      }
+      return NextResponse.redirect(
+        new URL(backToAcceptUrl(leadId, token), url),
+        303,
+      );
     }
-    return NextResponse.redirect(new URL(backToAcceptUrl(leadId, token), url), 303);
+    console.log("[ack] credits debited", {
+      userId: profile.id,
+      cost: LEAD_ACCEPT_COST_CREDITS,
+      action,
+    });
+  } else {
+    console.log("[ack] credit debit skipped — pre-survey lead", {
+      leadId,
+      preSurveyRequestId: lead.pre_survey_request_id,
+    });
   }
-  console.log("[ack] credits debited", {
-    userId: profile.id,
-    cost: LEAD_ACCEPT_COST_CREDITS,
-    action,
-  });
 
   // Pipeline: lead acceptance is the moment value crystallises for
-  // the installer. Source defaults to "directory" since the
-  // pre-survey path bypasses this route entirely (auto-acked at
-  // lead-capture time with cost_credits = 0).
+  // the installer. Source flips to "pre_survey" when the homeowner
+  // arrived through a pre-survey link + booked from the report —
+  // we still debit zero credits in that path (already paid at send
+  // time) so the analytics line up with the credit ledger.
   track("installer_lead_accepted", {
     props: {
       installer_id: lead.installer_id,
-      source: "directory",
-      cost_credits: LEAD_ACCEPT_COST_CREDITS,
+      source: skipCreditDebit ? "pre_survey" : "directory",
+      cost_credits: skipCreditDebit ? 0 : LEAD_ACCEPT_COST_CREDITS,
     },
     userId: profile.id,
   });
 
   // C2 — fire auto top-up if enabled and balance is now at/under
-  // threshold. Fire-and-forget by design: a hiccup with the recharge
-  // never blocks lead acceptance. The function reads the user's
-  // current balance from `profile.credits` (pre-debit) minus the
-  // cost we just deducted.
-  void maybeRunAutoRecharge({
-    admin,
-    userId: profile.id,
-    balanceAfter: profile.credits - LEAD_ACCEPT_COST_CREDITS,
-  });
+  // threshold. Skip when nothing was debited (pre-survey path).
+  if (!skipCreditDebit) {
+    void maybeRunAutoRecharge({
+      admin,
+      userId: profile.id,
+      balanceAfter: profile.credits - LEAD_ACCEPT_COST_CREDITS,
+    });
+  }
 
   // ── Lead status update ────────────────────────────────────────
   // accept → visit_booked, reschedule → installer_acknowledged (took
