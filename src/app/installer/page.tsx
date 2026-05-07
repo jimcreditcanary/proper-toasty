@@ -188,13 +188,24 @@ export default async function InstallerHomePage() {
   // actually present at runtime. If it shows "no", that's the smoking
   // gun for the "DB has 30, dashboard reads 0" bug — the admin client
   // falls back to the anon key, RLS blocks the read.
-  // Surface enough of the env-var to distinguish sb_publishable from
-  // sb_secret without leaking the actual key. First 14 chars covers
-  // "sb_publishable" / "sb_secret_xxx" / "eyJhbGciOi" (legacy JWT).
+  // Decode the JWT role claim out of the env-var. Both anon and
+  // service_role JWTs share the same outer prefix (eyJhbGciOi...),
+  // so length / prefix can't distinguish them. The role is in the
+  // middle base64-encoded segment of the JWT.
   const srKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
-  const serviceRolePrefix = srKey.slice(0, 14);
+  let jwtRole = "n/a";
+  try {
+    const middle = srKey.split(".")[1];
+    if (middle) {
+      const decoded = Buffer.from(middle, "base64").toString("utf-8");
+      const json = JSON.parse(decoded) as { role?: string };
+      jwtRole = json.role ?? "no-role-claim";
+    }
+  } catch {
+    jwtRole = "decode-failed";
+  }
   const serviceRoleSet = srKey
-    ? `yes-len${srKey.length}-prefix:${serviceRolePrefix}`
+    ? `yes-len${srKey.length}-role:${jwtRole}`
     : "no";
   const debugBanner = `<!-- PT-DEBUG creditBalance=${creditBalance} userId=${user?.id ?? "no-user"} sha=${process.env.VERCEL_GIT_COMMIT_SHA ?? "unknown"} serviceRoleSet=${serviceRoleSet} -->`;
 
