@@ -188,8 +188,13 @@ export default async function InstallerHomePage() {
   // actually present at runtime. If it shows "no", that's the smoking
   // gun for the "DB has 30, dashboard reads 0" bug — the admin client
   // falls back to the anon key, RLS blocks the read.
-  const serviceRoleSet = process.env.SUPABASE_SERVICE_ROLE_KEY
-    ? `yes-len${process.env.SUPABASE_SERVICE_ROLE_KEY.length}`
+  // Surface enough of the env-var to distinguish sb_publishable from
+  // sb_secret without leaking the actual key. First 14 chars covers
+  // "sb_publishable" / "sb_secret_xxx" / "eyJhbGciOi" (legacy JWT).
+  const srKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
+  const serviceRolePrefix = srKey.slice(0, 14);
+  const serviceRoleSet = srKey
+    ? `yes-len${srKey.length}-prefix:${serviceRolePrefix}`
     : "no";
   const debugBanner = `<!-- PT-DEBUG creditBalance=${creditBalance} userId=${user?.id ?? "no-user"} sha=${process.env.VERCEL_GIT_COMMIT_SHA ?? "unknown"} serviceRoleSet=${serviceRoleSet} -->`;
 
