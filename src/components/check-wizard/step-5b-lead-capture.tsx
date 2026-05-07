@@ -35,29 +35,34 @@ export function Step5bLeadCapture() {
   // so screen readers announce the error in context with the form.
   const errorId = useId();
 
-  // If the user has already captured their email in a previous session
-  // (rehydrated from localStorage), auto-advance to the report rather
-  // than making them re-enter. The API dedupes on email anyway, so
-  // repeated submits are harmless — this is pure UX polish.
-  useEffect(() => {
-    if (state.leadCapturedAt && state.leadEmail) {
-      next();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // Pre-survey arrivals: the installer already collected this customer's
+  // email when sending the request, so it's pre-filled into wizard state
+  // by /check/page.tsx (loadPresurveyPrefill). Skip the form entirely
+  // and POST directly so we can mark the request completed + create the
+  // installer_lead, then jump to the report. The form was a friction
+  // point for a customer who'd just opened a "your report is ready" link
+  // and was being asked to re-confirm the same email back to us.
+  const isPreSurveyAutoCapture = Boolean(
+    state.preSurveyRequestId && state.leadEmail && !state.leadCapturedAt,
+  );
 
-  const submit = useCallback(
-    async (e: React.FormEvent) => {
-      e.preventDefault();
-      if (!email.trim()) {
+  // Wrap the actual save so it can be called from both the form submit
+  // handler AND the auto-capture effect below. The form path overrides
+  // email/name from local state (the user may edit them); auto-capture
+  // uses whatever's in wizard state (already validated).
+  const saveLead = useCallback(
+    async (override?: { email: string; name: string | null }) => {
+      const finalEmail = (override?.email ?? email).trim();
+      const finalName = (override?.name ?? name)?.trim() || null;
+      if (!finalEmail) {
         setError("We need your email to show you the report.");
-        return;
+        return false;
       }
       setError(null);
       setSubmitting(true);
       const body: LeadCaptureRequest = {
-        email: email.trim(),
-        name: name.trim() || null,
+        email: finalEmail,
+        name: finalName,
         phone: null,
         address: state.address?.formattedAddress ?? null,
         postcode: state.address?.postcode ?? null,
@@ -101,8 +106,10 @@ export function Step5bLeadCapture() {
           leadId: data.id ?? null,
         });
         next();
+        return true;
       } catch (err) {
         setError(err instanceof Error ? err.message : "Couldn't save — try again");
+        return false;
       } finally {
         setSubmitting(false);
       }
@@ -118,7 +125,75 @@ export function Step5bLeadCapture() {
     ],
   );
 
+  // If the user has already captured their email in a previous session
+  // (rehydrated from localStorage), auto-advance to the report rather
+  // than making them re-enter. The API dedupes on email anyway, so
+  // repeated submits are harmless — this is pure UX polish.
+  //
+  // For pre-survey arrivals (link from installer email, with email
+  // pre-filled), auto-fire the capture so the user lands directly on
+  // their report without seeing the form at all.
+  useEffect(() => {
+    if (state.leadCapturedAt && state.leadEmail) {
+      next();
+      return;
+    }
+    if (isPreSurveyAutoCapture) {
+      void saveLead({
+        email: state.leadEmail!,
+        name: state.leadName ?? null,
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const submit = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
+      await saveLead();
+    },
+    [saveLead],
+  );
+
   const addr = state.address?.formattedAddress ?? "your home";
+
+  // Pre-survey arrival — render a clean "loading your report" view
+  // instead of the email form. The auto-capture effect above is firing
+  // /api/leads/capture in the background; once it returns we'll have
+  // advanced to the report step and this view unmounts.
+  if (isPreSurveyAutoCapture) {
+    return (
+      <div className="max-w-md mx-auto w-full text-center py-16">
+        <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-coral-pale text-coral-dark mb-4">
+          <Loader2 className="w-5 h-5 animate-spin" />
+        </div>
+        <h1 className="text-2xl font-bold tracking-tight text-navy">
+          Preparing your report…
+        </h1>
+        <p className="mt-2 text-sm text-slate-600">
+          {state.preSurveyInstallerName
+            ? `${state.preSurveyInstallerName} sent this — pulling up your full pre-survey now.`
+            : "Pulling up your full pre-survey now."}
+        </p>
+        {error && (
+          <div className="mt-6 rounded-lg bg-red-50 border border-red-100 px-4 py-3 text-sm text-red-700 text-left">
+            <p className="font-medium">We hit a snag.</p>
+            <p className="mt-1">{error}</p>
+            <button
+              type="button"
+              onClick={() => void saveLead({
+                email: state.leadEmail!,
+                name: state.leadName ?? null,
+              })}
+              className="mt-2 underline text-red-700 hover:text-red-800"
+            >
+              Try again
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-5xl mx-auto w-full">
