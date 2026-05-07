@@ -111,10 +111,6 @@ export default async function InstallerHomePage() {
     onboardingDismissedAt =
       profileRes.data?.installer_onboarding_dismissed_at ?? null;
 
-    // TEMP diagnostic v2 — log AND surface as a header to make this
-    // bypass the Vercel runtime-logs UI entirely. Right-click → view
-    // page source on /installer and search for "PT-DEBUG" to see what
-    // the server actually computed at render time.
     console.log("[PT-DEBUG-installer-dashboard] profile read", {
       userId: user.id,
       userEmail: user.email,
@@ -188,26 +184,57 @@ export default async function InstallerHomePage() {
   // actually present at runtime. If it shows "no", that's the smoking
   // gun for the "DB has 30, dashboard reads 0" bug — the admin client
   // falls back to the anon key, RLS blocks the read.
-  // Decode the JWT role claim out of the env-var. Both anon and
-  // service_role JWTs share the same outer prefix (eyJhbGciOi...),
-  // so length / prefix can't distinguish them. The role is in the
-  // middle base64-encoded segment of the JWT.
+  // Decode the JWT role claim.
   const srKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
   let jwtRole = "n/a";
+  let jwtRef = "n/a";
   try {
     const middle = srKey.split(".")[1];
     if (middle) {
       const decoded = Buffer.from(middle, "base64").toString("utf-8");
-      const json = JSON.parse(decoded) as { role?: string };
+      const json = JSON.parse(decoded) as { role?: string; ref?: string };
       jwtRole = json.role ?? "no-role-claim";
+      jwtRef = json.ref ?? "no-ref-claim";
     }
   } catch {
     jwtRole = "decode-failed";
   }
-  const serviceRoleSet = srKey
-    ? `yes-len${srKey.length}-role:${jwtRole}`
-    : "no";
-  const debugBanner = `<!-- PT-DEBUG creditBalance=${creditBalance} userId=${user?.id ?? "no-user"} sha=${process.env.VERCEL_GIT_COMMIT_SHA ?? "unknown"} serviceRoleSet=${serviceRoleSet} -->`;
+
+  // Surface the host of NEXT_PUBLIC_SUPABASE_URL — the JWT.ref claim
+  // identifies which Supabase project the key was issued for; the
+  // URL host says which project the client is talking to. They MUST
+  // match. Mismatch = key for project A but client pointed at project
+  // B → PostgREST treats the JWT as anon (signature won't validate
+  // against project B's secret) and the read is RLS-blocked.
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+  const urlHost = url.match(/https?:\/\/([^./]+)/)?.[1] ?? "unknown";
+
+  // Run a real RLS-bypass test. Service role can count every row in
+  // public.users; anon can only count rows the SELECT policy allows.
+  // If admin really is service_role, this returns the full row count.
+  // If something's stripping the role, it returns 0 or matches the
+  // anon-allowed subset.
+  let adminUsersCount: string = "n/a";
+  let adminProfileError: string | null = null;
+  try {
+    const admin = createAdminClient();
+    const { count, error } = await admin
+      .from("users")
+      .select("id", { count: "exact", head: true });
+    adminUsersCount = error ? `err:${error.message}` : String(count ?? "null");
+    if (user) {
+      const { error: pErr } = await admin
+        .from("users")
+        .select("credits")
+        .eq("id", user.id)
+        .maybeSingle();
+      adminProfileError = pErr?.message ?? null;
+    }
+  } catch (e) {
+    adminUsersCount = `threw:${e instanceof Error ? e.message : String(e)}`;
+  }
+
+  const debugBanner = `<!-- PT-DEBUG creditBalance=${creditBalance} userId=${user?.id ?? "no-user"} sha=${process.env.VERCEL_GIT_COMMIT_SHA ?? "unknown"} role=${jwtRole} jwtRef=${jwtRef} urlHost=${urlHost} adminUsersCount=${adminUsersCount} adminProfileError=${adminProfileError ?? "null"} -->`;
 
   return (
     <PortalShell
