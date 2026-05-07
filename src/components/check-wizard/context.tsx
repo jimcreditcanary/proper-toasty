@@ -75,6 +75,22 @@ export function CheckWizardProvider({
       return;
     }
     if (typeof window === "undefined") return;
+    // Pre-survey arrivals are explicit "start fresh" signals — the
+    // installer fired a personalised link to a specific homeowner,
+    // and the wizard prefill carries their email + name + the
+    // request id. If we let localStorage rehydrate over the top, a
+    // previous tester's leadCapturedAt would auto-skip step 5b
+    // straight to a stale report. Wipe + skip rehydrate here so the
+    // prefill is the source of truth.
+    if (initialState?.preSurveyRequestId) {
+      try {
+        localStorage.removeItem(STORAGE_KEY);
+      } catch {
+        // ignore
+      }
+      setHydrated(true);
+      return;
+    }
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
@@ -90,7 +106,7 @@ export function CheckWizardProvider({
       // ignore — treat as no saved state
     }
     setHydrated(true);
-  }, [disablePersistence]);
+  }, [disablePersistence, initialState?.preSurveyRequestId]);
 
   // Mint a clientSessionId after hydration if the saved state didn't
   // already have one. This is the dedupe key for /api/checks/upsert
