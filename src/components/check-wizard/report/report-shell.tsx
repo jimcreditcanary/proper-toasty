@@ -230,12 +230,22 @@ export function ReportShell({ audience = "homeowner" }: ReportShellProps = {}) {
           </h1>
         </div>
         {!isInstaller && <EligibilityChecklist analysis={a} />}
-        {meetingBooked && state.preSurveyMeetingAt && (
-          <MeetingBanner
-            installerName={state.preSurveyInstallerName ?? "your installer"}
-            meetingAt={state.preSurveyMeetingAt}
-          />
-        )}
+        {/* Hide the banner while the user is still sitting on the
+            Book tab — that surface already renders its own "visit
+            booked" success card after a fresh booking, so two green
+            blocks on the same screen reads as a duplicate. The
+            moment they hop to Overview / Savings / Heat pump /
+            Solar (or come back in a later session, where the Book
+            tab is hidden so the default tab is Overview) the
+            banner reappears as the persistent confirmation. */}
+        {meetingBooked &&
+          state.preSurveyMeetingAt &&
+          tab !== "book" && (
+            <MeetingBanner
+              installerName={state.preSurveyInstallerName ?? "your installer"}
+              meetingAt={state.preSurveyMeetingAt}
+            />
+          )}
       </header>
 
       {/* Tab nav — promoted from a thin underlined bar to a proper
