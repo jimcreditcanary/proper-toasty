@@ -27,11 +27,14 @@ import {
   Compass,
   ExternalLink,
   Flame,
+  Gauge,
   Home,
   Info,
+  Lightbulb,
   Mail,
   MapPin,
   Phone,
+  PoundSterling,
   Sun,
   Thermometer,
   XCircle,
@@ -98,6 +101,8 @@ export function InstallerSiteBrief(props: InstallerSiteBriefProps) {
         floorplan={floorplan}
         floorplanObjectKey={props.floorplanObjectKey}
       />
+      <EnergyPerformanceCard analysis={analysis} />
+      <HeatingSystemsCard analysis={analysis} />
       <HeatPumpCard analysis={analysis} floorplan={floorplan} />
       <SolarCard analysis={analysis} property={property} />
       <SiteContextCard analysis={analysis} />
@@ -636,6 +641,327 @@ function FabricCell({
         </span>
       )}
     </span>
+  );
+}
+
+// ─── Energy performance card ───────────────────────────────────────
+//
+// Surfaces the numeric SAP / EI / consumption / CO2 / cost data the
+// EPC carries — the bits installers actually use to size kit and
+// flag retrofit risk. The Property card above already covers
+// classification + fabric ratings; this card is the "by the
+// numbers" companion.
+
+function EnergyPerformanceCard({ analysis }: { analysis: AnalyseResponse }) {
+  const epc = analysis.epc.found ? analysis.epc.certificate : null;
+  if (!epc) return null;
+
+  const hasAnyNumber =
+    epc.currentEnergyRating != null ||
+    epc.potentialEnergyRating != null ||
+    epc.environmentImpactCurrent != null ||
+    epc.environmentImpactPotential != null ||
+    epc.energyConsumptionCurrent != null ||
+    epc.energyConsumptionPotential != null ||
+    epc.co2EmissionsCurrent != null ||
+    epc.co2EmissionsPotential != null;
+
+  const hasCosts =
+    epc.heatingCostCurrent != null ||
+    epc.hotWaterCostCurrent != null ||
+    epc.lightingCostCurrent != null;
+
+  if (!hasAnyNumber && !hasCosts) return null;
+
+  return (
+    <Section
+      title="Energy performance"
+      icon={<Gauge className="w-4 h-4 text-coral-dark" />}
+    >
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        {/* Numeric scores: SAP rating, environmental impact, energy
+            consumption, CO2 emissions — current vs potential side by
+            side. */}
+        <div className="space-y-4">
+          <Subhead>Scores (current → potential)</Subhead>
+          <Dl>
+            <Dt>SAP rating</Dt>
+            <Dd>
+              <PerfPair
+                current={
+                  epc.currentEnergyRating != null
+                    ? `${epc.currentEnergyRating}${epc.currentEnergyBand ? ` (${epc.currentEnergyBand})` : ""}`
+                    : null
+                }
+                potential={
+                  epc.potentialEnergyRating != null
+                    ? `${epc.potentialEnergyRating}${epc.potentialEnergyBand ? ` (${epc.potentialEnergyBand})` : ""}`
+                    : null
+                }
+              />
+            </Dd>
+            <Dt>Environment impact</Dt>
+            <Dd>
+              <PerfPair
+                current={epc.environmentImpactCurrent}
+                potential={epc.environmentImpactPotential}
+              />
+            </Dd>
+            <Dt>Energy use</Dt>
+            <Dd>
+              <PerfPair
+                current={
+                  epc.energyConsumptionCurrent != null
+                    ? `${Math.round(epc.energyConsumptionCurrent).toLocaleString("en-GB")} kWh/m²/yr`
+                    : null
+                }
+                potential={
+                  epc.energyConsumptionPotential != null
+                    ? `${Math.round(epc.energyConsumptionPotential).toLocaleString("en-GB")} kWh/m²/yr`
+                    : null
+                }
+              />
+            </Dd>
+            <Dt>CO₂ emissions</Dt>
+            <Dd>
+              <PerfPair
+                current={
+                  epc.co2EmissionsCurrent != null
+                    ? `${epc.co2EmissionsCurrent.toFixed(1)} t/yr`
+                    : null
+                }
+                potential={
+                  epc.co2EmissionsPotential != null
+                    ? `${epc.co2EmissionsPotential.toFixed(1)} t/yr`
+                    : null
+                }
+              />
+            </Dd>
+          </Dl>
+        </div>
+
+        {/* Annual running costs by fuel use — direct from the EPC
+            cost breakdown (heating / hot water / lighting). Cheap,
+            useful sense-check vs whatever the homeowner reported on
+            their bill. */}
+        {hasCosts && (
+          <div className="space-y-4">
+            <Subhead>EPC cost breakdown (£/yr)</Subhead>
+            <div className="overflow-x-auto rounded-lg border border-slate-200">
+              <table className="w-full text-sm">
+                <thead className="bg-slate-50 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                  <tr>
+                    <th className="text-left px-3 py-2">Item</th>
+                    <th className="text-right px-3 py-2">Current</th>
+                    <th className="text-right px-3 py-2">Potential</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <CostRow
+                    label="Heating"
+                    current={epc.heatingCostCurrent}
+                    potential={epc.heatingCostPotential}
+                  />
+                  <CostRow
+                    label="Hot water"
+                    current={epc.hotWaterCostCurrent}
+                    potential={epc.hotWaterCostPotential}
+                  />
+                  <CostRow
+                    label="Lighting"
+                    current={epc.lightingCostCurrent}
+                    potential={epc.lightingCostPotential}
+                  />
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Inspection / lodgement metadata — small print at the bottom
+          so the installer can sanity-check how stale the cert is. */}
+      {(epc.inspectionDate || epc.lodgementDate || epc.transactionType) && (
+        <p className="text-[11px] text-slate-500 mt-4 pt-3 border-t border-slate-100">
+          {epc.inspectionDate && (
+            <span>Inspected {formatDate(epc.inspectionDate)}</span>
+          )}
+          {epc.lodgementDate && (
+            <span>
+              {epc.inspectionDate ? " · " : ""}lodged{" "}
+              {formatDate(epc.lodgementDate)}
+            </span>
+          )}
+          {epc.transactionType && (
+            <span>
+              {epc.inspectionDate || epc.lodgementDate ? " · " : ""}
+              {epc.transactionType}
+            </span>
+          )}
+        </p>
+      )}
+    </Section>
+  );
+}
+
+function PerfPair({
+  current,
+  potential,
+}: {
+  current: number | string | null | undefined;
+  potential: number | string | null | undefined;
+}) {
+  if (current == null && potential == null) return <>—</>;
+  return (
+    <span>
+      <span className="font-semibold text-navy">
+        {current ?? "—"}
+      </span>
+      <span className="text-slate-400 mx-1.5">→</span>
+      <span className="font-semibold text-navy">
+        {potential ?? "—"}
+      </span>
+    </span>
+  );
+}
+
+function CostRow({
+  label,
+  current,
+  potential,
+}: {
+  label: string;
+  current: number | null | undefined;
+  potential: number | null | undefined;
+}) {
+  if (current == null && potential == null) return null;
+  return (
+    <tr className="border-t border-slate-100">
+      <td className="px-3 py-2 font-medium text-navy">{label}</td>
+      <td className="px-3 py-2 text-right tabular-nums">
+        {current != null ? `£${Math.round(current).toLocaleString("en-GB")}` : "—"}
+      </td>
+      <td className="px-3 py-2 text-right tabular-nums text-emerald-700">
+        {potential != null
+          ? `£${Math.round(potential).toLocaleString("en-GB")}`
+          : "—"}
+      </td>
+    </tr>
+  );
+}
+
+// ─── Heating systems card ──────────────────────────────────────────
+//
+// Pulls every heating / hot water / lighting field out of the EPC.
+// Critical for an installer planning a heat pump retrofit: the
+// "Main heating description" line is the existing system, the
+// efficiency rating tells them how much there is to gain, the
+// controls description flags whether pipework / wiring will need
+// touching, and "mainsGasFlag" decides whether the install can
+// keep gas hot water as a backup or has to go fully electric.
+
+function HeatingSystemsCard({ analysis }: { analysis: AnalyseResponse }) {
+  const epc = analysis.epc.found ? analysis.epc.certificate : null;
+  if (!epc) return null;
+
+  const hasHeating =
+    epc.mainHeatingDescription ||
+    epc.mainFuel ||
+    epc.mainHeatingControlsDescription ||
+    epc.hotWaterDescription ||
+    epc.mainsGasFlag != null;
+  const hasLighting =
+    epc.lightingDescription ||
+    epc.lowEnergyLightingPct != null ||
+    epc.fixedLightingOutletsCount != null;
+
+  if (!hasHeating && !hasLighting) return null;
+
+  return (
+    <Section
+      title="Heating, hot water + lighting"
+      icon={<Flame className="w-4 h-4 text-coral-dark" />}
+    >
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        {hasHeating && (
+          <div className="space-y-4">
+            <Subhead>Heating system</Subhead>
+            <Dl>
+              <Dt>Main fuel</Dt>
+              <Dd>{epc.mainFuel ?? "—"}</Dd>
+              <Dt>On mains gas</Dt>
+              <Dd>
+                {epc.mainsGasFlag === "Y"
+                  ? "Yes"
+                  : epc.mainsGasFlag === "N"
+                    ? "No"
+                    : "—"}
+              </Dd>
+              <Dt>Main heating</Dt>
+              <Dd>
+                <FabricCell
+                  description={epc.mainHeatingDescription}
+                  rating={epc.mainHeatingEnergyEff}
+                />
+              </Dd>
+              <Dt>Heating controls</Dt>
+              <Dd>
+                <FabricCell
+                  description={epc.mainHeatingControlsDescription}
+                  rating={epc.mainHeatingControlsEnergyEff}
+                />
+              </Dd>
+              <Dt>Hot water</Dt>
+              <Dd>
+                <FabricCell
+                  description={epc.hotWaterDescription}
+                  rating={epc.hotWaterEnergyEff}
+                />
+              </Dd>
+            </Dl>
+          </div>
+        )}
+
+        {hasLighting && (
+          <div className="space-y-4">
+            <Subhead>
+              <span className="inline-flex items-center gap-1.5">
+                <Lightbulb className="w-3 h-3" />
+                Lighting
+              </span>
+            </Subhead>
+            <Dl>
+              <Dt>Description</Dt>
+              <Dd>
+                <FabricCell
+                  description={epc.lightingDescription}
+                  rating={epc.lightingEnergyEff}
+                />
+              </Dd>
+              {epc.lowEnergyLightingPct != null && (
+                <>
+                  <Dt>Low-energy</Dt>
+                  <Dd>{epc.lowEnergyLightingPct}% of fittings</Dd>
+                </>
+              )}
+              {epc.fixedLightingOutletsCount != null && (
+                <>
+                  <Dt>Fixed outlets</Dt>
+                  <Dd>
+                    {epc.fixedLightingOutletsCount}
+                    {epc.lowEnergyFixedLightingCount != null && (
+                      <span className="text-slate-400 ml-1">
+                        ({epc.lowEnergyFixedLightingCount} low-energy)
+                      </span>
+                    )}
+                  </Dd>
+                </>
+              )}
+            </Dl>
+          </div>
+        )}
+      </div>
+    </Section>
   );
 }
 
@@ -1278,27 +1604,59 @@ function TariffCard({
 }
 
 function TariffPanel({ label, tariff }: { label: string; tariff: FuelTariff }) {
-  // Tariff schema is a discriminated union — we try to surface the
-  // headline values (supplier, unit rate, standing charge) regardless
-  // of which variant we got. Anything else becomes a tiny key/value list
-  // so we don't drop information.
+  // FuelTariff.provider is the supplier name (Octopus / British Gas /
+  // EDF etc.). The previous read used `t.supplier` — that field
+  // doesn't exist on FuelTariff (it lives on BillAnalysis, the
+  // pre-tariff parse output) so the brief always rendered "—".
   const t = tariff as unknown as Record<string, unknown>;
-  const supplier = (t.supplier as string | undefined) ?? "—";
-  const unitRate = numberOrNull(t.unitRatePencePerKWh) ?? numberOrNull(t.unitRate);
-  const standing = numberOrNull(t.standingChargePence) ?? numberOrNull(t.standingCharge);
+  const supplier =
+    (t.provider as string | undefined) ??
+    (t.supplier as string | undefined) ?? // legacy snapshots
+    null;
+  const tariffName = (t.tariffName as string | undefined) ?? null;
+  const productType = (t.productType as string | undefined) ?? null;
+  const paymentMethod = (t.paymentMethod as string | undefined) ?? null;
+  const unitRate =
+    numberOrNull(t.unitRatePencePerKWh) ?? numberOrNull(t.unitRate);
+  const standing =
+    numberOrNull(t.standingChargePencePerDay) ??
+    numberOrNull(t.standingChargePence) ??
+    numberOrNull(t.standingCharge);
+  const annualUsage = numberOrNull(t.estimatedAnnualUsageKWh);
+  const isTou = (t.timeOfUseTariff as boolean | undefined) ?? false;
 
   return (
     <div className="rounded-lg border border-slate-200 p-4">
       <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-2">
         {label}
+        {isTou && (
+          <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-coral-pale text-coral-dark">
+            TOU
+          </span>
+        )}
       </p>
       <Dl>
         <Dt>Supplier</Dt>
-        <Dd>{supplier}</Dd>
+        <Dd>{supplier ?? "—"}</Dd>
+        <Dt>Tariff</Dt>
+        <Dd>{tariffName ?? "—"}</Dd>
+        <Dt>Type</Dt>
+        <Dd>
+          {productType ?? "—"}
+          {paymentMethod && (
+            <span className="text-slate-400"> · {paymentMethod}</span>
+          )}
+        </Dd>
         <Dt>Unit rate</Dt>
         <Dd>{unitRate != null ? `${unitRate.toFixed(2)} p/kWh` : "—"}</Dd>
         <Dt>Standing charge</Dt>
         <Dd>{standing != null ? `${standing.toFixed(2)} p/day` : "—"}</Dd>
+        {annualUsage != null && (
+          <>
+            <Dt>Annual usage</Dt>
+            <Dd>{Math.round(annualUsage).toLocaleString("en-GB")} kWh</Dd>
+          </>
+        )}
       </Dl>
     </div>
   );

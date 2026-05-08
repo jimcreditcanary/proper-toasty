@@ -150,26 +150,85 @@ export default async function InstallerReportPage({ params }: PageProps) {
     );
   }
 
-  // Look up the matching check row's floorplan_object_key. Two paths
-  // depending on what's wired up:
-  //   - homeowner_lead_id is set on the lead → join via that
-  //   - otherwise nothing — rare for new flows, common for legacy.
-  // Best-effort: missing key just hides the "Open floorplan" link.
+  // Look up the matching check row's floorplan_object_key. Tries
+  // every linkage path we have, in order of confidence:
+  //
+  //   1. lead.homeowner_lead_id → checks.homeowner_lead_id
+  //      (the canonical link, set by /api/leads/capture). Skip if
+  //      column missing on prod (migration 055 not run).
+  //
+  //   2. snapshot.floorplanObjectKey on the lead
+  //      (added in this commit so new leads carry the key inline,
+  //      regardless of whether the check ↔ lead linkage row
+  //      survived schema drift).
+  //
+  //   3. fall back to UPRN / postcode + email match on checks. Last
+  //      resort — the check row carries the same property identity
+  //      so we can re-find it even when nothing else lines up.
   let floorplanObjectKey: string | null = null;
   let addressMetadata: AddressMetadata | null = null;
+
   if (lead.homeowner_lead_id) {
-    const { data: check } = await admin
-      .from("checks")
-      .select("floorplan_object_key, address_metadata")
-      .eq("homeowner_lead_id", lead.homeowner_lead_id)
-      .order("updated_at", { ascending: false })
-      .limit(1)
-      .maybeSingle<{
+    try {
+      const { data: check, error } = await admin
+        .from("checks")
+        .select("floorplan_object_key, address_metadata")
+        .eq("homeowner_lead_id", lead.homeowner_lead_id)
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle<{
+          floorplan_object_key: string | null;
+          address_metadata: AddressMetadata | null;
+        }>();
+      if (error) {
+        console.warn("[installer-report] homeowner_lead_id lookup failed", error);
+      } else {
+        floorplanObjectKey = check?.floorplan_object_key ?? null;
+        addressMetadata = check?.address_metadata ?? null;
+      }
+    } catch (e) {
+      console.warn("[installer-report] check lookup threw", e);
+    }
+  }
+
+  // Inline fallback — the snapshot may carry the key directly for
+  // new leads. Old leads that predate this won't have it, so the
+  // postcode-match below picks up the slack.
+  if (!floorplanObjectKey) {
+    const snap = lead.analysis_snapshot as
+      | { floorplanObjectKey?: string | null }
+      | null;
+    floorplanObjectKey = snap?.floorplanObjectKey ?? null;
+  }
+
+  // Last-resort lookup — match on UPRN (most specific) or
+  // postcode + email. Solves the legacy + schema-drift case
+  // without needing the homeowner_lead_id column to exist.
+  if (!floorplanObjectKey && (lead.property_uprn || lead.property_postcode)) {
+    try {
+      let q = admin
+        .from("checks")
+        .select("floorplan_object_key, address_metadata")
+        .order("updated_at", { ascending: false })
+        .limit(1);
+      if (lead.property_uprn) {
+        q = q.eq("uprn", lead.property_uprn);
+      } else if (lead.property_postcode) {
+        q = q.ilike("postcode", lead.property_postcode);
+      }
+      const { data: fallback } = await q.maybeSingle<{
         floorplan_object_key: string | null;
         address_metadata: AddressMetadata | null;
       }>();
-    floorplanObjectKey = check?.floorplan_object_key ?? null;
-    addressMetadata = check?.address_metadata ?? null;
+      if (fallback) {
+        floorplanObjectKey = floorplanObjectKey ?? fallback.floorplan_object_key;
+        addressMetadata = addressMetadata ?? fallback.address_metadata;
+      }
+    } catch (e) {
+      // Some columns (address_uprn / address_postcode) may not exist
+      // on every schema vintage — don't crash the page if so.
+      console.warn("[installer-report] fallback check lookup failed", e);
+    }
   }
 
   return (
