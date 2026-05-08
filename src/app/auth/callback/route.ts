@@ -22,41 +22,94 @@ function landingForRole(role: string | null | undefined): string {
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
+  // OTP variant — used when the Supabase email template links to
+  // `?token_hash=...&type=signup`. This flow does NOT need a PKCE
+  // verifier from localStorage, which makes it resilient to:
+  //
+  //   - Outlook ATP / Microsoft Defender Safe Links pre-fetching
+  //     the URL to scan it (the scanner's GET doesn't have the
+  //     verifier and can't establish a session, but verifyOtp's
+  //     stateless check still works for the human's later click).
+  //
+  //   - Users opening the email on a different device / browser
+  //     than the one they signed up in (no localStorage on this
+  //     side of the link → PKCE breaks; verifyOtp doesn't care).
+  //
+  // The exchangeCodeForSession path below is kept as a fallback
+  // for any in-flight emails that were already sent with a `code`
+  // link before the template flip, and for OAuth flows.
+  const tokenHash = searchParams.get("token_hash");
+  const tokenType = searchParams.get("type");
   const explicitNext = searchParams.get("next");
 
-  if (!code) {
-    // No code at all → genuine bad link. Hard error.
+  if (!code && !tokenHash) {
+    // Neither a code nor a token_hash → genuine bad link.
     return NextResponse.redirect(`${origin}/auth/login?error=auth_failed`);
   }
 
   const supabase = await createClient();
-  const { error, data } = await supabase.auth.exchangeCodeForSession(code);
-  if (error || !data.user) {
-    // Soft failure: code was present but exchange didn't yield a
-    // session. The two common causes are both benign for the user:
-    //
-    //   - Email-scanner pre-fetch (Outlook ATP / Defender Safe Links,
-    //     Gmail link-checker) hit the URL before the human did and
-    //     consumed the code. The email is still confirmed — the
-    //     scanner just stole the session.
-    //
-    //   - User signed up in browser A, opened the email in browser B
-    //     (or an in-app webview). PKCE flow needs the code-verifier
-    //     from the original browser's localStorage; absent that, the
-    //     exchange fails. Email is still confirmed.
-    //
-    // In both cases the right response is "your account is ready,
-    // please sign in" — not the alarming "didn't go through" copy
-    // which suggests something is broken. We surface a different
-    // error code so the login page can flash the gentler message.
-    console.warn("[auth/callback] code exchange failed", {
-      msg: error?.message,
-      hasUser: !!data.user,
+
+  let exchangeError: { message?: string } | null = null;
+  let exchangedUser: { id: string; email?: string; user_metadata?: Record<string, unknown> } | null =
+    null;
+
+  if (tokenHash) {
+    const { error, data } = await supabase.auth.verifyOtp({
+      // Coerce the type string to what verifyOtp accepts — we trust
+      // Supabase's email template to have set a valid value here.
+      type: (tokenType ?? "signup") as
+        | "signup"
+        | "email"
+        | "recovery"
+        | "invite"
+        | "email_change",
+      token_hash: tokenHash,
+    });
+    exchangeError = error;
+    exchangedUser = data?.user
+      ? {
+          id: data.user.id,
+          email: data.user.email ?? undefined,
+          user_metadata: data.user.user_metadata as Record<string, unknown>,
+        }
+      : null;
+  } else if (code) {
+    const { error, data } = await supabase.auth.exchangeCodeForSession(code);
+    exchangeError = error;
+    exchangedUser = data?.user
+      ? {
+          id: data.user.id,
+          email: data.user.email ?? undefined,
+          user_metadata: data.user.user_metadata as Record<string, unknown>,
+        }
+      : null;
+  }
+
+  if (exchangeError || !exchangedUser) {
+    // Soft failure — the email IS confirmed by Supabase even when the
+    // session exchange fails (verifyOtp marks the email confirmed
+    // server-side regardless). Route to login with a gentle "your
+    // account is ready" message rather than the alarming "didn't go
+    // through" copy.
+    console.warn("[auth/callback] exchange failed", {
+      flow: tokenHash ? "otp" : "pkce",
+      msg: exchangeError?.message,
+      hasUser: !!exchangedUser,
     });
     return NextResponse.redirect(
       `${origin}/auth/login?error=callback_link_consumed`,
     );
   }
+
+  // Re-shape into the structure the rest of the route expects so the
+  // existing claim / role / redirect logic stays untouched.
+  const data = { user: exchangedUser } as {
+    user: {
+      id: string;
+      email?: string;
+      user_metadata?: Record<string, unknown>;
+    };
+  };
 
   // ── F2: complete the installer claim if user_metadata says so ───
   // The /installer-signup form stashes the chosen installer's ID in
