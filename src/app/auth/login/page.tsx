@@ -37,14 +37,26 @@ function AuthPageInner() {
 
   // Flash messages from URL params — set by the auth callback,
   // password reset flow, and middleware (blocked users).
+  //
+  // `callback_link_consumed` is a soft variant: the email confirmation
+  // link came back without a session (PKCE verifier missing — usually
+  // because an email scanner pre-fetched the link, or the user opened
+  // it in a different browser). The email is confirmed; they just
+  // need to sign in normally.
   const flashError = searchParams.get("error");
   const resetOk = searchParams.get("reset") === "ok";
   const flashMessage =
     flashError === "blocked"
       ? "Your account has been blocked. Email hello@propertoasty.com if you think this is a mistake."
-      : flashError === "auth_failed"
-        ? "Sign-in didn't go through. Try again or reset your password."
-        : null;
+      : flashError === "callback_link_consumed"
+        ? "Your account is ready — sign in below to continue."
+        : flashError === "auth_failed"
+          ? "Sign-in didn't go through. Try again or reset your password."
+          : null;
+  // Tone the soft case differently — the harsh red/amber on the
+  // existing error styling reads as "something broke".
+  const flashTone: "info" | "warn" =
+    flashError === "callback_link_consumed" ? "info" : "warn";
 
   function switchTab(t: "signin" | "signup") {
     setTab(t);
@@ -184,7 +196,13 @@ function AuthPageInner() {
               </div>
             )}
             {flashMessage && !error && (
-              <div className="rounded-xl bg-amber-50 border border-amber-200 px-3 py-2 text-sm text-amber-800 mb-4">
+              <div
+                className={`rounded-xl border px-3 py-2 text-sm mb-4 ${
+                  flashTone === "info"
+                    ? "bg-emerald-50 border-emerald-200 text-emerald-800"
+                    : "bg-amber-50 border-amber-200 text-amber-800"
+                }`}
+              >
                 {flashMessage}
               </div>
             )}

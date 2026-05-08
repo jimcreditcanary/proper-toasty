@@ -25,13 +25,37 @@ export async function GET(request: NextRequest) {
   const explicitNext = searchParams.get("next");
 
   if (!code) {
+    // No code at all → genuine bad link. Hard error.
     return NextResponse.redirect(`${origin}/auth/login?error=auth_failed`);
   }
 
   const supabase = await createClient();
   const { error, data } = await supabase.auth.exchangeCodeForSession(code);
   if (error || !data.user) {
-    return NextResponse.redirect(`${origin}/auth/login?error=auth_failed`);
+    // Soft failure: code was present but exchange didn't yield a
+    // session. The two common causes are both benign for the user:
+    //
+    //   - Email-scanner pre-fetch (Outlook ATP / Defender Safe Links,
+    //     Gmail link-checker) hit the URL before the human did and
+    //     consumed the code. The email is still confirmed — the
+    //     scanner just stole the session.
+    //
+    //   - User signed up in browser A, opened the email in browser B
+    //     (or an in-app webview). PKCE flow needs the code-verifier
+    //     from the original browser's localStorage; absent that, the
+    //     exchange fails. Email is still confirmed.
+    //
+    // In both cases the right response is "your account is ready,
+    // please sign in" — not the alarming "didn't go through" copy
+    // which suggests something is broken. We surface a different
+    // error code so the login page can flash the gentler message.
+    console.warn("[auth/callback] code exchange failed", {
+      msg: error?.message,
+      hasUser: !!data.user,
+    });
+    return NextResponse.redirect(
+      `${origin}/auth/login?error=callback_link_consumed`,
+    );
   }
 
   // ── F2: complete the installer claim if user_metadata says so ───
