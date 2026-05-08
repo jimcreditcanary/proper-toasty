@@ -31,6 +31,7 @@ import {
   Home,
   Info,
   Lightbulb,
+  ListChecks,
   Mail,
   MapPin,
   Phone,
@@ -102,6 +103,7 @@ export function InstallerSiteBrief(props: InstallerSiteBriefProps) {
         floorplanObjectKey={props.floorplanObjectKey}
       />
       <EnergyPerformanceCard analysis={analysis} />
+      <EpcRecommendationsCard analysis={analysis} />
       <HeatingSystemsCard analysis={analysis} />
       <HeatPumpCard analysis={analysis} floorplan={floorplan} />
       <SolarCard analysis={analysis} property={property} />
@@ -552,70 +554,88 @@ function PropertyCard({
                 ` (${epc.multiGlazeProportion}% multi-glazed)`}
             </Dd>
           </Dl>
+
         </div>
       </div>
 
-      {/* Per-room breakdown — only renders when extraction found rooms. */}
-      {rooms.length > 0 && (
+      {/* Floorplan section — shows the per-room breakdown when room
+          extraction found rooms, and the "Open uploaded floorplan"
+          link any time we have an object key (so installers can
+          eyeball the original sketch even when room extraction
+          came back empty). Either condition opens the section. */}
+      {(rooms.length > 0 || floorplanObjectKey) && (
         <div className="mt-6 pt-5 border-t border-slate-100">
-          <Subhead>Per-room breakdown (from floorplan labels)</Subhead>
-          <div className="mt-2 overflow-x-auto rounded-lg border border-slate-200">
-            <table className="w-full text-sm">
-              <thead className="bg-slate-50 text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                <tr>
-                  <th className="text-left px-3 py-2">Room</th>
-                  <th className="text-left px-3 py-2">Floor</th>
-                  <th className="text-right px-3 py-2">m²</th>
-                  <th className="text-right px-3 py-2">sq ft</th>
-                  <th className="text-left px-3 py-2 hidden sm:table-cell">
-                    Label
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {rooms.map((r, i) => (
-                  <tr key={i} className="border-t border-slate-100">
-                    <td className="px-3 py-2 font-medium text-navy">
-                      {r.name}
-                    </td>
-                    <td className="px-3 py-2 text-slate-600 capitalize">
-                      {r.floor ?? "—"}
-                    </td>
-                    <td className="px-3 py-2 text-right tabular-nums">
-                      {r.sizeM2 != null ? r.sizeM2.toFixed(1) : "—"}
-                    </td>
-                    <td className="px-3 py-2 text-right tabular-nums">
-                      {r.sizeSqFt != null
-                        ? r.sizeSqFt.toLocaleString("en-GB")
-                        : "—"}
-                    </td>
-                    <td className="px-3 py-2 text-xs text-slate-500 hidden sm:table-cell font-mono">
-                      {r.dimensionsRaw ?? "—"}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="flex items-baseline justify-between gap-2 mb-2">
+            <Subhead>
+              {rooms.length > 0
+                ? "Per-room breakdown (from floorplan labels)"
+                : "Floorplan"}
+            </Subhead>
+            {floorplanObjectKey && (
+              <a
+                href={`/api/floorplan/image?key=${encodeURIComponent(floorplanObjectKey)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs font-semibold text-coral hover:text-coral-dark inline-flex items-center gap-1 print:hidden"
+              >
+                Open uploaded sketch ↗
+              </a>
+            )}
           </div>
+          {rooms.length > 0 ? (
+            <div className="mt-2 overflow-x-auto rounded-lg border border-slate-200">
+              <table className="w-full text-sm">
+                <thead className="bg-slate-50 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                  <tr>
+                    <th className="text-left px-3 py-2">Room</th>
+                    <th className="text-left px-3 py-2">Floor</th>
+                    <th className="text-right px-3 py-2">m²</th>
+                    <th className="text-right px-3 py-2">sq ft</th>
+                    <th className="text-left px-3 py-2 hidden sm:table-cell">
+                      Label
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rooms.map((r, i) => (
+                    <tr key={i} className="border-t border-slate-100">
+                      <td className="px-3 py-2 font-medium text-navy">
+                        {r.name}
+                      </td>
+                      <td className="px-3 py-2 text-slate-600 capitalize">
+                        {r.floor ?? "—"}
+                      </td>
+                      <td className="px-3 py-2 text-right tabular-nums">
+                        {r.sizeM2 != null ? r.sizeM2.toFixed(1) : "—"}
+                      </td>
+                      <td className="px-3 py-2 text-right tabular-nums">
+                        {r.sizeSqFt != null
+                          ? r.sizeSqFt.toLocaleString("en-GB")
+                          : "—"}
+                      </td>
+                      <td className="px-3 py-2 text-xs text-slate-500 hidden sm:table-cell font-mono">
+                        {r.dimensionsRaw ?? "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            // No rooms extracted — explain why so the installer doesn't
+            // assume the report is broken. The link in the heading
+            // above gets them to the original sketch.
+            <p className="text-xs text-slate-500 italic">
+              Per-room labels not extracted from this floorplan — open
+              the sketch for the original layout.
+            </p>
+          )}
           {floorplan?.metrics?.confidence && (
             <p className="text-[11px] text-slate-400 mt-2">
               Extraction confidence:{" "}
               <span className="font-semibold capitalize">
                 {floorplan.metrics.confidence}
               </span>
-              {floorplanObjectKey && (
-                <>
-                  {" · "}
-                  <a
-                    href={`/api/floorplan/image?key=${encodeURIComponent(floorplanObjectKey)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-coral hover:underline"
-                  >
-                    Open uploaded floorplan ↗
-                  </a>
-                </>
-              )}
             </p>
           )}
         </div>
@@ -850,6 +870,98 @@ function CostRow({
   );
 }
 
+// ─── EPC recommendations card ──────────────────────────────────────
+//
+// Improvement measures the assessor flagged at lodgement time, with
+// indicative cost + savings + post-improvement band. Useful as a
+// scope hint: "the assessor already said the loft + walls are
+// priorities" tells the installer where to look first on the visit.
+//
+// Three states:
+//   - found, with rows         → render the table
+//   - found, with []           → "no measures lodged"
+//   - null (call failed)       → render nothing (don't pretend)
+
+function EpcRecommendationsCard({ analysis }: { analysis: AnalyseResponse }) {
+  if (!analysis.epc.found) return null;
+  const recs = analysis.epc.recommendations;
+  // null = side-call failed; render nothing rather than a misleading
+  // "no recommendations" empty state.
+  if (recs == null) return null;
+
+  return (
+    <Section
+      title="EPC recommendations"
+      icon={<ListChecks className="w-4 h-4 text-coral-dark" />}
+    >
+      {recs.length === 0 ? (
+        <p className="text-sm text-slate-600">
+          No improvement measures lodged on this certificate.
+        </p>
+      ) : (
+        <div className="overflow-x-auto rounded-lg border border-slate-200">
+          <table className="w-full text-sm">
+            <thead className="bg-slate-50 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+              <tr>
+                <th className="text-left px-3 py-2 w-10">#</th>
+                <th className="text-left px-3 py-2">Improvement</th>
+                <th className="text-left px-3 py-2 hidden sm:table-cell">
+                  Indicative cost
+                </th>
+                <th className="text-left px-3 py-2 hidden sm:table-cell">
+                  Annual saving
+                </th>
+                <th className="text-left px-3 py-2 hidden lg:table-cell">
+                  Post-band
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {recs.map((r, i) => (
+                <tr key={i} className="border-t border-slate-100 align-top">
+                  <td className="px-3 py-2 font-mono text-slate-500">
+                    {r.improvementItem ?? i + 1}
+                  </td>
+                  <td className="px-3 py-2">
+                    <p className="font-medium text-navy">
+                      {r.improvementSummary}
+                    </p>
+                    {r.improvementDescription &&
+                      r.improvementDescription !== r.improvementSummary && (
+                        <p className="text-xs text-slate-500 mt-0.5 leading-snug">
+                          {r.improvementDescription}
+                        </p>
+                      )}
+                  </td>
+                  <td className="px-3 py-2 hidden sm:table-cell tabular-nums text-slate-700">
+                    {r.indicativeCost ?? "—"}
+                  </td>
+                  <td className="px-3 py-2 hidden sm:table-cell tabular-nums text-slate-700">
+                    {r.typicalSavingPerYear ?? "—"}
+                  </td>
+                  <td className="px-3 py-2 hidden lg:table-cell text-slate-700">
+                    {r.energyPerformanceBandImprovement ?? "—"}
+                    {r.energyPerformanceRatingImprovement != null && (
+                      <span className="text-slate-400 ml-1">
+                        ({r.energyPerformanceRatingImprovement})
+                      </span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <p className="text-[11px] text-slate-400 mt-3">
+        Sourced from EPC Register — measures the assessor flagged at
+        certificate lodgement. Indicative figures only; the on-site
+        survey is the source of truth for scope + cost.
+      </p>
+    </Section>
+  );
+}
+
 // ─── Heating systems card ──────────────────────────────────────────
 //
 // Pulls every heating / hot water / lighting field out of the EPC.
@@ -918,6 +1030,20 @@ function HeatingSystemsCard({ analysis }: { analysis: AnalyseResponse }) {
                   rating={epc.hotWaterEnergyEff}
                 />
               </Dd>
+              {/* Secondary heat: open fires + electric heaters etc.
+                  Surfaced because heat-pump sizing has to account for
+                  shoulder-season demand the secondary system covers
+                  today. "None" rather than "—" when EPC has the
+                  field but the home has no secondary heat. */}
+              <Dt>Secondary heat</Dt>
+              <Dd>{epc.secondaryHeatingDescription ?? "None"}</Dd>
+              {/* Open fireplaces + chimneys — relevant for ventilation
+                  losses. Most installers will want to recommend
+                  capping unused chimneys before commissioning. */}
+              <Dt>Open fireplaces</Dt>
+              <Dd>{epc.numberOpenFireplaces ?? 0}</Dd>
+              <Dt>Open chimneys</Dt>
+              <Dd>{epc.numberOpenChimneys ?? 0}</Dd>
             </Dl>
           </div>
         )}

@@ -6,6 +6,7 @@ import {
   epcSearchRowFromRaw,
   type EpcByAddressResponse,
   type EpcCertificate,
+  type EpcRecommendation,
   type EpcSearchRow,
 } from "@/lib/schemas/epc";
 
@@ -493,13 +494,29 @@ async function fetchCertificate(certificateNumber: string): Promise<EpcCertifica
 
     // ── Heating ─────────────────────────────────────────────────────
     mainFuel: unwrapValueLike(raw.main_fuel),
-    mainHeatingDescription: unwrapValueLike(raw.main_heating_description),
+    mainHeatingDescription: pickFirst(
+      unwrapValueLike(raw.main_heating_description),
+      unwrapValueLike(raw.mainheat_description),
+    ),
     mainHeatingEnergyEff: unwrapValueLike(raw.mainheat_energy_eff),
     mainHeatingControlsDescription: unwrapValueLike(raw.mainheatcont_description),
     mainHeatingControlsEnergyEff: unwrapValueLike(raw.mainheatcont_energy_eff),
     hotWaterDescription: unwrapValueLike(raw.hot_water_description),
     hotWaterEnergyEff: unwrapValueLike(raw.hot_water_energy_eff),
     mainsGasFlag: unwrapValueLike(raw.mains_gas_flag),
+
+    // ── Secondary heating + open chimneys/fireplaces ────────────────
+    secondaryHeatingDescription: pickFirst(
+      unwrapValueLike(raw.secondheat_description),
+      unwrapValueLike(raw.secondary_heating_description),
+      unwrapValueLike(raw.main_heating_2_description),
+    ),
+    numberOpenFireplaces: unwrapNumberLike(
+      raw.number_open_fireplaces ?? raw.open_fireplaces_count,
+    ),
+    numberOpenChimneys: unwrapNumberLike(
+      raw.number_open_chimneys ?? raw.open_chimneys_count,
+    ),
 
     // ── Fabric + glazing ────────────────────────────────────────────
     wallsDescription: unwrapValueLike(raw.walls_description),
@@ -617,6 +634,12 @@ function certFromRow(row: EpcSearchRow): EpcCertificate {
     hotWaterDescription: null,
     hotWaterEnergyEff: null,
     mainsGasFlag: null,
+
+    // Secondary heating + open fires/chimneys live only on the
+    // detail endpoint, so the search-row fallback null-fills them.
+    secondaryHeatingDescription: null,
+    numberOpenFireplaces: null,
+    numberOpenChimneys: null,
 
     wallsDescription: null,
     wallsEnergyEff: null,
@@ -813,13 +836,151 @@ async function resolveEpcUncached(input: GetEpcInput): Promise<EpcByAddressRespo
   }
   if (!cert) cert = certFromRow(best);
 
+  // Pull improvement recommendations off the side endpoint. Best-
+  // effort: a failure here doesn't fail the EPC lookup. Returns
+  // null when the call errors so downstream renderers can show a
+  // "couldn't load recommendations" hint vs an empty array (cert
+  // genuinely had none lodged). Cached separately under its own
+  // namespace so swap-out is independent of the cert cache.
+  const recommendations = await fetchRecommendations(best.certificateNumber);
+
   return {
     found: true,
     matchMethod,
     certificate: cert,
     registrationDate: cert.registrationDate ?? best.registrationDate ?? "",
     ageYears: yearsBetween(cert.registrationDate ?? best.registrationDate ?? null),
+    recommendations,
   };
+}
+
+/**
+ * GOV.UK recommendations endpoint — improvement measures the assessor
+ * flagged on the cert. Each row carries an indicative cost band, a
+ * predicted band-rating uplift, and a typical annual savings band.
+ *
+ * Returns null on error (so the caller can render "couldn't load")
+ * vs [] when the API succeeds with no recommendations.
+ */
+async function fetchRecommendations(
+  certificateNumber: string,
+): Promise<EpcRecommendation[] | null> {
+  const cached = await cacheGet<EpcRecommendation[]>(
+    "epc:recs-v1",
+    certificateNumber,
+  );
+  if (cached) return cached;
+
+  const url = new URL(`${EPC_BASE}/api/domestic/recommendations`);
+  url.searchParams.set("certificate_number", certificateNumber);
+
+  let res: Response;
+  try {
+    res = await fetch(url.toString(), { headers: authHeaders() });
+  } catch (err) {
+    console.warn("[epc] recommendations fetch failed (network)", {
+      certificateNumber,
+      err: err instanceof Error ? err.message : err,
+    });
+    return null;
+  }
+
+  if (res.status === 404) {
+    // No recommendations lodged — cache empty array to skip the
+    // round-trip on repeat lookups.
+    await cacheSet("epc:recs-v1", certificateNumber, [], TTL_SECONDS);
+    return [];
+  }
+  if (!res.ok) {
+    console.warn("[epc] recommendations endpoint non-OK", {
+      certificateNumber,
+      status: res.status,
+    });
+    return null;
+  }
+
+  let json: unknown;
+  try {
+    json = await res.json();
+  } catch (err) {
+    console.warn("[epc] recommendations JSON parse failed", {
+      certificateNumber,
+      err: err instanceof Error ? err.message : err,
+    });
+    return null;
+  }
+
+  // Same envelope strangeness as the cert endpoint: API has shipped
+  // both `{ data: [...] }` and bare arrays. Normalise.
+  const normalised = camelToSnakeKeys(json);
+  let rows: unknown[] = [];
+  if (Array.isArray(normalised)) {
+    rows = normalised;
+  } else if (
+    normalised &&
+    typeof normalised === "object" &&
+    "data" in normalised &&
+    Array.isArray((normalised as { data: unknown }).data)
+  ) {
+    rows = (normalised as { data: unknown[] }).data;
+  } else {
+    console.warn("[epc] recommendations: unexpected envelope", {
+      certificateNumber,
+      keys:
+        normalised && typeof normalised === "object"
+          ? Object.keys(normalised as object)
+          : typeof normalised,
+    });
+    return null;
+  }
+
+  const out: EpcRecommendation[] = rows.flatMap((r) => {
+    if (!r || typeof r !== "object") return [];
+    const row = r as Record<string, unknown>;
+    const summary =
+      unwrapValueLike(row.improvement_summary) ??
+      unwrapValueLike(row.improvement_summary_text) ??
+      unwrapValueLike(row.improvement_description_text);
+    if (!summary) return [];
+    return [
+      {
+        improvementSummary: summary,
+        improvementDescription: unwrapValueLike(
+          row.improvement_description ??
+            row.improvement_description_text ??
+            row.improvement_long_description,
+        ),
+        improvementItem: unwrapNumberLike(
+          row.improvement_item ?? row.improvement_number,
+        ),
+        indicativeCost: unwrapValueLike(row.indicative_cost),
+        typicalSavingPerYear: unwrapValueLike(
+          row.typical_saving_per_year ?? row.indicative_savings,
+        ),
+        energyPerformanceRatingImprovement: unwrapNumberLike(
+          row.energy_performance_rating_improvement,
+        ),
+        energyPerformanceBandImprovement: unwrapValueLike(
+          row.energy_performance_band_improvement,
+        ),
+        environmentalImpactRatingImprovement: unwrapNumberLike(
+          row.environmental_impact_rating_improvement,
+        ),
+        greenDealCategoryCode: unwrapValueLike(row.green_deal_category_code),
+      },
+    ];
+  });
+
+  // Sort by improvementItem (lower = higher priority). Rows with no
+  // item number sort to the end.
+  out.sort((a, b) => {
+    const ai = a.improvementItem ?? Number.POSITIVE_INFINITY;
+    const bi = b.improvementItem ?? Number.POSITIVE_INFINITY;
+    return ai - bi;
+  });
+
+  await cacheSet("epc:recs-v1", certificateNumber, out, TTL_SECONDS);
+  return out;
 }
 
 /**

@@ -163,15 +163,30 @@ export const EpcCertificateRawSchema = z
     number_heated_rooms: u,
     heated_room_count: u, // newer alias
 
-    // Heating
+    // Heating — primary
     main_fuel: u,
     main_heating_description: u,
+    mainheat_description: u, // newer alias
     mainheat_energy_eff: u,
     mainheatcont_description: u,
     mainheatcont_energy_eff: u,
     hot_water_description: u,
     hot_water_energy_eff: u,
     mains_gas_flag: u,
+
+    // Heating — secondary (open fires, electric heaters etc).
+    // Surfaced for installers because secondary heat affects sizing
+    // (it covers shoulder demand the heat pump won't have to).
+    secondheat_description: u,
+    secondary_heating_description: u, // older alias
+    main_heating_2_description: u, // alternate spelling
+
+    // Combustion + ventilation features that affect heat-loss
+    // calculations + heat-pump install scope.
+    number_open_fireplaces: u,
+    open_fireplaces_count: u, // newer alias
+    number_open_chimneys: u,
+    open_chimneys_count: u, // newer alias
 
     // Fabric + glazing
     walls_description: u,
@@ -286,6 +301,13 @@ export const EpcCertificateSchema = z.object({
   hotWaterEnergyEff: z.string().nullable(),
   mainsGasFlag: z.string().nullable(),
 
+  // Secondary heating + air paths — relevant for heat-loss calcs
+  // and BUS scope (open fires increase ventilation losses; secondary
+  // heat shifts how much demand the heat pump has to cover).
+  secondaryHeatingDescription: z.string().nullable(),
+  numberOpenFireplaces: z.number().nullable(),
+  numberOpenChimneys: z.number().nullable(),
+
   // Fabric + glazing
   wallsDescription: z.string().nullable(),
   wallsEnergyEff: z.string().nullable(),
@@ -343,6 +365,33 @@ export function epcCertificateUrl(certificateNumber: string): string {
   return `https://find-energy-certificate.service.gov.uk/energy-certificate/${certificateNumber}`;
 }
 
+// EPC improvement recommendations — surfaced from the GOV.UK
+// recommendations endpoint. Each row is one suggested measure
+// the assessor flagged at inspection time, with an indicative cost
+// + savings band. Useful to installers because it tells them which
+// fabric upgrades the homeowner has already been advised to pursue.
+export const EpcRecommendationSchema = z.object({
+  // Free-text label, e.g. "Internal or external wall insulation".
+  improvementSummary: z.string(),
+  // Longer description from the certificate, sometimes ships as a
+  // sub-heading or empty string. Kept distinct from the summary so
+  // we can choose which to render based on length.
+  improvementDescription: z.string().nullable(),
+  // 1 = highest priority, ascending. The API returns this as a
+  // string in some envelopes; we coerce.
+  improvementItem: z.number().nullable(),
+  // Indicative cost + savings — both can be free-text bands like
+  // "£500 - £1,500" so we keep them as strings.
+  indicativeCost: z.string().nullable(),
+  typicalSavingPerYear: z.string().nullable(),
+  // Predicted post-improvement rating + band, when available.
+  energyPerformanceRatingImprovement: z.number().nullable(),
+  energyPerformanceBandImprovement: z.string().nullable(),
+  environmentalImpactRatingImprovement: z.number().nullable(),
+  greenDealCategoryCode: z.string().nullable(),
+});
+export type EpcRecommendation = z.infer<typeof EpcRecommendationSchema>;
+
 // Shape returned by /api/epc/by-address
 export const EpcByAddressResponseSchema = z.union([
   z.object({
@@ -351,6 +400,12 @@ export const EpcByAddressResponseSchema = z.union([
     certificate: EpcCertificateSchema,
     registrationDate: z.string(),
     ageYears: z.number().nullable(),
+    // Optional — populated when the recommendations endpoint also
+    // returned data for this cert. Empty array when the API call
+    // succeeded but the cert has no recommendations on file.
+    // Absent when the recommendations fetch failed (we keep going
+    // rather than fail the whole EPC lookup over a side-call).
+    recommendations: z.array(EpcRecommendationSchema).nullable().optional(),
   }),
   z.object({ found: z.literal(false), reason: z.string() }),
 ]);
