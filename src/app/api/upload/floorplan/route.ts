@@ -115,15 +115,57 @@ export async function POST(req: Request): Promise<NextResponse<UploadOk | Upload
 
   if (insertErr || !row) {
     console.error("[upload/floorplan] row insert failed", insertErr);
+    // Surface the underlying message so missing-table /
+    // missing-column errors are diagnosable in the browser without
+    // having to grep Vercel logs. Postgres errors are operator-
+    // facing and don't leak user data.
     return NextResponse.json<UploadFail>(
-      { ok: false, error: "Database error — try again." },
+      {
+        ok: false,
+        error: insertErr?.message
+          ? `Database error: ${insertErr.message}`
+          : "Database error — try again.",
+      },
       { status: 500 },
     );
   }
 
   // 3. Run the extract. This is the slow leg (~15-25s Sonnet
-  //    vision). Caller blocks; spec target is ~30s end-to-end.
-  const result = await extractFloorplan({ imageBytes: bytes, mimeType: mime });
+  //    vision). Wrapped in try/catch because the Anthropic SDK
+  //    throws on rate limits, invalid models, image-too-large
+  //    rejections etc. — without the catch, those throws hit our
+  //    Next.js error boundary as a generic 500 and the dropzone
+  //    can't tell the user anything useful.
+  let result;
+  try {
+    result = await extractFloorplan({
+      imageBytes: bytes,
+      mimeType: mime,
+    });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error("[upload/floorplan] extract threw", { uploadId: row.id, msg });
+    await admin
+      .from("floorplan_uploads")
+      .update({
+        status: "failed",
+        failure_reason: `Extract threw: ${msg}`.slice(0, 4000),
+        completed_at: new Date().toISOString(),
+      })
+      .eq("id", row.id);
+    return NextResponse.json<UploadFail>(
+      {
+        ok: false,
+        id: row.id,
+        status: "failed",
+        // Surface the actual SDK message — installer/admin will see
+        // 'rate limit' / 'invalid model' / 'image too large' etc.
+        // rather than the unhelpful generic 500.
+        error: `Vision extract failed: ${msg}`,
+      },
+      { status: 502 },
+    );
+  }
 
   // 4. Update the row with the outcome. Either way write the model
   //    + token attribution so the cost-rates dashboard can read

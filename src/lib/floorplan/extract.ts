@@ -29,7 +29,10 @@ import {
 // Opus, and the extraction is a structured-output task that doesn't
 // stretch model reasoning. If you bump this, also bump the model
 // constant in tests/fixtures + cost-rates.ts.
-const MODEL = "claude-sonnet-4-7";
+//
+// Note: 4-6 is the current Sonnet identifier (Feb 2026 release).
+// Sonnet 4-7 doesn't exist — Anthropic skipped that suffix.
+const MODEL = "claude-sonnet-4-6";
 
 /** Hard ceiling on output tokens. The schema is dense (~150 fields,
  *  prose explanations, recommendations array). Generous bound, but

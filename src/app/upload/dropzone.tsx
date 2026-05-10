@@ -141,18 +141,29 @@ export function UploadDropzone() {
         return;
       }
 
-      const data = (await res.json().catch(() => ({}))) as
+      // Read the body as text first so we can surface both JSON
+      // errors AND the raw text from upstream (Vercel runtime, etc.)
+      // when the response isn't JSON. The previous body.json().catch(...)
+      // dropped that text on the floor.
+      const rawText = await res.text();
+      let data:
         | { ok: true; id: string }
-        | { ok: false; error: string; id?: string };
+        | { ok: false; error: string; id?: string }
+        | null = null;
+      try {
+        data = JSON.parse(rawText);
+      } catch {
+        data = null;
+      }
 
-      if (!res.ok || !data.ok) {
-        setState({
-          kind: "error",
-          message:
-            "error" in data
-              ? data.error
-              : `Upload failed (${res.status})`,
-        });
+      if (!res.ok || !data || !data.ok) {
+        const surface =
+          data && "error" in data && data.error
+            ? data.error
+            : rawText.trim().length > 0
+              ? `Upload failed (${res.status}): ${rawText.slice(0, 400)}`
+              : `Upload failed (${res.status})`;
+        setState({ kind: "error", message: surface });
         URL.revokeObjectURL(previewUrl);
         return;
       }
