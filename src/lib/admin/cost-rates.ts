@@ -68,9 +68,10 @@ export interface CostRates {
 }
 
 /**
- * Defaults — kept as a constant so they're trivially diff-able in
- * code review when prices change. In future we can move these to
- * admin_settings rows so finance can tweak without a deploy.
+ * Defaults — fall-backs when the matching admin_settings row is
+ * absent. Override per-rate at /admin/settings/cost-rates; the
+ * P&L summariser reads admin_settings first and only uses these
+ * when no row exists for a given key.
  */
 export const DEFAULT_COST_RATES: CostRates = {
   claude_per_completed_check: 4, // 4p
@@ -84,6 +85,80 @@ export const DEFAULT_COST_RATES: CostRates = {
 };
 
 /**
+ * Prefix used for the rate keys in public.admin_settings. Keeps the
+ * settings table tidy when other admin features add their own keys.
+ *
+ * Example: rate `claude_per_completed_check` is stored under
+ *   admin_settings.key = 'cost_rate.claude_per_completed_check'.
+ */
+export const COST_RATE_KEY_PREFIX = "cost_rate.";
+
+/**
+ * Hint copy shown next to each rate input so finance knows what
+ * the number drives and what the unit is. Kept here (not the form)
+ * so labels + hints stay co-located with the rate definitions.
+ */
+/**
+ * Read rates from public.admin_settings, falling back to
+ * DEFAULT_COST_RATES per-key when no row exists. Use this in any
+ * server-side code that needs the live rates (P&L summariser,
+ * settings form initial values).
+ *
+ * Each key persists as `cost_rate.<field>` so we can spot them
+ * easily in the settings table + so other features adding their
+ * own admin_settings rows don't accidentally collide.
+ */
+export async function loadCostRates(
+  admin: import("@supabase/supabase-js").SupabaseClient<
+    import("@/types/database").Database
+  >,
+): Promise<CostRates> {
+  const { data, error } = await admin
+    .from("admin_settings")
+    .select("key, value")
+    .like("key", `${COST_RATE_KEY_PREFIX}%`);
+  if (error) {
+    console.warn("[cost-rates] load failed, using defaults", error);
+    return { ...DEFAULT_COST_RATES };
+  }
+
+  const overrides: Partial<CostRates> = {};
+  for (const row of data ?? []) {
+    if (!row.key || !row.key.startsWith(COST_RATE_KEY_PREFIX)) continue;
+    const field = row.key.slice(COST_RATE_KEY_PREFIX.length) as keyof CostRates;
+    if (!(field in DEFAULT_COST_RATES)) continue;
+    const v =
+      typeof row.value === "number"
+        ? row.value
+        : Number(row.value);
+    if (Number.isFinite(v) && v >= 0) {
+      overrides[field] = v;
+    }
+  }
+
+  return { ...DEFAULT_COST_RATES, ...overrides };
+}
+
+export const COST_LINE_HINTS: Record<keyof CostRates, string> = {
+  claude_per_completed_check:
+    "Pence per completed check. Covers bill parsing + floorplan vision + placements.",
+  solar_per_completed_check:
+    "Pence per completed check. Google Solar buildingInsights call (cached 30d).",
+  static_maps_per_completed_check:
+    "Pence per completed check. Free up to 28K req/mo, then $2/1k.",
+  postcoder_per_check_started:
+    "Pence per check started. Postcoder address-list lookup at step 1.",
+  resend_per_email:
+    "Pence per email. Free up to 3K/mo, then ~$20 / 50K.",
+  stripe_pct_bps:
+    "Basis points of revenue. 150 = 1.5%. UK standard plan.",
+  stripe_per_txn_pence:
+    "Pence per paid transaction. Added on top of the percentage.",
+  fixed_monthly_pence:
+    "Pence per month, pro-rated to the dashboard's date range. Vercel + Supabase + Resend baseline.",
+};
+
+/**
  * Friendly labels for the per-line breakdown render. Order matters
  * — this is the row order in the P&L card too.
  */
@@ -94,6 +169,7 @@ export const COST_LINE_ORDER: (keyof CostRates)[] = [
   "static_maps_per_completed_check",
   "resend_per_email",
   "stripe_pct_bps",
+  "stripe_per_txn_pence",
   "fixed_monthly_pence",
 ];
 

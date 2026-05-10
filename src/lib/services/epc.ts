@@ -86,6 +86,15 @@ function unwrapCertEnvelope(input: unknown): unknown {
   // Already looks like a cert.
   if ("certificate_number" in obj) return obj;
 
+  // New EPC API envelope: { body: { data: {...} } }. The `body`
+  // wrapper appeared with the v3 endpoint refresh — older responses
+  // shipped { data: {...} } directly. Peel `body` first and let the
+  // rest of the chain handle the now-unwrapped layer.
+  if ("body" in obj && obj.body && typeof obj.body === "object") {
+    const peeled = unwrapCertEnvelope(obj.body);
+    if (peeled) return peeled;
+  }
+
   // { data: {...} } or { data: [...] }
   if ("data" in obj) {
     const inner = obj.data;
@@ -102,12 +111,20 @@ function unwrapCertEnvelope(input: unknown): unknown {
 
   // Last-ditch: maybe the cert fields are at the top level mixed with
   // envelope fields. If we see at least one cert-style key, return as-is.
+  // Added the v3 nested-shape hints (walls / roofs / main_heating)
+  // so a body-stripped { walls: [...], roofs: [...], ... } payload
+  // still gets recognised as a cert.
   const certKeyHints = [
+    "certificate_number",
     "current_energy_efficiency_band",
     "potential_energy_efficiency_band",
     "current_energy_efficiency_rating",
     "uprn",
     "address_line_1",
+    "walls",
+    "roofs",
+    "main_heating",
+    "dwelling_type",
   ];
   if (certKeyHints.some((k) => k in obj)) return obj;
 
@@ -403,7 +420,7 @@ async function searchByPostcode(postcode: string): Promise<EpcSearchRow[]> {
 }
 
 async function fetchCertificate(certificateNumber: string): Promise<EpcCertificate | null> {
-  const cached = await cacheGet<EpcCertificate>("epc:cert-v5", certificateNumber);
+  const cached = await cacheGet<EpcCertificate>("epc:cert-v6", certificateNumber);
   if (cached) return cached;
 
   const url = new URL(`${EPC_BASE}/api/certificate`);
@@ -727,7 +744,7 @@ async function fetchCertificate(certificateNumber: string): Promise<EpcCertifica
     ),
   };
 
-  await cacheSet("epc:cert-v5", certificateNumber, normalised, TTL_SECONDS);
+  await cacheSet("epc:cert-v6", certificateNumber, normalised, TTL_SECONDS);
   return normalised;
 }
 
@@ -873,13 +890,13 @@ function epcCacheKey(input: GetEpcInput): string | null {
  * fields are present.
  *
  * The whole result is cached for 30 days (7 on miss) in api_cache under
- * namespace "epc:by-address-v5". This means re-analysing the same property
+ * namespace "epc:by-address-v6". This means re-analysing the same property
  * skips the upstream UPRN/postcode search + detail fetch entirely.
  */
 export async function getEpc(input: GetEpcInput): Promise<EpcByAddressResponse> {
   const ck = epcCacheKey(input);
   if (ck) {
-    const cached = await cacheGet<EpcByAddressResponse>("epc:by-address-v5", ck);
+    const cached = await cacheGet<EpcByAddressResponse>("epc:by-address-v6", ck);
     if (cached) return cached;
   }
 
@@ -887,7 +904,7 @@ export async function getEpc(input: GetEpcInput): Promise<EpcByAddressResponse> 
 
   if (ck) {
     const ttl = result.found ? TTL_SECONDS : MISS_TTL_SECONDS;
-    await cacheSet("epc:by-address-v5", ck, result, ttl);
+    await cacheSet("epc:by-address-v6", ck, result, ttl);
   }
   return result;
 }

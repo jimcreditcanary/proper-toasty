@@ -617,10 +617,13 @@ function PlCard({ pl }: { pl: PlSummary }) {
         )}
         <p className="mt-4 text-[11px] text-slate-400 leading-relaxed">
           V1 estimate — costs derived from existing usage counts ×
-          per-unit rates configured in
-          <code className="mx-1 px-1 py-0.5 rounded bg-slate-100 text-[10px]">
-            src/lib/admin/cost-rates.ts
-          </code>
+          per-unit rates editable at{" "}
+          <Link
+            href="/admin/settings/cost-rates"
+            className="text-coral hover:text-coral-dark font-semibold"
+          >
+            Settings → Cost rates
+          </Link>
           . Per-call ledger is the precision upgrade. Fixed hosting
           line is pro-rated to the {pl.quantities.daysInRange}-day
           window.

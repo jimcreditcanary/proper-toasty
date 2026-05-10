@@ -21,7 +21,7 @@ import type { DateRange } from "./metrics";
 import {
   COST_LINE_LABELS,
   COST_LINE_ORDER,
-  DEFAULT_COST_RATES,
+  loadCostRates,
   type CostRates,
 } from "./cost-rates";
 
@@ -75,9 +75,15 @@ function daysInRange(range: DateRange): number {
 
 export async function loadPlSummary(
   range: DateRange,
-  rates: CostRates = DEFAULT_COST_RATES,
+  rates?: CostRates,
 ): Promise<PlSummary> {
   const admin = createAdminClient();
+  // Default: pull live overrides from admin_settings, falling back
+  // to DEFAULT_COST_RATES per-key. Caller can pass `rates` to bypass
+  // the DB read (useful for testing + for places that already loaded
+  // the rates upstream).
+  const effectiveRates: CostRates =
+    rates ?? (await loadCostRates(admin));
 
   // Helper for date-range filters (mirrors metrics.ts inRange).
   const inRange = <T>(q: T, column: string): T => {
@@ -177,40 +183,40 @@ export async function loadPlSummary(
       key: "claude_per_completed_check",
       label: COST_LINE_LABELS.claude_per_completed_check,
       qtyLabel: `${completedChecks.toLocaleString("en-GB")} completed checks`,
-      pence: completedChecks * rates.claude_per_completed_check,
+      pence: completedChecks * effectiveRates.claude_per_completed_check,
     },
     solar_per_completed_check: {
       key: "solar_per_completed_check",
       label: COST_LINE_LABELS.solar_per_completed_check,
       qtyLabel: `${completedChecks.toLocaleString("en-GB")} completed checks`,
-      pence: completedChecks * rates.solar_per_completed_check,
+      pence: completedChecks * effectiveRates.solar_per_completed_check,
     },
     static_maps_per_completed_check: {
       key: "static_maps_per_completed_check",
       label: COST_LINE_LABELS.static_maps_per_completed_check,
       qtyLabel: `${completedChecks.toLocaleString("en-GB")} completed checks`,
       pence:
-        completedChecks * rates.static_maps_per_completed_check,
+        completedChecks * effectiveRates.static_maps_per_completed_check,
     },
     postcoder_per_check_started: {
       key: "postcoder_per_check_started",
       label: COST_LINE_LABELS.postcoder_per_check_started,
       qtyLabel: `${startedChecks.toLocaleString("en-GB")} checks started`,
-      pence: startedChecks * rates.postcoder_per_check_started,
+      pence: startedChecks * effectiveRates.postcoder_per_check_started,
     },
     resend_per_email: {
       key: "resend_per_email",
       label: COST_LINE_LABELS.resend_per_email,
       qtyLabel: `${emailsSent.toLocaleString("en-GB")} emails sent`,
-      pence: emailsSent * rates.resend_per_email,
+      pence: emailsSent * effectiveRates.resend_per_email,
     },
     stripe_pct_bps: {
       key: "stripe_pct_bps",
       label: COST_LINE_LABELS.stripe_pct_bps,
       qtyLabel: `${paidPurchases.toLocaleString("en-GB")} paid txns`,
       pence:
-        Math.round((revenuePence * rates.stripe_pct_bps) / 10_000) +
-        paidPurchases * rates.stripe_per_txn_pence,
+        Math.round((revenuePence * effectiveRates.stripe_pct_bps) / 10_000) +
+        paidPurchases * effectiveRates.stripe_per_txn_pence,
     },
     stripe_per_txn_pence: {
       // Folded into stripe_pct_bps above so we don't render twice.
@@ -223,7 +229,7 @@ export async function loadPlSummary(
       key: "fixed_monthly_pence",
       label: COST_LINE_LABELS.fixed_monthly_pence,
       qtyLabel: `${days.toLocaleString("en-GB")} day${days === 1 ? "" : "s"} pro-rated`,
-      pence: Math.round((rates.fixed_monthly_pence * days) / 30),
+      pence: Math.round((effectiveRates.fixed_monthly_pence * days) / 30),
     },
   };
 
