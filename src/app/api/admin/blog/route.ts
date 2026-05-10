@@ -42,6 +42,14 @@ export async function POST(request: NextRequest) {
       content: body.content || "",
       category: body.category || "Guides",
       author: body.author || "WhoAmIPaying",
+      // cover_image is optional — null when admin left it blank.
+      // Stored verbatim; the blog index + detail pages decide
+      // whether to render the <img>. Trim to avoid leading-space
+      // URLs that fail validation.
+      cover_image:
+        typeof body.coverImage === "string" && body.coverImage.trim()
+          ? body.coverImage.trim()
+          : null,
       published: body.published ?? false,
       published_at: body.published ? new Date().toISOString() : null,
     });
@@ -84,6 +92,13 @@ export async function PUT(request: NextRequest) {
       published: body.published,
       updated_at: new Date().toISOString(),
     };
+
+    // Cover image — only update when the field is present in the
+    // payload. The toggle-publish handler sends a stripped body and
+    // we don't want it accidentally clearing the image.
+    if (typeof body.coverImage === "string") {
+      update.cover_image = body.coverImage.trim() || null;
+    }
 
     // Only update content if provided (toggle publish sends empty content)
     if (body.content) {

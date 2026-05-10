@@ -39,7 +39,7 @@ export async function GET(
   const { id } = await params;
 
   const { data, error } = await blogTable(admin)
-    .select("content")
+    .select("content, cover_image")
     .eq("id", id)
     .single();
 
@@ -47,7 +47,10 @@ export async function GET(
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  return NextResponse.json({ content: data.content });
+  return NextResponse.json({
+    content: data.content,
+    cover_image: data.cover_image ?? null,
+  });
 }
 
 // DELETE post

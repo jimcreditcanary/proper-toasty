@@ -76,13 +76,19 @@ export async function loadInstallerDashboardMetrics(
       .select("id", { count: "exact", head: true })
       .eq("installer_id", installerId)
       .gte("created_at", monthStart),
-    // Quotes sent this month.
+    // Quotes sent this month — counted by sent_at regardless of
+    // current status, so a quote sent then accepted/declined still
+    // shows up. The previous .eq("status", "sent") filter caused the
+    // dashboard tile to drift out of sync with the Performance page,
+    // which uses the same definition (sent_at within window). The
+    // pipeline-value tile below is the right place to reflect
+    // "currently outstanding" — this tile is "activity this month".
     admin
       .from("installer_proposals")
       .select("id", { count: "exact", head: true })
       .eq("installer_id", installerId)
-      .eq("status", "sent")
-      .gte("sent_at", monthStart),
+      .gte("sent_at", monthStart)
+      .not("sent_at", "is", null),
     // Outstanding pipeline £ — every quote currently in 'sent' status.
     // Pull rows so we can sum total_pence; PostgREST doesn't expose a
     // SUM aggregator without a view.

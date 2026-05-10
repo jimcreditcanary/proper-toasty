@@ -8,9 +8,10 @@
 
 import Link from "next/link";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 import { PortalShell } from "@/components/portal-shell";
+import { UserRowActions } from "./row-actions";
 import {
-  ArrowRight,
   Ban,
   Coins,
   CreditCard,
@@ -134,6 +135,14 @@ export default async function UsersPage({ searchParams }: PageProps) {
   const blocked: "all" | "blocked" | "active" =
     params.blocked === "blocked" ? "blocked" : params.blocked === "active" ? "active" : "all";
 
+  // Pull viewer id so the row-actions component can disable
+  // self-block / self-demote without an extra round-trip per row.
+  const supabase = await createClient();
+  const {
+    data: { user: viewer },
+  } = await supabase.auth.getUser();
+  const viewerId = viewer?.id ?? null;
+
   const rows = await loadUsers({ q, role, blocked });
 
   return (
@@ -238,48 +247,67 @@ export default async function UsersPage({ searchParams }: PageProps) {
         <ul className="space-y-2">
           {rows.map((u) => (
             <li key={u.id}>
-              <Link
-                href={`/admin/users/${u.id}`}
-                className="flex items-start gap-3 p-4 rounded-xl bg-white border border-slate-200 hover:border-coral/40 hover:shadow-sm transition-all"
-              >
-                <RoleAvatar role={u.role} />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-semibold text-navy truncate">
-                      {u.email || "(no email)"}
-                    </span>
-                    <RoleBadge role={u.role} />
-                    {u.blocked && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800">
-                        <Ban className="w-3 h-3" />
-                        Blocked
+              {/* The row body is a Link to the detail page (same as
+                  before); the action menu sits on the right and
+                  stops-propagation on its own clicks so picking an
+                  action doesn't navigate. Wrapping the whole li in
+                  a Link wouldn't allow the embedded buttons to work,
+                  so we use a positioned-relative container with the
+                  Link as the body. */}
+              <div className="relative">
+                <Link
+                  href={`/admin/users/${u.id}`}
+                  className="flex items-start gap-3 p-4 pr-14 rounded-xl bg-white border border-slate-200 hover:border-coral/40 hover:shadow-sm transition-all"
+                >
+                  <RoleAvatar role={u.role} />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-semibold text-navy truncate">
+                        {u.email || "(no email)"}
                       </span>
-                    )}
-                  </div>
-                  <div className="text-xs text-slate-600 mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5">
-                    <span className="inline-flex items-center gap-1">
-                      <Coins className="w-3 h-3" />
-                      {u.credits} credit{u.credits === 1 ? "" : "s"}
-                    </span>
-                    <span>
-                      {u.check_count} report{u.check_count === 1 ? "" : "s"}
-                    </span>
-                    {u.stripe_customer_id && (
-                      <span
-                        className="inline-flex items-center gap-1 text-emerald-700"
-                        title={u.stripe_customer_id}
-                      >
-                        <CreditCard className="w-3 h-3" />
-                        Stripe customer
+                      <RoleBadge role={u.role} />
+                      {u.blocked && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800">
+                          <Ban className="w-3 h-3" />
+                          Blocked
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-xs text-slate-600 mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5">
+                      <span className="inline-flex items-center gap-1">
+                        <Coins className="w-3 h-3" />
+                        {u.credits} credit{u.credits === 1 ? "" : "s"}
                       </span>
-                    )}
+                      <span>
+                        {u.check_count} report{u.check_count === 1 ? "" : "s"}
+                      </span>
+                      {u.stripe_customer_id && (
+                        <span
+                          className="inline-flex items-center gap-1 text-emerald-700"
+                          title={u.stripe_customer_id}
+                        >
+                          <CreditCard className="w-3 h-3" />
+                          Stripe customer
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-slate-400 mt-0.5">
+                      Joined {formatDate(u.created_at)}
+                    </p>
                   </div>
-                  <p className="text-[11px] text-slate-400 mt-0.5">
-                    Joined {formatDate(u.created_at)}
-                  </p>
+                </Link>
+                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                  <UserRowActions
+                    userId={u.id}
+                    email={u.email || u.id}
+                    currentRole={
+                      (u.role as "admin" | "user" | "installer") ?? "user"
+                    }
+                    blocked={u.blocked}
+                    isSelf={viewerId === u.id}
+                  />
                 </div>
-                <ArrowRight className="shrink-0 w-4 h-4 text-slate-400 mt-1" />
-              </Link>
+              </div>
             </li>
           ))}
         </ul>

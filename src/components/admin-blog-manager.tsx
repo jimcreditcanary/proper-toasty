@@ -22,6 +22,7 @@ type BlogPost = {
   excerpt: string;
   category: string;
   author: string;
+  cover_image: string | null;
   published: boolean;
   published_at: string | null;
   created_at: string;
@@ -36,6 +37,10 @@ type EditorState = {
   content: string;
   category: string;
   author: string;
+  // URL of the hero image rendered above the post + on the index
+  // grid card. Free-text URL for now (paste from anywhere — Unsplash,
+  // CDN, your own bucket); a proper file-upload bucket comes later.
+  coverImage: string;
   published: boolean;
 };
 
@@ -54,6 +59,7 @@ const EMPTY_EDITOR: EditorState = {
   content: "",
   category: "Guides",
   author: "Propertoasty",
+  coverImage: "",
   published: false,
 };
 
@@ -102,6 +108,7 @@ export function AdminBlogManager({ posts }: { posts: BlogPost[] }) {
       content: data.content,
       category: post.category,
       author: post.author,
+      coverImage: post.cover_image ?? data.cover_image ?? "",
       published: post.published,
     });
   }
@@ -279,6 +286,46 @@ export function AdminBlogManager({ posts }: { posts: BlogPost[] }) {
               />
               Published
             </label>
+          </div>
+
+          <div className="sm:col-span-2">
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              Cover image URL
+            </label>
+            <input
+              type="url"
+              value={editor.coverImage}
+              onChange={(e) =>
+                setEditor((s) =>
+                  s ? { ...s, coverImage: e.target.value } : s,
+                )
+              }
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-coral/50 focus:border-coral"
+              placeholder="https://images.unsplash.com/… (optional)"
+            />
+            {/* Live preview — only renders when the URL parses to an
+                absolute http(s) URL, so half-typed paths don't 404.
+                Falls back to a small "preview will appear here" hint
+                when empty so the slot doesn't jump on first paint. */}
+            {editor.coverImage.trim().length > 0 ? (
+              <div className="mt-2 rounded-lg overflow-hidden border border-slate-200 bg-slate-50">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={editor.coverImage}
+                  alt="Cover preview"
+                  className="w-full max-h-48 object-cover"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = "none";
+                  }}
+                />
+              </div>
+            ) : (
+              <p className="mt-1 text-[11px] text-slate-400">
+                Paste an image URL — preview appears below. Used as the
+                blog index card hero + above the post title on the
+                detail page.
+              </p>
+            )}
           </div>
 
           <div className="sm:col-span-2">

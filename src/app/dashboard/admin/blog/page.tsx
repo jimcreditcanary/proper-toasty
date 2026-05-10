@@ -23,7 +23,7 @@ export default async function AdminBlogPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: posts } = await (admin as any)
     .from("blog_posts")
-    .select("id, slug, title, excerpt, category, author, published, published_at, created_at, updated_at")
+    .select("id, slug, title, excerpt, category, author, cover_image, published, published_at, created_at, updated_at")
     .order("created_at", { ascending: false });
 
   const blogPosts = (posts ?? []).map((p: Record<string, unknown>) => ({
@@ -33,6 +33,7 @@ export default async function AdminBlogPage() {
     excerpt: p.excerpt as string,
     category: p.category as string,
     author: p.author as string,
+    cover_image: (p.cover_image as string | null) ?? null,
     published: p.published as boolean,
     published_at: (p.published_at as string) ?? null,
     created_at: p.created_at as string,

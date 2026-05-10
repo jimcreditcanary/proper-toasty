@@ -8,6 +8,7 @@ type BlogPost = {
   excerpt: string;
   category: string;
   author: string;
+  cover_image: string | null;
   published_at: string;
 };
 
@@ -46,7 +47,7 @@ async function fetchPosts(): Promise<BlogPost[]> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data, error } = await (admin as any)
       .from("blog_posts")
-      .select("slug, title, excerpt, category, author, published_at")
+      .select("slug, title, excerpt, category, author, cover_image, published_at")
       .eq("published", true)
       .order("published_at", { ascending: false });
     if (error) return [];
@@ -56,6 +57,7 @@ async function fetchPosts(): Promise<BlogPost[]> {
       excerpt: p.excerpt as string,
       category: p.category as string,
       author: p.author as string,
+      cover_image: (p.cover_image as string | null) ?? null,
       published_at: p.published_at as string,
     }));
   } catch {
@@ -87,34 +89,30 @@ export default async function BlogPage() {
         </div>
       </section>
 
-      {/* Posts */}
-      <section className="mx-auto w-full max-w-3xl px-6 py-14 sm:py-20 flex-1">
+      {/* Posts — card grid. First post takes a full-width hero
+          card on desktop (the most-recent / most-prominent piece);
+          the rest tile in a 2-up grid below. Each card has the
+          cover image at the top, then the chip + date + title +
+          excerpt. Postless cards still work — they fall back to a
+          coloured tile with the category badge centred. */}
+      <section className="mx-auto w-full max-w-6xl px-6 py-14 sm:py-20 flex-1">
         {posts.length === 0 ? (
           <EmptyState />
         ) : (
-          <div className="divide-y divide-[var(--border)]">
-            {posts.map((post) => (
-              <article key={post.slug} className="py-10 first:pt-0 last:pb-0">
-                <Link href={`/blog/${post.slug}`} className="group block">
-                  <div className="flex items-center gap-3 mb-3">
-                    <CategoryBadge category={post.category} />
-                    <span className="flex items-center gap-1.5 text-xs text-[var(--muted-brand)]">
-                      <Calendar className="size-3" />
-                      {formatDate(post.published_at)}
-                    </span>
-                  </div>
-                  <h2 className="text-2xl sm:text-3xl text-navy group-hover:text-coral transition-colors">
-                    {post.title}
-                  </h2>
-                  <p className="mt-3 text-[var(--muted-brand)] leading-relaxed">{post.excerpt}</p>
-                  <span className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-coral">
-                    Read more
-                    <ArrowRight className="size-3.5" />
-                  </span>
-                </Link>
-              </article>
-            ))}
-          </div>
+          <>
+            {/* Featured (first) card — full width on lg+, stacked
+                photo + body on smaller screens. */}
+            <FeaturedCard post={posts[0]} />
+
+            {/* Remaining posts — responsive grid. */}
+            {posts.length > 1 && (
+              <div className="mt-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {posts.slice(1).map((post) => (
+                  <PostCard key={post.slug} post={post} />
+                ))}
+              </div>
+            )}
+          </>
         )}
       </section>
 
@@ -140,6 +138,103 @@ export default async function BlogPage() {
           </nav>
         </div>
       </footer>
+    </div>
+  );
+}
+
+// ─── Card components ────────────────────────────────────────────────
+
+function FeaturedCard({ post }: { post: BlogPost }) {
+  return (
+    <Link
+      href={`/blog/${post.slug}`}
+      className="group block rounded-3xl overflow-hidden border border-[var(--border)] bg-white hover:shadow-lg transition-shadow"
+    >
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-0">
+        <div className="lg:col-span-3">
+          <CoverImage post={post} className="h-72 lg:h-full min-h-[18rem]" />
+        </div>
+        <div className="lg:col-span-2 p-8 sm:p-10 flex flex-col">
+          <div className="flex items-center gap-3 mb-4">
+            <CategoryBadge category={post.category} />
+            <span className="flex items-center gap-1.5 text-xs text-[var(--muted-brand)]">
+              <Calendar className="size-3" />
+              {formatDate(post.published_at)}
+            </span>
+          </div>
+          <h2 className="text-2xl sm:text-3xl text-navy group-hover:text-coral transition-colors leading-tight">
+            {post.title}
+          </h2>
+          <p className="mt-4 text-[var(--muted-brand)] leading-relaxed flex-1">
+            {post.excerpt}
+          </p>
+          <span className="mt-6 inline-flex items-center gap-1.5 text-sm font-semibold text-coral">
+            Read article
+            <ArrowRight className="size-3.5 group-hover:translate-x-0.5 transition-transform" />
+          </span>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+function PostCard({ post }: { post: BlogPost }) {
+  return (
+    <Link
+      href={`/blog/${post.slug}`}
+      className="group block rounded-2xl overflow-hidden border border-[var(--border)] bg-white hover:shadow-md hover:border-coral/30 transition-all flex flex-col"
+    >
+      <CoverImage post={post} className="h-44" />
+      <div className="p-5 flex flex-col flex-1">
+        <div className="flex items-center gap-2 mb-3 flex-wrap">
+          <CategoryBadge category={post.category} />
+          <span className="text-[11px] text-[var(--muted-brand)]">
+            {formatDate(post.published_at)}
+          </span>
+        </div>
+        <h3 className="text-lg font-semibold text-navy group-hover:text-coral transition-colors leading-tight">
+          {post.title}
+        </h3>
+        <p className="mt-2 text-sm text-[var(--muted-brand)] leading-relaxed flex-1 line-clamp-3">
+          {post.excerpt}
+        </p>
+        <span className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-coral">
+          Read more
+          <ArrowRight className="size-3" />
+        </span>
+      </div>
+    </Link>
+  );
+}
+
+function CoverImage({
+  post,
+  className = "",
+}: {
+  post: BlogPost;
+  className?: string;
+}) {
+  // When there's no cover image, render a coloured placeholder
+  // tile with the category-coloured Leaf icon centred. Keeps the
+  // grid visually consistent (no missing-tile holes) and avoids
+  // shipping a stock-photo dependency for old posts.
+  if (!post.cover_image) {
+    return (
+      <div
+        className={`bg-gradient-to-br from-coral-pale via-cream-deep to-[color:var(--terracotta-pale)] flex items-center justify-center ${className}`}
+      >
+        <Leaf className="w-12 h-12 text-coral/50" />
+      </div>
+    );
+  }
+  return (
+    <div className={`bg-slate-100 overflow-hidden ${className}`}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={post.cover_image}
+        alt={post.title}
+        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
+      />
     </div>
   );
 }
