@@ -12,8 +12,8 @@ import {
 } from "react";
 import {
   INITIAL_STATE,
-  STEP_ORDER,
   stepOrderForFocus,
+  type WizardFocus,
   type CheckStep,
   type CheckWizardAction,
   type CheckWizardState,
@@ -92,13 +92,41 @@ export function CheckWizardProvider({
       setHydrated(true);
       return;
     }
+    // Focus-variant arrivals (/check/solar, /check/heatpump) are
+    // also explicit "start fresh" signals — if we rehydrate from a
+    // prior /check (focus='all') session, the persisted focus
+    // overwrites the variant's intent and the persisted step (e.g.
+    // 'floorplan') may not even exist in the variant's step order.
+    // Symptom: user lands on /check/solar but sees the floorplan
+    // step because that's where they were on /check yesterday.
+    // Wipe + skip rehydrate when the URL declares a non-default
+    // focus.
+    if (initialState?.focus && initialState.focus !== "all") {
+      try {
+        localStorage.removeItem(STORAGE_KEY);
+      } catch {
+        // ignore
+      }
+      setHydrated(true);
+      return;
+    }
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw);
         if (parsed && Date.now() - parsed.savedAt < STATE_TTL_MS) {
           dispatch({ type: "UPDATE", patch: parsed.state });
-          if (STEP_ORDER.includes(parsed.step)) setStep(parsed.step);
+          // Validate the persisted step against the focus-aware
+          // step order — a stale 'floorplan' from a prior /check
+          // session would otherwise survive into /check/solar
+          // where 'floorplan' isn't a valid step at all.
+          const persistedFocus =
+            (parsed.state as { focus?: WizardFocus } | undefined)?.focus ??
+            "all";
+          const validSteps = stepOrderForFocus(persistedFocus);
+          if (validSteps.includes(parsed.step)) {
+            setStep(parsed.step);
+          }
         } else {
           localStorage.removeItem(STORAGE_KEY);
         }
@@ -107,7 +135,11 @@ export function CheckWizardProvider({
       // ignore — treat as no saved state
     }
     setHydrated(true);
-  }, [disablePersistence, initialState?.preSurveyRequestId]);
+  }, [
+    disablePersistence,
+    initialState?.preSurveyRequestId,
+    initialState?.focus,
+  ]);
 
   // Mint a clientSessionId after hydration if the saved state didn't
   // already have one. This is the dedupe key for /api/checks/upsert
