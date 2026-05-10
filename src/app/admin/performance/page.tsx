@@ -42,6 +42,7 @@ import {
   loadFailingRechargeInstallers,
 } from "@/lib/admin/at-risk";
 import { BarChart } from "@/components/admin/bar-chart";
+import { loadPlSummary, type PlSummary } from "@/lib/admin/pl";
 
 export const dynamic = "force-dynamic";
 
@@ -67,6 +68,7 @@ export default async function PerformancePage({ searchParams }: PageProps) {
     approvalRateSeries,
     staleInstallers,
     failingRecharges,
+    pl,
   ] = await Promise.all([
     loadCoreKpis(range),
     loadFunnel(range),
@@ -76,6 +78,7 @@ export default async function PerformancePage({ searchParams }: PageProps) {
     loadApprovalRateSeries(),
     loadStaleInstallers(),
     loadFailingRechargeInstallers(),
+    loadPlSummary(range),
   ]);
 
   return (
@@ -165,7 +168,13 @@ export default async function PerformancePage({ searchParams }: PageProps) {
         />
       </div>
 
+      {/* ─── P&L card ───────────────────────────────────────────── */}
       <h2 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-3">
+        Profit &amp; loss
+      </h2>
+      <PlCard pl={pl} />
+
+      <h2 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-3 mt-8">
         Site visits
       </h2>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
@@ -491,6 +500,142 @@ export default async function PerformancePage({ searchParams }: PageProps) {
 }
 
 // ─── Components ────────────────────────────────────────────────────
+
+function PlCard({ pl }: { pl: PlSummary }) {
+  // marginPct sign drives the colour: green when we're making money,
+  // amber when we're break-even-ish, rose when we're losing it.
+  // Threshold at 10%/0% rather than 0/0 because a 1% margin is
+  // basically break-even and shouldn't read green.
+  const marginTone =
+    pl.marginPct >= 0.1
+      ? "emerald"
+      : pl.marginPct >= 0
+        ? "amber"
+        : "rose";
+  const marginCls =
+    marginTone === "emerald"
+      ? "text-emerald-700 bg-emerald-50 border-emerald-200"
+      : marginTone === "amber"
+        ? "text-amber-800 bg-amber-50 border-amber-200"
+        : "text-rose-700 bg-rose-50 border-rose-200";
+
+  // Hide pure-zero lines from the breakdown (resend / static maps
+  // when free tier covers everything) — the line still exists in
+  // pl.costLines so the sum is right; we just don't render it.
+  const visibleLines = pl.costLines.filter((l) => l.pence > 0);
+
+  return (
+    <section className="rounded-2xl border border-slate-200 bg-white mb-6 overflow-hidden">
+      {/* Header row — three big numbers side by side. Borrowed the
+          MiniTile pattern so it visually parallels the rest of the
+          page. */}
+      <div className="grid grid-cols-3 divide-x divide-slate-100">
+        <div className="p-5">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">
+            Revenue
+          </p>
+          <p className="text-2xl font-bold text-navy">
+            {formatGbp(pl.revenuePence)}
+          </p>
+          <p className="text-[11px] text-slate-500 mt-1">
+            {pl.quantities.paidPurchases.toLocaleString("en-GB")} paid txn
+            {pl.quantities.paidPurchases === 1 ? "" : "s"}
+          </p>
+        </div>
+        <div className="p-5">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">
+            Costs
+          </p>
+          <p className="text-2xl font-bold text-navy">
+            {formatGbp(pl.costPence)}
+          </p>
+          <p className="text-[11px] text-slate-500 mt-1">
+            {pl.quantities.completedChecks.toLocaleString("en-GB")} completed
+            check{pl.quantities.completedChecks === 1 ? "" : "s"}
+          </p>
+        </div>
+        <div className="p-5">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">
+            Margin
+          </p>
+          <p
+            className={`text-2xl font-bold ${
+              marginTone === "emerald"
+                ? "text-emerald-700"
+                : marginTone === "amber"
+                  ? "text-amber-800"
+                  : "text-rose-700"
+            }`}
+          >
+            {pl.marginPence >= 0 ? "" : "−"}
+            {formatGbp(Math.abs(pl.marginPence))}
+          </p>
+          <p className="text-[11px] mt-1">
+            <span
+              className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${marginCls}`}
+            >
+              {(pl.marginPct * 100).toFixed(1)}% margin
+            </span>
+          </p>
+        </div>
+      </div>
+
+      {/* Cost breakdown */}
+      <div className="border-t border-slate-100 p-5">
+        <h3 className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-3">
+          Cost breakdown
+        </h3>
+        {visibleLines.length === 0 ? (
+          <p className="text-sm text-slate-500 italic">
+            No costs incurred in this range yet.
+          </p>
+        ) : (
+          <table className="w-full text-sm">
+            <tbody>
+              {visibleLines.map((line) => (
+                <tr key={line.key} className="border-b border-slate-100 last:border-b-0">
+                  <td className="py-2 pr-3 font-medium text-navy">
+                    {line.label}
+                  </td>
+                  <td className="py-2 pr-3 text-xs text-slate-500">
+                    {line.qtyLabel}
+                  </td>
+                  <td className="py-2 text-right tabular-nums font-semibold text-navy">
+                    {formatGbp(line.pence)}
+                  </td>
+                </tr>
+              ))}
+              <tr className="border-t-2 border-slate-200">
+                <td className="pt-3 pr-3 font-bold text-navy">Total costs</td>
+                <td className="pt-3" />
+                <td className="pt-3 text-right tabular-nums font-bold text-navy">
+                  {formatGbp(pl.costPence)}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        )}
+        <p className="mt-4 text-[11px] text-slate-400 leading-relaxed">
+          V1 estimate — costs derived from existing usage counts ×
+          per-unit rates configured in
+          <code className="mx-1 px-1 py-0.5 rounded bg-slate-100 text-[10px]">
+            src/lib/admin/cost-rates.ts
+          </code>
+          . Per-call ledger is the precision upgrade. Fixed hosting
+          line is pro-rated to the {pl.quantities.daysInRange}-day
+          window.
+        </p>
+      </div>
+    </section>
+  );
+}
+
+function formatGbp(pence: number): string {
+  return `£${(pence / 100).toLocaleString("en-GB", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+}
 
 function KpiTile({
   label,
