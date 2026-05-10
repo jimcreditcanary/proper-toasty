@@ -22,6 +22,11 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { PortalShell } from "@/components/portal-shell";
 import { InstallerSiteBrief } from "@/components/installer-report/site-brief";
+import { SiteVisitPrep } from "@/components/installer-report/site-visit-prep";
+import {
+  FloorplanExtractSchema,
+  type FloorplanExtract,
+} from "@/lib/schemas/floorplan-extract";
 import type { AnalyseResponse } from "@/lib/schemas/analyse";
 import type { FloorplanAnalysis } from "@/lib/schemas/floorplan";
 import type { FuelTariff } from "@/lib/schemas/bill";
@@ -97,7 +102,7 @@ export default async function InstallerReportPage({ params }: PageProps) {
   let leadQuery = admin
     .from("installer_leads")
     .select(
-      "id, installer_id, status, contact_name, contact_email, contact_phone, property_address, property_postcode, property_uprn, property_latitude, property_longitude, installer_acknowledged_at, visit_booked_for, wants_heat_pump, wants_solar, wants_battery, homeowner_lead_id, analysis_snapshot",
+      "id, installer_id, status, contact_name, contact_email, contact_phone, property_address, property_postcode, property_uprn, property_latitude, property_longitude, installer_acknowledged_at, visit_booked_for, wants_heat_pump, wants_solar, wants_battery, homeowner_lead_id, floorplan_upload_id, analysis_snapshot",
     )
     .eq("id", leadId);
   if (!isAdmin && installer) {
@@ -231,6 +236,34 @@ export default async function InstallerReportPage({ params }: PageProps) {
     }
   }
 
+  // V2 floorplan extract — pulled when the lead carries a
+  // floorplan_upload_id (set by the upload-attribution path,
+  // currently behind a feature flag). Renders the new "Site Visit
+  // Prep" section above the legacy brief; both can co-exist.
+  let floorplanExtract: FloorplanExtract | null = null;
+  if (lead.floorplan_upload_id) {
+    try {
+      const { data: upload } = await admin
+        .from("floorplan_uploads")
+        .select("status, extract")
+        .eq("id", lead.floorplan_upload_id)
+        .maybeSingle();
+      if (upload?.status === "complete" && upload.extract) {
+        const parsed = FloorplanExtractSchema.safeParse(upload.extract);
+        if (parsed.success) {
+          floorplanExtract = parsed.data;
+        } else {
+          console.warn("[installer-report] extract schema mismatch", {
+            uploadId: lead.floorplan_upload_id,
+            issues: parsed.error.issues.slice(0, 3),
+          });
+        }
+      }
+    } catch (e) {
+      console.warn("[installer-report] floorplan_upload lookup failed", e);
+    }
+  }
+
   return (
     <PortalShell
       portalName="Installer"
@@ -241,6 +274,15 @@ export default async function InstallerReportPage({ params }: PageProps) {
       pageSubtitle={`For ${lead.contact_name ?? "the homeowner"}.`}
       backLink={{ href: "/installer/reports", label: "Back to reports" }}
     >
+      {/* V2 site visit prep renders above the legacy brief when
+          the lead carries a v2 floorplan extract. Both surfaces
+          coexist by design — the legacy brief still pulls EPC +
+          solar + tariffs the v2 flow doesn't capture. */}
+      {floorplanExtract && (
+        <div className="mb-8">
+          <SiteVisitPrep extract={floorplanExtract} />
+        </div>
+      )}
       <InstallerSiteBrief
         contact={{
           name: lead.contact_name ?? null,

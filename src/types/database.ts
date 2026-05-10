@@ -1114,6 +1114,10 @@ export interface Database {
           // Migration 048 — set when this lead came from an installer-
           // initiated pre-survey send (vs an organic directory match)
           pre_survey_request_id: string | null;
+          // Migration 059 — set when the lead carries a v2 upload-only
+          // floorplan extract. Site brief renders the new "Site Visit
+          // Prep" section when this is non-null.
+          floorplan_upload_id: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -1127,6 +1131,7 @@ export interface Database {
           preferred_contact_window?: string | null;
           notes?: string | null;
           installer_id: number;
+          floorplan_upload_id?: string | null;
           wants_heat_pump?: boolean;
           wants_solar?: boolean;
           wants_battery?: boolean;
@@ -1467,6 +1472,46 @@ export interface Database {
           updated_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["installer_proposals"]["Insert"]>;
+        Relationships: [];
+      };
+      floorplan_uploads: {
+        Row: {
+          id: string;
+          user_id: string | null;
+          image_object_key: string | null;
+          image_hash: string | null;
+          image_bytes: number | null;
+          image_mime: string | null;
+          status: "extracting" | "complete" | "failed";
+          failure_reason: string | null;
+          attempts: number;
+          extract: Json | null;
+          model: string | null;
+          input_tokens: number | null;
+          output_tokens: number | null;
+          created_at: string;
+          completed_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          user_id?: string | null;
+          image_object_key?: string | null;
+          image_hash?: string | null;
+          image_bytes?: number | null;
+          image_mime?: string | null;
+          status?: "extracting" | "complete" | "failed";
+          failure_reason?: string | null;
+          attempts?: number;
+          extract?: Json | null;
+          model?: string | null;
+          input_tokens?: number | null;
+          output_tokens?: number | null;
+          created_at?: string;
+          completed_at?: string | null;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["floorplan_uploads"]["Insert"]
+        >;
         Relationships: [];
       };
       installer_pre_survey_requests: {
