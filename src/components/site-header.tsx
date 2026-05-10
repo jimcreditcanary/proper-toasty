@@ -113,7 +113,7 @@ export function SiteHeader({
                 {role === "admin" && (
                   <>
                     <DropdownMenuSeparator className="bg-slate-200" />
-                    <DropdownMenuItem render={<Link href="/dashboard/admin/blog" />} className="text-coral hover:text-coral focus:text-coral focus:bg-slate-100 font-medium">
+                    <DropdownMenuItem render={<Link href="/admin/blog" />} className="text-coral hover:text-coral focus:text-coral focus:bg-slate-100 font-medium">
                       Blog Manager
                     </DropdownMenuItem>
                   </>
