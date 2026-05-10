@@ -8,7 +8,11 @@ import { STEP_ORDER, type CheckStep, type CheckWizardState } from "./types";
 import { Step1Address } from "./step-1-address";
 import { Step2Preview } from "./step-2-preview";
 import { Step3Questions } from "./step-3-questions";
-import { Step4Floorplan } from "./step-4-floorplan";
+// Step 4 is the upload-only flow as of the v2 migration. The legacy
+// canvas builder (step-4-floorplan.tsx) stays in the codebase to be
+// removed in a follow-up commit once the new flow is validated on
+// the three test fixtures.
+import { Step4Upload } from "./step-4-upload";
 import { Step5Analysis } from "./step-5-analysis";
 import { Step5bLeadCapture } from "./step-5b-lead-capture";
 import { Step6Report } from "./step-6-report";
@@ -66,7 +70,7 @@ function CurrentStep() {
     case "questions":
       return <Step3Questions />;
     case "floorplan":
-      return <Step4Floorplan />;
+      return <Step4Upload />;
     case "analysis":
       return <Step5Analysis />;
     case "lead_capture":

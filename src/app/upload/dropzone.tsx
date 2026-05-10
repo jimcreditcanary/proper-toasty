@@ -29,16 +29,24 @@ import { resizeImage } from "@/lib/client/image-resize";
 type State =
   | { kind: "idle" }
   | { kind: "resizing"; previewUrl: string }
-  | { kind: "uploading"; previewUrl: string; bytes: number; substep: number }
+  | {
+      kind: "uploading";
+      previewUrl: string;
+      bytes: number;
+      /** Elapsed seconds since the upload started — drives the
+       *  progress bar fill + the substep cursor. Updated by an
+       *  interval tick. */
+      elapsedSec: number;
+    }
   | { kind: "error"; message: string };
 
 const ACCEPT = "image/jpeg,image/png";
 const MAX_BYTES = 10 * 1024 * 1024;
 
-// Cosmetic substep labels rotated through during the upload step.
-// Each rotates after ~5s; with Sonnet vision typically landing in
-// 15-25s the user sees 3-5 labels go past, which reads like progress
-// without us actually knowing where the model is.
+// Substep labels — surfaced under the progress bar as supporting
+// context. Cursor advances every TARGET_SECONDS / SUBSTEPS.length
+// so by the time the bar reaches 90% we've cycled through every
+// substep at least once.
 const SUBSTEPS = [
   "Reading rooms…",
   "Measuring floor areas…",
@@ -48,7 +56,14 @@ const SUBSTEPS = [
   "Scoring heat-pump suitability…",
   "Drafting recommendations…",
 ] as const;
-const SUBSTEP_INTERVAL_MS = 4500;
+
+/** Sonnet vision lands in 15-25s on a clean image. We model the
+ *  bar as filling smoothly to 90% over TARGET_SECONDS, then crawling
+ *  the last 10% slowly until the response arrives. Familiar pattern
+ *  for waits with no real progress signal — feels accurate to most
+ *  users without making them stare at a frozen spinner. */
+const TARGET_SECONDS = 25;
+const TICK_MS = 200;
 
 export function UploadDropzone() {
   const router = useRouter();
@@ -56,16 +71,17 @@ export function UploadDropzone() {
   const [dragOver, setDragOver] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Cycle the substep label while uploading so the spinner doesn't
-  // sit on a single string for 25s.
+  // Drive the progress bar by counting elapsed seconds. Single
+  // interval handles BOTH the bar fill + the substep cursor — keeps
+  // the two visually in sync.
   useEffect(() => {
     if (state.kind !== "uploading") return;
     const id = setInterval(() => {
       setState((s) => {
         if (s.kind !== "uploading") return s;
-        return { ...s, substep: (s.substep + 1) % SUBSTEPS.length };
+        return { ...s, elapsedSec: s.elapsedSec + TICK_MS / 1000 };
       });
-    }, SUBSTEP_INTERVAL_MS);
+    }, TICK_MS);
     return () => clearInterval(id);
   }, [state.kind]);
 
@@ -117,7 +133,7 @@ export function UploadDropzone() {
         kind: "uploading",
         previewUrl,
         bytes: resized.blob.size,
-        substep: 0,
+        elapsedSec: 0,
       });
 
       const formData = new FormData();
@@ -186,22 +202,58 @@ export function UploadDropzone() {
   // ─── Render ───────────────────────────────────────────────────────
 
   if (state.kind === "uploading") {
+    // Progress curve: fast to 90%, then slow crawl. Linear-to-90
+    // would jump the user from "almost done" to "stuck", so we ease
+    // the last 10% into a long tail. If the response actually lands
+    // before the bar gets to 90%, the success path moves us to the
+    // next state; if it takes longer, the bar inches up to ~98%
+    // and stays there.
+    const linearFrac = Math.min(1, state.elapsedSec / TARGET_SECONDS);
+    const fastFill = linearFrac * 0.9; // 0 → 0.9 over TARGET_SECONDS
+    const overrunFrac =
+      state.elapsedSec > TARGET_SECONDS
+        ? Math.min(0.08, (state.elapsedSec - TARGET_SECONDS) / 60)
+        : 0; // crawl 0 → 0.08 over the next minute
+    const fillPct = Math.round((fastFill + overrunFrac) * 100);
+    const substepIdx = Math.min(
+      SUBSTEPS.length - 1,
+      Math.floor((state.elapsedSec / TARGET_SECONDS) * SUBSTEPS.length),
+    );
+
     return (
       <section className="rounded-3xl border border-coral/30 bg-white p-8 sm:p-10 shadow-sm">
-        <div className="flex items-center justify-center gap-3 mb-5">
-          <span className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-coral-pale text-coral">
-            <Loader2 className="w-5 h-5 animate-spin" />
-          </span>
-          <span className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-emerald-50 text-emerald-600">
+        <div className="flex items-center justify-center gap-2 mb-4">
+          <span className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-coral-pale text-coral-dark">
             <Sparkles className="w-4 h-4" />
           </span>
         </div>
         <h2 className="text-xl sm:text-2xl font-bold text-navy text-center leading-tight">
           Analysing your floorplan…
         </h2>
-        <p className="mt-3 text-sm text-[var(--muted-brand)] text-center" aria-live="polite">
-          {SUBSTEPS[state.substep]}
-        </p>
+
+        {/* Progress bar — determinate fill driven by elapsed time.
+            ARIA progressbar role + value props so screen readers
+            announce the percentage rather than a silent spinner. */}
+        <div className="mt-6 max-w-md mx-auto">
+          <div
+            role="progressbar"
+            aria-valuenow={fillPct}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-label="Floorplan extraction progress"
+            className="h-2.5 w-full rounded-full bg-slate-100 overflow-hidden"
+          >
+            <div
+              className="h-full bg-coral rounded-full transition-[width] duration-200 ease-linear"
+              style={{ width: `${fillPct}%` }}
+            />
+          </div>
+          <div className="mt-2 flex items-center justify-between text-[11px] text-slate-500">
+            <span aria-live="polite">{SUBSTEPS[substepIdx]}</span>
+            <span className="tabular-nums">{fillPct}%</span>
+          </div>
+        </div>
+
         {/* Preview thumb so the user can verify they uploaded the
             right image while the extraction runs. */}
         {state.previewUrl && (

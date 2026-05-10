@@ -2,6 +2,7 @@ import type { UkCountry } from "@/lib/postcode/region";
 import type { AnalyseResponse } from "@/lib/schemas/analyse";
 import type { FuelTariff } from "@/lib/schemas/bill";
 import type { FloorplanAnalysis } from "@/lib/schemas/floorplan";
+import type { FloorplanExtract } from "@/lib/schemas/floorplan-extract";
 import type { AddressMetadata } from "@/lib/schemas/address-lookup";
 
 export type CheckStep =
@@ -81,15 +82,26 @@ export interface CheckWizardState {
 
   // Step 4 — floorplan
   floorplanObjectKey: string | null;
-  // Pre-computed floorplan analysis from /api/floorplan/analyse, edited by the
-  // user in the in-step editor. Step 5 sends this to /api/analyse so we
-  // don't run Claude floorplan vision twice.
+  // Legacy: pre-computed floorplan analysis from /api/floorplan/analyse,
+  // edited by the user in the legacy step-4 builder. The v2 upload-only
+  // flow doesn't populate this — it sets `floorplanExtract` instead.
+  // Kept here for any in-flight wizard sessions that started under the
+  // legacy step + the report tabs that haven't been migrated yet.
   floorplanAnalysis: FloorplanAnalysis | null;
   floorplanDegraded: boolean;
   floorplanDegradedReason: string | null;
   // Satellite verdict from the same endpoint — drives whether the editor
   // asks the "do you have outdoor space?" question.
   satelliteOutdoorVerdict: "yes" | "no" | "unsure" | null;
+  // V2 upload-only output. Set by the new Step 4 (Step4Upload) once
+  // /api/upload/floorplan returns a complete extract. The report's
+  // Heat pump tab reads this in preference to the legacy eligibility
+  // engine output when present.
+  floorplanExtract: FloorplanExtract | null;
+  // Server-side row id of the floorplan_uploads record that produced
+  // floorplanExtract. Surfaced to the lead-capture path so the
+  // installer_lead can be linked back to the upload.
+  floorplanUploadId: string | null;
 
   // Step 5 — analysis output (stitched)
   analysis: AnalyseResponse | null;
@@ -151,6 +163,8 @@ export const INITIAL_STATE: CheckWizardState = {
   gasTariff: null,
   floorplanObjectKey: null,
   floorplanAnalysis: null,
+  floorplanExtract: null,
+  floorplanUploadId: null,
   floorplanDegraded: false,
   floorplanDegradedReason: null,
   satelliteOutdoorVerdict: null,

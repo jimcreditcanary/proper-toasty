@@ -354,6 +354,11 @@ export function ReportShell({ audience = "homeowner" }: ReportShellProps = {}) {
                   )}`
                 : null
             }
+            // V2 upload-only path: when present, the tab renders the
+            // FloorplanExtract's heat_pump_eligibility content
+            // instead of the legacy AnalyseResponse.eligibility.heatPump
+            // tree. Solar tab + EPC etc. keep their existing inputs.
+            extract={state.floorplanExtract}
             audience={audience}
           />
         )}
