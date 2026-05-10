@@ -123,7 +123,7 @@ export function Step3Questions() {
         <Question
           icon={<Banknote className="w-4 h-4" />}
           title="Are you wanting to finance these improvements?"
-          sub="Either way you'll see both options on the report — paying up-front and spreading the cost over 10 years at 6.9% APR. This just sets which one we open with."
+          sub="Either way you'll see both options on the report — paying up-front and spreading the cost over time."
         >
           <Tiles
             options={YNU_OPTIONS}
