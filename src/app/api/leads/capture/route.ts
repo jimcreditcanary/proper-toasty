@@ -197,11 +197,14 @@ async function tryAttributeToPreSurveyRequest(
   },
 ) {
   try {
-    // Pull the request row + verify it's still actionable.
+    // Pull the request row + verify it's still actionable. Also
+    // capture meeting_status / meeting_at so we can correctly create
+    // the lead at status='visit_booked' when the installer pre-set
+    // a time on the send form.
     const { data: request } = await admin
       .from("installer_pre_survey_requests")
       .select(
-        "id, installer_id, contact_name, contact_email, contact_postcode, completed_at, expires_at",
+        "id, installer_id, contact_name, contact_email, contact_postcode, completed_at, expires_at, meeting_status, meeting_at",
       )
       .eq("id", args.preSurveyRequestId)
       .maybeSingle();
@@ -220,10 +223,24 @@ async function tryAttributeToPreSurveyRequest(
 
     const p = args.payload as Record<string, unknown>;
 
-    // Auto-create the installer_lead. status starts at
-    // 'installer_acknowledged' + installer_acknowledged_at stamped
-    // so the inbox skips the accept dance entirely.
+    // Decide on the right starting status:
+    //   - meeting pre-booked at send time → 'visit_booked' + stamp
+    //     visit_booked_for, AND insert an installer_meetings row at
+    //     status='booked' so the diary actually reflects it. This
+    //     is what fixes the "Taken — rescheduling" badge bug; the
+    //     previous code dumped every pre-survey lead into
+    //     installer_acknowledged regardless of meeting state, and
+    //     that status renders as "Taken — rescheduling".
+    //   - no pre-booked meeting → 'installer_acknowledged' (the
+    //     existing behaviour — installer requested this customer,
+    //     no meeting yet, but no manual accept needed either).
     const nowIso = new Date().toISOString();
+    const meetingPreBooked =
+      request.meeting_status === "booked" && !!request.meeting_at;
+    const initialStatus = meetingPreBooked
+      ? "visit_booked"
+      : "installer_acknowledged";
+
     const { data: insertedLead, error: leadErr } = await admin
       .from("installer_leads")
       .insert({
@@ -243,9 +260,11 @@ async function tryAttributeToPreSurveyRequest(
         wants_solar: true,
         wants_battery: false,
         // Auto-acknowledged — installer requested this customer, no
-        // booking acceptance needed.
-        status: "installer_acknowledged",
+        // booking acceptance needed. visit_booked_for is set when
+        // the installer pre-booked the meeting at send time.
+        status: initialStatus,
         installer_acknowledged_at: nowIso,
+        visit_booked_for: meetingPreBooked ? request.meeting_at : null,
         installer_notified_at: nowIso,
         notification_status: "skipped",
         pre_survey_request_id: request.id,
@@ -278,6 +297,50 @@ async function tryAttributeToPreSurveyRequest(
         leadId: insertedLead.id,
         err: e instanceof Error ? e.message : e,
       });
+    }
+
+    // When the installer pre-booked the meeting on the send form,
+    // insert the matching installer_meetings row so the diary
+    // surfaces it. Status='booked' (no acceptance needed — the
+    // installer pre-committed). Best-effort; logged on failure
+    // because the rest of the attribution still produced a lead.
+    if (meetingPreBooked && request.meeting_at) {
+      // Narrow to non-null for the insert. TS doesn't propagate the
+      // truthiness check through the destructured row property
+      // reliably, so we re-assert here.
+      const scheduledAtUtc = request.meeting_at as string;
+      const { error: meetingErr } = await admin
+        .from("installer_meetings")
+        .insert({
+          installer_id: request.installer_id,
+          installer_lead_id: insertedLead.id,
+          homeowner_lead_id: args.homeownerLeadId,
+          scheduled_at: scheduledAtUtc,
+          duration_min: 60,
+          travel_buffer_min: 30,
+          contact_name:
+            (p.name as string | null) ?? request.contact_name ?? "Homeowner",
+          contact_email:
+            ((p.email as string | null) ?? request.contact_email ?? "")
+              .toLowerCase()
+              .trim() || "unknown@unknown",
+          // contact_phone is NOT NULL on installer_meetings — fall
+          // back to the empty string when the homeowner didn't
+          // share one (the wizard's lead-capture form makes phone
+          // optional, but the lead-capture-via-pre-survey path
+          // doesn't always have it). Empty string is preferable
+          // to crashing the insert; the installer can chase via
+          // email anyway.
+          contact_phone: ((p.phone as string | null) ?? "").trim(),
+          notes: null,
+          status: "booked",
+        });
+      if (meetingErr) {
+        console.error(
+          "[leads] presurvey pre-booked meeting insert failed",
+          meetingErr,
+        );
+      }
     }
 
     // Mark the request done + cross-link both lead ids.

@@ -179,6 +179,90 @@ function unwrapNumberLike(input: unknown): number | null {
   return null;
 }
 
+/** Pull a description value off the new EPC API's nested shape. The
+ *  v3 endpoint ships fabric/heating/lighting fields as one of:
+ *
+ *    1. `{ description: { value: "..." } }`  (single object)
+ *    2. `[{ description: { value: "..." } }, ...]`  (array — walls /
+ *       roofs / floors / main_heating / main_heating_controls)
+ *    3. plain string  (legacy flat shape)
+ *    4. `{ value: "..." }`  (some fields, no `.description` wrapper)
+ *
+ *  We pick array index `idx` (default 0) when an array is supplied.
+ *  Returns null when nothing useful is present so callers can still
+ *  fall back to the older flat field. */
+function unwrapDescription(input: unknown, idx = 0): string | null {
+  if (input == null) return null;
+  if (typeof input === "string") return input.trim() || null;
+  if (Array.isArray(input)) {
+    return unwrapDescription(input[idx]);
+  }
+  if (typeof input === "object") {
+    const obj = input as Record<string, unknown>;
+    // shape 1: { description: { value: "..." } }
+    if ("description" in obj) {
+      const desc = obj.description;
+      const direct = unwrapValueLike(desc);
+      if (direct) return direct;
+    }
+    // shape 4: { value: "..." }
+    const valueOnly = unwrapValueLike(obj);
+    if (valueOnly) return valueOnly;
+  }
+  return null;
+}
+
+/** Pull the energy-efficiency rating off the same nested shape, e.g.
+ *  `walls[0].energy_efficiency.value` (string like "Average"). Falls
+ *  back to top-level `*_energy_eff` for legacy flat rows. */
+function unwrapEnergyEff(input: unknown, idx = 0): string | null {
+  if (input == null) return null;
+  if (typeof input === "string") return input.trim() || null;
+  if (Array.isArray(input)) {
+    return unwrapEnergyEff(input[idx]);
+  }
+  if (typeof input === "object") {
+    const obj = input as Record<string, unknown>;
+    for (const key of [
+      "energy_efficiency",
+      "energy_eff",
+      "rating",
+      "energy_efficiency_rating",
+    ]) {
+      if (key in obj) {
+        const v = unwrapValueLike(obj[key]);
+        if (v) return v;
+      }
+    }
+  }
+  return null;
+}
+
+/** Read a boolean off a nested SAP energy-source field. Newer EPC
+ *  responses ship `sap_energy_source.mains_gas` as a nested boolean
+ *  (replacing the old `mains_gas_flag: "Y" | "N"`). Returns "Y" / "N"
+ *  to keep the canonical schema field stable downstream — the brief's
+ *  Yes/No render reads either. */
+function unwrapMainsGas(raw: Record<string, unknown>): string | null {
+  // Old flat shape first.
+  const flat = unwrapValueLike(raw.mains_gas_flag);
+  if (flat) return flat;
+
+  // Newer nested shape.
+  const sap = raw.sap_energy_source;
+  if (sap && typeof sap === "object" && "mains_gas" in sap) {
+    const v = (sap as { mains_gas?: unknown }).mains_gas;
+    if (typeof v === "boolean") return v ? "Y" : "N";
+    if (typeof v === "string") {
+      const s = v.trim().toUpperCase();
+      if (s === "Y" || s === "N") return s;
+      if (s === "TRUE") return "Y";
+      if (s === "FALSE") return "N";
+    }
+  }
+  return null;
+}
+
 /** EPC certificates are valid for 10 years from registration. Derive
  *  the canonical `validUntil` date + `expired` boolean from any ISO
  *  date string. Returns nulls when the input can't be parsed. */
@@ -319,7 +403,7 @@ async function searchByPostcode(postcode: string): Promise<EpcSearchRow[]> {
 }
 
 async function fetchCertificate(certificateNumber: string): Promise<EpcCertificate | null> {
-  const cached = await cacheGet<EpcCertificate>("epc:cert-v4", certificateNumber);
+  const cached = await cacheGet<EpcCertificate>("epc:cert-v5", certificateNumber);
   if (cached) return cached;
 
   const url = new URL(`${EPC_BASE}/api/certificate`);
@@ -411,6 +495,8 @@ async function fetchCertificate(certificateNumber: string): Promise<EpcCertifica
     unwrapValueLike(raw.potential_energy_efficiency_band),
     unwrapValueLike(raw.potential_energy_band)
   );
+  // dwelling_type can ship as a plain string OR a nested { value: ... }
+  // wrapper in the v3 endpoint. unwrapValueLike already handles both.
   const dwellingTypeStr = unwrapValueLike(raw.dwelling_type);
   const propertyTypeStr = unwrapValueLike(raw.property_type);
 
@@ -493,20 +579,41 @@ async function fetchCertificate(certificateNumber: string): Promise<EpcCertifica
     ),
 
     // ── Heating ─────────────────────────────────────────────────────
+    // unwrapDescription/unwrapEnergyEff transparently handle BOTH the
+    // new nested arrays (main_heating[0].description.value) and the
+    // legacy flat strings (main_heating_description). pickFirst
+    // returns whichever path actually produced data.
     mainFuel: unwrapValueLike(raw.main_fuel),
     mainHeatingDescription: pickFirst(
+      unwrapDescription(raw.main_heating),
       unwrapValueLike(raw.main_heating_description),
       unwrapValueLike(raw.mainheat_description),
     ),
-    mainHeatingEnergyEff: unwrapValueLike(raw.mainheat_energy_eff),
-    mainHeatingControlsDescription: unwrapValueLike(raw.mainheatcont_description),
-    mainHeatingControlsEnergyEff: unwrapValueLike(raw.mainheatcont_energy_eff),
-    hotWaterDescription: unwrapValueLike(raw.hot_water_description),
-    hotWaterEnergyEff: unwrapValueLike(raw.hot_water_energy_eff),
-    mainsGasFlag: unwrapValueLike(raw.mains_gas_flag),
+    mainHeatingEnergyEff: pickFirst(
+      unwrapEnergyEff(raw.main_heating),
+      unwrapValueLike(raw.mainheat_energy_eff),
+    ),
+    mainHeatingControlsDescription: pickFirst(
+      unwrapDescription(raw.main_heating_controls),
+      unwrapValueLike(raw.mainheatcont_description),
+    ),
+    mainHeatingControlsEnergyEff: pickFirst(
+      unwrapEnergyEff(raw.main_heating_controls),
+      unwrapValueLike(raw.mainheatcont_energy_eff),
+    ),
+    hotWaterDescription: pickFirst(
+      unwrapDescription(raw.hot_water),
+      unwrapValueLike(raw.hot_water_description),
+    ),
+    hotWaterEnergyEff: pickFirst(
+      unwrapEnergyEff(raw.hot_water),
+      unwrapValueLike(raw.hot_water_energy_eff),
+    ),
+    mainsGasFlag: unwrapMainsGas(raw),
 
     // ── Secondary heating + open chimneys/fireplaces ────────────────
     secondaryHeatingDescription: pickFirst(
+      unwrapDescription(raw.secondary_heating),
       unwrapValueLike(raw.secondheat_description),
       unwrapValueLike(raw.secondary_heating_description),
       unwrapValueLike(raw.main_heating_2_description),
@@ -519,14 +626,43 @@ async function fetchCertificate(certificateNumber: string): Promise<EpcCertifica
     ),
 
     // ── Fabric + glazing ────────────────────────────────────────────
-    wallsDescription: unwrapValueLike(raw.walls_description),
-    wallsEnergyEff: unwrapValueLike(raw.walls_energy_eff),
-    roofDescription: unwrapValueLike(raw.roof_description),
-    roofEnergyEff: unwrapValueLike(raw.roof_energy_eff),
-    floorDescription: unwrapValueLike(raw.floor_description),
-    floorEnergyEff: unwrapValueLike(raw.floor_energy_eff),
-    windowsDescription: unwrapValueLike(raw.windows_description),
-    windowsEnergyEff: unwrapValueLike(raw.windows_energy_eff),
+    // New API: walls/roofs/floors are arrays, window is a single
+    // object. Index [0] for the primary; roofs[1] surfaces as the
+    // secondary roof so installers see mixed-roof properties.
+    wallsDescription: pickFirst(
+      unwrapDescription(raw.walls),
+      unwrapValueLike(raw.walls_description),
+    ),
+    wallsEnergyEff: pickFirst(
+      unwrapEnergyEff(raw.walls),
+      unwrapValueLike(raw.walls_energy_eff),
+    ),
+    roofDescription: pickFirst(
+      unwrapDescription(raw.roofs ?? raw.roof),
+      unwrapValueLike(raw.roof_description),
+    ),
+    roofEnergyEff: pickFirst(
+      unwrapEnergyEff(raw.roofs ?? raw.roof),
+      unwrapValueLike(raw.roof_energy_eff),
+    ),
+    roofDescription2: unwrapDescription(raw.roofs, 1),
+    roofEnergyEff2: unwrapEnergyEff(raw.roofs, 1),
+    floorDescription: pickFirst(
+      unwrapDescription(raw.floors ?? raw.floor),
+      unwrapValueLike(raw.floor_description),
+    ),
+    floorEnergyEff: pickFirst(
+      unwrapEnergyEff(raw.floors ?? raw.floor),
+      unwrapValueLike(raw.floor_energy_eff),
+    ),
+    windowsDescription: pickFirst(
+      unwrapDescription(raw.window ?? raw.windows),
+      unwrapValueLike(raw.windows_description),
+    ),
+    windowsEnergyEff: pickFirst(
+      unwrapEnergyEff(raw.window ?? raw.windows),
+      unwrapValueLike(raw.windows_energy_eff),
+    ),
     glazedType: unwrapValueLike(raw.glazed_type),
     glazedArea: unwrapValueLike(raw.glazed_area),
     multiGlazeProportion: unwrapNumberLike(
@@ -534,8 +670,14 @@ async function fetchCertificate(certificateNumber: string): Promise<EpcCertifica
     ),
 
     // ── Lighting ────────────────────────────────────────────────────
-    lightingDescription: unwrapValueLike(raw.lighting_description),
-    lightingEnergyEff: unwrapValueLike(raw.lighting_energy_eff),
+    lightingDescription: pickFirst(
+      unwrapDescription(raw.lighting),
+      unwrapValueLike(raw.lighting_description),
+    ),
+    lightingEnergyEff: pickFirst(
+      unwrapEnergyEff(raw.lighting),
+      unwrapValueLike(raw.lighting_energy_eff),
+    ),
     lowEnergyLightingPct: unwrapNumberLike(raw.low_energy_lighting),
     fixedLightingOutletsCount: unwrapNumberLike(raw.fixed_lighting_outlets_count),
     lowEnergyFixedLightingCount: unwrapNumberLike(
@@ -585,7 +727,7 @@ async function fetchCertificate(certificateNumber: string): Promise<EpcCertifica
     ),
   };
 
-  await cacheSet("epc:cert-v4", certificateNumber, normalised, TTL_SECONDS);
+  await cacheSet("epc:cert-v5", certificateNumber, normalised, TTL_SECONDS);
   return normalised;
 }
 
@@ -645,6 +787,8 @@ function certFromRow(row: EpcSearchRow): EpcCertificate {
     wallsEnergyEff: null,
     roofDescription: null,
     roofEnergyEff: null,
+    roofDescription2: null,
+    roofEnergyEff2: null,
     floorDescription: null,
     floorEnergyEff: null,
     windowsDescription: null,
@@ -729,13 +873,13 @@ function epcCacheKey(input: GetEpcInput): string | null {
  * fields are present.
  *
  * The whole result is cached for 30 days (7 on miss) in api_cache under
- * namespace "epc:by-address-v4". This means re-analysing the same property
+ * namespace "epc:by-address-v5". This means re-analysing the same property
  * skips the upstream UPRN/postcode search + detail fetch entirely.
  */
 export async function getEpc(input: GetEpcInput): Promise<EpcByAddressResponse> {
   const ck = epcCacheKey(input);
   if (ck) {
-    const cached = await cacheGet<EpcByAddressResponse>("epc:by-address-v4", ck);
+    const cached = await cacheGet<EpcByAddressResponse>("epc:by-address-v5", ck);
     if (cached) return cached;
   }
 
@@ -743,7 +887,7 @@ export async function getEpc(input: GetEpcInput): Promise<EpcByAddressResponse> 
 
   if (ck) {
     const ttl = result.found ? TTL_SECONDS : MISS_TTL_SECONDS;
-    await cacheSet("epc:by-address-v4", ck, result, ttl);
+    await cacheSet("epc:by-address-v5", ck, result, ttl);
   }
   return result;
 }

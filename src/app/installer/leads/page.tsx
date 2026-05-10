@@ -46,6 +46,13 @@ export const dynamic = "force-dynamic";
 
 type LeadRow = Database["public"]["Tables"]["installer_leads"]["Row"];
 type MeetingRow = Database["public"]["Tables"]["installer_meetings"]["Row"];
+type ProposalRow = Database["public"]["Tables"]["installer_proposals"]["Row"];
+
+// The latest proposal for a lead — captured here so the badge can
+// switch to "Quote sent" / "Quote accepted" / "Quote declined" once
+// the installer's started the quoting workflow. Only the fields the
+// badge uses are pulled, to keep the SELECT narrow.
+type LatestProposal = Pick<ProposalRow, "id" | "status" | "sent_at" | "accepted_at" | "declined_at" | "updated_at">;
 
 type StatusKey = "pending" | "accepted" | "closed";
 const TABS: { key: StatusKey; label: string }[] = [
@@ -74,6 +81,7 @@ interface LeadWithMeeting {
     MeetingRow,
     "id" | "scheduled_at" | "duration_min" | "travel_buffer_min" | "status"
   > | null;
+  proposal: LatestProposal | null;
 }
 
 async function loadInstallerId(): Promise<
@@ -137,17 +145,24 @@ async function loadLeads(
     .limit(50);
   if (!leads || leads.length === 0) return [];
 
-  // Pull meetings in a single batch keyed by lead id.
+  // Pull meetings + proposals in parallel batches keyed by lead id.
   const ids = leads.map((l) => l.id);
-  const { data: meetings } = await admin
-    .from("installer_meetings")
-    .select("id, installer_lead_id, scheduled_at, duration_min, travel_buffer_min, status")
-    .in("installer_lead_id", ids);
+  const [meetingsRes, proposalsRes] = await Promise.all([
+    admin
+      .from("installer_meetings")
+      .select("id, installer_lead_id, scheduled_at, duration_min, travel_buffer_min, status")
+      .in("installer_lead_id", ids),
+    admin
+      .from("installer_proposals")
+      .select("id, installer_lead_id, status, sent_at, accepted_at, declined_at, updated_at")
+      .in("installer_lead_id", ids)
+      .order("updated_at", { ascending: false }),
+  ]);
 
-  const byLead = new Map<string, LeadWithMeeting["meeting"]>();
-  for (const m of meetings ?? []) {
+  const meetingsByLead = new Map<string, LeadWithMeeting["meeting"]>();
+  for (const m of meetingsRes.data ?? []) {
     if (!m.installer_lead_id) continue;
-    byLead.set(m.installer_lead_id, {
+    meetingsByLead.set(m.installer_lead_id, {
       id: m.id,
       scheduled_at: m.scheduled_at,
       duration_min: m.duration_min,
@@ -156,9 +171,27 @@ async function loadLeads(
     });
   }
 
+  // Newest proposal per lead — Map.set keeps the first-seen for a key
+  // when iterating in order, so we walk the already-DESC-sorted rows
+  // and only set if not already set.
+  const proposalByLead = new Map<string, LatestProposal>();
+  for (const p of proposalsRes.data ?? []) {
+    if (!p.installer_lead_id) continue;
+    if (proposalByLead.has(p.installer_lead_id)) continue;
+    proposalByLead.set(p.installer_lead_id, {
+      id: p.id,
+      status: p.status,
+      sent_at: p.sent_at,
+      accepted_at: p.accepted_at,
+      declined_at: p.declined_at,
+      updated_at: p.updated_at,
+    });
+  }
+
   return (leads as LeadRow[]).map((lead) => ({
     lead,
-    meeting: byLead.get(lead.id) ?? null,
+    meeting: meetingsByLead.get(lead.id) ?? null,
+    proposal: proposalByLead.get(lead.id) ?? null,
   }));
 }
 
@@ -227,9 +260,14 @@ export default async function LeadsPage({ searchParams }: PageProps) {
         <EmptyState bucket={status} />
       ) : (
         <ul className="space-y-3">
-          {leads.map(({ lead, meeting }) => (
+          {leads.map(({ lead, meeting, proposal }) => (
             <li key={lead.id}>
-              <LeadCard lead={lead} meeting={meeting} bucket={status} />
+              <LeadCard
+                lead={lead}
+                meeting={meeting}
+                proposal={proposal}
+                bucket={status}
+              />
             </li>
           ))}
         </ul>
@@ -243,10 +281,12 @@ export default async function LeadsPage({ searchParams }: PageProps) {
 function LeadCard({
   lead,
   meeting,
+  proposal,
   bucket,
 }: {
   lead: LeadRow;
   meeting: LeadWithMeeting["meeting"];
+  proposal: LatestProposal | null;
   bucket: StatusKey;
 }) {
   const wants = listWants(
@@ -283,7 +323,7 @@ function LeadCard({
             {formatRelative(lead.created_at)}
           </p>
         </div>
-        <StatusBadge lead={lead} />
+        <StatusBadge lead={lead} meeting={meeting} proposal={proposal} />
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-[160px,1fr] gap-x-4 gap-y-2 text-sm mb-4">
@@ -383,71 +423,128 @@ function LeadCard({
   );
 }
 
-function StatusBadge({ lead }: { lead: LeadRow }) {
-  const { status, auto_released_at } = lead;
-  if (status === "new" || status === "sent_to_installer") {
+// Lead-lifecycle badge. Renders the most-progressed signal across:
+//   1. lead.status                 (terminal closures)
+//   2. proposal.status             (sent / accepted / declined)
+//   3. meeting/lead intermediates  (visit_booked, visit_completed)
+//
+// Order matters: a closed_won always reads "Won" even if there's a
+// stale "sent" proposal hanging around. Inside the open lifecycle,
+// proposal status is the most-progressed signal.
+function StatusBadge({
+  lead,
+  meeting,
+  proposal,
+}: {
+  lead: LeadRow;
+  meeting: LeadWithMeeting["meeting"];
+  proposal: LatestProposal | null;
+}) {
+  const { status, auto_released_at, pre_survey_request_id } = lead;
+  // Tailwind classes per tone — kept inline to avoid a config map
+  // for a one-place use.
+  const cls = {
+    amber: "bg-amber-100 text-amber-900",
+    slate: "bg-slate-200 text-slate-700",
+    sky: "bg-sky-100 text-sky-900",
+    emerald: "bg-emerald-100 text-emerald-900",
+    emeraldStrong: "bg-emerald-200 text-emerald-900",
+    rose: "bg-rose-100 text-rose-900",
+    coral: "bg-coral-pale text-coral-dark",
+  } as const;
+
+  function pill(tone: keyof typeof cls, icon: React.ReactNode, label: string) {
     return (
-      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-100 text-amber-900">
-        <Clock className="w-3 h-3" />
-        Pending — needs response
+      <span
+        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold ${cls[tone]}`}
+      >
+        {icon}
+        {label}
       </span>
     );
   }
-  if (status === "installer_acknowledged") {
-    return (
-      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-sky-100 text-sky-900">
-        <Sparkles className="w-3 h-3" />
-        Taken — rescheduling
-      </span>
+
+  // 1. Terminal closures always win.
+  if (status === "closed_won") {
+    return pill("emeraldStrong", <CheckCircle2 className="w-3 h-3" />, "Won");
+  }
+  if (status === "closed_lost") {
+    return pill("slate", <XCircle className="w-3 h-3" />, "Lost");
+  }
+  if (status === "cancelled") {
+    return auto_released_at
+      ? pill("amber", <Clock className="w-3 h-3" />, "Auto-released (24h)")
+      : pill("slate", <XCircle className="w-3 h-3" />, "Cancelled");
+  }
+
+  // 2. Proposal-driven states (when there's an active quote).
+  if (proposal) {
+    if (proposal.status === "accepted") {
+      return pill(
+        "emeraldStrong",
+        <CheckCircle2 className="w-3 h-3" />,
+        "Quote accepted",
+      );
+    }
+    if (proposal.status === "declined") {
+      return pill("rose", <XCircle className="w-3 h-3" />, "Quote declined");
+    }
+    if (proposal.status === "sent") {
+      return pill("coral", <Mail className="w-3 h-3" />, "Quote sent");
+    }
+    if (proposal.status === "draft") {
+      return pill("sky", <Sparkles className="w-3 h-3" />, "Quote drafting");
+    }
+  }
+
+  // 3. Open lead, no proposal yet — meeting + lead-status intermediates.
+  if (status === "visit_completed") {
+    return pill(
+      "emerald",
+      <CheckCircle2 className="w-3 h-3" />,
+      "Visit completed",
     );
   }
   if (status === "visit_booked") {
-    return (
-      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-900">
-        <CheckCircle2 className="w-3 h-3" />
-        Booked
-      </span>
+    return pill(
+      "emerald",
+      <CalendarDays className="w-3 h-3" />,
+      "Meeting booked",
     );
   }
-  if (status === "visit_completed") {
-    return (
-      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-900">
-        <CheckCircle2 className="w-3 h-3" />
-        Completed
-      </span>
+  if (status === "installer_acknowledged") {
+    // Disambiguate the previous "Taken — rescheduling" copy. For
+    // pre-survey-origin leads where the customer hasn't booked a
+    // slot yet, this is a "you accepted, no diary entry yet" state
+    // — not a reschedule. For directory leads it usually means the
+    // installer accepted via /lead/accept with action="reschedule".
+    if (pre_survey_request_id) {
+      return pill(
+        "sky",
+        <Sparkles className="w-3 h-3" />,
+        "Lead taken — awaiting booking",
+      );
+    }
+    if (meeting && meeting.status === "cancelled") {
+      return pill(
+        "sky",
+        <Sparkles className="w-3 h-3" />,
+        "Lead taken — rescheduling",
+      );
+    }
+    return pill("sky", <Sparkles className="w-3 h-3" />, "Lead taken");
+  }
+  if (status === "new" || status === "sent_to_installer") {
+    return pill(
+      "amber",
+      <Clock className="w-3 h-3" />,
+      "Pending — needs response",
     );
   }
-  if (status === "closed_won") {
-    return (
-      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-200 text-emerald-900">
-        <CheckCircle2 className="w-3 h-3" />
-        Won
-      </span>
-    );
-  }
-  if (status === "closed_lost") {
-    return (
-      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-slate-200 text-slate-700">
-        <XCircle className="w-3 h-3" />
-        Lost
-      </span>
-    );
-  }
-  // status === "cancelled"
-  if (auto_released_at) {
-    return (
-      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-100 text-amber-900">
-        <Clock className="w-3 h-3" />
-        Auto-released (24h)
-      </span>
-    );
-  }
-  return (
-    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-slate-200 text-slate-700">
-      <XCircle className="w-3 h-3" />
-      Cancelled
-    </span>
-  );
+
+  // Defensive default for any future enum value we haven't taught
+  // the badge about.
+  return pill("slate", <XCircle className="w-3 h-3" />, status);
 }
 
 function Row({

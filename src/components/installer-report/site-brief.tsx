@@ -43,6 +43,7 @@ import {
 } from "lucide-react";
 import type { AnalyseResponse } from "@/lib/schemas/analyse";
 import type { FloorplanAnalysis } from "@/lib/schemas/floorplan";
+import { FloorplanReadOnly } from "@/components/check-wizard/report/floorplan-readonly";
 import type { FuelTariff } from "@/lib/schemas/bill";
 import type { AddressMetadata } from "@/lib/schemas/address-lookup";
 import { epcCertificateUrl } from "@/lib/schemas/epc";
@@ -533,6 +534,21 @@ function PropertyCard({
                 rating={epc?.roofEnergyEff}
               />
             </Dd>
+            {epc?.roofDescription2 && (
+              <>
+                {/* Second roof element — usually a flat / dormer roof
+                    alongside the main pitched roof. EPC certificates
+                    list both, and installers want both for solar +
+                    heat-loss scope. */}
+                <Dt>Roof (2)</Dt>
+                <Dd>
+                  <FabricCell
+                    description={epc.roofDescription2}
+                    rating={epc.roofEnergyEff2}
+                  />
+                </Dd>
+              </>
+            )}
             <Dt>Floor</Dt>
             <Dd>
               <FabricCell
@@ -563,7 +579,7 @@ function PropertyCard({
           link any time we have an object key (so installers can
           eyeball the original sketch even when room extraction
           came back empty). Either condition opens the section. */}
-      {(rooms.length > 0 || floorplanObjectKey) && (
+      {(rooms.length > 0 || floorplanObjectKey || floorplan) && (
         <div className="mt-6 pt-5 border-t border-slate-100">
           <div className="flex items-baseline justify-between gap-2 mb-2">
             <Subhead>
@@ -582,6 +598,26 @@ function PropertyCard({
               </a>
             )}
           </div>
+
+          {/* Inline render of the annotated floorplan — same SVG view
+              the homeowner sees on the Heat pump tab, so the
+              installer reads the same canonical drawing rather than
+              having to click out to the raw image. The component
+              auto-fades the underlying photo when the user has
+              drawn walls/zones, otherwise overlays AI pins on the
+              photo. */}
+          {floorplan && (
+            <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50 overflow-hidden">
+              <FloorplanReadOnly
+                analysis={floorplan}
+                imageUrl={
+                  floorplanObjectKey
+                    ? `/api/floorplan/image?key=${encodeURIComponent(floorplanObjectKey)}`
+                    : null
+                }
+              />
+            </div>
+          )}
           {rooms.length > 0 ? (
             <div className="mt-2 overflow-x-auto rounded-lg border border-slate-200">
               <table className="w-full text-sm">
@@ -1179,20 +1215,38 @@ function HeatPumpCard({
         <div className="space-y-4">
           <Subhead>Outdoor space + locations</Subhead>
           <Dl>
-            <Dt>Satellite verdict</Dt>
-            <Dd>
-              <SatelliteVerdict
-                verdict={floorplan?.outdoorSpace.satelliteVerdict ?? null}
-              />
-            </Dd>
-            <Dt>User confirmed</Dt>
-            <Dd>
-              {floorplan?.outdoorSpace.userConfirmed === "yes"
-                ? "Yes"
-                : floorplan?.outdoorSpace.userConfirmed === "no"
-                  ? "No"
-                  : "—"}
-            </Dd>
+            {/* Outdoor space — three states from least to most certain:
+                  - both null: skip the noisy "—/—" rows + show one
+                    "not assessed" line so the installer knows why
+                    these fields are empty (rather than assuming a bug)
+                  - satellite only: render the satellite call only
+                  - user confirmed: take the user answer as canonical */}
+            {floorplan?.outdoorSpace.satelliteVerdict == null &&
+            floorplan?.outdoorSpace.userConfirmed == null ? (
+              <>
+                <Dt>Outdoor space</Dt>
+                <Dd className="text-slate-500 italic">
+                  Not assessed — verify on site
+                </Dd>
+              </>
+            ) : (
+              <>
+                <Dt>Satellite verdict</Dt>
+                <Dd>
+                  <SatelliteVerdict
+                    verdict={floorplan?.outdoorSpace.satelliteVerdict ?? null}
+                  />
+                </Dd>
+                <Dt>User confirmed</Dt>
+                <Dd>
+                  {floorplan?.outdoorSpace.userConfirmed === "yes"
+                    ? "Yes"
+                    : floorplan?.outdoorSpace.userConfirmed === "no"
+                      ? "No"
+                      : "—"}
+                </Dd>
+              </>
+            )}
             <Dt>HP candidates</Dt>
             <Dd>
               {heatPumpLocations.length > 0 ? (

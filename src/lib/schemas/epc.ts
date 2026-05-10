@@ -163,21 +163,31 @@ export const EpcCertificateRawSchema = z
     number_heated_rooms: u,
     heated_room_count: u, // newer alias
 
-    // Heating — primary
+    // Heating — primary. New API ships nested arrays:
+    //   main_heating: [{ description: { value: "..." }, energy_efficiency: { value: "Good" }}]
+    //   main_heating_controls: [{ description, energy_efficiency }]
+    // Old API ships flat: main_heating_description, mainheat_energy_eff.
+    // Both paths are kept on the raw schema; the service layer picks
+    // whichever has data via unwrapDescription / unwrapEnergyEff.
     main_fuel: u,
-    main_heating_description: u,
-    mainheat_description: u, // newer alias
-    mainheat_energy_eff: u,
-    mainheatcont_description: u,
-    mainheatcont_energy_eff: u,
-    hot_water_description: u,
-    hot_water_energy_eff: u,
-    mains_gas_flag: u,
+    main_heating: u, // new nested array
+    main_heating_description: u, // legacy flat
+    mainheat_description: u, // legacy alias
+    mainheat_energy_eff: u, // legacy flat
+    main_heating_controls: u, // new nested array
+    mainheatcont_description: u, // legacy flat
+    mainheatcont_energy_eff: u, // legacy flat
+    hot_water: u, // new nested object
+    hot_water_description: u, // legacy flat
+    hot_water_energy_eff: u, // legacy flat
+    mains_gas_flag: u, // legacy "Y" / "N"
+    sap_energy_source: u, // new nested { mains_gas: bool }
 
     // Heating — secondary (open fires, electric heaters etc).
     // Surfaced for installers because secondary heat affects sizing
     // (it covers shoulder demand the heat pump won't have to).
-    secondheat_description: u,
+    secondary_heating: u, // new nested { description: { value } }
+    secondheat_description: u, // legacy flat
     secondary_heating_description: u, // older alias
     main_heating_2_description: u, // alternate spelling
 
@@ -188,13 +198,25 @@ export const EpcCertificateRawSchema = z
     number_open_chimneys: u,
     open_chimneys_count: u, // newer alias
 
-    // Fabric + glazing
+    // Fabric + glazing. New API ships these as either:
+    //   walls / floors / roofs : array of { description, energy_efficiency }
+    //   window                  : single object  { description, energy_efficiency }
+    // The service layer unwraps via unwrapDescription / unwrapEnergyEff
+    // which handle both arrays and single objects. Legacy flat keys
+    // are kept for back-compat with cached responses.
+    walls: u,
     walls_description: u,
     walls_energy_eff: u,
+    roofs: u,
+    roof: u, // singular alias
     roof_description: u,
     roof_energy_eff: u,
+    floors: u,
+    floor: u,
     floor_description: u,
     floor_energy_eff: u,
+    window: u, // new singular shape
+    windows: u, // some envelopes ship plural
     windows_description: u,
     windows_energy_eff: u,
     glazed_type: u,
@@ -202,7 +224,8 @@ export const EpcCertificateRawSchema = z
     multi_glaze_proportion: u,
     multiple_glazed_proportion: u, // newer alias
 
-    // Lighting
+    // Lighting — same nested-or-flat treatment.
+    lighting: u, // new nested
     lighting_description: u,
     lighting_energy_eff: u,
     low_energy_lighting: u,
@@ -313,6 +336,12 @@ export const EpcCertificateSchema = z.object({
   wallsEnergyEff: z.string().nullable(),
   roofDescription: z.string().nullable(),
   roofEnergyEff: z.string().nullable(),
+  // New EPC schema can ship a second roof element (e.g. a flat roof
+  // alongside the main pitched roof). Surfaced for installers
+  // because mixed-roof properties affect solar segment scope + heat
+  // loss. Null when the cert only has one roof.
+  roofDescription2: z.string().nullable(),
+  roofEnergyEff2: z.string().nullable(),
   floorDescription: z.string().nullable(),
   floorEnergyEff: z.string().nullable(),
   windowsDescription: z.string().nullable(),
