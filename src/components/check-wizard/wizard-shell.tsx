@@ -21,7 +21,7 @@ import { isV1SupportedCountry } from "@/lib/postcode/region";
 
 // Visible steps in the header progress — `lead_capture` is collapsed into
 // the analysis/report continuum so the user sees a clean "X of 6".
-const VISIBLE_STEPS: CheckStep[] = [
+const VISIBLE_STEPS_ALL: CheckStep[] = [
   "address",
   "preview",
   "questions",
@@ -30,14 +30,41 @@ const VISIBLE_STEPS: CheckStep[] = [
   "report",
 ];
 
+// Solar variant skips the floorplan step (mirrors stepOrderForFocus
+// in types.ts) — keep the bar count honest so "Step 4 of 5" doesn't
+// stretch into a non-existent floorplan slot.
+const VISIBLE_STEPS_SOLAR: CheckStep[] = VISIBLE_STEPS_ALL.filter(
+  (s) => s !== "floorplan",
+);
+
+// Right-hand context label in the wizard header. Reflects the
+// variant the user came in on so the header reads consistently
+// with the marketing landing page they clicked from.
+function FocusLabel() {
+  const { state } = useCheckWizard();
+  const label =
+    state.focus === "solar"
+      ? "Solar check"
+      : state.focus === "heatpump"
+        ? "Heat pump check"
+        : "Heat pump & solar check";
+  return (
+    <span className="hidden md:inline text-[11px] font-medium uppercase tracking-wider text-[var(--muted-brand)] shrink-0">
+      {label}
+    </span>
+  );
+}
+
 function HeaderProgress() {
-  const { step } = useCheckWizard();
+  const { step, state } = useCheckWizard();
   // Treat `lead_capture` as part of `analysis` for progress purposes.
   const effectiveStep: CheckStep = step === "lead_capture" ? "analysis" : step;
-  const currentIdx = VISIBLE_STEPS.indexOf(effectiveStep);
+  const visibleSteps =
+    state.focus === "solar" ? VISIBLE_STEPS_SOLAR : VISIBLE_STEPS_ALL;
+  const currentIdx = visibleSteps.indexOf(effectiveStep);
   return (
-    <div className="flex items-center gap-1" aria-label={`Step ${currentIdx + 1} of ${VISIBLE_STEPS.length}`}>
-      {VISIBLE_STEPS.map((s, i) => (
+    <div className="flex items-center gap-1" aria-label={`Step ${currentIdx + 1} of ${visibleSteps.length}`}>
+      {visibleSteps.map((s, i) => (
         <span
           key={s}
           className={`h-1.5 rounded-full transition-all ${
@@ -48,7 +75,7 @@ function HeaderProgress() {
         />
       ))}
       <span className="ml-2 text-[11px] font-medium tabular-nums text-slate-500 hidden sm:inline">
-        {currentIdx + 1} / {VISIBLE_STEPS.length}
+        {currentIdx + 1} / {visibleSteps.length}
       </span>
     </div>
   );
@@ -134,9 +161,7 @@ export function CheckWizard({ initialState }: CheckWizardProps = {}) {
           <div className="flex-1 flex items-center justify-center min-w-0">
             <HeaderProgress />
           </div>
-          <span className="hidden md:inline text-[11px] font-medium uppercase tracking-wider text-[var(--muted-brand)] shrink-0">
-            Heat pump &amp; solar check
-          </span>
+          <FocusLabel />
         </div>
       </header>
       <main id="wizard-main" tabIndex={-1} className="flex-1 bg-gradient-to-b from-cream-deep to-cream">

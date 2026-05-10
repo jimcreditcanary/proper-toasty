@@ -125,11 +125,27 @@ export function ReportShell({ audience = "homeowner" }: ReportShellProps = {}) {
   //   - presurvey + meeting booked: drop Book (the meeting's already
   //     in the diary)
   //   - everything else: all five tabs
-  const visibleTabs = isInstaller
+  // Three-variant focus filter (state.focus, default "all"):
+  //   solar    → drop the Heat-pump tab (the focused user is here
+  //              for solar, not heat pump verdicts)
+  //   heatpump → drop Solar + Savings tabs (Savings leans on the
+  //              solar finance block — without solar there's no
+  //              meaningful comparison to render)
+  //   all      → no extra filtering
+  const focus = state.focus ?? "all";
+  const focusFilter = (t: TabDef): boolean => {
+    if (focus === "solar" && t.key === "heatpump") return false;
+    if (focus === "heatpump" && (t.key === "solar" || t.key === "savings"))
+      return false;
+    return true;
+  };
+
+  const visibleTabs = (isInstaller
     ? TABS.filter((t) => t.key !== "savings" && t.key !== "book")
     : meetingBooked
       ? TABS.filter((t) => t.key !== "book")
-      : TABS;
+      : TABS
+  ).filter(focusFilter);
   const a = state.analysis;
   const addr = state.address;
 

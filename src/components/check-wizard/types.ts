@@ -24,6 +24,35 @@ export const STEP_ORDER: CheckStep[] = [
   "report",
 ];
 
+/** Three product entry points:
+ *
+ *   - "all"      → /check, runs both heat-pump + solar paths.
+ *                  Default for the homepage.
+ *   - "solar"    → /check/solar, marketing-targeted variant.
+ *                  Skips the floorplan step (solar doesn't need
+ *                  it) and hides the heat-pump tab on the report.
+ *   - "heatpump" → /check/heatpump, marketing-targeted variant.
+ *                  Same steps as "all" but the report hides the
+ *                  Solar + Savings tabs so the user reads only
+ *                  the heat-pump verdict.
+ *
+ * Persisted in wizard state so back/forward + page reload keep
+ * the variant.
+ */
+export type WizardFocus = "all" | "solar" | "heatpump";
+
+/** Per-focus step order. Solar drops the floorplan step because the
+ *  solar API + satellite imagery don't depend on it; the floorplan
+ *  upload would just be friction for a user who came in on the solar
+ *  marketing page. Heat-pump variant keeps every step — the floor-
+ *  plan IS the heat-pump survey input. */
+export function stepOrderForFocus(focus: WizardFocus): CheckStep[] {
+  if (focus === "solar") {
+    return STEP_ORDER.filter((s) => s !== "floorplan");
+  }
+  return STEP_ORDER;
+}
+
 export type Tenure = "owner" | "landlord" | "tenant" | "social";
 export type Interest = "heat_pump" | "solar_battery";
 export type HeatingFuel = "gas" | "electric" | "other";
@@ -103,6 +132,10 @@ export interface CheckWizardState {
   // installer_lead can be linked back to the upload.
   floorplanUploadId: string | null;
 
+  // Three-variant entry point — see WizardFocus comment above.
+  // Default "all" keeps backwards-compat with the homepage flow.
+  focus: WizardFocus;
+
   // Step 5 — analysis output (stitched)
   analysis: AnalyseResponse | null;
 
@@ -155,6 +188,7 @@ export const INITIAL_STATE: CheckWizardState = {
   address: null,
   country: null,
   interests: ["heat_pump", "solar_battery"],
+  focus: "all",
   tenure: null,
   currentHeatingFuel: null,
   priorHeatPumpFunding: null,

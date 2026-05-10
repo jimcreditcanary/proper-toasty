@@ -13,6 +13,7 @@ import {
 import {
   INITIAL_STATE,
   STEP_ORDER,
+  stepOrderForFocus,
   type CheckStep,
   type CheckWizardAction,
   type CheckWizardState,
@@ -149,15 +150,24 @@ export function CheckWizardProvider({
 
   const goTo = useCallback((s: CheckStep) => setStep(s), []);
 
+  // Focus-aware navigation. Solar variant skips the floorplan step;
+  // heat-pump + all keep the full sequence. Falls back to STEP_ORDER
+  // when the wizard hasn't been told its focus (defensive for
+  // legacy persisted state).
+  const order = useMemo(
+    () => stepOrderForFocus(state.focus ?? "all"),
+    [state.focus],
+  );
+
   const next = useCallback(() => {
-    const i = STEP_ORDER.indexOf(step);
-    if (i >= 0 && i < STEP_ORDER.length - 1) setStep(STEP_ORDER[i + 1]);
-  }, [step]);
+    const i = order.indexOf(step);
+    if (i >= 0 && i < order.length - 1) setStep(order[i + 1]);
+  }, [step, order]);
 
   const back = useCallback(() => {
-    const i = STEP_ORDER.indexOf(step);
-    if (i > 0) setStep(STEP_ORDER[i - 1]);
-  }, [step]);
+    const i = order.indexOf(step);
+    if (i > 0) setStep(order[i - 1]);
+  }, [step, order]);
 
   const value = useMemo(
     () => ({ state, step, update, reset, goTo, next, back }),
