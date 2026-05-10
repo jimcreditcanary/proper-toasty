@@ -31,9 +31,19 @@ export function Step5Analysis() {
 
   useEffect(() => {
     if (firedRef.current) return;
+    // Three-variant gate. Solar focus skips the floorplan step
+    // entirely so requiring a floorplan key would lock the user
+    // out. Heat-pump + all need EITHER the legacy
+    // floorplanObjectKey (old builder path) OR the v2
+    // floorplanExtract (new upload-only path).
+    const focus = state.focus ?? "all";
+    const haveFloorplan =
+      focus === "solar"
+        ? true
+        : Boolean(state.floorplanObjectKey || state.floorplanExtract);
     if (
       !state.address ||
-      !state.floorplanObjectKey ||
+      !haveFloorplan ||
       state.interests.length === 0 ||
       !state.tenure ||
       !state.currentHeatingFuel
@@ -57,7 +67,11 @@ export function Step5Analysis() {
           electricityTariff: state.electricityTariff,
           gasTariff: state.gasTariff,
         },
-        floorplanObjectKey: state.floorplanObjectKey,
+        // Legacy field — empty string when the v2 upload-only flow
+        // didn't store the raw image key on wizard state. The
+        // analyse endpoint defaults this to "" and synthesises an
+        // empty floorplan downstream.
+        floorplanObjectKey: state.floorplanObjectKey ?? "",
         // Step 4 already ran the floorplan analysis (with the user's edits).
         // Pass it through so /api/analyse skips its own Claude vision call.
         precomputedFloorplan: state.floorplanAnalysis
@@ -98,6 +112,10 @@ export function Step5Analysis() {
     state.address,
     state.country,
     state.floorplanObjectKey,
+    // V2 upload flow + focus variants — both gate the auto-fire
+    // effect so changes need to retrigger the dependency check.
+    state.floorplanExtract,
+    state.focus,
     state.interests,
     state.tenure,
     state.currentHeatingFuel,
@@ -172,7 +190,9 @@ export function Step5Analysis() {
         )}
         {stage === "idle" && (
           <p className="text-sm text-slate-500">
-            We need address, questions and a floorplan to run — please start again from Step 1.
+            {state.focus === "solar"
+              ? "We need an address + a couple of quick questions to run. Use the Back button to fill those in."
+              : "We need an address, the quick questions, and your floorplan to run. Use the Back button to fill those in."}
           </p>
         )}
       </div>

@@ -44,11 +44,17 @@ export const AnalyseRequestSchema = z.object({
     electricityTariff: FuelTariffSchema.nullable(),
     gasTariff: FuelTariffSchema.nullable(),
   }),
-  floorplanObjectKey: z.string(),
-  // Precomputed floorplan analysis from Step 4 (after the user has reviewed
-  // and edited the diagram). When present, /api/analyse skips its own Claude
-  // floorplan call and uses this directly. Optional for backward compat —
-  // the old "upload + analyse later" flow still works if absent.
+  // Optional now — the v2 upload-only flow stores the floorplan in
+  // public.floorplan_uploads and supplies the structured extract via
+  // wizard state, so the analyse pipeline doesn't need the raw image
+  // key. Empty-string default keeps the schema lenient when the
+  // wizard's gate has cleared but the legacy field is unset.
+  floorplanObjectKey: z.string().default(""),
+  // Precomputed floorplan analysis from the legacy Step 4 builder
+  // (canvas walls / placements). When present, /api/analyse skips
+  // its own Claude vision call. The v2 upload-only flow doesn't
+  // populate this — it sends `floorplanExtract` separately so the
+  // report's heat-pump tab can render the new content directly.
   precomputedFloorplan: z
     .object({
       analysis: FloorplanAnalysisSchema.nullable(),
