@@ -90,6 +90,13 @@ export async function POST(req: Request) {
       homeowner_token: homeownerToken,
       meeting_status: parsed.data.meeting_status,
       meeting_at: parsed.data.meeting_at ?? null,
+      // Batch 2 — installer-chosen scope. Defaults applied by the
+      // Zod schema match the previous hardcoded capture behaviour
+      // (HP + Solar yes, Battery no) so legacy callers still write
+      // a sensible row.
+      wants_heat_pump: parsed.data.wants_heat_pump,
+      wants_solar: parsed.data.wants_solar,
+      wants_battery: parsed.data.wants_battery,
     })
     .select("id, contact_name, contact_email, homeowner_token")
     .single();

@@ -422,7 +422,16 @@ function ExtractDrivenHeatPump({
         subtitle={hp.overall_assessment}
         icon={<Flame className="w-5 h-5" />}
       >
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
+        {/* Headline tiles — homeowner sees Score + Grant only. The
+            engineering Heat-demand tile (peak kW, annual kWh, capacity
+            range, W/m² basis) is installer-only because none of those
+            numbers tell a homeowner anything actionable; their
+            installer's site brief covers them. */}
+        <div
+          className={`grid grid-cols-1 gap-4 mb-5 ${
+            audience === "installer" ? "md:grid-cols-3" : "md:grid-cols-2"
+          }`}
+        >
           {/* Score */}
           <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 flex items-center gap-4">
             <ScoreRing score={score} />
@@ -456,27 +465,29 @@ function ExtractDrivenHeatPump({
             </p>
           </div>
 
-          {/* Heat demand */}
-          <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1 inline-flex items-center gap-1">
-              <Flame className="w-3 h-3" />
-              Heat demand
-            </p>
-            <p className="text-2xl font-bold text-navy">
-              {hp.heat_demand_estimate.estimated_peak_heat_demand_kw.toFixed(1)}{" "}
-              <span className="text-sm font-medium text-slate-500">kW peak</span>
-            </p>
-            <p className="text-xs text-slate-600 mt-0.5">
-              ~{Math.round(
-                hp.heat_demand_estimate.estimated_annual_heat_demand_kwh,
-              ).toLocaleString("en-GB")}{" "}
-              kWh/yr · {hp.heat_demand_estimate.recommended_heat_pump_capacity_kw_range[0]}–
-              {hp.heat_demand_estimate.recommended_heat_pump_capacity_kw_range[1]} kW HP
-            </p>
-            <p className="mt-2 text-[11px] text-slate-500 italic leading-relaxed">
-              {hp.heat_demand_estimate.caveat}
-            </p>
-          </div>
+          {/* Heat demand — installer-only. */}
+          {audience === "installer" && (
+            <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1 inline-flex items-center gap-1">
+                <Flame className="w-3 h-3" />
+                Heat demand
+              </p>
+              <p className="text-2xl font-bold text-navy">
+                {hp.heat_demand_estimate.estimated_peak_heat_demand_kw.toFixed(1)}{" "}
+                <span className="text-sm font-medium text-slate-500">kW peak</span>
+              </p>
+              <p className="text-xs text-slate-600 mt-0.5">
+                ~{Math.round(
+                  hp.heat_demand_estimate.estimated_annual_heat_demand_kwh,
+                ).toLocaleString("en-GB")}{" "}
+                kWh/yr · {hp.heat_demand_estimate.recommended_heat_pump_capacity_kw_range[0]}–
+                {hp.heat_demand_estimate.recommended_heat_pump_capacity_kw_range[1]} kW HP
+              </p>
+              <p className="mt-2 text-[11px] text-slate-500 italic leading-relaxed">
+                {hp.heat_demand_estimate.caveat}
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Positive vs risks */}
@@ -514,71 +525,59 @@ function ExtractDrivenHeatPump({
           )}
         </div>
 
-        {/* Siting */}
+        {/* Siting — homeowner gets the plain recommended-location
+            sentence only; the footprint dimension, alternative spots
+            and MCS 020 / front-elevation planning notes are
+            installer-only (the site brief renders them in full). */}
         <div className="rounded-lg border border-slate-200 bg-white p-4">
           <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2 inline-flex items-center gap-1">
             <Compass className="w-3 h-3" />
-            External unit siting
+            Where the outdoor unit goes
           </p>
           <p className="text-sm text-navy leading-relaxed">
             <span className="font-semibold">Recommended:</span>{" "}
             {hp.external_unit_siting.recommended_location}
           </p>
-          <p className="mt-2 text-xs text-slate-600">
-            Footprint: {hp.external_unit_siting.approximate_footprint_required_m}
-          </p>
-          {hp.external_unit_siting.alternative_locations.length > 0 && (
-            <p className="mt-1 text-xs text-slate-600">
-              Alternatives: {hp.external_unit_siting.alternative_locations.join(" · ")}
-            </p>
+          {audience === "installer" && (
+            <>
+              <p className="mt-2 text-xs text-slate-600">
+                Footprint: {hp.external_unit_siting.approximate_footprint_required_m}
+              </p>
+              {hp.external_unit_siting.alternative_locations.length > 0 && (
+                <p className="mt-1 text-xs text-slate-600">
+                  Alternatives: {hp.external_unit_siting.alternative_locations.join(" · ")}
+                </p>
+              )}
+              <p className="mt-2 text-[11px] text-slate-500 italic">
+                {hp.external_unit_siting.front_elevation_siting}
+              </p>
+            </>
           )}
-          <p className="mt-2 text-[11px] text-slate-500 italic">
-            {hp.external_unit_siting.front_elevation_siting}
-          </p>
         </div>
       </SectionCard>
 
-      {/* Floor-by-floor reference. Only shown to homeowners on the
-          wizard report; installers get the dense brief on
-          /installer/reports/[leadId] which has the same data. */}
+      {/* Floor-by-floor — dropped from the homeowner view. It's
+          a reference for the engineer (room layout, GIA per floor)
+          and reads as filler to a homeowner who already saw their
+          own floorplan in the upload step. Still surfaced on the
+          installer site brief at /installer/reports/[leadId]. */}
+
+      {/* Engineer's-notes pointer — explains where the technical
+          sizing detail went so the homeowner doesn't feel the
+          information's been hidden from them; reinforces that the
+          installer they pick has the full picture. */}
       {audience === "homeowner" && (
-        <SectionCard
-          title="Floor-by-floor"
-          subtitle="What we read off your plan."
-          icon={<MapPin className="w-5 h-5" />}
-        >
-          <div className="space-y-4">
-            {extract.floors.map((f, i) => (
-              <div
-                key={i}
-                className="rounded-xl border border-slate-200 bg-slate-50/40 p-4"
-              >
-                <div className="flex items-baseline justify-between flex-wrap gap-2">
-                  <p className="text-base font-bold text-navy">{f.level} floor</p>
-                  <p className="text-xs text-slate-500 tabular-nums">
-                    {f.gross_internal_area.sq_m.toFixed(1)} m² ·{" "}
-                    {Math.round(f.gross_internal_area.sq_ft).toLocaleString("en-GB")} sq ft
-                  </p>
-                </div>
-                <p className="mt-1 text-sm text-slate-700 leading-relaxed">
-                  {f.layout_description}
-                </p>
-                {f.rooms.length > 0 && (
-                  <ul className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-sm">
-                    {f.rooms.map((r, j) => (
-                      <li key={j} className="text-slate-700">
-                        <span className="font-semibold text-navy">{r.name}</span>
-                        {r.location && (
-                          <span className="text-xs text-slate-500"> · {r.location}</span>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            ))}
-          </div>
-        </SectionCard>
+        <div className="rounded-lg border border-slate-200 bg-slate-50/50 px-4 py-3 text-xs text-slate-600 leading-relaxed">
+          <p>
+            <span className="font-semibold text-navy">
+              Full engineer&rsquo;s notes
+            </span>{" "}
+            — peak heat demand, recommended pump capacity, radiator
+            sizing, siting footprint and planning notes — are in the
+            site brief we send the installer you pick. They&rsquo;ll
+            confirm everything on the site visit.
+          </p>
+        </div>
       )}
 
       {/* Next steps — checklist */}

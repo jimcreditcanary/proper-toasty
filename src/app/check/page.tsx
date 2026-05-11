@@ -57,7 +57,7 @@ async function loadPresurveyPrefill(
   const { data: request } = await admin
     .from("installer_pre_survey_requests")
     .select(
-      "id, installer_id, status, contact_name, contact_email, contact_postcode, clicked_at, completed_at, expires_at, meeting_status, meeting_at",
+      "id, installer_id, status, contact_name, contact_email, contact_postcode, clicked_at, completed_at, expires_at, meeting_status, meeting_at, wants_heat_pump, wants_solar, wants_battery",
     )
     .eq("id", requestId)
     .eq("homeowner_token", token)
@@ -93,9 +93,29 @@ async function loadPresurveyPrefill(
       });
   }
 
+  // Batch 2 — derive the wizard focus from the installer's chosen
+  // scope. Legacy rows (no scope columns) default to "all" via the
+  // DB defaults from migration 060. The mapping:
+  //
+  //   HP only          → focus="heatpump" (skips solar API + tabs)
+  //   Solar/Battery    → focus="solar"    (skips floorplan + HP tabs)
+  //   Both (any combo) → focus="all"      (full wizard)
+  //
+  // Battery alone without solar isn't possible (CHECK constraint
+  // pre_survey_request_scope_at_least_one) so we don't handle it.
+  const wantsHp = request.wants_heat_pump ?? true;
+  const wantsSolar = request.wants_solar ?? true;
+  const focus: "all" | "solar" | "heatpump" =
+    wantsHp && !wantsSolar
+      ? "heatpump"
+      : !wantsHp && wantsSolar
+        ? "solar"
+        : "all";
+
   return {
     leadEmail: request.contact_email,
     leadName: request.contact_name,
+    focus,
     preSurveyRequestId: request.id,
     preSurveyInstallerName: installer?.company_name ?? null,
     preSurveyInstallerId: request.installer_id,

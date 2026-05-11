@@ -184,6 +184,43 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Focused-variant CTAs — for visitors who already know they
+          only want one tech assessed. Sends them straight to the
+          dedicated landing page (which sets up context + drops them
+          into the trimmed wizard at /check/heatpump or /check/solar).
+          Sits between the hero and "How it works" so it catches
+          users who scrolled past the hero CTA. */}
+      <section className="border-y border-[var(--border)] bg-white">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 py-12 sm:py-14">
+          <p className="eyebrow text-center">Already know what you want?</p>
+          <h2 className="mt-2 text-2xl sm:text-3xl text-navy text-center">
+            Skip straight to the focused check.
+          </h2>
+          <p className="mt-2 text-sm text-[var(--muted-brand)] text-center max-w-xl mx-auto leading-relaxed">
+            Fewer questions, a report scoped to the bit you care about,
+            and the same installer-ready output at the end.
+          </p>
+          <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-3xl mx-auto">
+            <FocusCard
+              href="/heatpump"
+              icon={<Flame className="w-5 h-5" />}
+              eyebrow="Heat pump only"
+              title="Just a heat pump?"
+              body="BUS grant eligibility, system sizing, and where it'd go on your floorplan — without the solar tangent."
+              cta="Check for a heat pump"
+            />
+            <FocusCard
+              href="/solar"
+              icon={<Sun className="w-5 h-5" />}
+              eyebrow="Solar + battery"
+              title="Just solar?"
+              body="Roof potential from satellite, annual kWh and battery payback — no floorplan upload needed."
+              cta="Check for solar"
+            />
+          </div>
+        </div>
+      </section>
+
       {/* How it works */}
       <section className="bg-cream-deep border-y border-[var(--border)]">
         <div className="mx-auto max-w-6xl px-4 sm:px-6 py-20">
@@ -359,5 +396,45 @@ function Feature({
         <p className="mt-1 text-sm text-[var(--muted-brand)] leading-relaxed">{body}</p>
       </div>
     </li>
+  );
+}
+
+function FocusCard({
+  href,
+  icon,
+  eyebrow,
+  title,
+  body,
+  cta,
+}: {
+  href: string;
+  icon: React.ReactNode;
+  eyebrow: string;
+  title: string;
+  body: string;
+  cta: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className="group flex flex-col rounded-2xl border border-[var(--border)] bg-cream/40 p-6 hover:bg-coral-pale/40 hover:border-coral/30 transition-colors"
+    >
+      <div className="flex items-center gap-3">
+        <span className="shrink-0 inline-flex items-center justify-center w-10 h-10 rounded-xl bg-coral-pale text-coral">
+          {icon}
+        </span>
+        <span className="text-[11px] font-bold uppercase tracking-wider text-coral">
+          {eyebrow}
+        </span>
+      </div>
+      <h3 className="mt-4 text-xl text-navy">{title}</h3>
+      <p className="mt-2 text-sm text-[var(--muted-brand)] leading-relaxed">
+        {body}
+      </p>
+      <span className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-coral-dark group-hover:gap-2.5 transition-all">
+        {cta}
+        <ArrowRight className="w-4 h-4" />
+      </span>
+    </Link>
   );
 }

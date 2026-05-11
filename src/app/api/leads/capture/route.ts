@@ -204,7 +204,7 @@ async function tryAttributeToPreSurveyRequest(
     const { data: request } = await admin
       .from("installer_pre_survey_requests")
       .select(
-        "id, installer_id, contact_name, contact_email, contact_postcode, completed_at, expires_at, meeting_status, meeting_at",
+        "id, installer_id, contact_name, contact_email, contact_postcode, completed_at, expires_at, meeting_status, meeting_at, wants_heat_pump, wants_solar, wants_battery",
       )
       .eq("id", args.preSurveyRequestId)
       .maybeSingle();
@@ -256,9 +256,14 @@ async function tryAttributeToPreSurveyRequest(
         property_latitude: (p.latitude as number | null) ?? null,
         property_longitude: (p.longitude as number | null) ?? null,
         analysis_snapshot: (p.analysis_snapshot ?? null) as never,
-        wants_heat_pump: true,
-        wants_solar: true,
-        wants_battery: false,
+        // Batch 2: scope now flows from the pre-survey request row
+        // rather than being hardcoded. Falls back to "everything"
+        // for legacy rows that predate migration 060 (the columns
+        // there default to true/true/false in the DB anyway, so
+        // this fallback rarely kicks in).
+        wants_heat_pump: request.wants_heat_pump ?? true,
+        wants_solar: request.wants_solar ?? true,
+        wants_battery: request.wants_battery ?? false,
         // Auto-acknowledged — installer requested this customer, no
         // booking acceptance needed. visit_booked_for is set when
         // the installer pre-booked the meeting at send time.

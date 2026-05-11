@@ -1537,6 +1537,12 @@ export interface Database {
           // homeowner report's Book-tab visibility + meeting banner.
           meeting_status: "not_booked" | "booked";
           meeting_at: string | null;
+          // Batch 2 — installer-chosen scope (migration 060).
+          // Defaults mirror the previous hardcoded capture behaviour
+          // so legacy rows still produce a comparable installer_lead.
+          wants_heat_pump: boolean;
+          wants_solar: boolean;
+          wants_battery: boolean;
         };
         Insert: {
           id?: string;
@@ -1558,6 +1564,9 @@ export interface Database {
           updated_at?: string;
           meeting_status?: "not_booked" | "booked";
           meeting_at?: string | null;
+          wants_heat_pump?: boolean;
+          wants_solar?: boolean;
+          wants_battery?: boolean;
         };
         Update: Partial<Database["public"]["Tables"]["installer_pre_survey_requests"]["Insert"]>;
         Relationships: [];

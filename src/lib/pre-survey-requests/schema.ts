@@ -51,6 +51,13 @@ export const createPreSurveyRequestSchema = z
       .datetime({ message: "meeting_at must be an ISO 8601 datetime" })
       .optional()
       .nullable(),
+    // Batch 2 — installer-chosen tech scope. Defaults match the
+    // previous hardcoded capture behaviour (HP + Solar yes, Battery
+    // no) so callers that don't send these still get a sensible
+    // installer_lead written out. Form-side UI is mandatory.
+    wants_heat_pump: z.boolean().optional().default(true),
+    wants_solar: z.boolean().optional().default(true),
+    wants_battery: z.boolean().optional().default(false),
   })
   .refine(
     (v) =>
@@ -63,6 +70,18 @@ export const createPreSurveyRequestSchema = z
       message:
         "meeting_at must be set iff meeting_status is 'booked'",
       path: ["meeting_at"],
+    },
+  )
+  .refine(
+    // Mirrors the DB CHECK from migration 060 — at least one of HP
+    // or Solar must be true. Battery on its own is not a /check
+    // product (we don't assess battery without solar). Surfaces a
+    // friendly message in the form rather than letting Postgres
+    // return a 500-shaped CHECK violation.
+    (v) => v.wants_heat_pump || v.wants_solar,
+    {
+      message: "Pick at least one of Heat pump or Solar",
+      path: ["wants_heat_pump"],
     },
   );
 export type CreatePreSurveyRequestInput = z.infer<typeof createPreSurveyRequestSchema>;

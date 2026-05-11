@@ -26,9 +26,20 @@ export function PreSurveyForm({ balance, costPerSend }: Props) {
   // focused single-installer booking card.
   const [meetingBooked, setMeetingBooked] = useState<"yes" | "no">("no");
   const [meetingAt, setMeetingAt] = useState(""); // local-input "YYYY-MM-DDTHH:mm"
+  // Batch 2 — installer-chosen tech scope. Defaults to HP + Solar
+  // (matches the previous hardcoded capture behaviour). Battery off
+  // by default — most installers don't sell battery and it's an
+  // add-on to solar anyway.
+  const [wantsHp, setWantsHp] = useState(true);
+  const [wantsSolar, setWantsSolar] = useState(true);
+  const [wantsBattery, setWantsBattery] = useState(false);
   const [state, setState] = useState<SubmitState>({ kind: "idle" });
 
   const insufficient = balance < costPerSend;
+  // Scope CHECK enforced server-side (migration 060). Mirror in the
+  // form so the disabled submit button gives the installer instant
+  // feedback rather than a 400 after press.
+  const scopeUnset = !wantsHp && !wantsSolar;
 
   // Reset form state on close. Called from every close-path so the
   // next open starts clean — avoids running this in an effect (which
@@ -68,6 +79,13 @@ export function PreSurveyForm({ balance, costPerSend }: Props) {
       });
       return;
     }
+    if (scopeUnset) {
+      setState({
+        kind: "error",
+        message: "Pick at least one of Heat pump or Solar.",
+      });
+      return;
+    }
     setState({ kind: "submitting" });
     try {
       const res = await fetch("/api/installer/pre-survey-requests", {
@@ -85,6 +103,14 @@ export function PreSurveyForm({ balance, costPerSend }: Props) {
             meetingBooked === "yes" && meetingAt
               ? new Date(meetingAt).toISOString()
               : null,
+          // Batch 2 — installer-chosen scope. Wizard focus + the
+          // resulting installer_lead's wants_* flags are derived
+          // from these. Battery without solar is rejected
+          // server-side (CHECK constraint), so we force-uncheck
+          // battery if solar is unchecked at submit-time.
+          wants_heat_pump: wantsHp,
+          wants_solar: wantsSolar,
+          wants_battery: wantsSolar && wantsBattery,
         }),
       });
       const j = await res.json().catch(() => ({}));
@@ -102,6 +128,9 @@ export function PreSurveyForm({ balance, costPerSend }: Props) {
       setPostcode("");
       setMeetingBooked("no");
       setMeetingAt("");
+      setWantsHp(true);
+      setWantsSolar(true);
+      setWantsBattery(false);
       setState({ kind: "idle" });
       closeModal();
       router.replace("/installer/pre-survey-requests?sent=1");
@@ -162,6 +191,13 @@ export function PreSurveyForm({ balance, costPerSend }: Props) {
               setMeetingBooked={setMeetingBooked}
               meetingAt={meetingAt}
               setMeetingAt={setMeetingAt}
+              wantsHp={wantsHp}
+              setWantsHp={setWantsHp}
+              wantsSolar={wantsSolar}
+              setWantsSolar={setWantsSolar}
+              wantsBattery={wantsBattery}
+              setWantsBattery={setWantsBattery}
+              scopeUnset={scopeUnset}
               state={state}
               onSubmit={onSubmit}
             />
@@ -189,6 +225,13 @@ function ModalForm(props: {
   setMeetingBooked: (v: "yes" | "no") => void;
   meetingAt: string;
   setMeetingAt: (s: string) => void;
+  wantsHp: boolean;
+  setWantsHp: (v: boolean) => void;
+  wantsSolar: boolean;
+  setWantsSolar: (v: boolean) => void;
+  wantsBattery: boolean;
+  setWantsBattery: (v: boolean) => void;
+  scopeUnset: boolean;
   state: SubmitState;
   onSubmit: (e: React.FormEvent) => void;
 }) {
@@ -207,6 +250,13 @@ function ModalForm(props: {
     setMeetingBooked,
     meetingAt,
     setMeetingAt,
+    wantsHp,
+    setWantsHp,
+    wantsSolar,
+    setWantsSolar,
+    wantsBattery,
+    setWantsBattery,
+    scopeUnset,
     state,
     onSubmit,
   } = props;
@@ -297,6 +347,66 @@ function ModalForm(props: {
         </p>
       </label>
 
+      {/* Scope — what the installer wants the customer assessed for.
+          Drives both the homeowner wizard's `focus` (so a heat-pump-
+          only installer's customer doesn't get asked solar questions)
+          and the installer_lead's wants_* flags on completion.
+          Battery is conditional on solar — battery without solar
+          isn't a /check product (CHECK constraint enforces). */}
+      <fieldset className="rounded-lg border border-slate-200 bg-slate-50/60 px-4 py-3">
+        <legend className="px-1 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+          What do you want assessed?
+        </legend>
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-2 mt-1">
+          <label className="inline-flex items-center gap-2 text-sm cursor-pointer">
+            <input
+              type="checkbox"
+              checked={wantsHp}
+              onChange={(e) => setWantsHp(e.target.checked)}
+              className="w-4 h-4 text-coral focus:ring-coral border-slate-300 rounded"
+            />
+            <span className="text-slate-700">Heat pump</span>
+          </label>
+          <label className="inline-flex items-center gap-2 text-sm cursor-pointer">
+            <input
+              type="checkbox"
+              checked={wantsSolar}
+              onChange={(e) => {
+                const v = e.target.checked;
+                setWantsSolar(v);
+                if (!v) setWantsBattery(false);
+              }}
+              className="w-4 h-4 text-coral focus:ring-coral border-slate-300 rounded"
+            />
+            <span className="text-slate-700">Solar</span>
+          </label>
+          <label
+            className={`inline-flex items-center gap-2 text-sm ${
+              wantsSolar ? "cursor-pointer" : "cursor-not-allowed opacity-50"
+            }`}
+          >
+            <input
+              type="checkbox"
+              checked={wantsBattery}
+              onChange={(e) => setWantsBattery(e.target.checked)}
+              disabled={!wantsSolar}
+              className="w-4 h-4 text-coral focus:ring-coral border-slate-300 rounded"
+            />
+            <span className="text-slate-700">Battery</span>
+          </label>
+        </div>
+        <p className="text-[10px] text-slate-500 mt-2 leading-relaxed">
+          We&rsquo;ll tailor the customer&rsquo;s check to just these
+          products — fewer questions, focused report. Battery is only
+          assessed alongside solar.
+        </p>
+        {scopeUnset && (
+          <p className="text-[10px] text-red-700 mt-1.5 font-semibold">
+            Pick at least one of Heat pump or Solar.
+          </p>
+        )}
+      </fieldset>
+
       {/* Meeting capture — drives the homeowner report's Book-tab
           rendering. "Yes, booked" hides the Book tab + shows a
           banner with the date/time; "Not yet" shows the focused
@@ -364,7 +474,9 @@ function ModalForm(props: {
         </p>
         <button
           type="submit"
-          disabled={state.kind === "submitting" || insufficient}
+          disabled={
+            state.kind === "submitting" || insufficient || scopeUnset
+          }
           className="inline-flex items-center gap-1.5 h-11 px-5 rounded-full bg-coral hover:bg-coral-dark text-white font-semibold text-sm shadow-sm transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
         >
           {state.kind === "submitting" ? (

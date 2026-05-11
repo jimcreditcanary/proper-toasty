@@ -64,6 +64,22 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "monthly",
       priority: 0.8,
     },
+    // Focused-variant landing pages — entry points for paid-search
+    // visitors with a specific tech in mind. Priority bumped above
+    // pricing because these are the primary conversion landings
+    // (each links to its trimmed /check/* wizard).
+    {
+      url: `${SITE_URL}/heatpump`,
+      lastModified: now,
+      changeFrequency: "monthly",
+      priority: 0.9,
+    },
+    {
+      url: `${SITE_URL}/solar`,
+      lastModified: now,
+      changeFrequency: "monthly",
+      priority: 0.9,
+    },
     {
       url: `${SITE_URL}/blog`,
       lastModified: now,
