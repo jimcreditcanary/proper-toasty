@@ -56,7 +56,7 @@ export default function HeatPumpLanding() {
             <h1 className="mt-6 text-5xl sm:text-6xl text-navy leading-[1.05]">
               A warmer home,
               <br />
-              for less every winter.
+              lower bills.
             </h1>
 
             <p className="mt-6 text-lg text-[var(--muted-brand)] leading-relaxed max-w-lg">
