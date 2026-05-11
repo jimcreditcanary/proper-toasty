@@ -11,6 +11,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { MarketingHeader } from "@/components/marketing-header";
+import { LandingFooter } from "@/components/landing-footer";
 import {
   ArrowRight,
   Sun,
@@ -221,6 +222,8 @@ export default function SolarLanding() {
           </div>
         </div>
       </section>
+
+      <LandingFooter />
     </div>
   );
 }

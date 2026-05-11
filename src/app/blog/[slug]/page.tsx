@@ -318,8 +318,12 @@ export default async function BlogPostPage({
             </nav>
           </div>
           <div className="mt-6 pt-6 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-center sm:text-left">
-            <p className="text-xs text-slate-400">
-              &copy; {new Date().getFullYear()} Propertoasty is a trading name of <a href="https://find-and-update.company-information.service.gov.uk/company/11591983" target="_blank" rel="noopener noreferrer" className="hover:text-slate-600">Braemar, Brook &amp; New Limited</a> (company no. 11591983). All rights reserved.
+            <p className="text-xs text-slate-400 leading-relaxed">
+              &copy; {new Date().getFullYear()} Propertoasty. All
+              rights reserved.
+              <br />
+              Illustrative examples for research purposes only — we
+              are not a lender or a broker.
             </p>
             <nav className="flex flex-wrap justify-center sm:justify-end gap-x-6 gap-y-1 text-xs text-slate-400">
               <Link href="/privacy" className="hover:text-slate-600 transition-colors">Privacy Policy</Link>

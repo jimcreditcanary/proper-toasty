@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
-import { Logo } from "@/components/logo";
 import { MarketingHeader } from "@/components/marketing-header";
+import { LandingFooter } from "@/components/landing-footer";
 import {
   ArrowRight,
   Flame,
@@ -21,57 +21,6 @@ import {
 // (no Unsplash hop, no remote-pattern config). Replace the file
 // with your own photography to swap.
 const HERO_IMAGE = "/hero-uk-home.jpg";
-
-function LandingFooter() {
-  const year = new Date().getFullYear();
-  return (
-    <footer className="border-t border-[var(--border)] bg-cream-deep">
-      <div className="mx-auto max-w-6xl px-4 sm:px-6 py-10 grid grid-cols-1 sm:grid-cols-3 gap-8">
-        <div>
-          <Logo size="sm" variant="light" showTagline />
-          <p className="mt-4 text-xs text-[var(--muted-brand)] leading-relaxed max-w-xs">
-            A pre-survey indication of your home&rsquo;s heat pump and solar potential. Built for UK
-            homeowners who want to make the greener call without a site visit.
-          </p>
-        </div>
-        <div className="text-sm">
-          <p className="text-xs font-semibold uppercase tracking-wider text-navy mb-3">Explore</p>
-          <ul className="space-y-2 text-[var(--muted-brand)]">
-            <li><Link href="/check" className="hover:text-navy">Run a check</Link></li>
-            <li><Link href="/blog" className="hover:text-navy">Journal</Link></li>
-            <li><Link href="/enterprise" className="hover:text-navy">For installers</Link></li>
-            <li><Link href="/pricing" className="hover:text-navy">Pricing</Link></li>
-          </ul>
-        </div>
-        <div className="text-sm">
-          <p className="text-xs font-semibold uppercase tracking-wider text-navy mb-3">Legal</p>
-          <ul className="space-y-2 text-[var(--muted-brand)]">
-            <li><Link href="/privacy" className="hover:text-navy">Privacy</Link></li>
-            <li><Link href="/terms" className="hover:text-navy">Terms</Link></li>
-            <li><Link href="/ai-statement" className="hover:text-navy">AI use</Link></li>
-          </ul>
-        </div>
-      </div>
-      <div className="border-t border-[var(--border)] bg-cream">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6 py-5 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-[var(--muted-brand)]">
-          <span>
-            © {year} Propertoasty · a trading name of{" "}
-            <a
-              href="https://find-and-update.company-information.service.gov.uk/company/11591983"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hover:text-navy underline-offset-2 hover:underline"
-            >
-              Braemar, Brook &amp; New Limited
-            </a>
-            {" "}(company no. 11591983)
-          </span>
-          <span>Pre-survey indications only — not an engineering assessment.</span>
-        </div>
-      </div>
-    </footer>
-  );
-}
 
 export default function Home() {
   return (

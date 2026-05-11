@@ -12,6 +12,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { MarketingHeader } from "@/components/marketing-header";
+import { LandingFooter } from "@/components/landing-footer";
 import {
   ArrowRight,
   Flame,
@@ -221,6 +222,8 @@ export default function HeatPumpLanding() {
           </div>
         </div>
       </section>
+
+      <LandingFooter />
     </div>
   );
 }
