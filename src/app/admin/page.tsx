@@ -4,6 +4,7 @@ import {
   Building2,
   FileText,
   Newspaper,
+  PoundSterling,
   Users,
   type LucideIcon,
 } from "lucide-react";
@@ -73,6 +74,19 @@ export default async function AdminHomePage() {
       icon: FileText,
       status: "live",
       href: "/admin/reports",
+    },
+    {
+      // Edits the per-unit cost rates that feed the P&L dashboard
+      // (Claude / Solar / Postcoder / emails / Stripe / Vercel /
+      // Supabase). Each rate persists in admin_settings under
+      // `cost_rate.<field>` and falls back to DEFAULT_COST_RATES
+      // when no row exists. Keep in sync with supplier invoices
+      // — drift on Anthropic + Google is real.
+      title: "Cost rates",
+      body: "Edit per-unit cost rates (Claude, Solar, Postcoder, emails, Stripe, hosting) that drive the P&L. Update when supplier pricing changes.",
+      icon: PoundSterling,
+      status: "live",
+      href: "/admin/settings/cost-rates",
     },
   ];
 
