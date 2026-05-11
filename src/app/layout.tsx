@@ -3,6 +3,7 @@ import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import { Fraunces } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
+import { OrganizationSchema, WebSiteSchema } from "@/components/seo/schema";
 import "./globals.css";
 
 const fraunces = Fraunces({
@@ -120,6 +121,12 @@ export default function RootLayout({
         <link rel="preconnect" href="https://va.vercel-scripts.com" crossOrigin="anonymous" />
       </head>
       <body className="min-h-full flex flex-col">
+        {/* Sitewide JSON-LD — Organization + WebSite. Renders into
+            every page's HTML (server-component, no client cost).
+            Google reads JSON-LD wherever it sits in the document,
+            so emitting in <body> is fine + keeps <head> uncluttered. */}
+        <OrganizationSchema />
+        <WebSiteSchema />
         {children}
         <Analytics />
       </body>

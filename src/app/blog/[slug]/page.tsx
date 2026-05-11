@@ -10,6 +10,8 @@ import { ArrowLeft, ArrowRight, Calendar, Clock, User, ShieldCheck } from "lucid
 import { BlogPostContent } from "@/components/blog-post-content";
 import { RelatedPosts } from "@/components/blog/related-posts";
 import { SocialShare } from "@/components/blog/social-share";
+import { ArticleSchema, BreadcrumbListSchema } from "@/components/seo/schema";
+import { DEFAULT_AUTHOR_SLUG } from "@/lib/seo/authors";
 
 const SITE_URL = "https://www.propertoasty.com";
 
@@ -125,67 +127,29 @@ export default async function BlogPostPage({
     CATEGORY_COLORS[category] ?? "bg-slate-50 text-slate-700 border-slate-200";
 
   // ─── JSON-LD structured data ────────────────────────────────
-  // Article: signals to Google this is editorial content + powers
-  // article rich results (date, author, headline). Properties tracked
-  // against schema.org/Article — fields that aren't applicable
-  // (image, publisher logo) are intentionally omitted rather than
-  // stubbed; partial-but-honest beats fully-populated-with-fakes.
+  // ArticleSchema + BreadcrumbListSchema components (in
+  // @/components/seo/schema) own the shape. They:
+  //   - resolve `author` to a Person (not Organization) via the
+  //     authors registry — E-E-A-T win over the previous inline
+  //     Organization author
+  //   - emit a `@id` ref to /authors/<slug>#person so this Article's
+  //     author consolidates into the Person entity used sitewide
+  //   - skip undefined / null / empty fields so partial profiles
+  //     don't ship empty schema stubs
   //
-  // BreadcrumbList: powers the breadcrumb trail in SERPs (Home ›
-  // Journal › <title>) instead of the bare URL slug.
+  // `author` from the DB is a free-text name string we don't have
+  // a registry entry for yet. Until we backfill DB authors with
+  // their registry slug, every post bylines to the default author
+  // (Jim). The visible page byline still reads the DB column —
+  // so a transition to per-author bylines doesn't lose attribution.
   const url = `${SITE_URL}/blog/${slug}`;
   const absoluteCoverImage = coverImage.startsWith("http")
     ? coverImage
     : `${SITE_URL}${coverImage}`;
-  const articleJsonLd = {
-    "@context": "https://schema.org",
-    "@type": "Article",
-    headline: title,
-    description: excerpt,
-    image: [absoluteCoverImage],
-    datePublished: publishedAt,
-    dateModified: updatedAt,
-    author: { "@type": "Organization", name: author || "Propertoasty" },
-    publisher: {
-      "@type": "Organization",
-      name: "Propertoasty",
-      url: SITE_URL,
-      logo: {
-        "@type": "ImageObject",
-        url: `${SITE_URL}/icon.svg`,
-      },
-    },
-    mainEntityOfPage: {
-      "@type": "WebPage",
-      "@id": url,
-    },
-    articleSection: category,
-    inLanguage: "en-GB",
-  };
-  const breadcrumbJsonLd = {
-    "@context": "https://schema.org",
-    "@type": "BreadcrumbList",
-    itemListElement: [
-      {
-        "@type": "ListItem",
-        position: 1,
-        name: "Home",
-        item: SITE_URL,
-      },
-      {
-        "@type": "ListItem",
-        position: 2,
-        name: "Journal",
-        item: `${SITE_URL}/blog`,
-      },
-      {
-        "@type": "ListItem",
-        position: 3,
-        name: title,
-        item: url,
-      },
-    ],
-  };
+  const wordCount = content
+    .replace(/<[^>]*>/g, " ")
+    .split(/\s+/)
+    .filter(Boolean).length;
 
   return (
     <div className="flex min-h-screen flex-col bg-cream text-slate-900">
@@ -193,13 +157,23 @@ export default async function BlogPostPage({
           the head because Next's metadata.other doesn't accept
           script tags. Google reads JSON-LD wherever it sits in
           the document. */}
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd) }}
+      <ArticleSchema
+        headline={title}
+        description={excerpt}
+        url={url}
+        image={absoluteCoverImage}
+        datePublished={publishedAt}
+        dateModified={updatedAt}
+        authorSlug={DEFAULT_AUTHOR_SLUG}
+        section={category}
+        wordCount={wordCount}
       />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+      <BreadcrumbListSchema
+        items={[
+          { name: "Home", url: SITE_URL },
+          { name: "Journal", url: `${SITE_URL}/blog` },
+          { name: title },
+        ]}
       />
       <MarketingHeader active="blog" />
 
