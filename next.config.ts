@@ -21,6 +21,13 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       { protocol: "https", hostname: "images.unsplash.com" },
     ],
+    // Next 16 tightened the default: without an explicit `qualities`
+    // list, the optimiser only accepts q=75 and 400s everything else
+    // with INVALID_IMAGE_OPTIMIZE_REQUEST. Blog covers + report
+    // imagery use 80; some larger imagery uses 90 for crisper
+    // rendering on retina screens. List every value any Image
+    // component requests across the codebase — silent 400s otherwise.
+    qualities: [60, 70, 75, 80, 85, 90, 100],
   },
   // Nested favicon paths bug: browsers + crawlers occasionally
   // request /favicon.ico (and friends) under whatever URL they're
