@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   LeadCaptureRequestSchema,
@@ -185,27 +185,38 @@ export async function POST(req: Request) {
     email: input.email,
   });
 
-  // Email the homeowner a copy of their report — was previously
-  // missing entirely, so users captured at this step never received
-  // anything to come back to. Best-effort: failures don't fail the
-  // capture (the user already sees the report in-tab; the email is
-  // a "come back later" affordance, not a hard requirement).
+  // Email the homeowner a copy of their report — ALWAYS fires,
+  // independent of consentMarketing / consentInstallerMatching.
+  // This is a transactional email (the homeowner just asked for
+  // their report); UK PECR + GDPR both consider it fine without
+  // marketing consent. Don't gate this on either checkbox.
+  //
+  // Uses `after()` rather than fire-and-forget — Vercel's
+  // serverless runtime can kill the function as soon as we return
+  // a response, which dropped the email mid-send in some test
+  // runs. `after()` defers execution until the response has been
+  // flushed AND keeps the function alive until the deferred work
+  // completes (up to the function's maxDuration). The user still
+  // sees the redirect to the report instantly; the email is on
+  // its own clock.
   //
   // The link uses the same /r/[token] HMAC share-link pattern as
   // the existing "email this to yourself" flow on the report page,
   // so it's safe to share with a partner. 30-day expiry on the
   // token row.
-  void sendReportEmail({
-    admin,
-    email,
-    name: input.name ?? null,
-    homeownerLeadId,
-    address: input.address ?? null,
-    postcode: input.postcode ?? null,
-    latitude: input.latitude ?? null,
-    longitude: input.longitude ?? null,
-    analysisSnapshot: input.analysisSnapshot,
-  });
+  after(
+    sendReportEmail({
+      admin,
+      email,
+      name: input.name ?? null,
+      homeownerLeadId,
+      address: input.address ?? null,
+      postcode: input.postcode ?? null,
+      latitude: input.latitude ?? null,
+      longitude: input.longitude ?? null,
+      analysisSnapshot: input.analysisSnapshot,
+    }),
+  );
 
   return NextResponse.json<LeadCaptureResponse>({ ok: true, id: homeownerLeadId });
 }
