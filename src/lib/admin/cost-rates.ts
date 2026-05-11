@@ -59,12 +59,19 @@ export interface CostRates {
   stripe_pct_bps: number;
   stripe_per_txn_pence: number;
 
-  // ─── Vercel + Supabase (monthly fixed cost) ────────────────────
+  // ─── Vercel (monthly fixed cost) ───────────────────────────────
   // Hosting baseline that doesn't scale with usage at our volume.
   // Pro-rated by the number of days in the selected range so the
   // P&L for "last 7 days" doesn't double-count a full month's
-  // hosting.
-  fixed_monthly_pence: number;
+  // hosting. Split from the old combined `fixed_monthly_pence` so
+  // finance can update Vercel + Supabase independently as the
+  // billing tiers diverge.
+  vercel_monthly_pence: number;
+
+  // ─── Supabase (monthly fixed cost) ─────────────────────────────
+  // Same pro-rating logic as Vercel. Twin field — both render as
+  // their own line in the admin P&L breakdown.
+  supabase_monthly_pence: number;
 }
 
 /**
@@ -81,7 +88,12 @@ export const DEFAULT_COST_RATES: CostRates = {
   resend_per_email: 0, // sub-pence; surfaces later with volume
   stripe_pct_bps: 150, // 1.5%
   stripe_per_txn_pence: 20, // 20p
-  fixed_monthly_pence: 4000, // £40 baseline (Vercel Pro + Supabase Pro mix)
+  // Vercel Pro $20/mo ≈ £16, rounded to £20 to leave headroom for
+  // overage. Tweak in /admin/settings/cost-rates when finance has
+  // the actual invoice in front of them.
+  vercel_monthly_pence: 2000, // £20
+  // Supabase Pro $25/mo ≈ £20, rounded to £25 for headroom.
+  supabase_monthly_pence: 2500, // £25
 };
 
 /**
@@ -154,8 +166,10 @@ export const COST_LINE_HINTS: Record<keyof CostRates, string> = {
     "Basis points of revenue. 150 = 1.5%. UK standard plan.",
   stripe_per_txn_pence:
     "Pence per paid transaction. Added on top of the percentage.",
-  fixed_monthly_pence:
-    "Pence per month, pro-rated to the dashboard's date range. Vercel + Supabase + Resend baseline.",
+  vercel_monthly_pence:
+    "Pence per month, pro-rated to the dashboard's date range. Vercel Pro is $20/mo ≈ £16, set the actual invoice figure here.",
+  supabase_monthly_pence:
+    "Pence per month, pro-rated to the dashboard's date range. Supabase Pro is $25/mo ≈ £20, set the actual invoice figure here.",
 };
 
 /**
@@ -170,7 +184,8 @@ export const COST_LINE_ORDER: (keyof CostRates)[] = [
   "resend_per_email",
   "stripe_pct_bps",
   "stripe_per_txn_pence",
-  "fixed_monthly_pence",
+  "vercel_monthly_pence",
+  "supabase_monthly_pence",
 ];
 
 export const COST_LINE_LABELS: Record<keyof CostRates, string> = {
@@ -181,5 +196,6 @@ export const COST_LINE_LABELS: Record<keyof CostRates, string> = {
   resend_per_email: "Resend",
   stripe_pct_bps: "Stripe processing (1.5% + 20p)",
   stripe_per_txn_pence: "Stripe per-txn",
-  fixed_monthly_pence: "Hosting (Vercel + Supabase)",
+  vercel_monthly_pence: "Vercel hosting",
+  supabase_monthly_pence: "Supabase hosting",
 };

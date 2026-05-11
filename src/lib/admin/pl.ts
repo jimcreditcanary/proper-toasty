@@ -225,11 +225,17 @@ export async function loadPlSummary(
       qtyLabel: "(folded into Stripe processing)",
       pence: 0,
     },
-    fixed_monthly_pence: {
-      key: "fixed_monthly_pence",
-      label: COST_LINE_LABELS.fixed_monthly_pence,
+    vercel_monthly_pence: {
+      key: "vercel_monthly_pence",
+      label: COST_LINE_LABELS.vercel_monthly_pence,
       qtyLabel: `${days.toLocaleString("en-GB")} day${days === 1 ? "" : "s"} pro-rated`,
-      pence: Math.round((effectiveRates.fixed_monthly_pence * days) / 30),
+      pence: Math.round((effectiveRates.vercel_monthly_pence * days) / 30),
+    },
+    supabase_monthly_pence: {
+      key: "supabase_monthly_pence",
+      label: COST_LINE_LABELS.supabase_monthly_pence,
+      qtyLabel: `${days.toLocaleString("en-GB")} day${days === 1 ? "" : "s"} pro-rated`,
+      pence: Math.round((effectiveRates.supabase_monthly_pence * days) / 30),
     },
   };
 
