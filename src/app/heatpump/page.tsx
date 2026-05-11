@@ -25,7 +25,10 @@ import {
   Leaf,
 } from "lucide-react";
 
-const HERO_IMAGE = "/hero-uk-home.jpg";
+// Hero image: an outdoor ASHP unit beside a UK brick wall (sourced
+// from Unsplash, licence-free). Served from /public so it goes out
+// on the same origin — no third-party DNS+TLS hop.
+const HERO_IMAGE = "/hero-heatpump.jpg";
 
 export const metadata = {
   title: "Heat pump check — Propertoasty",
@@ -97,7 +100,7 @@ export default function HeatPumpLanding() {
             <div className="relative aspect-[8/7] rounded-3xl overflow-hidden shadow-xl ring-1 ring-[var(--border)]">
               <Image
                 src={HERO_IMAGE}
-                alt="A typical British semi-detached home — the kind of property a heat pump suits"
+                alt="An air-source heat pump outdoor unit installed beside a UK brick wall"
                 fill
                 priority
                 quality={80}

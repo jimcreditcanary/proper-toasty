@@ -25,7 +25,10 @@ import {
   Leaf,
 } from "lucide-react";
 
-const HERO_IMAGE = "/hero-uk-home.jpg";
+// Hero image: solar PV on a tiled roof (sourced from Unsplash,
+// licence-free). Served from /public so it goes out on the same
+// origin — no third-party DNS+TLS hop, just one HTTP cache hit.
+const HERO_IMAGE = "/hero-solar.jpg";
 
 export const metadata = {
   title: "Solar + battery check — Propertoasty",
@@ -96,7 +99,7 @@ export default function SolarLanding() {
             <div className="relative aspect-[8/7] rounded-3xl overflow-hidden shadow-xl ring-1 ring-[var(--border)]">
               <Image
                 src={HERO_IMAGE}
-                alt="A typical British semi-detached home — the kind of roof we read from satellite"
+                alt="A south-facing roof with solar PV panels — the kind we can size from satellite imagery"
                 fill
                 priority
                 quality={80}
