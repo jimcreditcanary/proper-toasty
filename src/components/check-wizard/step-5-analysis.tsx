@@ -31,19 +31,16 @@ export function Step5Analysis() {
 
   useEffect(() => {
     if (firedRef.current) return;
-    // Three-variant gate. Solar focus skips the floorplan step
-    // entirely so requiring a floorplan key would lock the user
-    // out. Heat-pump + all need EITHER the legacy
-    // floorplanObjectKey (old builder path) OR the v2
-    // floorplanExtract (new upload-only path).
-    const focus = state.focus ?? "all";
-    const haveFloorplan =
-      focus === "solar"
-        ? true
-        : Boolean(state.floorplanObjectKey || state.floorplanExtract);
+    // Prerequisites for the analyse call. The floorplan is NOT in
+    // this list — Step 4's "Skip ahead" path lets the user proceed
+    // without one when the AI extract has had transient failures,
+    // and the solar focus skips the floorplan step entirely. The
+    // analyse endpoint defaults floorplanObjectKey to "" and
+    // synthesises an empty floorplan downstream, so the report
+    // still renders (just without the AI floorplan-specific
+    // insights).
     if (
       !state.address ||
-      !haveFloorplan ||
       state.interests.length === 0 ||
       !state.tenure ||
       !state.currentHeatingFuel

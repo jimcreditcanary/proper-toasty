@@ -39,8 +39,12 @@ type State =
       previewUrl: string;
       bytes: number;
       elapsedSec: number;
+      /** 0 = first attempt; 1 = silent retry after a transient
+       *  failure (504/5xx/network). Drives the "Taking a bit longer
+       *  than usual…" copy so the user knows we're still working. */
+      attempt: number;
     }
-  | { kind: "error"; message: string };
+  | { kind: "error"; message: string; transient: boolean };
 
 const ACCEPT = "image/jpeg,image/png";
 const MAX_BYTES = 10 * 1024 * 1024;
@@ -57,6 +61,11 @@ const SUBSTEPS = [
 
 const TARGET_SECONDS = 25;
 const TICK_MS = 200;
+
+// Status codes worth retrying. Skip the rest (e.g. 400 bad image)
+// because re-sending the same payload won't help.
+const RETRYABLE_STATUSES = new Set([502, 503, 504]);
+const MAX_ATTEMPTS = 2;
 
 export function Step4Upload() {
   const { state, update, next, back } = useCheckWizard();
@@ -94,11 +103,19 @@ export function Step4Upload() {
   const handleFile = useCallback(
     async (file: File) => {
       if (!ACCEPT.split(",").includes(file.type)) {
-        setUi({ kind: "error", message: "Only JPG or PNG images are supported." });
+        setUi({
+          kind: "error",
+          message: "Only JPG or PNG images are supported.",
+          transient: false,
+        });
         return;
       }
       if (file.size > MAX_BYTES) {
-        setUi({ kind: "error", message: "File too large (10 MB max)." });
+        setUi({
+          kind: "error",
+          message: "File too large (10 MB max).",
+          transient: false,
+        });
         return;
       }
 
@@ -114,16 +131,10 @@ export function Step4Upload() {
           kind: "error",
           message:
             "Couldn't read the image. Try saving it again from your floorplan source.",
+          transient: false,
         });
         return;
       }
-
-      setUi({
-        kind: "uploading",
-        previewUrl,
-        bytes: resized.blob.size,
-        elapsedSec: 0,
-      });
 
       const formData = new FormData();
       formData.append(
@@ -131,51 +142,100 @@ export function Step4Upload() {
         new File([resized.blob], "floorplan.jpg", { type: "image/jpeg" }),
       );
 
-      let res: Response;
-      try {
-        res = await fetch("/api/upload/floorplan", {
-          method: "POST",
-          body: formData,
+      // Attempt loop — silent retry on 502/503/504 + network errors.
+      // The Sonnet vision call occasionally times out under load (60s
+      // Vercel function limit). One retry recovers most of the time.
+      // The user just sees the progress bar keep going with a friendly
+      // "Taking a bit longer than usual…" hint on the second pass.
+      let res: Response | null = null;
+      let lastTransientReason: string | null = null;
+      let attempt = 0;
+      let id: string | null = null;
+      while (attempt < MAX_ATTEMPTS) {
+        setUi({
+          kind: "uploading",
+          previewUrl,
+          bytes: resized.blob.size,
+          elapsedSec: 0,
+          attempt,
         });
-      } catch (e) {
+
+        try {
+          res = await fetch("/api/upload/floorplan", {
+            method: "POST",
+            body: formData,
+          });
+        } catch (e) {
+          // Network-layer failure (no response at all). Retryable.
+          lastTransientReason = e instanceof Error ? e.message : "Network error";
+          res = null;
+          attempt += 1;
+          continue;
+        }
+
+        // Gateway / timeout class — same image might succeed if the
+        // upstream load eases. Retry without surfacing the failure.
+        if (RETRYABLE_STATUSES.has(res.status)) {
+          lastTransientReason = `Upstream busy (${res.status})`;
+          attempt += 1;
+          continue;
+        }
+
+        const rawText = await res.text();
+        let body: unknown = null;
+        try {
+          body = JSON.parse(rawText);
+        } catch {
+          body = null;
+        }
+
+        if (!res.ok || !body || typeof body !== "object") {
+          URL.revokeObjectURL(previewUrl);
+          const err =
+            body &&
+            typeof body === "object" &&
+            "error" in body &&
+            typeof (body as { error?: unknown }).error === "string"
+              ? (body as { error: string }).error
+              : "Something went wrong reading the image. Try another one or skip ahead.";
+          setUi({ kind: "error", message: err, transient: false });
+          return;
+        }
+
+        const ok = body as { ok?: boolean; id?: string; error?: string };
+        if (!ok.ok || !ok.id) {
+          URL.revokeObjectURL(previewUrl);
+          setUi({
+            kind: "error",
+            message:
+              ok.error ??
+              "Something went wrong reading the image. Try another one or skip ahead.",
+            transient: false,
+          });
+          return;
+        }
+
+        id = ok.id;
+        break;
+      }
+
+      // Both attempts exhausted on transient failure. Surface a
+      // friendly error with the "skip ahead" option so the user
+      // isn't stuck — they can still finish the wizard, just
+      // without the AI floorplan extract.
+      if (!id) {
         URL.revokeObjectURL(previewUrl);
         setUi({
           kind: "error",
-          message: e instanceof Error ? e.message : "Network error",
+          message:
+            lastTransientReason && /502|503|504/.test(lastTransientReason)
+              ? "Our AI is busier than usual right now. Try again in a moment, or skip ahead — we'll still produce a report from your EPC + roof + answers."
+              : "We couldn't reach our analysis service. Check your connection and try again, or skip ahead.",
+          transient: true,
         });
         return;
       }
-
-      const rawText = await res.text();
-      let body: unknown = null;
-      try {
-        body = JSON.parse(rawText);
-      } catch {
-        body = null;
-      }
-
-      if (!res.ok || !body || typeof body !== "object") {
-        URL.revokeObjectURL(previewUrl);
-        const err =
-          body &&
-          typeof body === "object" &&
-          "error" in body &&
-          typeof (body as { error?: unknown }).error === "string"
-            ? (body as { error: string }).error
-            : `Upload failed (${res.status})`;
-        setUi({ kind: "error", message: err });
-        return;
-      }
-
-      const ok = body as { ok?: boolean; id?: string; error?: string };
-      if (!ok.ok || !ok.id) {
-        URL.revokeObjectURL(previewUrl);
-        setUi({
-          kind: "error",
-          message: ok.error ?? `Upload failed (${res.status})`,
-        });
-        return;
-      }
+      const okId = id;
 
       // Re-fetch the validated extract from the server so we're using
       // the post-validate shape (defensive against schema drift). One
@@ -183,7 +243,7 @@ export function Step4Upload() {
       // typed against FloorplanExtractSchema.
       let extract: FloorplanExtract | null = null;
       try {
-        const r = await fetch(`/api/upload/floorplan/${ok.id}`);
+        const r = await fetch(`/api/upload/floorplan/${okId}`);
         if (r.ok) {
           const j = (await r.json()) as { extract?: unknown };
           const parsed = FloorplanExtractSchema.safeParse(j.extract);
@@ -198,7 +258,8 @@ export function Step4Upload() {
         setUi({
           kind: "error",
           message:
-            "Extraction completed but the data shape was unexpected. Try another image, or contact hello@propertoasty.com.",
+            "We read the image but couldn't turn it into useful data. Try another image, or skip ahead — we'll produce a report from your EPC + roof + answers.",
+          transient: true,
         });
         return;
       }
@@ -208,13 +269,27 @@ export function Step4Upload() {
       // success screen they have to click out of.
       update({
         floorplanExtract: extract,
-        floorplanUploadId: ok.id,
+        floorplanUploadId: okId,
       });
       URL.revokeObjectURL(previewUrl);
       next();
     },
     [update, next],
   );
+
+  // "Skip ahead" — bypass the floorplan step entirely. We don't
+  // populate floorplanExtract; the analyse pipeline already handles
+  // a missing extract (the report renders from EPC + solar + wizard
+  // answers, just without the AI floorplan-specific insights). Only
+  // shown on the error screen so users don't take the easy path by
+  // default — the floorplan adds genuine value when it works.
+  const skipAhead = useCallback(() => {
+    update({
+      floorplanExtract: null,
+      floorplanUploadId: null,
+    });
+    next();
+  }, [update, next]);
 
   function reset() {
     if (ui.kind === "resizing" || ui.kind === "uploading") {
@@ -237,12 +312,21 @@ export function Step4Upload() {
       SUBSTEPS.length - 1,
       Math.floor((ui.elapsedSec / TARGET_SECONDS) * SUBSTEPS.length),
     );
+    // Second attempt — let the user know we're still working rather
+    // than leaving them wondering. The first attempt times out
+    // silently behind the existing progress bar; once we're on retry
+    // we tell them why it's taking longer.
+    const retryHint =
+      ui.attempt > 0
+        ? "Taking a bit longer than usual — having another go."
+        : null;
     return (
       <div className="max-w-2xl mx-auto">
         <ProgressView
           previewUrl={ui.previewUrl}
           fillPct={fillPct}
           substep={SUBSTEPS[substepIdx]}
+          retryHint={retryHint}
         />
       </div>
     );
@@ -262,28 +346,68 @@ export function Step4Upload() {
     );
   }
 
-  // ─── ERROR — surface + retry ─────────────────────────────────────
+  // ─── ERROR — surface + retry + (skip on transient) ──────────────
   if (ui.kind === "error") {
+    // Transient errors (server busy / timeout / network) get a
+    // softer styling (amber, not rose) + a "Skip ahead" option so
+    // the user isn't stuck behind a single flaky call. Hard
+    // validation errors (wrong file type, image unreadable) keep
+    // the rose styling and only offer "Try another image" — the
+    // skip path isn't useful when the problem is the image itself.
+    const isTransient = ui.transient;
+    const accent = isTransient
+      ? {
+          border: "border-amber-200",
+          bg: "bg-amber-50",
+          icon: "text-amber-700",
+          title: "text-amber-900",
+          body: "text-amber-800",
+          heading: "Hit a small snag",
+        }
+      : {
+          border: "border-rose-200",
+          bg: "bg-rose-50",
+          icon: "text-rose-700",
+          title: "text-rose-900",
+          body: "text-rose-800",
+          heading: "We couldn’t read this floorplan",
+        };
     return (
       <div className="max-w-2xl mx-auto">
-        <section className="rounded-3xl border border-rose-200 bg-rose-50 p-8">
+        <section
+          className={`rounded-3xl border ${accent.border} ${accent.bg} p-8`}
+        >
           <div className="flex items-start gap-3">
-            <AlertTriangle className="w-5 h-5 text-rose-700 mt-0.5 shrink-0" />
+            <AlertTriangle
+              className={`w-5 h-5 ${accent.icon} mt-0.5 shrink-0`}
+            />
             <div className="flex-1">
-              <h2 className="text-base font-bold text-rose-900">
-                We couldn&rsquo;t read this floorplan
+              <h2 className={`text-base font-bold ${accent.title}`}>
+                {accent.heading}
               </h2>
-              <p className="mt-1 text-sm text-rose-800 leading-relaxed">
+              <p className={`mt-1 text-sm ${accent.body} leading-relaxed`}>
                 {ui.message}
               </p>
-              <button
-                type="button"
-                onClick={reset}
-                className="mt-4 inline-flex items-center gap-1.5 h-10 px-5 rounded-full bg-coral hover:bg-coral-dark text-white font-semibold text-sm shadow-sm transition-colors"
-              >
-                <Upload className="w-4 h-4" />
-                Try another image
-              </button>
+              <div className="mt-4 flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={reset}
+                  className="inline-flex items-center gap-1.5 h-10 px-5 rounded-full bg-coral hover:bg-coral-dark text-white font-semibold text-sm shadow-sm transition-colors"
+                >
+                  <Upload className="w-4 h-4" />
+                  Try again
+                </button>
+                {isTransient && (
+                  <button
+                    type="button"
+                    onClick={skipAhead}
+                    className="inline-flex items-center gap-1.5 h-10 px-4 rounded-full bg-white border border-slate-300 hover:bg-slate-50 text-navy font-medium text-sm transition-colors"
+                  >
+                    Skip ahead
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </section>
@@ -384,10 +508,14 @@ function ProgressView({
   previewUrl,
   fillPct,
   substep,
+  retryHint,
 }: {
   previewUrl: string;
   fillPct: number;
   substep: string;
+  /** Non-null on the retry attempt — friendly hint that we're
+   *  taking a second pass after a transient upstream failure. */
+  retryHint: string | null;
 }) {
   return (
     <section className="rounded-3xl border border-coral/30 bg-white p-8 shadow-sm">
@@ -418,6 +546,14 @@ function ProgressView({
           <span aria-live="polite">{substep}</span>
           <span className="tabular-nums">{fillPct}%</span>
         </div>
+        {retryHint && (
+          <p
+            className="mt-3 text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 text-center leading-relaxed"
+            aria-live="polite"
+          >
+            {retryHint}
+          </p>
+        )}
       </div>
 
       {previewUrl && (
