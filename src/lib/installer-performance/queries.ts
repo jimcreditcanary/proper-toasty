@@ -17,8 +17,24 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
+import {
+  installerRevenueExVatPence,
+  lineItemSchema,
+  type LineItem,
+} from "@/lib/proposals/schema";
+import { z } from "zod";
 
 type AdminClient = SupabaseClient<Database>;
+
+// Defensive parse of the JSONB line_items column. Proposals go
+// through computeTotals on every write so the shape is sound, but
+// a row from before the schema bump (or a manual db poke)
+// shouldn't crash the dashboard.
+const LineItemsArraySchema = z.array(lineItemSchema);
+function parseLineItems(raw: unknown): LineItem[] {
+  const parsed = LineItemsArraySchema.safeParse(raw);
+  return parsed.success ? parsed.data : [];
+}
 
 export interface MonthBucket {
   /** First day of the bucket (UTC midnight). */
@@ -87,7 +103,12 @@ export async function loadPerformance(
       .not("installer_acknowledged_at", "is", null),
     admin
       .from("installer_proposals")
-      .select("id, status, sent_at, accepted_at, declined_at, total_pence")
+      // Pulling line_items so we can compute installer revenue
+      // ex-VAT (gross of BUS grant — the grant is a pass-through
+      // reimbursed by Ofgem, so it shouldn't drag down the
+      // installer's reported deal value). total_pence kept for
+      // any callers that still want the homeowner-pays figure.
+      .select("id, status, sent_at, accepted_at, declined_at, total_pence, line_items")
       .eq("installer_id", installerId)
       .gte("sent_at", windowStart)
       .not("sent_at", "is", null),
@@ -117,12 +138,19 @@ export async function loadPerformance(
   }
 
   for (const p of proposalsRes.data ?? []) {
+    // Compute the installer's revenue figure once per row (excludes
+    // BUS grant lines, ex-VAT) — used for both sent + accepted
+    // value tiles since they're both "deal value from the
+    // installer's POV".
+    const installerRevenuePence = installerRevenueExVatPence(
+      parseLineItems(p.line_items),
+    );
     if (p.sent_at) {
       const idx = bucketIndex(buckets, p.sent_at);
       if (idx >= 0) {
         const b = buckets[idx];
         b.quotes.sent += 1;
-        b.quotes.sentValuePence += p.total_pence ?? 0;
+        b.quotes.sentValuePence += installerRevenuePence;
       }
     }
     if (p.accepted_at) {
@@ -130,7 +158,7 @@ export async function loadPerformance(
       if (idx >= 0) {
         const b = buckets[idx];
         b.quotes.accepted += 1;
-        b.quotes.acceptedValuePence += p.total_pence ?? 0;
+        b.quotes.acceptedValuePence += installerRevenuePence;
       }
     }
     if (p.declined_at) {

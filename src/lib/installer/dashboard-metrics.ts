@@ -8,14 +8,34 @@
 //   - Upcoming meetings    — pending or booked, scheduled in the future
 //   - Booked this month    — installer_meetings.created_at this month
 //   - Quotes sent this mth — installer_proposals.sent_at this month
-//   - Quotes outstanding £ — sum of total_pence on sent-but-not-accepted
+//   - Quotes outstanding £ — installer revenue ex-VAT on sent-but-not
+//                            -accepted (gross of BUS grant — the grant
+//                            is a pass-through reimbursed by Ofgem so
+//                            it's not a deduction from the installer's
+//                            books).
 //   - Quotes won this mth  — installer_proposals.accepted_at this month
-//   - Won value this mth   — sum of total_pence on those accepted
+//   - Won value this mth   — installer revenue ex-VAT on accepted
 //
 // "This month" = first day of current calendar month, UK clock.
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
+import {
+  installerRevenueExVatPence,
+  lineItemSchema,
+  type LineItem,
+} from "@/lib/proposals/schema";
+import { z } from "zod";
+
+// Defensive parse of the JSONB line_items column. proposals are
+// written through computeTotals so the shape is sound, but a row
+// from before the schema bump or a manual db tweak shouldn't crash
+// the dashboard.
+const LineItemsArraySchema = z.array(lineItemSchema);
+function parseLineItems(raw: unknown): LineItem[] {
+  const parsed = LineItemsArraySchema.safeParse(raw);
+  return parsed.success ? parsed.data : [];
+}
 
 export interface InstallerDashboardMetrics {
   upcomingMeetings: number;
@@ -90,33 +110,36 @@ export async function loadInstallerDashboardMetrics(
       .gte("sent_at", monthStart)
       .not("sent_at", "is", null),
     // Outstanding pipeline £ — every quote currently in 'sent' status.
-    // Pull rows so we can sum total_pence; PostgREST doesn't expose a
-    // SUM aggregator without a view.
+    // Pull line_items so we can compute installer revenue ex-VAT
+    // (gross of the BUS grant — the grant is a pass-through). Using
+    // total_pence would understate the figure because it's the
+    // homeowner-pays bill after the grant deduction.
     admin
       .from("installer_proposals")
-      .select("total_pence")
+      .select("line_items")
       .eq("installer_id", installerId)
       .eq("status", "sent"),
-    // Won this month — accepted quotes with the timestamp in this month.
-    // Pull subtotal (ex-VAT) for the dashboard tile because installers
-    // think of "won" in terms of revenue they retain, not the gross
-    // figure including VAT pass-through. total_pence still drives the
-    // detailed proposal view + invoices.
+    // Won this month — accepted quotes with the timestamp in this
+    // month. Same logic as the pipeline tile: installer revenue
+    // ex-VAT, treating BUS grant as a pass-through (Ofgem
+    // reimburses the deduction so the grant is net-zero on the
+    // installer's books). total_pence still drives the homeowner-
+    // facing quote preview + invoices.
     admin
       .from("installer_proposals")
-      .select("subtotal_pence, total_pence")
+      .select("line_items")
       .eq("installer_id", installerId)
       .eq("status", "accepted")
       .gte("accepted_at", monthStart),
   ]);
 
   const quotesOutstandingPence = (outstandingRes.data ?? []).reduce(
-    (acc, r) => acc + (r.total_pence ?? 0),
+    (acc, r) => acc + installerRevenueExVatPence(parseLineItems(r.line_items)),
     0,
   );
   const wonRows = wonRes.data ?? [];
   const quotesWonValuePence = wonRows.reduce(
-    (acc, r) => acc + (r.subtotal_pence ?? r.total_pence ?? 0),
+    (acc, r) => acc + installerRevenueExVatPence(parseLineItems(r.line_items)),
     0,
   );
 

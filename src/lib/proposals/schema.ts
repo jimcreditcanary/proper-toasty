@@ -120,6 +120,28 @@ export function computeTotals(
   };
 }
 
+// Installer-revenue figure (ex-VAT). Sums non-grant line items only
+// — i.e. what the installer earns from the lead, treating the BUS
+// grant as a pass-through (Ofgem reimburses the deduction so the
+// grant lines are net-zero for the installer's books).
+//
+// Used by the installer-home + /installer/performance dashboards
+// where "pipeline value" / "won this month" / "sent value" should
+// reflect the installer's revenue from the lead, NOT the homeowner's
+// out-of-pocket bill. computeTotals().totalPence is the homeowner-
+// pays figure (grant deducted, VAT applied); use that on the quote
+// preview shown to the homeowner instead.
+//
+// Math: sum(|qty × unit_price| for lines where is_bus_grant !== true).
+// Negative non-grant lines (manual discounts) are honoured — they
+// reduce installer revenue legitimately. The BUS grant is the only
+// "discount" we treat as a pass-through.
+export function installerRevenueExVatPence(lineItems: LineItem[]): number {
+  return lineItems
+    .filter((li) => !li.is_bus_grant)
+    .reduce((sum, li) => sum + roundHalfToEven(li.quantity * li.unit_price_pence), 0);
+}
+
 // Banker's rounding — round half to even.
 function roundHalfToEven(n: number): number {
   const r = Math.round(n);
