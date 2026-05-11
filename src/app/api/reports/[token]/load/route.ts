@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 import { parseReportToken } from "@/lib/email/tokens";
 import type { LoadReportResponse } from "@/lib/schemas/report-share";
 
@@ -28,6 +29,33 @@ export async function GET(
       { ok: false, error: "Invalid link" },
       { status: 400 },
     );
+  }
+
+  // Cross-role access control: this report is the homeowner-facing
+  // surface. Installers must not load it (they have the dense
+  // site-brief at /installer/reports/[leadId]). Admins go through
+  // for support. Anonymous viewers (no session) can load with a
+  // valid token — same as the email-share flow expects.
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (user) {
+    const { data: profile } = await supabase
+      .from("users")
+      .select("role")
+      .eq("id", user.id)
+      .maybeSingle<{ role: string | null }>();
+    if (profile?.role === "installer") {
+      return NextResponse.json<LoadReportResponse>(
+        {
+          ok: false,
+          error:
+            "Installer accounts can't open homeowner reports. Find this lead in your /installer/leads inbox to see the installer-facing site brief.",
+        },
+        { status: 403 },
+      );
+    }
   }
 
   const admin = createAdminClient();

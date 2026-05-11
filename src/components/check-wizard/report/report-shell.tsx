@@ -119,11 +119,20 @@ export function ReportShell({ audience = "homeowner" }: ReportShellProps = {}) {
   const meetingBooked =
     isPreSurvey && state.preSurveyMeetingStatus === "booked";
 
+  // Homeowner opted out of installer matching at lead-capture time.
+  // The Book-a-visit tab presupposes the homeowner is happy for us
+  // to surface their property to MCS-certified installers — if they
+  // unticked that consent checkbox we shouldn't show the tab. (The
+  // consent flag defaults to true in the wizard's initial state, so
+  // legacy/unset rows still see the tab.)
+  const optedOutOfMatching = state.leadConsentInstallerMatching === false;
+
   // Tabs filtered:
   //   - installer surface: drop Savings + Book (booking is the
   //     homeowner's job; consumer ROI tiles are noise)
   //   - presurvey + meeting booked: drop Book (the meeting's already
   //     in the diary)
+  //   - homeowner opted out of installer matching: drop Book
   //   - everything else: all five tabs
   // Three-variant focus filter (state.focus, default "all"):
   //   solar    → drop the Heat-pump tab (the focused user is here
@@ -141,7 +150,7 @@ export function ReportShell({ audience = "homeowner" }: ReportShellProps = {}) {
 
   const visibleTabs = (isInstaller
     ? TABS.filter((t) => t.key !== "savings" && t.key !== "book")
-    : meetingBooked
+    : meetingBooked || optedOutOfMatching
       ? TABS.filter((t) => t.key !== "book")
       : TABS
   ).filter(focusFilter);
@@ -401,7 +410,19 @@ export function ReportShell({ audience = "homeowner" }: ReportShellProps = {}) {
             postcode={addr.postcode}
             latitude={addr.latitude}
             longitude={addr.longitude}
-            selection={selection}
+            selection={
+              // Focused variants force the filter chips + the
+              // capability filter on the /api/installers/nearby
+              // query to match the variant. Without this, a
+              // /check/heatpump user would see Solar + Battery
+              // chips and the API would over-match installers
+              // who only do solar.
+              focus === "heatpump"
+                ? { ...selection, hasSolar: false, hasBattery: false }
+                : focus === "solar"
+                  ? { ...selection, hasHeatPump: false }
+                  : selection
+            }
             audience={effectiveAudience}
             preSurveyInstallerName={state.preSurveyInstallerName}
           />

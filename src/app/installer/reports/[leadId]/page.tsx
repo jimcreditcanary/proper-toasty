@@ -63,11 +63,17 @@ export default async function InstallerReportPage({ params }: PageProps) {
 
   // Check role first so we can let admins peek at any lead for
   // support, while still locking installer A out of installer B.
+  // Homeowners are explicitly rejected: this surface is the dense
+  // installer site brief — the homeowner-facing report lives at
+  // /report/[id] or /r/[token].
   const { data: profile } = await supabase
     .from("users")
     .select("role")
     .eq("id", user.id)
     .maybeSingle<{ role: string | null }>();
+  if (profile?.role === "homeowner") {
+    notFound();
+  }
   const isAdmin = profile?.role === "admin";
 
   // Resolve the bound installer for the calling user (skipped for

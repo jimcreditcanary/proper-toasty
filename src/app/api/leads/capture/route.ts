@@ -6,6 +6,8 @@ import {
 } from "@/lib/schemas/leads";
 import { FuelTariffSchema } from "@/lib/schemas/bill";
 import { issueReportUrl } from "@/lib/booking/report-link";
+import { sendEmail } from "@/lib/email/client";
+import { buildSelfReportEmail } from "@/lib/email/templates/report-share";
 import { track } from "@/lib/analytics";
 import type { Database } from "@/types/database";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -183,7 +185,97 @@ export async function POST(req: Request) {
     email: input.email,
   });
 
+  // Email the homeowner a copy of their report — was previously
+  // missing entirely, so users captured at this step never received
+  // anything to come back to. Best-effort: failures don't fail the
+  // capture (the user already sees the report in-tab; the email is
+  // a "come back later" affordance, not a hard requirement).
+  //
+  // The link uses the same /r/[token] HMAC share-link pattern as
+  // the existing "email this to yourself" flow on the report page,
+  // so it's safe to share with a partner. 30-day expiry on the
+  // token row.
+  void sendReportEmail({
+    admin,
+    email,
+    name: input.name ?? null,
+    homeownerLeadId,
+    address: input.address ?? null,
+    postcode: input.postcode ?? null,
+    latitude: input.latitude ?? null,
+    longitude: input.longitude ?? null,
+    analysisSnapshot: input.analysisSnapshot,
+  });
+
   return NextResponse.json<LeadCaptureResponse>({ ok: true, id: homeownerLeadId });
+}
+
+// Fires the "your report is ready" email to the homeowner. Mints a
+// /r/[token] share-link first so the email body has a clickable
+// destination that bypasses sign-in. Fire-and-forget by design —
+// the caller doesn't await this, so an SMTP outage / Postmark
+// throttle / schema drift never blocks the wizard's success state.
+async function sendReportEmail(args: {
+  admin: SupabaseClient<Database>;
+  email: string;
+  name: string | null;
+  homeownerLeadId: string;
+  address: string | null;
+  postcode: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  analysisSnapshot: unknown;
+}): Promise<void> {
+  try {
+    const appBaseUrl =
+      process.env.NEXT_PUBLIC_APP_URL ?? "https://propertoasty.com";
+    const reportUrl = await issueReportUrl({
+      admin: args.admin,
+      lead: {
+        homeowner_lead_id: args.homeownerLeadId,
+        contact_email: args.email,
+        analysis_snapshot: (args.analysisSnapshot ?? null) as never,
+        property_address: args.address,
+        property_postcode: args.postcode,
+        property_latitude: args.latitude,
+        property_longitude: args.longitude,
+      },
+      appBaseUrl,
+    });
+
+    // 30-day TTL matches the report_tokens row that issueReportUrl
+    // just minted. Surfaces in the email so the homeowner knows
+    // when the link stops working.
+    const expiresAtIso = new Date(
+      Date.now() + 30 * 24 * 60 * 60 * 1000,
+    ).toISOString();
+
+    const built = buildSelfReportEmail({
+      reportUrl,
+      propertyAddress: args.address,
+      recipientName: args.name,
+      expiresAtIso,
+    });
+
+    const sendResult = await sendEmail({
+      to: args.email,
+      subject: built.subject,
+      html: built.html,
+      text: built.text,
+      tags: [
+        { name: "kind", value: "lead_capture_report" },
+        { name: "homeowner_lead_id", value: args.homeownerLeadId },
+      ],
+    });
+    if (!sendResult.ok && !("skipped" in sendResult && sendResult.skipped)) {
+      console.error(
+        "[leads/capture] report email send failed",
+        "error" in sendResult ? sendResult.error : "unknown",
+      );
+    }
+  } catch (e) {
+    console.error("[leads/capture] report email path threw", e);
+  }
 }
 
 // ─── Pre-survey attribution ───────────────────────────────────────

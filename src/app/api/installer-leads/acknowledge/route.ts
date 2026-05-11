@@ -460,29 +460,28 @@ export async function POST(req: Request) {
     lead.wants_battery,
   );
 
-  // Mint a report-share URL the installer can use to read the
-  // homeowner's pre-survey before the visit. Persisted on the lead
-  // so the inbox + ICS pull the same URL. Soft-fails — if token
-  // minting bombs we still credit + email, just without the report
-  // link.
+  // The installer's "view pre-survey report" link goes to the
+  // installer portal route (`/installer/reports/[leadId]`) — the
+  // dense site-brief view, NOT the homeowner-facing `/r/[token]`
+  // share link. The portal route is already auth-gated by
+  // installer_id binding, so no token mint or DB row needed.
+  //
+  // (We used to mint a homeowner share token here and email it to
+  // the installer, which meant clicking "View pre-survey report"
+  // dropped the installer into the homeowner journey complete with
+  // the "Slot booked — calendar invite on its way" success card.
+  // Wrong audience.)
   let installerReportUrl: string | null = null;
   if (action === "accept") {
-    try {
-      installerReportUrl = await issueReportUrl({ admin, lead });
-      const { error: persistErr } = await admin
-        .from("installer_leads")
-        .update({ installer_report_url: installerReportUrl })
-        .eq("id", leadId);
-      if (persistErr) {
-        console.warn(
-          "[ack] couldn't persist installer_report_url",
-          persistErr.message,
-        );
-      }
-    } catch (e) {
+    installerReportUrl = `${normalisedBase()}/installer/reports/${leadId}`;
+    const { error: persistErr } = await admin
+      .from("installer_leads")
+      .update({ installer_report_url: installerReportUrl })
+      .eq("id", leadId);
+    if (persistErr) {
       console.warn(
-        "[ack] report token mint failed — continuing without",
-        e instanceof Error ? e.message : e,
+        "[ack] couldn't persist installer_report_url",
+        persistErr.message,
       );
     }
   }

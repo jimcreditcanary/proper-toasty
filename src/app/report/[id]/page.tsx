@@ -12,7 +12,7 @@
 //   4. Recommended next steps — checklist
 //   5. Notes / caveats       — small print
 
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import {
   AlertTriangle,
@@ -33,6 +33,7 @@ import {
 } from "lucide-react";
 import { MarketingHeader } from "@/components/marketing-header";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 import {
   FloorplanExtractSchema,
   type FloorplanExtract,
@@ -47,6 +48,30 @@ interface PageProps {
 
 export default async function ReportPage({ params }: PageProps) {
   const { id } = await params;
+
+  // Cross-role access control: this is the homeowner-facing v2
+  // report. Installers must not see it (they have their own dense
+  // site-brief at /installer/reports/[leadId]). Admins are allowed
+  // through for support. Anonymous viewers (no session) can view
+  // by ID — same surface as the legacy /upload journey output.
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (user) {
+    const { data: profile } = await supabase
+      .from("users")
+      .select("role")
+      .eq("id", user.id)
+      .maybeSingle<{ role: string | null }>();
+    if (profile?.role === "installer") {
+      // Send them somewhere useful rather than 404. /installer/leads
+      // is their inbox — they likely clicked through from a stale
+      // email or guessed a URL; if it's their lead, they can open it
+      // from there and land on the right (installer) report surface.
+      redirect("/installer/leads");
+    }
+  }
 
   const admin = createAdminClient();
   const { data: row } = await admin
