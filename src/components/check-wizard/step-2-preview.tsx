@@ -31,28 +31,44 @@ export function Step2Preview() {
   const [solar, setSolar] = useState<Loadable<BuildingInsightsResponse>>(initial);
   const [epc, setEpc] = useState<Loadable<EpcByAddressResponse>>(initial);
 
+  // Skip the Solar API call entirely on the heat-pump variant —
+  // the solar card isn't rendered there, so spending the Google
+  // Solar API request is wasted spend. Solar variant + 'all'
+  // still fire the call because both surfaces consume it.
+  const skipSolar = state.focus === "heatpump";
+
   useEffect(() => {
     if (!address) return;
     let cancelled = false;
 
-    setSolar({ status: "loading", data: null, error: null });
-    fetch("/api/solar/building", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ lat: address.latitude, lng: address.longitude }),
-    })
-      .then(async (r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return (await r.json()) as BuildingInsightsResponse;
-      })
-      .then((data) => {
-        if (cancelled) return;
-        setSolar({ status: "ready", data, error: null });
-      })
-      .catch((e) => {
-        if (cancelled) return;
-        setSolar({ status: "error", data: null, error: e.message ?? "Solar lookup failed" });
+    if (skipSolar) {
+      // Leave the loadable in a 'ready, not-found' state so the
+      // step's `ready` gate doesn't deadlock waiting for it.
+      setSolar({
+        status: "ready",
+        data: { coverage: false, reason: "Skipped — heat-pump variant." },
+        error: null,
       });
+    } else {
+      setSolar({ status: "loading", data: null, error: null });
+      fetch("/api/solar/building", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lat: address.latitude, lng: address.longitude }),
+      })
+        .then(async (r) => {
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
+          return (await r.json()) as BuildingInsightsResponse;
+        })
+        .then((data) => {
+          if (cancelled) return;
+          setSolar({ status: "ready", data, error: null });
+        })
+        .catch((e) => {
+          if (cancelled) return;
+          setSolar({ status: "error", data: null, error: e.message ?? "Solar lookup failed" });
+        });
+    }
 
     if (address.uprn || (address.postcode && address.line1)) {
       setEpc({ status: "loading", data: null, error: null });
@@ -225,9 +241,11 @@ export function Step2Preview() {
         </div>
       </div>
 
-      {/* Detail cards — supporting info, not blockers for advancing. */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-5">
-        <SolarCard state={solar} />
+      {/* Detail cards — supporting info, not blockers for advancing.
+          Heat-pump variant hides the Solar card; this variant
+          doesn't surface solar anywhere in the report. */}
+      <div className={`grid grid-cols-1 ${skipSolar ? "" : "sm:grid-cols-2"} gap-4 mt-5`}>
+        {!skipSolar && <SolarCard state={solar} />}
         <EpcCard state={epc} />
       </div>
     </div>

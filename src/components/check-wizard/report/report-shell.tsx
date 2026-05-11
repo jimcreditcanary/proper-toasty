@@ -128,15 +128,14 @@ export function ReportShell({ audience = "homeowner" }: ReportShellProps = {}) {
   // Three-variant focus filter (state.focus, default "all"):
   //   solar    → drop the Heat-pump tab (the focused user is here
   //              for solar, not heat pump verdicts)
-  //   heatpump → drop Solar + Savings tabs (Savings leans on the
-  //              solar finance block — without solar there's no
-  //              meaningful comparison to render)
+  //   heatpump → drop Solar tab. Savings stays — the SavingsTab
+  //              detects the focus + renders a simplified heat-
+  //              pump-only view (install cost - BUS grant + finance).
   //   all      → no extra filtering
   const focus = state.focus ?? "all";
   const focusFilter = (t: TabDef): boolean => {
     if (focus === "solar" && t.key === "heatpump") return false;
-    if (focus === "heatpump" && (t.key === "solar" || t.key === "savings"))
-      return false;
+    if (focus === "heatpump" && t.key === "solar") return false;
     return true;
   };
 
@@ -216,7 +215,7 @@ export function ReportShell({ audience = "homeowner" }: ReportShellProps = {}) {
     );
   }
 
-  const headline = buildHeadline(a);
+  const headline = buildHeadline(a, focus);
   const floorplan: FloorplanAnalysis | null =
     state.floorplanAnalysis ?? a.floorplan.analysis;
   const satelliteUrl = `/api/imagery/satellite?${new URLSearchParams({
@@ -245,7 +244,7 @@ export function ReportShell({ audience = "homeowner" }: ReportShellProps = {}) {
             {headline}
           </h1>
         </div>
-        {!isInstaller && <EligibilityChecklist analysis={a} />}
+        {!isInstaller && <EligibilityChecklist analysis={a} focus={focus} />}
         {/* Hide the banner while the user is still sitting on the
             Book tab — that surface already renders its own "visit
             booked" success card after a fresh booking, so two green
@@ -352,7 +351,14 @@ export function ReportShell({ audience = "homeowner" }: ReportShellProps = {}) {
             analysis={a}
             electricityTariff={state.electricityTariff}
             gasTariff={state.gasTariff}
-            selection={selection}
+            selection={
+              // Heat-pump variant — force the selection to HP-only
+              // so the SavingsTab's existing solar-aware math
+              // collapses to the install-cost-minus-grant case.
+              focus === "heatpump"
+                ? { ...selection, hasSolar: false, hasBattery: false }
+                : selection
+            }
             setSelection={setSelection}
             financingPreference={state.financingPreference}
             onJumpTab={setTab}
@@ -470,7 +476,10 @@ export function ReportShell({ audience = "homeowner" }: ReportShellProps = {}) {
 
 // ─── Headline generator ─────────────────────────────────────────────────────
 
-function buildHeadline(a: AnalyseResponse): string {
+function buildHeadline(
+  a: AnalyseResponse,
+  focus: "all" | "solar" | "heatpump" = "all",
+): string {
   const hp = a.eligibility.heatPump;
   const solar = a.eligibility.solar;
   const kwp = solar.recommendedKWp;
@@ -479,6 +488,30 @@ function buildHeadline(a: AnalyseResponse): string {
       ? `${kwp ? `a ${kwp} kWp ` : ""}solar array`
       : null;
 
+  // Heat-pump-only variant: only talk about heat pumps. The Solar
+  // tab is hidden + we didn't even fetch the solar API.
+  if (focus === "heatpump") {
+    if (hp.verdict === "eligible") {
+      return "Your home looks like a strong candidate for an air source heat pump.";
+    }
+    if (hp.verdict === "conditional") {
+      return "A heat pump is possible, but there are a few warnings to address before applying.";
+    }
+    return "A heat pump isn't a straightforward fit for this property right now.";
+  }
+
+  // Solar-only variant: only talk about solar.
+  if (focus === "solar") {
+    if (solarPhrase) {
+      return `Rooftop solar looks great for your property — ${solarPhrase}.`;
+    }
+    if (solar.rating === "Marginal") {
+      return "Rooftop solar is possible, but the roof orientation + shading need careful sizing.";
+    }
+    return "Rooftop solar isn't a straightforward fit for this property right now.";
+  }
+
+  // Default 'all' — same combined narrative as before.
   if (hp.verdict === "eligible" && solarPhrase) {
     return `Your home looks like a strong candidate for an air source heat pump and ${solarPhrase}.`;
   }

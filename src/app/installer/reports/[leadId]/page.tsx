@@ -284,6 +284,7 @@ export default async function InstallerReportPage({ params }: PageProps) {
         </div>
       )}
       <InstallerSiteBrief
+        extract={floorplanExtract}
         contact={{
           name: lead.contact_name ?? null,
           email: lead.contact_email ?? null,

@@ -91,12 +91,20 @@ function AtAGlance({ extract }: { extract: FloorplanExtract }) {
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold">{hp.overall_assessment}</p>
-            <p className="mt-1 text-xs opacity-80 leading-relaxed">
-              {hp.indicative_eligibility_score.rationale}
-            </p>
           </div>
         </div>
       </div>
+
+      {/* Score breakdown — parse the rationale prose into a table.
+          The model emits the rationale as a single string with
+          comma-separated adjustments ("Base score 5. +1 for outdoor
+          space. +1 for mid-terrace..."). A table reads better at a
+          glance than a wall of text. */}
+      <ScoreBreakdown
+        rationale={hp.indicative_eligibility_score.rationale}
+        total={score}
+      />
+
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <Tile
@@ -396,3 +404,153 @@ function RoomByRoom({ extract }: { extract: FloorplanExtract }) {
 // 3.5 Print/export — handled by the shared PrintButton component
 // imported above + the print: Tailwind classes scattered through the
 // other sections. No separate PDF dependency in v1.
+
+// ─── Score breakdown table ─────────────────────────────────────────────
+//
+// The model returns the eligibility-score rationale as a single
+// prose string with adjustments expressed inline:
+//
+//   "Base score 5. +1 for private outdoor space (rear garden
+//    confirmed). +1 for mid-terrace configuration (reduced heat
+//    loss). -1 for no obvious dedicated cylinder location. Total: 8/10."
+//
+// For installer triage that's a wall of text. We split on sentence
+// boundaries and pull out the sign + magnitude with a regex, then
+// render a table with a running total in the rightmost column.
+//
+// Defensive parsing — if the prose doesn't match the expected shape
+// we fall back to rendering the original text below the table.
+
+function ScoreBreakdown({
+  rationale,
+  total,
+}: {
+  rationale: string;
+  total: number;
+}) {
+  const lines = parseRationale(rationale);
+  // If we couldn't extract any adjustments, render the prose as-is.
+  if (lines.length === 0) {
+    return (
+      <p className="text-xs text-slate-600 italic leading-relaxed mb-3">
+        {rationale}
+      </p>
+    );
+  }
+
+  // Running total + check that our parsing matches the model's total.
+  let running = 0;
+  const rows = lines.map((line) => {
+    running += line.delta;
+    return { ...line, running };
+  });
+  const parseMatches = running === total;
+
+  return (
+    <div className="mb-3 rounded-xl border border-slate-200 bg-white overflow-hidden">
+      <table className="w-full text-sm">
+        <thead className="bg-slate-50 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+          <tr>
+            <th className="text-left px-3 py-2">Factor</th>
+            <th className="text-center px-3 py-2 w-16">Δ</th>
+            <th className="text-right px-3 py-2 w-16">Score</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r, i) => (
+            <tr
+              key={i}
+              className="border-t border-slate-100 align-top"
+            >
+              <td className="px-3 py-2 text-navy leading-relaxed">
+                {r.factor}
+              </td>
+              <td className="px-3 py-2 text-center tabular-nums font-semibold">
+                <span
+                  className={
+                    r.delta > 0
+                      ? "text-emerald-700"
+                      : r.delta < 0
+                        ? "text-rose-700"
+                        : "text-slate-500"
+                  }
+                >
+                  {r.delta > 0 ? `+${r.delta}` : r.delta === 0 ? "—" : r.delta}
+                </span>
+              </td>
+              <td className="px-3 py-2 text-right tabular-nums text-slate-600">
+                {r.running}
+              </td>
+            </tr>
+          ))}
+          <tr className="border-t-2 border-slate-200 bg-slate-50/50">
+            <td className="px-3 py-2.5 font-bold text-navy">Total</td>
+            <td className="px-3 py-2.5" />
+            <td className="px-3 py-2.5 text-right tabular-nums font-bold text-navy">
+              {total}/10
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      {!parseMatches && (
+        // Rare — our parsed running total didn't match the model's
+        // declared total. Surface a small disclaimer rather than
+        // silently misrepresent the math.
+        <p className="px-3 py-2 text-[10px] text-amber-700 bg-amber-50 border-t border-amber-100">
+          Parsed adjustments sum to {running}, model declared {total}. Some
+          nuance may be in the original rationale.
+        </p>
+      )}
+    </div>
+  );
+}
+
+interface ParsedRationale {
+  factor: string;
+  delta: number;
+}
+
+function parseRationale(rationale: string): ParsedRationale[] {
+  // Match sentences. Each line ends with a period, sometimes an
+  // exclamation/question mark. Split, trim, drop empties.
+  const segments = rationale
+    .split(/(?<=[.!?])\s+/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+
+  const out: ParsedRationale[] = [];
+  for (const seg of segments) {
+    // Skip "Total: X/10" closing summary — surface as the table's
+    // total row instead.
+    if (/^total\s*[:=]/i.test(seg)) continue;
+
+    // "Base score 5" / "Base 5"
+    const baseMatch = seg.match(/^base(?:\s+score)?\s+(\d+)/i);
+    if (baseMatch) {
+      out.push({
+        factor: "Base score",
+        delta: Number.parseInt(baseMatch[1], 10),
+      });
+      continue;
+    }
+
+    // "+1 for outdoor space..." / "-2 for conservation area..."
+    const deltaMatch = seg.match(/^([+-]?\d+)\s+(?:for\s+)?(.+?)\.?$/);
+    if (deltaMatch) {
+      const delta = Number.parseInt(deltaMatch[1], 10);
+      const factor = deltaMatch[2].replace(/^for\s+/, "").trim();
+      if (Number.isFinite(delta) && factor.length > 0) {
+        out.push({ factor, delta });
+        continue;
+      }
+    }
+
+    // Sometimes the rationale starts with a verb: "No deduction for
+    // conservation area..." → treat as 0 delta with factor copy.
+    const noDeductMatch = seg.match(/^no\s+deduction\s+(?:for\s+)?(.+?)\.?$/i);
+    if (noDeductMatch) {
+      out.push({ factor: noDeductMatch[1], delta: 0 });
+    }
+  }
+  return out;
+}

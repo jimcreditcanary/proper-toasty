@@ -165,6 +165,29 @@ export default async function InstallerHomePage() {
         proposalSentCount: proposalRes.count ?? 0,
       });
       metrics = dealMetrics;
+
+      // Sticky-hide the onboarding wizard: once the installer has
+      // ticked every step at least ONCE, stamp dismissed_at so it
+      // stays hidden permanently. Symptom this fixes: a customer
+      // declining a quote flipped 'Send your first quote' back to
+      // unticked because the ticked-state was derived live from
+      // current counts, and the wizard re-appeared after the user
+      // had already moved on. Once dismissed_at is set, the
+      // dashboard never re-shows the wizard regardless of whether
+      // downstream counts dip back below their thresholds.
+      if (checklist.isComplete && !onboardingDismissedAt) {
+        const stampedAt = new Date().toISOString();
+        const { error: stampErr } = await admin
+          .from("users")
+          .update({ installer_onboarding_dismissed_at: stampedAt })
+          .eq("id", user.id)
+          .is("installer_onboarding_dismissed_at", null);
+        if (!stampErr) {
+          onboardingDismissedAt = stampedAt;
+        } else {
+          console.warn("[installer] auto-dismiss onboarding failed", stampErr);
+        }
+      }
     }
   }
 

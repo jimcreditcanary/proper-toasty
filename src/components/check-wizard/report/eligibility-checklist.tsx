@@ -22,6 +22,9 @@ import type { AnalyseResponse } from "@/lib/schemas/analyse";
 
 interface Props {
   analysis: AnalyseResponse;
+  /** Three-variant filter. solar hides the heat-pump row; heatpump
+   *  hides solar + battery. 'all' or undefined shows every pill. */
+  focus?: "all" | "solar" | "heatpump";
 }
 
 type Tone = "green" | "amber" | "slate";
@@ -37,7 +40,7 @@ interface ItemDef {
   tone: Tone;
 }
 
-export function EligibilityChecklist({ analysis }: Props) {
+export function EligibilityChecklist({ analysis, focus = "all" }: Props) {
   const hp = analysis.eligibility.heatPump;
   const solar = analysis.eligibility.solar;
   const solarStrong = solar.rating === "Excellent" || solar.rating === "Good";
@@ -87,6 +90,19 @@ export function EligibilityChecklist({ analysis }: Props) {
     },
   ];
 
+  // Filter pills by focus variant. solar hides heat-pump (it's
+  // not what they came for); heatpump hides solar + battery.
+  const visibleItems = items.filter((item) => {
+    if (focus === "solar" && item.id === "heatpump") return false;
+    if (focus === "heatpump" && (item.id === "solar" || item.id === "battery"))
+      return false;
+    return true;
+  });
+
+  // Don't render the strip when there's nothing to show — defensive
+  // against a future variant that excludes everything.
+  if (visibleItems.length === 0) return null;
+
   // Inline strip — no card wrapper. Title on the left, three pills
   // on the right, all on one line on desktop. Renders directly under
   // the report H1 (replacing where the address line used to sit).
@@ -100,7 +116,7 @@ export function EligibilityChecklist({ analysis }: Props) {
         What your home is eligible for
       </p>
       <ul className="flex flex-wrap gap-x-2 gap-y-2" role="list">
-        {items.map((item) => (
+        {visibleItems.map((item) => (
           <Pill key={item.id} {...item} />
         ))}
       </ul>

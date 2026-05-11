@@ -43,6 +43,7 @@ import {
 } from "lucide-react";
 import type { AnalyseResponse } from "@/lib/schemas/analyse";
 import type { FloorplanAnalysis } from "@/lib/schemas/floorplan";
+import type { FloorplanExtract } from "@/lib/schemas/floorplan-extract";
 import { FloorplanReadOnly } from "@/components/check-wizard/report/floorplan-readonly";
 import type { FuelTariff } from "@/lib/schemas/bill";
 import type { AddressMetadata } from "@/lib/schemas/address-lookup";
@@ -87,6 +88,10 @@ export interface InstallerSiteBriefProps {
   /** Object key from the matching check row, when we can link. Lets us
    *  serve the floorplan image via /api/floorplan/image. */
   floorplanObjectKey: string | null;
+  /** V2 upload extract — when the lead came via the upload-only
+   *  flow. Property card prefers extract values for dwelling type
+   *  + floor count + GIA when present. */
+  extract?: FloorplanExtract | null;
 }
 
 // ─── Component ──────────────────────────────────────────────────────
@@ -102,6 +107,7 @@ export function InstallerSiteBrief(props: InstallerSiteBriefProps) {
         analysis={analysis}
         floorplan={floorplan}
         floorplanObjectKey={props.floorplanObjectKey}
+        extract={props.extract ?? null}
       />
       <EnergyPerformanceCard analysis={analysis} />
       <EpcRecommendationsCard analysis={analysis} />
@@ -436,15 +442,28 @@ function PropertyCard({
   analysis,
   floorplan,
   floorplanObjectKey,
+  extract,
 }: {
   analysis: AnalyseResponse;
   floorplan: FloorplanAnalysis | null;
   floorplanObjectKey: string | null;
+  /** V2 upload extract — passed in when the lead carries one. The
+   *  Property card prefers extract values for floors + dwelling
+   *  type when present, falling back to EPC + legacy floorplan
+   *  metrics otherwise. */
+  extract?: FloorplanExtract | null;
 }) {
   const epc = analysis.epc.found ? analysis.epc.certificate : null;
   const rooms = floorplan?.metrics?.rooms ?? [];
-  const totalAreaM2 = floorplan?.metrics?.totalAreaM2 ?? epc?.totalFloorAreaM2 ?? null;
+  // Prefer the v2 extract's GIA when present — it was read directly
+  // off the floorplan rather than triangulated from EPC.
+  const totalAreaM2 =
+    extract?.property.gross_internal_area.sq_m ??
+    floorplan?.metrics?.totalAreaM2 ??
+    epc?.totalFloorAreaM2 ??
+    null;
   const totalAreaSqFt =
+    extract?.property.gross_internal_area.sq_ft ??
     floorplan?.metrics?.totalAreaSqFt ??
     (totalAreaM2 ? Math.round(totalAreaM2 * 10.7639) : null);
   const floorsCount = floorplan?.metrics?.floorsCount ?? null;
@@ -456,12 +475,16 @@ function PropertyCard({
         <div className="space-y-4">
           <Subhead>Classification</Subhead>
           <Dl>
+            {/* Prefer the v3 API's dwellingType ("Mid-terrace house",
+                "Detached", "1-bed flat") — the older propertyType
+                field came back as 0 / null on the new envelope. */}
             <Dt>Property type</Dt>
-            <Dd>{epc?.propertyType ?? "—"}</Dd>
-            <Dt>Built form</Dt>
-            <Dd>{epc?.builtForm ?? "—"}</Dd>
-            <Dt>Age band</Dt>
-            <Dd>{epc?.constructionAgeBand ?? "—"}</Dd>
+            <Dd>{epc?.dwellingType ?? epc?.propertyType ?? "—"}</Dd>
+            {/* Built form + Age band intentionally dropped from this
+                card. Built form duplicates what's already encoded in
+                dwellingType ("Mid-terrace house" tells you the form);
+                age band is rarely actionable for a site-visit brief
+                and was eating row space the installer didn't need. */}
             <Dt>Tenure</Dt>
             <Dd>{epc?.tenure ?? "—"}</Dd>
             <Dt>Total floor area</Dt>
@@ -474,7 +497,10 @@ function PropertyCard({
               )}
             </Dd>
             <Dt>Floors</Dt>
-            <Dd>{floorsCount ?? "—"}</Dd>
+            {/* Prefer the v2 extract's total_floors (read directly off
+                the floorplan), falling back to the floorplan analysis
+                metrics for legacy leads, falling back to "—". */}
+            <Dd>{extract?.property.total_floors ?? floorsCount ?? "—"}</Dd>
             <Dt>Habitable rooms</Dt>
             <Dd>{epc?.numberHabitableRooms ?? "—"}</Dd>
             <Dt>Heated rooms</Dt>

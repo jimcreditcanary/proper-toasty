@@ -1,11 +1,10 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import {
   ArrowLeft,
   ArrowRight,
   Home as HomeIcon,
-  Thermometer,
   Receipt,
   Banknote,
 } from "lucide-react";
@@ -20,11 +19,10 @@ const TENURE_OPTIONS: Array<{ value: Tenure; title: string; body: string }> = [
   { value: "social", title: "I rent from council or housing association", body: "Social tenant." },
 ];
 
-const FUEL_OPTIONS: Array<{ value: HeatingFuel; title: string; body: string }> = [
-  { value: "gas", title: "Gas", body: "Mains gas boiler or LPG." },
-  { value: "electric", title: "Electric", body: "Immersion, storage heaters, or electric radiators." },
-  { value: "other", title: "Other", body: "Oil, biomass, solid fuel, or not sure." },
-];
+// FUEL_OPTIONS removed — the question used to display these as
+// tiles, but the answer is derived from the EPC now (see the
+// useEffect in Step3Questions). HeatingFuel union is still used
+// for the wizard-state type + the savings calc.
 
 const YNU_OPTIONS: Array<{ value: YesNoUnsure; title: string }> = [
   { value: "yes", title: "Yes" },
@@ -35,12 +33,31 @@ const YNU_OPTIONS: Array<{ value: YesNoUnsure; title: string }> = [
 export function Step3Questions() {
   const { state, update, next, back } = useCheckWizard();
 
+  // currentHeatingFuel is no longer asked — the EPC carries this
+  // (and the analyse pipeline reads it from the cert), so the
+  // question was friction. Default to mains gas here so the
+  // wizard's `ready` gate can advance + the energy-details card
+  // knows whether to require a gas tariff. ~85% of UK homes are
+  // on mains gas; the ~10% on full-electric can override on the
+  // bill upload step. The analyse pipeline tolerates a wrong
+  // default — the savings calc still produces a sensible figure
+  // and the BUS eligibility engine reads fuel from the EPC.
+  useEffect(() => {
+    if (state.currentHeatingFuel) return;
+    update({ currentHeatingFuel: "gas" satisfies HeatingFuel });
+  }, [state.currentHeatingFuel, update]);
+
   const gasRequired = state.currentHeatingFuel === "gas";
+  // Solar variant skips the BUS-grant prior-funding question — it's
+  // not relevant when the report doesn't cover heat pumps.
+  const isSolarFocus = state.focus === "solar";
 
   const ready = useMemo(() => {
     if (!state.tenure || !state.currentHeatingFuel) return false;
-    // Heat pump grant blocker — always ask, since the report covers heat pump.
-    if (!state.priorHeatPumpFunding) return false;
+    // Heat pump grant blocker — required for any variant that
+    // surfaces the heat-pump verdict (all + heatpump). Solar
+    // variant skips because it's only relevant for the BUS grant.
+    if (!isSolarFocus && !state.priorHeatPumpFunding) return false;
     // Financing preference drives which scenario the report defaults to.
     if (!state.financingPreference) return false;
     // Energy details: electricity always required; gas required when fuel is gas.
@@ -55,6 +72,7 @@ export function Step3Questions() {
     state.electricityTariff,
     state.gasTariff,
     gasRequired,
+    isSolarFocus,
   ]);
 
   // Personalise the heading when the customer arrived via an
@@ -94,31 +112,28 @@ export function Step3Questions() {
           />
         </Question>
 
-        <Question
-          icon={<Thermometer className="w-4 h-4" />}
-          title="What fuel does your home currently use for heating?"
-          sub="We cross-check this against your EPC — whichever says 'low-carbon already' would rule you out of the BUS grant."
-        >
-          <Tiles
-            options={FUEL_OPTIONS}
-            value={state.currentHeatingFuel}
-            onChange={(v) => update({ currentHeatingFuel: v })}
-            columns={3}
-          />
-        </Question>
+        {/* "What fuel does your home use" — deliberately not asked.
+            We derive it from the EPC's mainFuel field above, falling
+            back to mains gas. The savings calculation tolerates a
+            wrong guess; nudging users to fill in fields the EPC
+            already knows the answer to is friction we don't need. */}
 
-        <Question
-          icon={<Receipt className="w-4 h-4" />}
-          title="Have you already had government funding for a heat pump or biomass boiler?"
-          sub="Ofgem's Boiler Upgrade Scheme only pays out once per property. Separate funding for insulation, windows, or doors is fine."
-        >
-          <Tiles
-            options={YNU_OPTIONS}
-            value={state.priorHeatPumpFunding}
-            onChange={(v) => update({ priorHeatPumpFunding: v })}
-            columns={3}
-          />
-        </Question>
+        {/* BUS prior-funding gate — hidden on the solar variant
+            (irrelevant when the report doesn't cover heat pumps). */}
+        {!isSolarFocus && (
+          <Question
+            icon={<Receipt className="w-4 h-4" />}
+            title="Have you already had government funding for a heat pump or biomass boiler?"
+            sub="Ofgem's Boiler Upgrade Scheme only pays out once per property. Separate funding for insulation, windows, or doors is fine."
+          >
+            <Tiles
+              options={YNU_OPTIONS}
+              value={state.priorHeatPumpFunding}
+              onChange={(v) => update({ priorHeatPumpFunding: v })}
+              columns={3}
+            />
+          </Question>
+        )}
 
         <Question
           icon={<Banknote className="w-4 h-4" />}
