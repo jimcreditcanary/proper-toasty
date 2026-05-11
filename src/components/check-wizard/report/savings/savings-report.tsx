@@ -20,7 +20,8 @@
 // presentation-only.
 
 import { useState } from "react";
-import { AlertCircle, BadgeCheck, Loader2 } from "lucide-react";
+import { AlertCircle, BadgeCheck, Leaf, Loader2 } from "lucide-react";
+import type { AnalyseResponse } from "@/lib/schemas/analyse";
 import type {
   CalculateRequest,
   CalculateResponse,
@@ -28,6 +29,7 @@ import type {
 import type { FinancingInputs } from "@/lib/savings/build-request";
 import { SectionCard, fmtGbp } from "../shared";
 import { CumulativeCostChart } from "./cumulative-chart";
+import { FinancingControls } from "./financing-controls";
 
 type Scenario = "doNothing" | "finance" | "payUpfront" | "mortgage";
 
@@ -46,11 +48,21 @@ const SCENARIO_LABELS: Record<Scenario, string> = {
 };
 
 interface Props {
+  /** Used to surface the EPC's suggested-improvements list at the
+   *  bottom of the savings report. The savings engine doesn't model
+   *  fabric upgrades (loft / wall / glazing); the EPC assessor's
+   *  annual-saving figures are a useful pointer to additional
+   *  spend-to-save opportunities that sit alongside the plan above. */
+  analysis: AnalyseResponse;
   result: CalculateResponse | null;
   loading: boolean;
   error: string | null;
   request: CalculateRequest;
   financing: FinancingInputs;
+  /** Financing controls live inside this component now (between the
+   *  narrative + the 10-year outlook), but the state itself is owned
+   *  by the parent so the API request build can read it. */
+  onFinancingChange: (next: FinancingInputs) => void;
   /** Initial chart view. Homeowner reports default to "monthly" (what
    *  the user sees on a bank statement); presurvey reports default to
    *  "cumulative" (better grounding for the in-person conversation). */
@@ -58,11 +70,13 @@ interface Props {
 }
 
 export function SavingsReport({
+  analysis,
   result,
   loading,
   error,
   request,
   financing,
+  onFinancingChange,
   defaultChartView = "monthly",
 }: Props) {
   // Show inline error banner; the cost-breakdown card below this in
@@ -103,6 +117,11 @@ export function SavingsReport({
     <div className="space-y-6">
       <CurrentSpendSection result={result} />
       <NarrativeSection result={result} />
+      {/* Financing controls sit between the narrative and the 10-year
+          outlook. They drive every chart + table below, so putting
+          them adjacent to the chart they affect (rather than at the
+          top of the tab, far away) makes the cause/effect obvious. */}
+      <FinancingControls value={financing} onChange={onFinancingChange} />
       <TenYearOutlookSection
         result={result}
         showFinance={showFinance}
@@ -125,6 +144,12 @@ export function SavingsReport({
         showFinance={showFinance}
         showMortgage={showMortgage}
       />
+      {/* EPC fabric improvements — independent of the plan above.
+          Surfaces "other ways to save" (loft, walls, glazing) that
+          the savings engine doesn't model. Only renders when the
+          EPC was found AND ships recommendations; hidden silently
+          otherwise (don't pretend there's nothing). */}
+      <EpcImprovementsSection analysis={analysis} />
       {loading && (
         <p className="text-xs text-slate-400 inline-flex items-center gap-1.5">
           <Loader2 className="w-3 h-3 animate-spin" />
@@ -472,7 +497,7 @@ function MonthlyComparisonSection({
             <dl className="mt-3 space-y-1 text-xs">
               <RowKv label="Energy bills" value={fmtGbp(c.energy) + "/mo"} />
               <RowKv
-                label="Loan / mortgage"
+                label="Financing cost"
                 value={c.payment > 0 ? `${fmtGbp(c.payment)}/mo` : "—"}
               />
             </dl>
@@ -532,6 +557,16 @@ function BottomLineSection({
       payback: s.paybackYearMortgage,
     });
   }
+
+  // Hide the whole "Bottom line" card when no scenario beats the
+  // do-nothing baseline over 10 years. A table full of "−£X"
+  // savings rows just bums the homeowner out without telling them
+  // anything actionable — the chart + monthly cards above already
+  // show the comparison. Common for small homes where the £7,500
+  // BUS grant nearly covers a £6k–£9k install and the upgrade is
+  // technically a no-brainer but the 10-year energy delta is small.
+  const anyPositiveSavings = rows.some((r) => r.savings > 0);
+  if (!anyPositiveSavings) return null;
 
   return (
     <SectionCard
@@ -702,6 +737,110 @@ function YourOptionsSection({
         />
       )}
     </div>
+  );
+}
+
+// ─── EPC fabric-improvements section ──────────────────────────────
+//
+// The EPC assessor's flagged improvements (loft / wall / glazing /
+// hot-water cylinder etc.) ship with their own indicative cost +
+// annual saving bands from GOV.UK. The savings engine above doesn't
+// model fabric upgrades — only the heat pump + solar + battery
+// changes — so this card surfaces the other levers a homeowner
+// has, alongside the plan they've just built.
+//
+// Cost + saving fields ship as free-text bands ("£500 - £1,500",
+// "£87/year") so we render them verbatim. We don't try to sum the
+// savings into a single headline figure: most rows are
+// "indicative" bands with no machine-readable midpoint, and adding
+// estimates of estimates risks the headline number being more
+// misleading than each row in isolation.
+//
+// Skipped silently when:
+//   - EPC wasn't found for the address (no cert to read from)
+//   - cert found but recommendations side-call failed (null)
+//   - cert + side-call OK but no measures lodged ([])
+// — better to omit than render a "no measures" empty state on a
+// page that's already dense with cards.
+
+function EpcImprovementsSection({ analysis }: { analysis: AnalyseResponse }) {
+  if (!analysis.epc.found) return null;
+  const recs = analysis.epc.recommendations;
+  if (recs == null || recs.length === 0) return null;
+
+  // Highest-priority first if the EPC numbered them (1 = top
+  // priority on the GOV.UK schema). Fall back to source order
+  // when item numbers are missing.
+  const sorted = [...recs].sort((a, b) => {
+    const ai = a.improvementItem ?? Number.POSITIVE_INFINITY;
+    const bi = b.improvementItem ?? Number.POSITIVE_INFINITY;
+    return ai - bi;
+  });
+
+  return (
+    <SectionCard
+      title="Other ways to save"
+      subtitle="Improvements your EPC flagged — fabric upgrades the plan above doesn't already cover."
+      icon={<Leaf className="w-5 h-5" />}
+    >
+      <div className="overflow-x-auto rounded-lg border border-slate-200">
+        <table className="w-full text-sm">
+          <thead className="bg-slate-50 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+            <tr>
+              <th className="text-left px-3 py-2">Improvement</th>
+              <th className="text-left px-3 py-2 hidden sm:table-cell">
+                Indicative cost
+              </th>
+              <th className="text-left px-3 py-2 hidden sm:table-cell">
+                Annual saving
+              </th>
+              <th className="text-left px-3 py-2 hidden md:table-cell">
+                Post-EPC band
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {sorted.map((r, i) => (
+              <tr key={i} className="border-t border-slate-100 align-top">
+                <td className="px-3 py-2">
+                  <p className="font-medium text-navy">
+                    {r.improvementSummary}
+                  </p>
+                  {/* Mobile-only inline cost + saving when the
+                      columns are hidden. Keeps every row useful
+                      on phones without horizontal scroll. */}
+                  <p className="text-xs text-slate-500 mt-0.5 sm:hidden">
+                    {r.indicativeCost ?? "Cost not given"} ·{" "}
+                    {r.typicalSavingPerYear ?? "Saving not given"}
+                  </p>
+                </td>
+                <td className="px-3 py-2 hidden sm:table-cell tabular-nums text-slate-700">
+                  {r.indicativeCost ?? "—"}
+                </td>
+                <td className="px-3 py-2 hidden sm:table-cell tabular-nums text-emerald-700 font-medium">
+                  {r.typicalSavingPerYear ?? "—"}
+                </td>
+                <td className="px-3 py-2 hidden md:table-cell text-slate-700">
+                  {r.energyPerformanceBandImprovement ?? "—"}
+                  {r.energyPerformanceRatingImprovement != null && (
+                    <span className="text-slate-400 ml-1">
+                      ({r.energyPerformanceRatingImprovement})
+                    </span>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="mt-3 text-[11px] text-slate-500 leading-relaxed">
+        Sourced from your EPC certificate (GOV.UK). Costs + savings
+        are the assessor&rsquo;s indicative bands — your installer
+        will quote the actual figures. Some measures may overlap
+        with the plan above (e.g. if the EPC suggests solar PV and
+        you&rsquo;ve already toggled it on).
+      </p>
+    </SectionCard>
   );
 }
 

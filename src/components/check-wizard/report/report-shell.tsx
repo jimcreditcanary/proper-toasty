@@ -363,6 +363,7 @@ export function ReportShell({ audience = "homeowner" }: ReportShellProps = {}) {
             financingPreference={state.financingPreference}
             onJumpTab={setTab}
             audience={effectiveAudience}
+            focus={focus}
           />
         )}
         {tab === "heatpump" && (

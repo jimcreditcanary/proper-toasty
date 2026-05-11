@@ -26,11 +26,10 @@ import {
   type FinancingInputs,
 } from "@/lib/savings/build-request";
 import { useSavingsCalc } from "@/lib/savings/use-savings-calc";
-import type { YesNoUnsure } from "../../types";
+import type { WizardFocus, YesNoUnsure } from "../../types";
 import type { ReportSelection, ReportTabKey } from "../report-shell";
 import { SectionCard, fmtGbp } from "../shared";
 import { RecommendationStrip } from "../recommendation-strip";
-import { FinancingControls } from "../savings/financing-controls";
 import { SavingsReport } from "../savings/savings-report";
 
 interface Props {
@@ -47,6 +46,10 @@ interface Props {
    *  cumulative cost (best for the in-person meeting); homeowner →
    *  monthly outgoings (what they see on a bank statement). */
   audience?: "homeowner" | "presurvey" | "installer";
+  /** Wizard focus — "solar" / "heatpump" hide the multi-tech plan
+   *  builder ("Build your plan") because the focused variant has
+   *  exactly one tech locked in and the toggles are redundant. */
+  focus?: WizardFocus;
 }
 
 export function SavingsTab({
@@ -58,6 +61,7 @@ export function SavingsTab({
   financingPreference,
   onJumpTab,
   audience = "homeowner",
+  focus = "all",
 }: Props) {
   // Financing is local to this tab — no other tab consumes it. Seed
   // both scenarios off when the wizard captured "no, paying cash"
@@ -100,24 +104,33 @@ export function SavingsTab({
     financing,
   });
 
+  // Hide the multi-tech plan-builder on focused variants. /check/solar
+  // and /check/heatpump have exactly one tech locked in by the
+  // wizard's `focus`; the three toggles are confusing extra surface
+  // ("why is heat pump even shown if I'm on the solar landing?").
+  const showPlanBuilder = focus === "all";
+
   return (
     <div className="space-y-6">
-      {/* Plan-builder — drives both the cost breakdown below and the
-          API request feeding SavingsReport. */}
-      <RecommendationStrip
-        analysis={analysis}
-        selection={selection}
-        setSelection={setSelection}
-        onJumpTab={onJumpTab}
-      />
-
-      {/* Advanced financing — only useful once at least one upgrade
-          is in the plan, but harmless to show always. */}
-      <FinancingControls value={financing} onChange={setFinancing} />
+      {/* Plan-builder — only on the "all" variant. The focused variants
+          (/check/solar, /check/heatpump) hide this; their selection is
+          pre-set by the wizard and shouldn't be toggled. */}
+      {showPlanBuilder && (
+        <RecommendationStrip
+          analysis={analysis}
+          selection={selection}
+          setSelection={setSelection}
+          onJumpTab={onJumpTab}
+        />
+      )}
 
       {/* The live report. Skipped when nothing's in the plan — the
           API would just return defaults that don't reflect the user's
-          choice. */}
+          choice. Financing controls used to sit above the report at
+          this level; they're now rendered inside SavingsReport,
+          between the narrative and the 10-year outlook (Jim's
+          feedback — the financing inputs are most useful AT the
+          point where they drive the chart). */}
       {noTechSelected ? (
         <SectionCard>
           <div className="flex items-center gap-2 text-sm text-slate-500">
@@ -127,11 +140,13 @@ export function SavingsTab({
         </SectionCard>
       ) : (
         <SavingsReport
+          analysis={analysis}
           result={result}
           loading={loading}
           error={error}
           request={request}
           financing={financing}
+          onFinancingChange={setFinancing}
           defaultChartView={audience === "presurvey" ? "cumulative" : "monthly"}
         />
       )}
