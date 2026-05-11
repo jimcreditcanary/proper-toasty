@@ -114,15 +114,59 @@ export function buildSavingsRequest(args: BuildArgs): CalculateRequest {
   };
 
   // ── cost_assumptions ────────────────────────────────────────────────
-  // Use the analysis's actual grant figure when we have it; defaults
-  // for the rest (we'll wire per-property heat-pump / solar cost
-  // overrides in a follow-up — for now the API's UK averages are fine).
+  //
+  // Per-property cost derivation — was previously a fleet of hardcoded
+  // £12,000 / £350-per-panel defaults that didn't reflect what the
+  // floorplan + EPC analysis actually produced. Symptom in the wild:
+  // the bottom "How the upfront cost adds up" card (which reads from
+  // calc.ts) and the "One-off investment" / loan figures (which read
+  // from the API engine) disagreed because they were sourcing from
+  // different cost tables — e.g. £8,250 gross HP install in the
+  // breakdown but a £4,500 one-off in the option cards (£12k flat
+  // default − £7.5k grant).
+  //
+  // Now both halves of the page agree because the engine sees the
+  // same per-property figures calc.ts uses.
+
+  // Heat pump cost — `estimatedNetInstallCostRangeGBP` is the post-
+  // grant range from the eligibility-engine band (sized by floor
+  // area). Take its midpoint, add the grant back to get gross, and
+  // fold in any additional costs the eligibility model flagged
+  // (currently EPC renewal at ~£90 when EPC is missing/expired).
+  // Falls back to the previous £12,000 default when the analysis
+  // didn't produce a usable range (no floor area available).
+  const hpNetRange = analysis.finance?.heatPump?.estimatedNetInstallCostRangeGBP;
+  const hpNetMid = hpNetRange ? (hpNetRange[0] + hpNetRange[1]) / 2 : null;
+  const hpAdditional = (analysis.finance?.heatPump?.additionalCostsGBP ?? [])
+    .reduce((sum, e) => sum + (e.gbp ?? 0), 0);
+  const heatPumpCost =
+    hpNetMid != null
+      ? Math.round(hpNetMid + hp.estimatedGrantGBP + hpAdditional)
+      : 12000;
+
+  // Solar — `analysis.finance.solar.installCostGBP` is the total cost
+  // at the system's recommended panel count, so per-panel = total /
+  // recommended. Falls back to £350/panel when the Solar API didn't
+  // produce a cost (e.g. building outline not found).
+  const apiSolarCost = analysis.finance?.solar?.installCostGBP ?? 0;
+  const recommendedPanels = analysis.eligibility.solar.recommendedPanels ?? 0;
+  const solarCostPerPanel =
+    apiSolarCost > 0 && recommendedPanels > 0
+      ? Math.round(apiSolarCost / recommendedPanels)
+      : 350;
+
   const costAssumptions: NonNullable<CalculateRequest["costAssumptions"]> = {
-    solarCostPerPanel: 350,
+    solarCostPerPanel,
+    // Battery rungs match the engine's discrete cost lookup — these
+    // are install-quoted UK averages for 3 / 5 / 10 kWh systems and
+    // don't (yet) come from the analysis. calc.ts uses a linear
+    // £700/kWh model which is close-but-not-identical; the largest
+    // divergence is at 10 kWh (£5,500 here vs £7,000 in calc.ts).
+    // TODO: pick one model and align both.
     batteryCost3Kwh: 2500,
     batteryCost5Kwh: 3500,
     batteryCost10Kwh: 5500,
-    heatPumpCost: 12000,
+    heatPumpCost,
     busGrantAmount: hp.estimatedGrantGBP > 0 ? hp.estimatedGrantGBP : 7500,
   };
 

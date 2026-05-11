@@ -16,11 +16,23 @@ import type { AnalyseResponse } from "@/lib/schemas/analyse";
 import type { FuelTariff } from "@/lib/schemas/bill";
 import type { ReportSelection } from "@/components/check-wizard/report/report-shell";
 
-// Minimal stub of an AnalyseResponse — only the fields the mapper
-// actually reads (eligibility.heatPump.{verdict,estimatedGrantGBP}).
+// Minimal stub of an AnalyseResponse — covers the fields the mapper
+// reads: eligibility.heatPump.{verdict,estimatedGrantGBP}, and (after
+// the per-property cost-derivation fix) finance.heatPump.{netRange,
+// additionalCostsGBP} + finance.solar.installCostGBP.
 function stubAnalysis(opts?: {
   verdict?: "eligible" | "conditional" | "blocked";
   grant?: number;
+  /** Net HP install range (post-grant). Mapper takes midpoint + adds
+   *  grant back to derive the gross cost it sends to the engine.
+   *  `null` simulates the "no floor area, no band, no cost" path. */
+  hpNetRange?: [number, number] | null;
+  /** Additional EPC-renewal style costs the mapper folds into HP gross
+   *  so the loan/upfront figures reflect the all-in cost. */
+  hpAdditionalCosts?: Array<{ label: string; gbp: number }>;
+  /** Total solar install cost — mapper divides by recommendedPanels
+   *  to get a per-panel rate. */
+  solarInstallCostGBP?: number | null;
 }): AnalyseResponse {
   return {
     eligibility: {
@@ -39,9 +51,30 @@ function stubAnalysis(opts?: {
         notes: [],
       },
     },
+    finance: {
+      heatPump: {
+        grantGBP: opts?.grant ?? 7500,
+        estimatedNetInstallCostRangeGBP:
+          opts?.hpNetRange === undefined ? [500, 1500] : opts.hpNetRange,
+        additionalCostsGBP: opts?.hpAdditionalCosts ?? [],
+      },
+      solar: {
+        installCostGBP:
+          opts?.solarInstallCostGBP === undefined
+            ? 5280
+            : opts.solarInstallCostGBP,
+        annualSavingsRangeGBP: null,
+        paybackYearsRange: null,
+        assumptions: {
+          importPricePPerKWh: 27,
+          exportPricePPerKWh: 15,
+          selfConsumptionRate: 0.6,
+          installPricePerKWpGBP: 1100,
+        },
+      },
+    },
     // Fields the mapper doesn't touch — typed as `unknown`-equivalent
     // via the cast below.
-    finance: {} as never,
     epc: {} as never,
     enrichments: {} as never,
     floorplan: {} as never,
@@ -248,6 +281,7 @@ describe("buildSavingsRequest", () => {
         mortgageRate: 0.05,
         mortgageTermYears: 20,
         wantFinance: false,
+        wantMortgage: false,
       },
     });
     expect(req.financing.loanTermMonths).toBe(60);
@@ -255,5 +289,78 @@ describe("buildSavingsRequest", () => {
     expect(req.financing.mortgageRate).toBe(0.05);
     expect(req.financing.mortgageTermYears).toBe(20);
     expect(req.improvements.wantFinance).toBe(false);
+  });
+
+  // ─── Per-property cost derivation (the main bug fix) ─────────────────
+
+  it("derives heatPumpCost from the analysis's net install range + grant", () => {
+    // Net range midpoint £1,000 + grant £7,500 = £8,500 gross. This
+    // is what the engine subtracts the grant from to produce the
+    // loan principal — without this fix the engine saw a flat £12k.
+    const req = buildSavingsRequest({
+      analysis: stubAnalysis({
+        hpNetRange: [500, 1500],
+        grant: 7500,
+      }),
+      electricityTariff: null,
+      gasTariff: null,
+      selection: baseSelection,
+      financing: baseFinancing,
+    });
+    expect(req.costAssumptions.heatPumpCost).toBe(8500);
+  });
+
+  it("folds additional one-off costs (EPC renewal) into heatPumpCost", () => {
+    // £1,000 mid + £7,500 grant + £90 EPC = £8,590 gross. The £90
+    // ends up in the loan so the homeowner sees the all-in figure.
+    const req = buildSavingsRequest({
+      analysis: stubAnalysis({
+        hpNetRange: [500, 1500],
+        grant: 7500,
+        hpAdditionalCosts: [{ label: "New EPC", gbp: 90 }],
+      }),
+      electricityTariff: null,
+      gasTariff: null,
+      selection: baseSelection,
+      financing: baseFinancing,
+    });
+    expect(req.costAssumptions.heatPumpCost).toBe(8590);
+  });
+
+  it("falls back to £12,000 when the analysis has no net install range", () => {
+    // No floor area → no band → no range. Old behaviour kept as a
+    // fallback so we don't silently zero-out the HP cost.
+    const req = buildSavingsRequest({
+      analysis: stubAnalysis({ hpNetRange: null }),
+      electricityTariff: null,
+      gasTariff: null,
+      selection: baseSelection,
+      financing: baseFinancing,
+    });
+    expect(req.costAssumptions.heatPumpCost).toBe(12000);
+  });
+
+  it("derives solarCostPerPanel from total install cost ÷ recommended panels", () => {
+    // £5,280 total / 12 recommended panels = £440 per panel. The
+    // engine multiplies this by the user's selected panel count.
+    const req = buildSavingsRequest({
+      analysis: stubAnalysis({ solarInstallCostGBP: 5280 }),
+      electricityTariff: null,
+      gasTariff: null,
+      selection: baseSelection,
+      financing: baseFinancing,
+    });
+    expect(req.costAssumptions.solarCostPerPanel).toBe(440);
+  });
+
+  it("falls back to £350/panel when solar install cost is missing", () => {
+    const req = buildSavingsRequest({
+      analysis: stubAnalysis({ solarInstallCostGBP: null }),
+      electricityTariff: null,
+      gasTariff: null,
+      selection: baseSelection,
+      financing: baseFinancing,
+    });
+    expect(req.costAssumptions.solarCostPerPanel).toBe(350);
   });
 });
