@@ -80,7 +80,7 @@ export interface LlmsPageEntry {
  *   4. Cite gov.uk / Ofgem / MCS visibly when making cost or
  *      eligibility claims.
  */
-const CURATED_PAGES: LlmsPageEntry[] = [
+export const CURATED_PAGES: LlmsPageEntry[] = [
   {
     url: `${SITE_URL}/`,
     title: "Propertoasty — heat pump, solar, battery & EV suitability checker",

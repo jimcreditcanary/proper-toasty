@@ -5,6 +5,8 @@
   "scripts": {
     "dev": "next dev --webpack",
     "build": "next build",
+    "prebuild": "tsx scripts/seo/audit.ts",
+    "audit:seo": "tsx scripts/seo/audit.ts",
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
