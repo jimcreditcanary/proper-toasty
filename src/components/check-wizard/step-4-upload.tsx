@@ -21,6 +21,8 @@ import {
   AlertTriangle,
   ArrowLeft,
   ArrowRight,
+  CheckCircle2,
+  Loader2,
   Sparkles,
   Upload,
 } from "lucide-react";
@@ -299,15 +301,14 @@ export function Step4Upload() {
     if (inputRef.current) inputRef.current.value = "";
   }
 
-  // ─── UPLOADING — progress bar ────────────────────────────────────
+  // ─── UPLOADING — stepper + elapsed time ──────────────────────────
+  //
+  // No percentage. Step-based progress + honest elapsed-time counter
+  // means we never have to "lie up" to 98% and then stall there.
+  // When the back-end takes longer than expected, the last step just
+  // keeps spinning — that reads as "still working on this step",
+  // which is true.
   if (ui.kind === "uploading") {
-    const linearFrac = Math.min(1, ui.elapsedSec / TARGET_SECONDS);
-    const fastFill = linearFrac * 0.9;
-    const overrunFrac =
-      ui.elapsedSec > TARGET_SECONDS
-        ? Math.min(0.08, (ui.elapsedSec - TARGET_SECONDS) / 60)
-        : 0;
-    const fillPct = Math.round((fastFill + overrunFrac) * 100);
     const substepIdx = Math.min(
       SUBSTEPS.length - 1,
       Math.floor((ui.elapsedSec / TARGET_SECONDS) * SUBSTEPS.length),
@@ -324,8 +325,8 @@ export function Step4Upload() {
       <div className="max-w-2xl mx-auto">
         <ProgressView
           previewUrl={ui.previewUrl}
-          fillPct={fillPct}
-          substep={SUBSTEPS[substepIdx]}
+          substepIdx={substepIdx}
+          elapsedSec={ui.elapsedSec}
           retryHint={retryHint}
         />
       </div>
@@ -506,13 +507,25 @@ export function Step4Upload() {
 
 function ProgressView({
   previewUrl,
-  fillPct,
-  substep,
+  substepIdx,
+  elapsedSec,
   retryHint,
 }: {
   previewUrl: string;
-  fillPct: number;
-  substep: string;
+  /** Index of the currently-active substep (0..SUBSTEPS.length-1).
+   *  Steps before this index render with a tick; this one spins;
+   *  later ones are faded. When the back-end overruns TARGET_SECONDS
+   *  the index caps at the last item — the spinner keeps spinning,
+   *  which honestly reads as "still on this step". */
+  substepIdx: number;
+  /** Wall-clock seconds since the upload started. Rendered as an
+   *  honest counter ("Analysing for 23s") — no percentage, no fake
+   *  ETA. The previous progress bar plateaued at 98% because Claude
+   *  Opus 4.7 vision regularly overruns the 25s linear-fill window,
+   *  which read to users as "stuck / broken". The stepper + elapsed
+   *  pair reframes the wait as "work happening" without making a
+   *  numerical promise we can't keep. */
+  elapsedSec: number;
   /** Non-null on the retry attempt — friendly hint that we're
    *  taking a second pass after a transient upstream failure. */
   retryHint: string | null;
@@ -528,24 +541,26 @@ function ProgressView({
         Analysing your floorplan…
       </h2>
 
-      <div className="mt-6 max-w-md mx-auto">
-        <div
-          role="progressbar"
-          aria-valuenow={fillPct}
-          aria-valuemin={0}
-          aria-valuemax={100}
+      <div className="mt-6 max-w-sm mx-auto">
+        <ol
+          className="space-y-2"
+          role="list"
           aria-label="Floorplan extraction progress"
-          className="h-2.5 w-full rounded-full bg-slate-100 overflow-hidden"
         >
-          <div
-            className="h-full bg-coral rounded-full transition-[width] duration-200 ease-linear"
-            style={{ width: `${fillPct}%` }}
-          />
-        </div>
-        <div className="mt-2 flex items-center justify-between text-[11px] text-slate-500">
-          <span aria-live="polite">{substep}</span>
-          <span className="tabular-nums">{fillPct}%</span>
-        </div>
+          {SUBSTEPS.map((label, i) => {
+            const state =
+              i < substepIdx ? "done" : i === substepIdx ? "active" : "pending";
+            return <StepperRow key={label} label={label} state={state} />;
+          })}
+        </ol>
+
+        <p
+          className="mt-4 text-center text-[11px] text-slate-500 tabular-nums"
+          aria-live="polite"
+        >
+          Analysing for {Math.round(elapsedSec)}s · usually 20–40s
+        </p>
+
         {retryHint && (
           <p
             className="mt-3 text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 text-center leading-relaxed"
@@ -567,8 +582,51 @@ function ProgressView({
         </div>
       )}
       <p className="mt-6 text-[11px] text-slate-400 text-center">
-        Usually under 30 seconds. Don&rsquo;t close this tab.
+        Don&rsquo;t close this tab — we&rsquo;ll take you to the report
+        automatically.
       </p>
     </section>
+  );
+}
+
+// One row of the stepper. Three states:
+//   done    → green tick, copy at normal weight + colour
+//   active  → coral spinner, copy bold
+//   pending → grey hollow dot, copy faded
+//
+// All three use the same row geometry (28px icon column + label) so
+// nothing reflows as the active step advances.
+function StepperRow({
+  label,
+  state,
+}: {
+  label: string;
+  state: "done" | "active" | "pending";
+}) {
+  return (
+    <li className="grid grid-cols-[28px_1fr] items-center gap-2">
+      <span className="flex items-center justify-center" aria-hidden="true">
+        {state === "done" && (
+          <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+        )}
+        {state === "active" && (
+          <Loader2 className="w-4 h-4 text-coral animate-spin" />
+        )}
+        {state === "pending" && (
+          <span className="w-2 h-2 rounded-full bg-slate-300" />
+        )}
+      </span>
+      <span
+        className={
+          state === "active"
+            ? "text-sm font-semibold text-navy"
+            : state === "done"
+              ? "text-sm text-slate-700"
+              : "text-sm text-slate-400"
+        }
+      >
+        {label}
+      </span>
+    </li>
   );
 }
