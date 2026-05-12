@@ -32,7 +32,17 @@ export interface PilotTown {
   slug: string;
   name: string;
   laGssCode: string;
+  /** Council name as accepted by the EPC API's `council[]` filter.
+   *  Must match the API's documented council list (see
+   *  /api-technical-documentation/codes). When this string is wrong
+   *  the API returns 0 rows for the filter and the town gets
+   *  indexed=false at build time. Updates are safe — just rerun
+   *  the build script. */
+  councilName: string;
   postTowns: string[];
+  /** Postcode districts retained for back-compat + the legacy
+   *  per-district search path. NOT used by the council[]-based
+   *  search; reserved for fallback / archetype work. */
   postcodeDistricts: string[];
   county: string;
   region: string;
@@ -45,6 +55,7 @@ export const PILOT_TOWNS: PilotTown[] = [
   // ─── Yorkshire & Humber ─────────────────────────────────────────
   {
     slug: "sheffield",
+    councilName: "Sheffield",
     name: "Sheffield",
     laGssCode: "E08000039",
     postTowns: ["SHEFFIELD"],
@@ -56,6 +67,7 @@ export const PILOT_TOWNS: PilotTown[] = [
   },
   {
     slug: "leeds",
+    councilName: "Leeds",
     name: "Leeds",
     laGssCode: "E08000035",
     postTowns: ["LEEDS"],
@@ -67,6 +79,7 @@ export const PILOT_TOWNS: PilotTown[] = [
   },
   {
     slug: "bradford",
+    councilName: "Bradford",
     name: "Bradford",
     laGssCode: "E08000032",
     postTowns: ["BRADFORD"],
@@ -78,6 +91,7 @@ export const PILOT_TOWNS: PilotTown[] = [
   },
   {
     slug: "york",
+    councilName: "York",
     name: "York",
     laGssCode: "E06000014",
     postTowns: ["YORK"],
@@ -89,6 +103,7 @@ export const PILOT_TOWNS: PilotTown[] = [
   },
   {
     slug: "hull",
+    councilName: "Kingston upon Hull, City of",
     name: "Hull",
     laGssCode: "E06000010",
     postTowns: ["HULL"],
@@ -100,6 +115,7 @@ export const PILOT_TOWNS: PilotTown[] = [
   },
   {
     slug: "wakefield",
+    councilName: "Wakefield",
     name: "Wakefield",
     laGssCode: "E08000036",
     postTowns: ["WAKEFIELD"],
@@ -111,6 +127,7 @@ export const PILOT_TOWNS: PilotTown[] = [
   },
   {
     slug: "doncaster",
+    councilName: "Doncaster",
     name: "Doncaster",
     laGssCode: "E08000017",
     postTowns: ["DONCASTER"],
@@ -124,6 +141,7 @@ export const PILOT_TOWNS: PilotTown[] = [
   // ─── North West ─────────────────────────────────────────────────
   {
     slug: "manchester",
+    councilName: "Manchester",
     name: "Manchester",
     laGssCode: "E08000003",
     postTowns: ["MANCHESTER"],
@@ -135,6 +153,7 @@ export const PILOT_TOWNS: PilotTown[] = [
   },
   {
     slug: "liverpool",
+    councilName: "Liverpool",
     name: "Liverpool",
     laGssCode: "E08000012",
     postTowns: ["LIVERPOOL"],
@@ -146,6 +165,7 @@ export const PILOT_TOWNS: PilotTown[] = [
   },
   {
     slug: "bolton",
+    councilName: "Bolton",
     name: "Bolton",
     laGssCode: "E08000001",
     postTowns: ["BOLTON"],
@@ -157,6 +177,7 @@ export const PILOT_TOWNS: PilotTown[] = [
   },
   {
     slug: "stockport",
+    councilName: "Stockport",
     name: "Stockport",
     laGssCode: "E08000007",
     postTowns: ["STOCKPORT"],
@@ -168,6 +189,7 @@ export const PILOT_TOWNS: PilotTown[] = [
   },
   {
     slug: "oldham",
+    councilName: "Oldham",
     name: "Oldham",
     laGssCode: "E08000004",
     postTowns: ["OLDHAM"],
@@ -179,6 +201,7 @@ export const PILOT_TOWNS: PilotTown[] = [
   },
   {
     slug: "salford",
+    councilName: "Salford",
     name: "Salford",
     laGssCode: "E08000006",
     postTowns: ["SALFORD","MANCHESTER"],
@@ -190,6 +213,7 @@ export const PILOT_TOWNS: PilotTown[] = [
   },
   {
     slug: "preston",
+    councilName: "Preston",
     name: "Preston",
     laGssCode: "E07000123",
     postTowns: ["PRESTON"],
@@ -201,6 +225,7 @@ export const PILOT_TOWNS: PilotTown[] = [
   },
   {
     slug: "blackpool",
+    councilName: "Blackpool",
     name: "Blackpool",
     laGssCode: "E06000009",
     postTowns: ["BLACKPOOL"],
@@ -214,6 +239,7 @@ export const PILOT_TOWNS: PilotTown[] = [
   // ─── North East ─────────────────────────────────────────────────
   {
     slug: "newcastle-upon-tyne",
+    councilName: "Newcastle upon Tyne",
     name: "Newcastle upon Tyne",
     laGssCode: "E08000021",
     postTowns: ["NEWCASTLE UPON TYNE"],
@@ -225,6 +251,7 @@ export const PILOT_TOWNS: PilotTown[] = [
   },
   {
     slug: "sunderland",
+    councilName: "Sunderland",
     name: "Sunderland",
     laGssCode: "E08000024",
     postTowns: ["SUNDERLAND"],
@@ -236,6 +263,7 @@ export const PILOT_TOWNS: PilotTown[] = [
   },
   {
     slug: "middlesbrough",
+    councilName: "Middlesbrough",
     name: "Middlesbrough",
     laGssCode: "E06000002",
     postTowns: ["MIDDLESBROUGH"],
@@ -249,6 +277,7 @@ export const PILOT_TOWNS: PilotTown[] = [
   // ─── West Midlands ──────────────────────────────────────────────
   {
     slug: "birmingham",
+    councilName: "Birmingham",
     name: "Birmingham",
     laGssCode: "E08000025",
     postTowns: ["BIRMINGHAM"],
@@ -260,6 +289,7 @@ export const PILOT_TOWNS: PilotTown[] = [
   },
   {
     slug: "coventry",
+    councilName: "Coventry",
     name: "Coventry",
     laGssCode: "E08000026",
     postTowns: ["COVENTRY"],
@@ -271,6 +301,7 @@ export const PILOT_TOWNS: PilotTown[] = [
   },
   {
     slug: "wolverhampton",
+    councilName: "Wolverhampton",
     name: "Wolverhampton",
     laGssCode: "E08000031",
     postTowns: ["WOLVERHAMPTON"],
@@ -282,6 +313,7 @@ export const PILOT_TOWNS: PilotTown[] = [
   },
   {
     slug: "walsall",
+    councilName: "Walsall",
     name: "Walsall",
     laGssCode: "E08000030",
     postTowns: ["WALSALL"],
@@ -293,6 +325,7 @@ export const PILOT_TOWNS: PilotTown[] = [
   },
   {
     slug: "stoke-on-trent",
+    councilName: "Stoke-on-Trent",
     name: "Stoke-on-Trent",
     laGssCode: "E06000021",
     postTowns: ["STOKE-ON-TRENT"],
@@ -306,6 +339,7 @@ export const PILOT_TOWNS: PilotTown[] = [
   // ─── East Midlands ──────────────────────────────────────────────
   {
     slug: "nottingham",
+    councilName: "Nottingham",
     name: "Nottingham",
     laGssCode: "E06000018",
     postTowns: ["NOTTINGHAM"],
@@ -317,6 +351,7 @@ export const PILOT_TOWNS: PilotTown[] = [
   },
   {
     slug: "leicester",
+    councilName: "Leicester",
     name: "Leicester",
     laGssCode: "E06000016",
     postTowns: ["LEICESTER"],
@@ -328,6 +363,7 @@ export const PILOT_TOWNS: PilotTown[] = [
   },
   {
     slug: "derby",
+    councilName: "Derby",
     name: "Derby",
     laGssCode: "E06000015",
     postTowns: ["DERBY"],
@@ -339,6 +375,7 @@ export const PILOT_TOWNS: PilotTown[] = [
   },
   {
     slug: "northampton",
+    councilName: "West Northamptonshire",
     name: "Northampton",
     laGssCode: "E06000061",
     postTowns: ["NORTHAMPTON"],
@@ -352,6 +389,7 @@ export const PILOT_TOWNS: PilotTown[] = [
   // ─── East of England ────────────────────────────────────────────
   {
     slug: "norwich",
+    councilName: "Norwich",
     name: "Norwich",
     laGssCode: "E07000148",
     postTowns: ["NORWICH"],
@@ -363,6 +401,7 @@ export const PILOT_TOWNS: PilotTown[] = [
   },
   {
     slug: "ipswich",
+    councilName: "Ipswich",
     name: "Ipswich",
     laGssCode: "E07000202",
     postTowns: ["IPSWICH"],
@@ -374,6 +413,7 @@ export const PILOT_TOWNS: PilotTown[] = [
   },
   {
     slug: "cambridge",
+    councilName: "Cambridge",
     name: "Cambridge",
     laGssCode: "E07000008",
     postTowns: ["CAMBRIDGE"],
@@ -385,6 +425,7 @@ export const PILOT_TOWNS: PilotTown[] = [
   },
   {
     slug: "peterborough",
+    councilName: "Peterborough",
     name: "Peterborough",
     laGssCode: "E06000031",
     postTowns: ["PETERBOROUGH"],
@@ -396,6 +437,7 @@ export const PILOT_TOWNS: PilotTown[] = [
   },
   {
     slug: "luton",
+    councilName: "Luton",
     name: "Luton",
     laGssCode: "E06000032",
     postTowns: ["LUTON"],
@@ -409,6 +451,7 @@ export const PILOT_TOWNS: PilotTown[] = [
   // ─── South East ─────────────────────────────────────────────────
   {
     slug: "brighton-and-hove",
+    councilName: "Brighton and Hove",
     name: "Brighton and Hove",
     laGssCode: "E06000043",
     postTowns: ["BRIGHTON","HOVE"],
@@ -420,6 +463,7 @@ export const PILOT_TOWNS: PilotTown[] = [
   },
   {
     slug: "southampton",
+    councilName: "Southampton",
     name: "Southampton",
     laGssCode: "E06000045",
     postTowns: ["SOUTHAMPTON"],
@@ -431,6 +475,7 @@ export const PILOT_TOWNS: PilotTown[] = [
   },
   {
     slug: "portsmouth",
+    councilName: "Portsmouth",
     name: "Portsmouth",
     laGssCode: "E06000044",
     postTowns: ["PORTSMOUTH","SOUTHSEA"],
@@ -442,6 +487,7 @@ export const PILOT_TOWNS: PilotTown[] = [
   },
   {
     slug: "reading",
+    councilName: "Reading",
     name: "Reading",
     laGssCode: "E06000038",
     postTowns: ["READING"],
@@ -453,6 +499,7 @@ export const PILOT_TOWNS: PilotTown[] = [
   },
   {
     slug: "oxford",
+    councilName: "Oxford",
     name: "Oxford",
     laGssCode: "E07000178",
     postTowns: ["OXFORD"],
@@ -464,6 +511,7 @@ export const PILOT_TOWNS: PilotTown[] = [
   },
   {
     slug: "slough",
+    councilName: "Slough",
     name: "Slough",
     laGssCode: "E06000039",
     postTowns: ["SLOUGH"],
@@ -475,6 +523,7 @@ export const PILOT_TOWNS: PilotTown[] = [
   },
   {
     slug: "milton-keynes",
+    councilName: "Milton Keynes",
     name: "Milton Keynes",
     laGssCode: "E06000042",
     postTowns: ["MILTON KEYNES"],
@@ -488,6 +537,7 @@ export const PILOT_TOWNS: PilotTown[] = [
   // ─── South West ─────────────────────────────────────────────────
   {
     slug: "bristol",
+    councilName: "Bristol, City of",
     name: "Bristol",
     laGssCode: "E06000023",
     postTowns: ["BRISTOL"],
@@ -499,6 +549,7 @@ export const PILOT_TOWNS: PilotTown[] = [
   },
   {
     slug: "bath",
+    councilName: "Bath and North East Somerset",
     name: "Bath",
     laGssCode: "E06000022",
     postTowns: ["BATH"],
@@ -510,6 +561,9 @@ export const PILOT_TOWNS: PilotTown[] = [
   },
   {
     slug: "plymouth",
+    // API's accepted list uses bare "Plymouth", not the ONS-style
+    // "Plymouth, City of". Verified empirically — 5000 rows returned.
+    councilName: "Plymouth",
     name: "Plymouth",
     laGssCode: "E06000026",
     postTowns: ["PLYMOUTH"],
@@ -521,6 +575,7 @@ export const PILOT_TOWNS: PilotTown[] = [
   },
   {
     slug: "exeter",
+    councilName: "Exeter",
     name: "Exeter",
     laGssCode: "E07000041",
     postTowns: ["EXETER"],
@@ -532,6 +587,7 @@ export const PILOT_TOWNS: PilotTown[] = [
   },
   {
     slug: "bournemouth",
+    councilName: "Bournemouth, Christchurch and Poole",
     name: "Bournemouth",
     laGssCode: "E06000058",
     postTowns: ["BOURNEMOUTH","POOLE","CHRISTCHURCH"],
@@ -547,6 +603,7 @@ export const PILOT_TOWNS: PilotTown[] = [
   // granularity. For the pilot we include 3 representative boroughs.
   {
     slug: "camden",
+    councilName: "Camden",
     name: "Camden",
     laGssCode: "E09000007",
     postTowns: ["LONDON"],
@@ -558,6 +615,7 @@ export const PILOT_TOWNS: PilotTown[] = [
   },
   {
     slug: "hackney",
+    councilName: "Hackney",
     name: "Hackney",
     laGssCode: "E09000012",
     postTowns: ["LONDON"],
@@ -569,6 +627,7 @@ export const PILOT_TOWNS: PilotTown[] = [
   },
   {
     slug: "tower-hamlets",
+    councilName: "Tower Hamlets",
     name: "Tower Hamlets",
     laGssCode: "E09000030",
     postTowns: ["LONDON"],
@@ -582,6 +641,7 @@ export const PILOT_TOWNS: PilotTown[] = [
   // ─── Wales ──────────────────────────────────────────────────────
   {
     slug: "cardiff",
+    councilName: "Cardiff",
     name: "Cardiff",
     laGssCode: "W06000015",
     postTowns: ["CARDIFF"],
@@ -593,6 +653,7 @@ export const PILOT_TOWNS: PilotTown[] = [
   },
   {
     slug: "swansea",
+    councilName: "Swansea",
     name: "Swansea",
     laGssCode: "W06000011",
     postTowns: ["SWANSEA"],
@@ -604,6 +665,7 @@ export const PILOT_TOWNS: PilotTown[] = [
   },
   {
     slug: "newport-wales",
+    councilName: "Newport",
     name: "Newport",
     laGssCode: "W06000022",
     postTowns: ["NEWPORT"],
