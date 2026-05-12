@@ -1,47 +1,38 @@
-// Pilot town seed — 3 towns to validate the programmatic pipeline
-// before we scale to 50 + then to ~2,000 nationally.
+// Pilot town seed — expanded to 50 representative UK towns spanning
+// every English region + Wales. England & Wales only (BUS scheme
+// applies there; Scotland uses Home Energy Scotland, Northern
+// Ireland has its own scheme — both out of scope for the pilot).
 //
-// Each row carries everything the page generator + the build script
+// Each row carries everything the page generator + build script
 // need: slug (URL), display name, ONS GSS code (for the optional
-// local-authority-filtered EPC search), the post_town value the EPC
-// API returns for properties in this town (used to filter spillover
-// rows when we search by postcode prefix), county / region, and a
-// centroid for any map-aware content.
+// local-authority-filtered search), the post_town values the EPC
+// API ships for properties in this town, the postcode districts to
+// iterate over, county / region, country, and a centroid.
 //
-// GSS codes verified against api.postcodes.io on 2026-05-11.
-// Note: Sheffield is E08000039 (2024 boundary review), NOT the
-// historic E08000019.
+// GSS codes: most verified against api.postcodes.io. A few are
+// best-effort — note the build script uses postcode prefixes (not
+// GSS codes) for the actual search, so a wrong code is metadata-
+// only and doesn't break the fetch.
 //
-// post_town values are UPPERCASE because the EPC API ships them in
-// uppercase — we case-insensitive-match on read but storing
-// canonical uppercase here avoids any subtle bug from a tweak to
-// the comparison.
+// postTowns: UPPERCASE. Listed as ARRAY so towns with multiple
+// canonical post_town values (e.g. Brighton & Hove, Stoke-on-Trent,
+// Newcastle upon Tyne) match every variant the EPC API returns.
 //
-// Postcode districts: an array of district prefixes the build
-// script iterates over when searching EPC by postcode. Listed in
-// rough geographic order — not significant for the algorithm but
-// keeps the source readable.
+// postcodeDistricts: representative sample, NOT exhaustive. Big
+// cities are capped at ~15 districts (otherwise Birmingham alone
+// would take longer than 49 other towns combined). For city centres
+// + inner suburbs, that yields a sample of 1000–5000 EPCs per town
+// after pagination + post_town filter — plenty for band-distribution
+// statistics.
 //
-// FUTURE: when scaling past 50, this seed moves to a `towns`
-// Supabase table (loaded from the ONS Built-Up Areas 2022 list).
-// For now, hand-curated array is fine — easy to review changes
-// in git diff, no migration overhead.
+// Centroid: used for any future map-aware content (postcode finder,
+// nearest-installer cross-link). Rough city-centre coordinates.
 
 export interface PilotTown {
   slug: string;
   name: string;
-  /** ONS GSS code for the local authority. Verified via
-   *  postcodes.io; if the EPC API rejects the local-authority
-   *  filter we fall back to postcode prefixes. */
   laGssCode: string;
-  /** UPPERCASE post_town value as it appears on EPC rows for
-   *  properties in this town. Used to filter spillover when
-   *  searching by postcode prefix. Some towns ship multiple
-   *  variants (e.g. Brighton & Hove → 'BRIGHTON' or 'HOVE') —
-   *  list every variant we want to attribute to this town. */
   postTowns: string[];
-  /** Postcode districts the build script iterates over to
-   *  collect a representative sample. Order doesn't matter. */
   postcodeDistricts: string[];
   county: string;
   region: string;
@@ -51,49 +42,576 @@ export interface PilotTown {
 }
 
 export const PILOT_TOWNS: PilotTown[] = [
+  // ─── Yorkshire & Humber ─────────────────────────────────────────
   {
     slug: "sheffield",
     name: "Sheffield",
     laGssCode: "E08000039",
     postTowns: ["SHEFFIELD"],
-    postcodeDistricts: [
-      "S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8", "S9", "S10",
-      "S11", "S12", "S13", "S14", "S17",
-    ],
+    postcodeDistricts: ["S1","S2","S3","S4","S5","S6","S7","S8","S9","S10","S11","S12","S13","S14","S17"],
     county: "South Yorkshire",
     region: "Yorkshire and the Humber",
     country: "England",
-    lat: 53.3811,
-    lng: -1.4701,
+    lat: 53.3811, lng: -1.4701,
   },
+  {
+    slug: "leeds",
+    name: "Leeds",
+    laGssCode: "E08000035",
+    postTowns: ["LEEDS"],
+    postcodeDistricts: ["LS1","LS2","LS3","LS4","LS5","LS6","LS7","LS8","LS9","LS10","LS11","LS12","LS13","LS14","LS15"],
+    county: "West Yorkshire",
+    region: "Yorkshire and the Humber",
+    country: "England",
+    lat: 53.8008, lng: -1.5491,
+  },
+  {
+    slug: "bradford",
+    name: "Bradford",
+    laGssCode: "E08000032",
+    postTowns: ["BRADFORD"],
+    postcodeDistricts: ["BD1","BD2","BD3","BD4","BD5","BD6","BD7","BD8","BD9","BD10","BD11","BD12","BD13","BD14","BD15"],
+    county: "West Yorkshire",
+    region: "Yorkshire and the Humber",
+    country: "England",
+    lat: 53.7960, lng: -1.7594,
+  },
+  {
+    slug: "york",
+    name: "York",
+    laGssCode: "E06000014",
+    postTowns: ["YORK"],
+    postcodeDistricts: ["YO1","YO10","YO19","YO23","YO24","YO26","YO30","YO31","YO32"],
+    county: "North Yorkshire",
+    region: "Yorkshire and the Humber",
+    country: "England",
+    lat: 53.9590, lng: -1.0815,
+  },
+  {
+    slug: "hull",
+    name: "Hull",
+    laGssCode: "E06000010",
+    postTowns: ["HULL"],
+    postcodeDistricts: ["HU1","HU2","HU3","HU4","HU5","HU6","HU7","HU8","HU9","HU10","HU11","HU12","HU13"],
+    county: "East Riding of Yorkshire",
+    region: "Yorkshire and the Humber",
+    country: "England",
+    lat: 53.7676, lng: -0.3274,
+  },
+  {
+    slug: "wakefield",
+    name: "Wakefield",
+    laGssCode: "E08000036",
+    postTowns: ["WAKEFIELD"],
+    postcodeDistricts: ["WF1","WF2","WF3","WF4","WF5","WF6","WF7","WF8","WF9","WF10"],
+    county: "West Yorkshire",
+    region: "Yorkshire and the Humber",
+    country: "England",
+    lat: 53.6833, lng: -1.4977,
+  },
+  {
+    slug: "doncaster",
+    name: "Doncaster",
+    laGssCode: "E08000017",
+    postTowns: ["DONCASTER"],
+    postcodeDistricts: ["DN1","DN2","DN3","DN4","DN5","DN6","DN7","DN8","DN11","DN12"],
+    county: "South Yorkshire",
+    region: "Yorkshire and the Humber",
+    country: "England",
+    lat: 53.5228, lng: -1.1285,
+  },
+
+  // ─── North West ─────────────────────────────────────────────────
+  {
+    slug: "manchester",
+    name: "Manchester",
+    laGssCode: "E08000003",
+    postTowns: ["MANCHESTER"],
+    postcodeDistricts: ["M1","M2","M3","M4","M5","M6","M7","M8","M9","M11","M12","M13","M14","M15","M16"],
+    county: "Greater Manchester",
+    region: "North West",
+    country: "England",
+    lat: 53.4808, lng: -2.2426,
+  },
+  {
+    slug: "liverpool",
+    name: "Liverpool",
+    laGssCode: "E08000012",
+    postTowns: ["LIVERPOOL"],
+    postcodeDistricts: ["L1","L2","L3","L4","L5","L6","L7","L8","L9","L11","L13","L15","L17","L18","L19"],
+    county: "Merseyside",
+    region: "North West",
+    country: "England",
+    lat: 53.4084, lng: -2.9916,
+  },
+  {
+    slug: "bolton",
+    name: "Bolton",
+    laGssCode: "E08000001",
+    postTowns: ["BOLTON"],
+    postcodeDistricts: ["BL1","BL2","BL3","BL4","BL5","BL6","BL7"],
+    county: "Greater Manchester",
+    region: "North West",
+    country: "England",
+    lat: 53.5790, lng: -2.4290,
+  },
+  {
+    slug: "stockport",
+    name: "Stockport",
+    laGssCode: "E08000007",
+    postTowns: ["STOCKPORT"],
+    postcodeDistricts: ["SK1","SK2","SK3","SK4","SK5","SK6","SK7","SK8"],
+    county: "Greater Manchester",
+    region: "North West",
+    country: "England",
+    lat: 53.4083, lng: -2.1494,
+  },
+  {
+    slug: "oldham",
+    name: "Oldham",
+    laGssCode: "E08000004",
+    postTowns: ["OLDHAM"],
+    postcodeDistricts: ["OL1","OL2","OL3","OL4","OL8","OL9"],
+    county: "Greater Manchester",
+    region: "North West",
+    country: "England",
+    lat: 53.5409, lng: -2.1114,
+  },
+  {
+    slug: "salford",
+    name: "Salford",
+    laGssCode: "E08000006",
+    postTowns: ["SALFORD","MANCHESTER"],
+    postcodeDistricts: ["M5","M6","M7","M27","M28","M30"],
+    county: "Greater Manchester",
+    region: "North West",
+    country: "England",
+    lat: 53.4875, lng: -2.2901,
+  },
+  {
+    slug: "preston",
+    name: "Preston",
+    laGssCode: "E07000123",
+    postTowns: ["PRESTON"],
+    postcodeDistricts: ["PR1","PR2","PR3","PR4","PR5"],
+    county: "Lancashire",
+    region: "North West",
+    country: "England",
+    lat: 53.7632, lng: -2.7031,
+  },
+  {
+    slug: "blackpool",
+    name: "Blackpool",
+    laGssCode: "E06000009",
+    postTowns: ["BLACKPOOL"],
+    postcodeDistricts: ["FY1","FY2","FY3","FY4","FY5","FY6","FY8"],
+    county: "Lancashire",
+    region: "North West",
+    country: "England",
+    lat: 53.8175, lng: -3.0357,
+  },
+
+  // ─── North East ─────────────────────────────────────────────────
+  {
+    slug: "newcastle-upon-tyne",
+    name: "Newcastle upon Tyne",
+    laGssCode: "E08000021",
+    postTowns: ["NEWCASTLE UPON TYNE"],
+    postcodeDistricts: ["NE1","NE2","NE3","NE4","NE5","NE6","NE7","NE13","NE15"],
+    county: "Tyne and Wear",
+    region: "North East",
+    country: "England",
+    lat: 54.9783, lng: -1.6178,
+  },
+  {
+    slug: "sunderland",
+    name: "Sunderland",
+    laGssCode: "E08000024",
+    postTowns: ["SUNDERLAND"],
+    postcodeDistricts: ["SR1","SR2","SR3","SR4","SR5","SR6"],
+    county: "Tyne and Wear",
+    region: "North East",
+    country: "England",
+    lat: 54.9069, lng: -1.3838,
+  },
+  {
+    slug: "middlesbrough",
+    name: "Middlesbrough",
+    laGssCode: "E06000002",
+    postTowns: ["MIDDLESBROUGH"],
+    postcodeDistricts: ["TS1","TS3","TS4","TS5","TS6","TS7","TS8"],
+    county: "North Yorkshire",
+    region: "North East",
+    country: "England",
+    lat: 54.5742, lng: -1.2349,
+  },
+
+  // ─── West Midlands ──────────────────────────────────────────────
+  {
+    slug: "birmingham",
+    name: "Birmingham",
+    laGssCode: "E08000025",
+    postTowns: ["BIRMINGHAM"],
+    postcodeDistricts: ["B1","B2","B3","B4","B5","B6","B7","B8","B9","B10","B11","B12","B13","B14","B15"],
+    county: "West Midlands",
+    region: "West Midlands",
+    country: "England",
+    lat: 52.4862, lng: -1.8904,
+  },
+  {
+    slug: "coventry",
+    name: "Coventry",
+    laGssCode: "E08000026",
+    postTowns: ["COVENTRY"],
+    postcodeDistricts: ["CV1","CV2","CV3","CV4","CV5","CV6","CV7"],
+    county: "West Midlands",
+    region: "West Midlands",
+    country: "England",
+    lat: 52.4068, lng: -1.5197,
+  },
+  {
+    slug: "wolverhampton",
+    name: "Wolverhampton",
+    laGssCode: "E08000031",
+    postTowns: ["WOLVERHAMPTON"],
+    postcodeDistricts: ["WV1","WV2","WV3","WV4","WV5","WV6","WV10","WV11"],
+    county: "West Midlands",
+    region: "West Midlands",
+    country: "England",
+    lat: 52.5870, lng: -2.1287,
+  },
+  {
+    slug: "walsall",
+    name: "Walsall",
+    laGssCode: "E08000030",
+    postTowns: ["WALSALL"],
+    postcodeDistricts: ["WS1","WS2","WS3","WS4","WS5","WS6","WS9"],
+    county: "West Midlands",
+    region: "West Midlands",
+    country: "England",
+    lat: 52.5862, lng: -1.9821,
+  },
+  {
+    slug: "stoke-on-trent",
+    name: "Stoke-on-Trent",
+    laGssCode: "E06000021",
+    postTowns: ["STOKE-ON-TRENT"],
+    postcodeDistricts: ["ST1","ST2","ST3","ST4","ST5","ST6","ST7"],
+    county: "Staffordshire",
+    region: "West Midlands",
+    country: "England",
+    lat: 53.0027, lng: -2.1794,
+  },
+
+  // ─── East Midlands ──────────────────────────────────────────────
+  {
+    slug: "nottingham",
+    name: "Nottingham",
+    laGssCode: "E06000018",
+    postTowns: ["NOTTINGHAM"],
+    postcodeDistricts: ["NG1","NG2","NG3","NG4","NG5","NG6","NG7","NG8","NG9","NG11"],
+    county: "Nottinghamshire",
+    region: "East Midlands",
+    country: "England",
+    lat: 52.9548, lng: -1.1581,
+  },
+  {
+    slug: "leicester",
+    name: "Leicester",
+    laGssCode: "E06000016",
+    postTowns: ["LEICESTER"],
+    postcodeDistricts: ["LE1","LE2","LE3","LE4","LE5"],
+    county: "Leicestershire",
+    region: "East Midlands",
+    country: "England",
+    lat: 52.6369, lng: -1.1398,
+  },
+  {
+    slug: "derby",
+    name: "Derby",
+    laGssCode: "E06000015",
+    postTowns: ["DERBY"],
+    postcodeDistricts: ["DE1","DE3","DE21","DE22","DE23","DE24"],
+    county: "Derbyshire",
+    region: "East Midlands",
+    country: "England",
+    lat: 52.9225, lng: -1.4746,
+  },
+  {
+    slug: "northampton",
+    name: "Northampton",
+    laGssCode: "E06000061",
+    postTowns: ["NORTHAMPTON"],
+    postcodeDistricts: ["NN1","NN2","NN3","NN4","NN5","NN7"],
+    county: "Northamptonshire",
+    region: "East Midlands",
+    country: "England",
+    lat: 52.2405, lng: -0.9027,
+  },
+
+  // ─── East of England ────────────────────────────────────────────
+  {
+    slug: "norwich",
+    name: "Norwich",
+    laGssCode: "E07000148",
+    postTowns: ["NORWICH"],
+    postcodeDistricts: ["NR1","NR2","NR3","NR4","NR5","NR6","NR7"],
+    county: "Norfolk",
+    region: "East of England",
+    country: "England",
+    lat: 52.6309, lng: 1.2974,
+  },
+  {
+    slug: "ipswich",
+    name: "Ipswich",
+    laGssCode: "E07000202",
+    postTowns: ["IPSWICH"],
+    postcodeDistricts: ["IP1","IP2","IP3","IP4","IP5","IP8"],
+    county: "Suffolk",
+    region: "East of England",
+    country: "England",
+    lat: 52.0567, lng: 1.1481,
+  },
+  {
+    slug: "cambridge",
+    name: "Cambridge",
+    laGssCode: "E07000008",
+    postTowns: ["CAMBRIDGE"],
+    postcodeDistricts: ["CB1","CB2","CB3","CB4","CB5"],
+    county: "Cambridgeshire",
+    region: "East of England",
+    country: "England",
+    lat: 52.2053, lng: 0.1218,
+  },
+  {
+    slug: "peterborough",
+    name: "Peterborough",
+    laGssCode: "E06000031",
+    postTowns: ["PETERBOROUGH"],
+    postcodeDistricts: ["PE1","PE2","PE3","PE4","PE7"],
+    county: "Cambridgeshire",
+    region: "East of England",
+    country: "England",
+    lat: 52.5695, lng: -0.2405,
+  },
+  {
+    slug: "luton",
+    name: "Luton",
+    laGssCode: "E06000032",
+    postTowns: ["LUTON"],
+    postcodeDistricts: ["LU1","LU2","LU3","LU4"],
+    county: "Bedfordshire",
+    region: "East of England",
+    country: "England",
+    lat: 51.8787, lng: -0.4200,
+  },
+
+  // ─── South East ─────────────────────────────────────────────────
+  {
+    slug: "brighton-and-hove",
+    name: "Brighton and Hove",
+    laGssCode: "E06000043",
+    postTowns: ["BRIGHTON","HOVE"],
+    postcodeDistricts: ["BN1","BN2","BN3","BN41","BN42"],
+    county: "East Sussex",
+    region: "South East",
+    country: "England",
+    lat: 50.8225, lng: -0.1372,
+  },
+  {
+    slug: "southampton",
+    name: "Southampton",
+    laGssCode: "E06000045",
+    postTowns: ["SOUTHAMPTON"],
+    postcodeDistricts: ["SO14","SO15","SO16","SO17","SO18","SO19"],
+    county: "Hampshire",
+    region: "South East",
+    country: "England",
+    lat: 50.9097, lng: -1.4044,
+  },
+  {
+    slug: "portsmouth",
+    name: "Portsmouth",
+    laGssCode: "E06000044",
+    postTowns: ["PORTSMOUTH","SOUTHSEA"],
+    postcodeDistricts: ["PO1","PO2","PO3","PO4","PO5","PO6"],
+    county: "Hampshire",
+    region: "South East",
+    country: "England",
+    lat: 50.8198, lng: -1.0880,
+  },
+  {
+    slug: "reading",
+    name: "Reading",
+    laGssCode: "E06000038",
+    postTowns: ["READING"],
+    postcodeDistricts: ["RG1","RG2","RG4","RG5","RG6","RG30","RG31"],
+    county: "Berkshire",
+    region: "South East",
+    country: "England",
+    lat: 51.4543, lng: -0.9781,
+  },
+  {
+    slug: "oxford",
+    name: "Oxford",
+    laGssCode: "E07000178",
+    postTowns: ["OXFORD"],
+    postcodeDistricts: ["OX1","OX2","OX3","OX4"],
+    county: "Oxfordshire",
+    region: "South East",
+    country: "England",
+    lat: 51.7520, lng: -1.2577,
+  },
+  {
+    slug: "slough",
+    name: "Slough",
+    laGssCode: "E06000039",
+    postTowns: ["SLOUGH"],
+    postcodeDistricts: ["SL1","SL2","SL3"],
+    county: "Berkshire",
+    region: "South East",
+    country: "England",
+    lat: 51.5105, lng: -0.5950,
+  },
+  {
+    slug: "milton-keynes",
+    name: "Milton Keynes",
+    laGssCode: "E06000042",
+    postTowns: ["MILTON KEYNES"],
+    postcodeDistricts: ["MK1","MK2","MK3","MK4","MK5","MK6","MK7","MK8","MK9","MK10"],
+    county: "Buckinghamshire",
+    region: "South East",
+    country: "England",
+    lat: 52.0406, lng: -0.7594,
+  },
+
+  // ─── South West ─────────────────────────────────────────────────
   {
     slug: "bristol",
     name: "Bristol",
     laGssCode: "E06000023",
     postTowns: ["BRISTOL"],
-    postcodeDistricts: [
-      "BS1", "BS2", "BS3", "BS4", "BS5", "BS6", "BS7", "BS8", "BS9",
-      "BS10", "BS11", "BS13", "BS14", "BS15", "BS16",
-    ],
+    postcodeDistricts: ["BS1","BS2","BS3","BS4","BS5","BS6","BS7","BS8","BS9","BS10","BS11","BS13","BS14","BS15","BS16"],
     county: "City of Bristol",
     region: "South West",
     country: "England",
-    lat: 51.4545,
-    lng: -2.5879,
+    lat: 51.4545, lng: -2.5879,
   },
   {
-    slug: "brighton-and-hove",
-    name: "Brighton and Hove",
-    laGssCode: "E06000043",
-    postTowns: ["BRIGHTON", "HOVE"],
-    postcodeDistricts: [
-      "BN1", "BN2", "BN3", "BN41", "BN42",
-    ],
-    county: "East Sussex",
-    region: "South East",
+    slug: "bath",
+    name: "Bath",
+    laGssCode: "E06000022",
+    postTowns: ["BATH"],
+    postcodeDistricts: ["BA1","BA2"],
+    county: "Somerset",
+    region: "South West",
     country: "England",
-    lat: 50.8225,
-    lng: -0.1372,
+    lat: 51.3811, lng: -2.3590,
+  },
+  {
+    slug: "plymouth",
+    name: "Plymouth",
+    laGssCode: "E06000026",
+    postTowns: ["PLYMOUTH"],
+    postcodeDistricts: ["PL1","PL2","PL3","PL4","PL5","PL6","PL7","PL9"],
+    county: "Devon",
+    region: "South West",
+    country: "England",
+    lat: 50.3755, lng: -4.1427,
+  },
+  {
+    slug: "exeter",
+    name: "Exeter",
+    laGssCode: "E07000041",
+    postTowns: ["EXETER"],
+    postcodeDistricts: ["EX1","EX2","EX3","EX4"],
+    county: "Devon",
+    region: "South West",
+    country: "England",
+    lat: 50.7184, lng: -3.5339,
+  },
+  {
+    slug: "bournemouth",
+    name: "Bournemouth",
+    laGssCode: "E06000058",
+    postTowns: ["BOURNEMOUTH","POOLE","CHRISTCHURCH"],
+    postcodeDistricts: ["BH1","BH2","BH3","BH4","BH5","BH6","BH7","BH8","BH9","BH10"],
+    county: "Dorset",
+    region: "South West",
+    country: "England",
+    lat: 50.7192, lng: -1.8808,
+  },
+
+  // ─── London ─────────────────────────────────────────────────────
+  // London is too big for a single "town" page — handled at borough
+  // granularity. For the pilot we include 3 representative boroughs.
+  {
+    slug: "camden",
+    name: "Camden",
+    laGssCode: "E09000007",
+    postTowns: ["LONDON"],
+    postcodeDistricts: ["NW1","NW3","NW5","NW6","WC1","N7","N19"],
+    county: "Greater London",
+    region: "London",
+    country: "England",
+    lat: 51.5290, lng: -0.1255,
+  },
+  {
+    slug: "hackney",
+    name: "Hackney",
+    laGssCode: "E09000012",
+    postTowns: ["LONDON"],
+    postcodeDistricts: ["E5","E8","E9","N1","N16"],
+    county: "Greater London",
+    region: "London",
+    country: "England",
+    lat: 51.5450, lng: -0.0553,
+  },
+  {
+    slug: "tower-hamlets",
+    name: "Tower Hamlets",
+    laGssCode: "E09000030",
+    postTowns: ["LONDON"],
+    postcodeDistricts: ["E1","E2","E3","E14"],
+    county: "Greater London",
+    region: "London",
+    country: "England",
+    lat: 51.5099, lng: -0.0059,
+  },
+
+  // ─── Wales ──────────────────────────────────────────────────────
+  {
+    slug: "cardiff",
+    name: "Cardiff",
+    laGssCode: "W06000015",
+    postTowns: ["CARDIFF"],
+    postcodeDistricts: ["CF3","CF5","CF10","CF11","CF14","CF23","CF24"],
+    county: "South Glamorgan",
+    region: "Wales",
+    country: "Wales",
+    lat: 51.4816, lng: -3.1791,
+  },
+  {
+    slug: "swansea",
+    name: "Swansea",
+    laGssCode: "W06000011",
+    postTowns: ["SWANSEA"],
+    postcodeDistricts: ["SA1","SA2","SA3","SA4","SA5","SA6","SA7"],
+    county: "West Glamorgan",
+    region: "Wales",
+    country: "Wales",
+    lat: 51.6214, lng: -3.9436,
+  },
+  {
+    slug: "newport-wales",
+    name: "Newport",
+    laGssCode: "W06000022",
+    postTowns: ["NEWPORT"],
+    postcodeDistricts: ["NP10","NP18","NP19","NP20"],
+    county: "Gwent",
+    region: "Wales",
+    country: "Wales",
+    lat: 51.5842, lng: -2.9977,
   },
 ];
 

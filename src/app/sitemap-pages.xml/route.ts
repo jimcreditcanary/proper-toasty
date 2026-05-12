@@ -50,6 +50,22 @@ export async function GET(): Promise<Response> {
       changefreq: "monthly",
       priority: 0.9,
     },
+    // Programmatic-town index landings — entry point for town
+    // browsing + ranks for the head terms ("heat pumps UK",
+    // "solar panels UK"). The per-town pages are listed in
+    // sitemap-towns.xml.
+    {
+      loc: `${SITE_URL}/heat-pumps`,
+      lastmod: now,
+      changefreq: "weekly",
+      priority: 0.85,
+    },
+    {
+      loc: `${SITE_URL}/solar-panels`,
+      lastmod: now,
+      changefreq: "weekly",
+      priority: 0.85,
+    },
     {
       loc: `${SITE_URL}/enterprise`,
       lastmod: now,
