@@ -109,7 +109,12 @@ async function buildOne(
     console.log(`  synthetic: sample=${data.sample_size}`);
   } else {
     const rows = await searchByTown(town, {
-      maxPagesPerDistrict: 5,
+      // One page of 5000 council-filtered rows per town is plenty
+      // for the band-distribution rollup. Larger councils have more
+      // than 5000 EPCs but the sample is statistically representative
+      // either way.
+      pageSize: 5000,
+      maxPages: 1,
       onProgress: (msg) => console.log(msg),
     });
     data = computeTownAggregate(rows);
