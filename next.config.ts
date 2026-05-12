@@ -84,16 +84,34 @@ const nextConfig: NextConfig = {
 // API routes. Skipped silently when SENTRY_AUTH_TOKEN isn't set
 // (i.e. local dev / CI without secrets) — withSentryConfig
 // degrades to a no-op in that case.
+//
+// Source-map UPLOAD is gated to production deploys only. On a
+// Pro-tier Vercel build the server-side upload + processing of
+// ~1200 source-map files dominates wall time (~60s of a ~120s
+// build). Preview deploys (every PR branch push) don't benefit
+// from symbolicated stack traces — they exist for visual
+// verification — so skipping the upload there roughly halves
+// the preview build duration without affecting production
+// error-monitoring quality.
+//
+// The Sentry SDK runtime instrumentation still runs on previews;
+// errors still report to Sentry. The only thing skipped is the
+// build-time UPLOAD of source maps to Sentry's storage.
+const isProdDeploy = process.env.VERCEL_ENV === "production";
+
 export default withSentryConfig(nextConfig, {
   // Org + project come from env vars so different deploy
   // environments can point at different Sentry projects.
   org: process.env.SENTRY_ORG,
   project: process.env.SENTRY_PROJECT,
   // Suppresses log output when SENTRY_AUTH_TOKEN missing — keeps
-  // local builds quiet.
-  silent: !process.env.SENTRY_AUTH_TOKEN,
-  // Upload source maps only in CI / production builds.
-  widenClientFileUpload: true,
+  // local builds quiet. Also silent on previews now that we don't
+  // upload anything from them.
+  silent: !process.env.SENTRY_AUTH_TOKEN || !isProdDeploy,
+  // Widen the upload to include every served file (helps with
+  // server-side rendered chunks). Only matters when we're actually
+  // uploading, so gate on isProdDeploy.
+  widenClientFileUpload: isProdDeploy,
   // Tunnel Sentry SDK requests through our own /monitoring path
   // to avoid ad-blockers killing error reports in the browser.
   tunnelRoute: "/monitoring",
@@ -107,10 +125,11 @@ export default withSentryConfig(nextConfig, {
       removeDebugLogging: true,
     },
   },
-  // Source map handling — `disable: true` skips public-URL upload
-  // (we still upload to Sentry via the auth token + use them
-  // server-side for stack-trace symbolication).
+  // Source map handling — `disable: true` skips the upload
+  // entirely. On previews this saves the ~60s upload+processing
+  // round-trip. On production we still upload so runtime errors
+  // get symbolicated stack traces in Sentry.
   sourcemaps: {
-    disable: false,
+    disable: !isProdDeploy,
   },
 });
