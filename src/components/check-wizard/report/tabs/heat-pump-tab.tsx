@@ -16,15 +16,11 @@
 // Scheme grant per Ofgem regulations".
 
 import {
-  AlertTriangle,
   Box,
-  CheckCircle2,
-  Compass,
   Droplet,
   Flame,
   Lightbulb,
   MapPin,
-  PoundSterling,
   Wand2,
 } from "lucide-react";
 import type { AnalyseResponse } from "@/lib/schemas/analyse";
@@ -38,6 +34,7 @@ import {
   fmtGbp,
   type VerdictTone,
 } from "../shared";
+import { HeatPumpExtract } from "./heat-pump-extract";
 
 interface Props {
   analysis: AnalyseResponse;
@@ -63,11 +60,12 @@ export function HeatPumpTab({
   audience = "homeowner",
 }: Props) {
   // V2 path — when the wizard came through Step4Upload we have the
-  // FloorplanExtract in state. Render the extract-driven view, which
-  // has a different (simpler, score-based) shape than the legacy
-  // BUS-eligibility-engine output below.
+  // FloorplanExtract in state. Render the dedicated extract-driven
+  // view (separate file, score-based layout). The legacy
+  // BUS-eligibility-engine output below is only used when the wizard
+  // came through the older analyse flow with no extract.
   if (extract) {
-    return <ExtractDrivenHeatPump extract={extract} audience={audience} />;
+    return <HeatPumpExtract extract={extract} audience={audience} />;
   }
 
   const hp = analysis.eligibility.heatPump;
@@ -394,243 +392,4 @@ function BigStat({
 }
 
 
-// ─── V2 upload-only render path ──────────────────────────────────────
-//
-// When the wizard came through Step4Upload, we have a FloorplanExtract
-// — much richer than the legacy eligibility-engine output (per-floor
-// rooms, AI-derived score, siting plan, recommended next steps).
-// This render replaces the entire legacy tab content.
-//
-// Mirrors the layout from the standalone /report/[id] page so the
-// homeowner sees the same heat-pump narrative whether they came
-// through /upload (the throw-away surface) or /check (the wizard).
-
-function ExtractDrivenHeatPump({
-  extract,
-  audience,
-}: {
-  extract: FloorplanExtract;
-  audience: "homeowner" | "installer";
-}) {
-  const hp = extract.heat_pump_eligibility;
-  const score = hp.indicative_eligibility_score.score_out_of_10;
-
-  return (
-    <div className="space-y-6">
-      <SectionCard
-        title="Heat pump eligibility"
-        subtitle={hp.overall_assessment}
-        icon={<Flame className="w-5 h-5" />}
-      >
-        {/* Headline tiles — homeowner sees Score + Grant only. The
-            engineering Heat-demand tile (peak kW, annual kWh, capacity
-            range, W/m² basis) is installer-only because none of those
-            numbers tell a homeowner anything actionable; their
-            installer's site brief covers them. */}
-        <div
-          className={`grid grid-cols-1 gap-4 mb-5 ${
-            audience === "installer" ? "md:grid-cols-3" : "md:grid-cols-2"
-          }`}
-        >
-          {/* Score */}
-          <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 flex items-center gap-4">
-            <ScoreRing score={score} />
-            <div className="min-w-0">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                Score
-              </p>
-              <p className="text-sm text-navy mt-1 leading-snug">
-                {hp.indicative_eligibility_score.rationale}
-              </p>
-              <p className="mt-1 text-[11px] text-slate-500">
-                Confidence: {hp.confidence}
-              </p>
-            </div>
-          </div>
-
-          {/* Grant */}
-          <div className="rounded-xl border border-coral/20 bg-coral-pale/30 p-4">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-coral-dark mb-1 inline-flex items-center gap-1">
-              <PoundSterling className="w-3 h-3" />
-              Grant
-            </p>
-            <p className="text-sm font-semibold text-navy">
-              {hp.scheme_context.applicable_grant}
-            </p>
-            <p className="text-2xl font-bold text-coral-dark mt-1">
-              £{hp.scheme_context.grant_value_gbp.toLocaleString("en-GB")}
-            </p>
-            <p className="mt-2 text-xs text-slate-600 leading-relaxed">
-              {hp.scheme_context.system_type_assumed}
-            </p>
-          </div>
-
-          {/* Heat demand — installer-only. */}
-          {audience === "installer" && (
-            <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1 inline-flex items-center gap-1">
-                <Flame className="w-3 h-3" />
-                Heat demand
-              </p>
-              <p className="text-2xl font-bold text-navy">
-                {hp.heat_demand_estimate.estimated_peak_heat_demand_kw.toFixed(1)}{" "}
-                <span className="text-sm font-medium text-slate-500">kW peak</span>
-              </p>
-              <p className="text-xs text-slate-600 mt-0.5">
-                ~{Math.round(
-                  hp.heat_demand_estimate.estimated_annual_heat_demand_kwh,
-                ).toLocaleString("en-GB")}{" "}
-                kWh/yr · {hp.heat_demand_estimate.recommended_heat_pump_capacity_kw_range[0]}–
-                {hp.heat_demand_estimate.recommended_heat_pump_capacity_kw_range[1]} kW HP
-              </p>
-              <p className="mt-2 text-[11px] text-slate-500 italic leading-relaxed">
-                {hp.heat_demand_estimate.caveat}
-              </p>
-            </div>
-          )}
-        </div>
-
-        {/* Positive vs risks */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-5">
-          {hp.positive_factors.length > 0 && (
-            <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 mb-2 inline-flex items-center gap-1">
-                <CheckCircle2 className="w-3 h-3" />
-                In favour
-              </p>
-              <ul className="space-y-1.5 text-sm text-emerald-900">
-                {hp.positive_factors.map((p, i) => (
-                  <li key={i} className="leading-relaxed">· {p}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-          {hp.risk_factors_and_unknowns.length > 0 && (
-            <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-amber-800 mb-2 inline-flex items-center gap-1">
-                <AlertTriangle className="w-3 h-3" />
-                Worth watching
-              </p>
-              <ul className="space-y-2 text-sm text-amber-900">
-                {hp.risk_factors_and_unknowns.map((r, i) => (
-                  <li key={i} className="leading-relaxed">
-                    <span className="font-semibold">{r.factor}</span>
-                    {r.impact && (
-                      <span className="block text-xs text-amber-800 mt-0.5">{r.impact}</span>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </div>
-
-        {/* Siting — homeowner gets the plain recommended-location
-            sentence only; the footprint dimension, alternative spots
-            and MCS 020 / front-elevation planning notes are
-            installer-only (the site brief renders them in full). */}
-        <div className="rounded-lg border border-slate-200 bg-white p-4">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2 inline-flex items-center gap-1">
-            <Compass className="w-3 h-3" />
-            Where the outdoor unit goes
-          </p>
-          <p className="text-sm text-navy leading-relaxed">
-            <span className="font-semibold">Recommended:</span>{" "}
-            {hp.external_unit_siting.recommended_location}
-          </p>
-          {audience === "installer" && (
-            <>
-              <p className="mt-2 text-xs text-slate-600">
-                Footprint: {hp.external_unit_siting.approximate_footprint_required_m}
-              </p>
-              {hp.external_unit_siting.alternative_locations.length > 0 && (
-                <p className="mt-1 text-xs text-slate-600">
-                  Alternatives: {hp.external_unit_siting.alternative_locations.join(" · ")}
-                </p>
-              )}
-              <p className="mt-2 text-[11px] text-slate-500 italic">
-                {hp.external_unit_siting.front_elevation_siting}
-              </p>
-            </>
-          )}
-        </div>
-      </SectionCard>
-
-      {/* Floor-by-floor — dropped from the homeowner view. It's
-          a reference for the engineer (room layout, GIA per floor)
-          and reads as filler to a homeowner who already saw their
-          own floorplan in the upload step. Still surfaced on the
-          installer site brief at /installer/reports/[leadId]. */}
-
-      {/* Engineer's-notes pointer — explains where the technical
-          sizing detail went so the homeowner doesn't feel the
-          information's been hidden from them; reinforces that the
-          installer they pick has the full picture. */}
-      {audience === "homeowner" && (
-        <div className="rounded-lg border border-slate-200 bg-slate-50/50 px-4 py-3 text-xs text-slate-600 leading-relaxed">
-          <p>
-            <span className="font-semibold text-navy">
-              Full engineer&rsquo;s notes
-            </span>{" "}
-            — peak heat demand, recommended pump capacity, radiator
-            sizing, siting footprint and planning notes — are in the
-            site brief we send the installer you pick. They&rsquo;ll
-            confirm everything on the site visit.
-          </p>
-        </div>
-      )}
-
-      {/* Next steps — checklist */}
-      {hp.recommended_next_steps.length > 0 && (
-        <SectionCard
-          title="Recommended next steps"
-          icon={<Wand2 className="w-5 h-5" />}
-        >
-          <ol className="space-y-2">
-            {hp.recommended_next_steps.map((s, i) => (
-              <li
-                key={i}
-                className="flex items-start gap-3 rounded-lg border border-slate-200 bg-white p-3"
-              >
-                <span className="shrink-0 inline-flex items-center justify-center w-6 h-6 rounded-full bg-coral-pale text-coral-dark text-[11px] font-bold">
-                  {i + 1}
-                </span>
-                <p className="text-sm text-slate-800 leading-relaxed">{s}</p>
-              </li>
-            ))}
-          </ol>
-        </SectionCard>
-      )}
-
-      {/* Notes / caveats — small print */}
-      {extract.notes.length > 0 && (
-        <p className="text-xs text-slate-500 leading-relaxed">
-          <span className="font-semibold">Caveats + inferences:</span>{" "}
-          {extract.notes.join(" · ")}
-        </p>
-      )}
-    </div>
-  );
-}
-
-function ScoreRing({ score }: { score: number }) {
-  const radius = 28;
-  const circumference = 2 * Math.PI * radius;
-  const fraction = Math.max(0, Math.min(10, score)) / 10;
-  const offset = circumference * (1 - fraction);
-  const tone =
-    score >= 7 ? "text-emerald-600" : score >= 4 ? "text-amber-500" : "text-rose-500";
-  return (
-    <div className="relative inline-flex items-center justify-center w-20 h-20 shrink-0">
-      <svg className="absolute inset-0" viewBox="0 0 100 100">
-        <circle cx="50" cy="50" r={radius} stroke="currentColor" strokeWidth="8" fill="none" className="text-slate-100" />
-        <circle cx="50" cy="50" r={radius} stroke="currentColor" strokeWidth="8" fill="none" strokeDasharray={circumference} strokeDashoffset={offset} strokeLinecap="round" transform="rotate(-90 50 50)" className={tone} />
-      </svg>
-      <div className="text-center">
-        <p className={`text-xl font-bold ${tone} leading-none`}>{score}</p>
-        <p className="text-[9px] uppercase tracking-wider text-slate-500 mt-0.5">/10</p>
-      </div>
-    </div>
-  );
-}
 
