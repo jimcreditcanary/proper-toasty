@@ -148,6 +148,37 @@ export function IssueList({
   );
 }
 
+// ─── Big stat tile ──────────────────────────────────────────────────────────
+//
+// Headline number with an uppercase label and an optional supporting
+// sentence. The green tone is used for grant amounts / "money in your
+// pocket" stats so the eye lands on them as positive signal.
+
+export function BigStat({
+  label,
+  value,
+  sub,
+  tone = "default",
+}: {
+  label: string;
+  value: string;
+  sub?: string;
+  tone?: "default" | "green";
+}) {
+  const valueColour = tone === "green" ? "text-emerald-700" : "text-navy";
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-slate-50/40 p-4">
+      <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">
+        {label}
+      </p>
+      <p className={`text-2xl font-bold ${valueColour}`}>{value}</p>
+      {sub && (
+        <p className="mt-1.5 text-sm text-slate-600 leading-relaxed">{sub}</p>
+      )}
+    </div>
+  );
+}
+
 // ─── GBP formatter ──────────────────────────────────────────────────────────
 
 export function fmtGbp(n: number, options?: { compact?: boolean }): string {
