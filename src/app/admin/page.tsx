@@ -2,6 +2,7 @@ import { PortalShell } from "@/components/portal-shell";
 import {
   BarChart3,
   Building2,
+  Eye,
   FileText,
   Newspaper,
   PoundSterling,
@@ -87,6 +88,17 @@ export default async function AdminHomePage() {
       icon: PoundSterling,
       status: "live",
       href: "/admin/settings/cost-rates",
+    },
+    {
+      // Whether ChatGPT / Claude / Perplexity et al cite us when
+      // UK homeowners ask common heat-pump + solar questions.
+      // Populated by scripts/ai-visibility/run-check.ts (manual /
+      // weekly cron). Watch this number trend up.
+      title: "AI search visibility",
+      body: "Track whether AI assistants cite Propertoasty on the top 50 UK heat-pump + solar queries. Run weekly.",
+      icon: Eye,
+      status: "live",
+      href: "/admin/ai-visibility",
     },
   ];
 
