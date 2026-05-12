@@ -22,20 +22,25 @@
 // = roughly 11 seconds of API time per town. Sheffield + Bristol +
 // Brighton in ~30s.
 //
-// Usage:
+// Usage (run from anywhere — the load-env import below picks up
+// .env.local relative to the project root, so no `cd` required):
 //
 //   # Build all pilot towns
-//   node --env-file=.env.local node_modules/.bin/tsx \
-//     scripts/epc-search/build-town-aggregates.ts
+//   npx tsx scripts/epc-search/build-town-aggregates.ts
 //
 //   # Just one
-//   node --env-file=.env.local node_modules/.bin/tsx \
-//     scripts/epc-search/build-town-aggregates.ts --towns sheffield
+//   npx tsx scripts/epc-search/build-town-aggregates.ts --towns sheffield
 //
 //   # Synthetic seed (no API calls) — used to verify the page
 //   # renders before we wire up the real EPC_API_KEY.
-//   node --env-file=.env.local node_modules/.bin/tsx \
-//     scripts/epc-search/build-town-aggregates.ts --synthetic
+//   npx tsx scripts/epc-search/build-town-aggregates.ts --synthetic
+
+// Loads .env.local into process.env at import time. Uses our hand-
+// rolled parser instead of Node's --env-file because the latter
+// silently corrupts state on multi-line PEM values (see the file
+// header for context). Import MUST stay first so env vars are
+// populated before any downstream module reads them.
+import "../../src/lib/dev/load-env";
 
 import { createAdminClient } from "../../src/lib/supabase/admin";
 import { PILOT_TOWNS, type PilotTown } from "../../src/lib/programmatic/towns";
