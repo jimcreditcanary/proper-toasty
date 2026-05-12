@@ -24,6 +24,10 @@ import { notFound } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getTownBySlug, allTownSlugs, type PilotTown } from "@/lib/programmatic/towns";
 import {
+  getArchetypeBySlug,
+  allArchetypeSlugs,
+} from "@/lib/programmatic/archetypes";
+import {
   loadTownAggregate,
   ALL_BANDS,
   type TownAggregateRow,
@@ -31,6 +35,7 @@ import {
 } from "@/lib/programmatic/town-aggregates";
 import { AEOPage, ComparisonTable } from "@/components/seo";
 import { DEFAULT_AUTHOR_SLUG } from "@/lib/seo/authors";
+import { HeatPumpArchetypePage } from "@/components/programmatic/heat-pump-archetype-page";
 
 // ISR — 1h. EPC data refreshes monthly at the source so the page
 // itself doesn't need to be hot-rebuild fast. The build-towns
@@ -38,11 +43,20 @@ import { DEFAULT_AUTHOR_SLUG } from "@/lib/seo/authors";
 // changes propagate within the hour without manual invalidation.
 export const revalidate = 3600;
 
-// Static params from the pilot seed — Next pre-renders these at
-// build time. Other slugs go through the dynamic path (which
-// notFound()s when missing).
+// Static params from the pilot seeds — Next pre-renders these at
+// build time. Slugs split between two seeds:
+//
+//   - PILOT_TOWNS  → town pages backed by epc_area_aggregates
+//   - PILOT_ARCHETYPES → curated property-type pages
+//
+// Both share the /heat-pumps/<slug> namespace. The route dispatches
+// based on which seed the slug matches. Slug collisions between the
+// two seeds MUST be avoided when adding new entries.
 export async function generateStaticParams() {
-  return allTownSlugs().map((slug) => ({ "town-slug": slug }));
+  return [
+    ...allTownSlugs().map((slug) => ({ "town-slug": slug })),
+    ...allArchetypeSlugs().map((slug) => ({ "town-slug": slug })),
+  ];
 }
 
 interface PageProps {
@@ -53,6 +67,30 @@ export async function generateMetadata({
   params,
 }: PageProps): Promise<Metadata> {
   const { "town-slug": slug } = await params;
+
+  // Archetype branch — curated content, always indexed.
+  const archetype = getArchetypeBySlug(slug);
+  if (archetype) {
+    const url = `https://www.propertoasty.com/heat-pumps/${slug}`;
+    const title = `Heat pump for a ${archetype.name}: 2026 cost + sizing guide`;
+    const description = `Air-source heat pump suitability for a ${archetype.name.toLowerCase()}, with sizing, install cost, BUS grant eligibility and pre-install fabric work.`;
+    return {
+      title,
+      description,
+      alternates: { canonical: url },
+      openGraph: {
+        title,
+        description,
+        type: "article",
+        url,
+        siteName: "Propertoasty",
+        locale: "en_GB",
+        images: [{ url: "/hero-heatpump.jpg", width: 1200, height: 630 }],
+      },
+    };
+  }
+
+  // Town branch.
   const town = getTownBySlug(slug);
   if (!town) return { robots: { index: false, follow: false } };
 
@@ -88,6 +126,14 @@ export async function generateMetadata({
 
 export default async function HeatPumpsTownPage({ params }: PageProps) {
   const { "town-slug": slug } = await params;
+
+  // Archetype branch — curated content, no DB read needed.
+  const archetype = getArchetypeBySlug(slug);
+  if (archetype) {
+    return <HeatPumpArchetypePage archetype={archetype} />;
+  }
+
+  // Town branch — needs DB lookup.
   const town = getTownBySlug(slug);
   if (!town) notFound();
 

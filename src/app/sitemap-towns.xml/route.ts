@@ -18,6 +18,7 @@
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { loadIndexedTownAggregates } from "@/lib/programmatic/town-aggregates";
+import { PILOT_ARCHETYPES } from "@/lib/programmatic/archetypes";
 import {
   SITE_URL,
   buildUrlsetXml,
@@ -47,6 +48,17 @@ async function loadTownEntries(): Promise<SitemapUrlEntry[]> {
         lastmod: r.refreshed_at,
         changefreq: "monthly",
         priority: 0.6,
+      });
+    }
+    // Archetype pages — curated, always indexed. Same /heat-pumps/<slug>
+    // namespace, dispatched by the route handler.
+    const now = new Date();
+    for (const a of PILOT_ARCHETYPES) {
+      entries.push({
+        loc: `${SITE_URL}/heat-pumps/${a.slug}`,
+        lastmod: now,
+        changefreq: "monthly",
+        priority: 0.7,
       });
     }
     return entries;

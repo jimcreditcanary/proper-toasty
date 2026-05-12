@@ -14,6 +14,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { loadIndexedTownAggregates } from "@/lib/programmatic/town-aggregates";
+import { PILOT_ARCHETYPES } from "@/lib/programmatic/archetypes";
 import { AEOPage } from "@/components/seo";
 import { DEFAULT_AUTHOR_SLUG } from "@/lib/seo/authors";
 
@@ -152,6 +153,33 @@ export default async function HeatPumpsIndex() {
           ))}
         </ul>
       )}
+
+      <h2>Browse by property type</h2>
+      <p>
+        Heat-pump sizing, fabric prerequisites, and BUS grant
+        considerations vary by the kind of home you have. Pick the
+        archetype that best matches your property for a deep-dive on
+        what install scope looks like.
+      </p>
+      <ul
+        className="not-prose grid grid-cols-1 sm:grid-cols-2 gap-3 my-6"
+        aria-label="Heat pump guides by property type"
+      >
+        {PILOT_ARCHETYPES.map((a) => (
+          <li key={a.slug}>
+            <Link
+              href={`/heat-pumps/${a.slug}`}
+              className="block rounded-xl border border-[var(--border)] bg-white px-4 py-3 hover:border-coral/30 hover:shadow-sm transition-all"
+            >
+              <span className="block font-semibold text-navy">{a.name}</span>
+              <span className="block text-xs text-slate-500">
+                {a.era} · {a.heatPumpKW.min}–{a.heatPumpKW.max} kW
+                typical · band {a.typicalEpcBand}
+              </span>
+            </Link>
+          </li>
+        ))}
+      </ul>
 
       <h2>Check your specific home</h2>
       <p>
