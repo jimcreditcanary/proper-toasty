@@ -57,10 +57,14 @@ export function HeatPumpExtract({ extract, audience }: Props) {
 
   return (
     <div className="space-y-6">
-      {/* HEADLINE — verdict + three numbers */}
+      {/* HEADLINE — verdict + three numbers. Subtitle surfaces the
+          model's confidence statement directly rather than generic
+          "pre-survey indication" copy — homeowners read it once at
+          the top instead of hunting for the small-print disclaimer
+          further down the card. */}
       <SectionCard
         title="Heat pump for your home"
-        subtitle="Pre-survey indication based on your floorplan."
+        subtitle={`Confidence: ${hp.confidence}`}
         icon={<Flame className="w-5 h-5" />}
         rightSlot={<VerdictBadge tone={tone} label={verdictLabel} />}
       >
