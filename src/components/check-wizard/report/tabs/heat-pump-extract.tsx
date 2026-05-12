@@ -20,7 +20,10 @@
 // + the alternative-locations + front-elevation MCS 020 note.
 
 import { Compass, Flame, Lightbulb } from "lucide-react";
-import type { FloorplanExtract } from "@/lib/schemas/floorplan-extract";
+import type {
+  FloorplanExtract,
+  ScoreAdjustment,
+} from "@/lib/schemas/floorplan-extract";
 import {
   BigStat,
   IssueList,
@@ -68,36 +71,36 @@ export function HeatPumpExtract({ extract, audience }: Props) {
         icon={<Flame className="w-5 h-5" />}
         rightSlot={<VerdictBadge tone={tone} label={verdictLabel} />}
       >
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-5">
-          <BigStat
-            label="Eligibility score"
-            value={`${score} / 10`}
-            sub={hp.indicative_eligibility_score.rationale}
+        <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-4 mb-5">
+          <ScoreBreakdownCard
+            score={score}
+            baseScore={hp.indicative_eligibility_score.base_score}
+            adjustments={hp.indicative_eligibility_score.adjustments}
+            rationale={hp.indicative_eligibility_score.rationale}
           />
-          <BigStat
-            label="Government grant"
-            value={fmtGbp(hp.scheme_context.grant_value_gbp, {
-              compact: true,
-            })}
-            sub={`${hp.scheme_context.applicable_grant} — knocked straight off the bill by your installer.`}
-            tone="green"
-          />
-          <BigStat
-            label="System type"
-            value={systemTypeShort}
-            sub={
-              hp.scheme_context.ground_source_viable
-                ? "Ground-source loops are also viable on this plot — worth quoting both."
-                : "Standard outdoor unit + indoor controls. Your installer confirms on the day."
-            }
-          />
+          <div className="grid grid-cols-1 gap-4 content-start">
+            <BigStat
+              label="System type"
+              value={systemTypeShort}
+              sub={
+                hp.scheme_context.ground_source_viable
+                  ? "Ground-source loops are also viable on this plot — worth quoting both."
+                  : "Standard outdoor unit + indoor controls. Your installer confirms on the day."
+              }
+            />
+            <BigStat
+              label="Government grant"
+              value={fmtGbp(hp.scheme_context.grant_value_gbp, {
+                compact: true,
+              })}
+              sub={`${hp.scheme_context.applicable_grant} — knocked straight off the bill by your installer.`}
+              tone="green"
+            />
+          </div>
         </div>
 
         <p className="text-sm text-slate-700 leading-relaxed">
           {hp.overall_assessment}
-        </p>
-        <p className="mt-2 text-xs text-slate-500">
-          Confidence: {hp.confidence}
         </p>
       </SectionCard>
 
@@ -276,6 +279,126 @@ export function HeatPumpExtract({ extract, audience }: Props) {
           </div>
         </details>
       )}
+    </div>
+  );
+}
+
+// ─── Score breakdown card ───────────────────────────────────────────────
+//
+// Replaces the old "Eligibility score" BigStat with a richer panel
+// that surfaces the working: base score, every adjustment delta with
+// its reason, and a footer total that MUST equal the headline (the
+// schema refine guarantees it).
+//
+// Falls back to a simple score-only view when `baseScore` or
+// `adjustments` are missing — older rows in floorplan_uploads were
+// extracted before the breakdown landed and don't carry these
+// fields. Once those rows age out (90-day retention), this branch
+// becomes dead and can be removed.
+
+function ScoreBreakdownCard({
+  score,
+  baseScore,
+  adjustments,
+  rationale,
+}: {
+  score: number;
+  baseScore: number | undefined;
+  adjustments: ScoreAdjustment[] | undefined;
+  rationale: string;
+}) {
+  const hasBreakdown =
+    baseScore != null && adjustments != null && adjustments.length > 0;
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-slate-50/40 p-5">
+      <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">
+        Eligibility score
+      </p>
+      <p className="text-3xl sm:text-4xl font-bold text-navy mb-4 leading-none">
+        {score}
+        <span className="text-xl sm:text-2xl text-slate-400 font-semibold">
+          {" "}
+          / 10
+        </span>
+      </p>
+
+      {hasBreakdown && (
+        <>
+          <p className="text-xs font-semibold text-navy mb-2">
+            How this score is calculated
+          </p>
+          <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+            <BreakdownRow delta={baseScore} reason="Base Score" emphasised />
+            {adjustments.map((a, i) => (
+              <BreakdownRow key={i} delta={a.delta} reason={a.reason} />
+            ))}
+            <BreakdownRow total={score} reason="Eligibility score" emphasised />
+          </div>
+        </>
+      )}
+
+      {rationale && (
+        <div className="mt-4 rounded-md border border-amber-100 bg-amber-50/70 px-3 py-2 text-xs text-amber-900 leading-relaxed">
+          {rationale}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// One row of the score-breakdown table. `delta` shows a signed
+// integer with positive/negative tinting; `total` shows the final
+// footer with no sign. Emphasised rows (base + footer) drop the
+// coloured chip and use plain text — they're structural, not deltas.
+
+function BreakdownRow({
+  delta,
+  total,
+  reason,
+  emphasised = false,
+}: {
+  delta?: number;
+  total?: number;
+  reason: string;
+  emphasised?: boolean;
+}) {
+  let chipClass = "bg-slate-100 text-slate-700";
+  let chipText: string;
+  if (total != null) {
+    chipText = String(total);
+    chipClass = "bg-slate-200 text-navy";
+  } else if (delta != null) {
+    chipText = delta > 0 ? `+${delta}` : String(delta);
+    if (!emphasised) {
+      chipClass =
+        delta > 0
+          ? "bg-emerald-100 text-emerald-800"
+          : delta < 0
+            ? "bg-amber-100 text-amber-900"
+            : "bg-slate-100 text-slate-700";
+    } else {
+      chipClass = "bg-slate-200 text-navy";
+    }
+  } else {
+    chipText = "";
+  }
+  return (
+    <div className="grid grid-cols-[56px_1fr] items-center border-b border-slate-200 last:border-b-0">
+      <div className="px-3 py-2 flex items-center justify-center">
+        <span
+          className={`inline-flex min-w-[36px] justify-center rounded px-2 py-0.5 text-xs font-semibold ${chipClass}`}
+        >
+          {chipText}
+        </span>
+      </div>
+      <div
+        className={`px-3 py-2 text-[13.5px] leading-snug ${
+          emphasised ? "font-semibold text-navy" : "text-slate-700"
+        }`}
+      >
+        {reason}
+      </div>
     </div>
   );
 }

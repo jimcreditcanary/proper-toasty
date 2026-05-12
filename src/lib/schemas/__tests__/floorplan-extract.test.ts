@@ -168,6 +168,78 @@ describe("FloorplanExtractSchema", () => {
     expect(parsed.success).toBe(false);
   });
 
+  describe("eligibility score breakdown refine", () => {
+    type ScoreSlot = {
+      heat_pump_eligibility: {
+        indicative_eligibility_score: {
+          score_out_of_10: number;
+          rationale: string;
+          base_score?: number;
+          adjustments?: { delta: number; reason: string }[];
+        };
+      };
+    };
+
+    it("accepts an extract without base_score / adjustments (backward compat)", () => {
+      const out = JSON.parse(JSON.stringify(MIN_VALID));
+      const parsed = FloorplanExtractSchema.safeParse(out);
+      expect(parsed.success).toBe(true);
+    });
+
+    it("accepts a consistent breakdown where base + adjustments = score", () => {
+      const out = JSON.parse(JSON.stringify(MIN_VALID)) as ScoreSlot;
+      out.heat_pump_eligibility.indicative_eligibility_score = {
+        score_out_of_10: 7,
+        rationale: "ok",
+        base_score: 5,
+        adjustments: [
+          { delta: 1, reason: "private outdoor space" },
+          { delta: 1, reason: "mid-terrace" },
+        ],
+      };
+      const parsed = FloorplanExtractSchema.safeParse(out);
+      expect(parsed.success).toBe(true);
+    });
+
+    it("rejects a breakdown where the math doesn't add up", () => {
+      const out = JSON.parse(JSON.stringify(MIN_VALID)) as ScoreSlot;
+      out.heat_pump_eligibility.indicative_eligibility_score = {
+        score_out_of_10: 8, // claims 8 but 5+1+1=7
+        rationale: "inconsistent",
+        base_score: 5,
+        adjustments: [
+          { delta: 1, reason: "outdoor space" },
+          { delta: 1, reason: "fabric upgrades" },
+        ],
+      };
+      const parsed = FloorplanExtractSchema.safeParse(out);
+      expect(parsed.success).toBe(false);
+      // The path should point at score_out_of_10 specifically so the
+      // retry-prompt knows where to nudge the model.
+      const paths = parsed.success
+        ? []
+        : parsed.error.issues.map((i) => i.path.join("."));
+      expect(
+        paths.some((p) => p.endsWith("score_out_of_10")),
+      ).toBe(true);
+    });
+
+    it("handles negative adjustments correctly", () => {
+      const out = JSON.parse(JSON.stringify(MIN_VALID)) as ScoreSlot;
+      out.heat_pump_eligibility.indicative_eligibility_score = {
+        score_out_of_10: 2,
+        rationale: "flat + conservation",
+        base_score: 5,
+        adjustments: [
+          { delta: -1, reason: "flat with no outdoor space" },
+          { delta: -2, reason: "conservation area" },
+        ],
+      };
+      const parsed = FloorplanExtractSchema.safeParse(out);
+      expect(parsed.success).toBe(true);
+    });
+  });
+
   it("defaults empty arrays for optional list fields", () => {
     const trimmed = JSON.parse(JSON.stringify(MIN_VALID)) as {
       summary: { notable_features?: string[] };

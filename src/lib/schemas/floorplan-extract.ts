@@ -152,10 +152,59 @@ export const ExternalUnitSitingSchema = z.object({
   front_elevation_siting: z.string(),
 });
 
-export const EligibilityScoreSchema = z.object({
-  score_out_of_10: z.number().int().min(0).max(10),
-  rationale: z.string(),
+/** One adjustment in the additive score breakdown. The model emits
+ *  one of these for each scoring rule it applies (positive or
+ *  negative). The UI renders these as a how-this-is-calculated
+ *  table; the schema refine below requires the maths to add up. */
+export const ScoreAdjustmentSchema = z.object({
+  /** Signed integer delta — typically +1, -1, -2 etc. */
+  delta: z.number().int(),
+  /** Short phrase combining the rule and the evidence, e.g.
+   *  "private outdoor space (rear garden confirmed)". */
+  reason: z.string(),
 });
+export type ScoreAdjustment = z.infer<typeof ScoreAdjustmentSchema>;
+
+/** Eligibility score with optional additive breakdown.
+ *
+ *  base_score + adjustments are optional because:
+ *    - Rows persisted before the breakdown landed don't have them
+ *      and must still validate (backward compat).
+ *    - Newer extractions DO emit them and the refine below requires
+ *      the math to be internally consistent.
+ *
+ *  When both are present, `score_out_of_10` MUST equal
+ *  `base_score + sum(adjustments[].delta)`. Caught at parse time so
+ *  the extract pipeline's one retry can re-prompt the model when it
+ *  emits inconsistent numbers. */
+export const EligibilityScoreSchema = z
+  .object({
+    score_out_of_10: z.number().int().min(0).max(10),
+    rationale: z.string(),
+    /** Starting score before any adjustments. Always 5 per the
+     *  current prompt; modelled as a number so future prompt
+     *  revisions can shift the baseline without a schema change. */
+    base_score: z.number().int().optional(),
+    /** Per-rule adjustments. Order matters for display — the model
+     *  emits them in the order it applied the rules. */
+    adjustments: z.array(ScoreAdjustmentSchema).optional(),
+  })
+  .refine(
+    (data) => {
+      if (data.base_score == null || data.adjustments == null) {
+        return true; // No breakdown — backward compat.
+      }
+      const sum =
+        data.base_score +
+        data.adjustments.reduce((acc, a) => acc + a.delta, 0);
+      return sum === data.score_out_of_10;
+    },
+    {
+      message:
+        "score_out_of_10 must equal base_score + sum of adjustment deltas",
+      path: ["score_out_of_10"],
+    },
+  );
 
 export const HeatPumpEligibilitySchema = z.object({
   /** One-paragraph high-level read on suitability. */

@@ -20,6 +20,11 @@ export const FLOORPLAN_EXTRACT_PROMPT = `You are a floorplan analyst. Given a fl
    - Recommended capacity range: [peak × 0.85, peak × 1.15], rounded to nearest kW.
    - Annual demand: peak × 1500 (UK degree-day rough conversion). Round to nearest 500 kWh.
    - Score 0–10: start at 5. +1 for private outdoor space, +1 for mid-terrace or semi (lower heat loss), +1 for evidence of recent fabric upgrades (loft conversion, extension), +1 for property size 80–200 m² (typical ASHP range), -1 for flat with no outdoor space, -2 for property in obvious conservation/period sensitive context (state as risk if uncertain), -1 if no obvious cylinder location.
+   - For \`indicative_eligibility_score\` you MUST emit the working, not just the final score:
+     * \`base_score\`: always the integer 5
+     * \`adjustments\`: one entry per scoring rule you applied (positive or negative). Each entry is \`{ "delta": <signed integer>, "reason": <short phrase combining rule + evidence, e.g. "private outdoor space (rear garden confirmed)"> \}\`. Omit entries for rules that did not apply.
+     * \`score_out_of_10\`: MUST equal \`base_score\` + sum of all \`adjustments[].delta\` values. The math will be validated and a mismatched output rejected.
+     * \`rationale\`: one-sentence summary of why the score landed where it did, including any rules that were considered but not applied (e.g. "No deductions applied: not a flat, conservation status unconfirmed, cylinder location plausible on upper floors.").
 5. For \`risk_factors_and_unknowns\`, mark \`determinable_from_floorplan\` as:
    - \`true\` only if the floorplan alone gives a definitive answer
    - \`"Partial"\` if the floorplan gives indicative evidence but a site visit is needed to confirm
@@ -106,7 +111,11 @@ export const FLOORPLAN_SCHEMA_HINT = `Schema:
     },
     "indicative_eligibility_score": {
       "score_out_of_10": integer,
-      "rationale": string
+      "rationale": string,
+      "base_score": integer,
+      "adjustments": [
+        { "delta": integer, "reason": string }
+      ]
     },
     "recommended_next_steps": [string]
   },
