@@ -138,6 +138,142 @@ export const PILOT_ARCHETYPES: PropertyArchetype[] = [
     idealFor:
       "Owners of post-2010 new-builds on gas. Cleanest possible install — usually 1 day work, smallest pump size, lowest install cost, fastest payback.",
   },
+  {
+    slug: "edwardian-semi",
+    name: "Edwardian semi-detached",
+    shortDescription:
+      "Early-20th-century semi-detached house with solid walls, large bay windows and typical 95–140 m² floorplate.",
+    era: "1901-1914",
+    builtForm: "Semi-detached house",
+    floorAreaM2: { min: 95, max: 140 },
+    heatLossWPerM2: { min: 70, max: 100 },
+    annualHeatDemandKWh: { min: 14000, max: 23000 },
+    heatPumpKW: { min: 9, max: 14 },
+    commonHeatingFuel: "Mains gas (combi or system boiler)",
+    typicalEpcBand: "E",
+    busQuirks: [
+      "Solid-wall recommendation almost universally present on EPC — internal or external wall insulation needed before BUS sign-off, OR a documented exemption.",
+      "Most Edwardian semis sit in mature streets where ASHP outdoor-unit placement is straightforward (side return, often hidden from highway).",
+      "Floor area at the upper end of the range pushes the unit size near the 14 kW MCS-installer ceiling — confirm headroom in your heat-loss calc.",
+    ],
+    preInstallUpgrades: [
+      "Solid-wall insulation OR formal exemption paperwork to clear the EPC recommendation.",
+      "Loft insulation to 270 mm.",
+      "Radiator upgrade in 2–4 rooms — Edwardian rooms have high ceilings + bay windows so per-room heat demand is significant.",
+      "Hot water cylinder install (~£1,500–£2,500) if currently combi-only.",
+    ],
+    idealFor:
+      "Owner-occupiers in solid-wall heritage stock willing to fund the fabric retrofit. Once done, the home performs at band C levels — strong resale uplift.",
+  },
+  {
+    slug: "1960s-flat",
+    name: "1960s flat",
+    shortDescription:
+      "Post-war system-built flat (council or private), single-aspect, typical 45–75 m² floorplate.",
+    era: "1960-1979",
+    builtForm: "Flat / maisonette",
+    floorAreaM2: { min: 45, max: 75 },
+    heatLossWPerM2: { min: 50, max: 85 },
+    annualHeatDemandKWh: { min: 5000, max: 10000 },
+    heatPumpKW: { min: 3, max: 6 },
+    commonHeatingFuel:
+      "Electric storage heaters OR communal gas boiler OR direct-electric",
+    typicalEpcBand: "D",
+    busQuirks: [
+      "Leasehold + freeholder consent required — typically the BIGGEST blocker for flat heat pump installs.",
+      "Communal heating systems are NOT BUS-grant eligible at the individual-flat level; whole-building scheme needed via the freeholder/landlord.",
+      "Outdoor unit placement on balcony / external wall must clear MCS 020 noise rules + leasehold restrictions on external alterations.",
+    ],
+    preInstallUpgrades: [
+      "Freeholder permission in writing (can take 4–12 weeks).",
+      "Loft insulation to 270 mm (for top-floor flats only).",
+      "Air-to-air monobloc heat pump may suit better than wet system in some flat layouts (no cylinder needed).",
+      "If currently storage heaters: replumb to wet system is a major project — air-to-air units often more practical.",
+    ],
+    idealFor:
+      "Top-floor flat owners with freeholder consent + south or east-facing balcony for outdoor unit. Hardest archetype to get to BUS-grant install but the install scope itself is small.",
+  },
+  {
+    slug: "1970s-detached",
+    name: "1970s detached",
+    shortDescription:
+      "Open-plan-era detached house with cavity walls, decent garden, typical 120–180 m² floorplate.",
+    era: "1970-1979",
+    builtForm: "Detached house",
+    floorAreaM2: { min: 120, max: 180 },
+    heatLossWPerM2: { min: 50, max: 75 },
+    annualHeatDemandKWh: { min: 14000, max: 22000 },
+    heatPumpKW: { min: 9, max: 14 },
+    commonHeatingFuel: "Mains gas, OR oil/LPG if rural off-grid",
+    typicalEpcBand: "D",
+    busQuirks: [
+      "Detached + larger garden often allows ASHP placement at the rear, well clear of neighbour boundaries — MCS 020 noise compliance is rarely a blocker.",
+      "If currently on oil or LPG (~12% of 1970s detached homes), heat-pump running costs cut a homeowner's bill by ~£500–£900/year — much bigger gap than from gas.",
+      "Cavity walls almost universal; cavity-fill insulation is easy + cheap to clear if not done.",
+    ],
+    preInstallUpgrades: [
+      "Cavity wall insulation if not already done (often free via ECO4).",
+      "Loft insulation top-up to 270 mm.",
+      "Radiator upgrade in 2–3 rooms — open-plan ground floors have one large load that benefits most from a fan-assisted convector.",
+      "Hot water cylinder install if currently on combi (rare for this archetype; system boilers more common).",
+    ],
+    idealFor:
+      "Off-gas detached owners (oil/LPG). The single best-payback archetype in the UK in 2026: large heat demand + currently expensive fuel + easy outdoor placement.",
+  },
+  {
+    slug: "ex-council-house",
+    name: "Ex-council house (1950s–1970s)",
+    shortDescription:
+      "Right-to-Buy or now-owner-occupied council-built terrace or semi, traditional or system-built construction.",
+    era: "1950-1979",
+    builtForm: "Semi-detached or terrace",
+    floorAreaM2: { min: 70, max: 100 },
+    heatLossWPerM2: { min: 60, max: 95 },
+    annualHeatDemandKWh: { min: 9000, max: 16000 },
+    heatPumpKW: { min: 6, max: 10 },
+    commonHeatingFuel: "Mains gas (combi or system boiler)",
+    typicalEpcBand: "D",
+    busQuirks: [
+      "Some 1960s council houses were system-built (Bison wall frame, BRE-type Wimpey no-fines concrete) — confirm construction type with your installer; non-standard construction sometimes affects mortgage but rarely heat-pump install.",
+      "Many ex-council properties are end-terraces with side passage access — perfect ASHP placement.",
+      "Some streets retain shared garden boundaries; check covenant on external installations before scheduling work.",
+    ],
+    preInstallUpgrades: [
+      "Cavity wall insulation if traditional cavity construction (most are).",
+      "Loft insulation to 270 mm.",
+      "Radiator upgrade in 1–2 rooms.",
+      "Hot water cylinder install if combi-only.",
+    ],
+    idealFor:
+      "Owner-occupied right-to-buy properties. Strong BUS pathway — fabric is reasonable, install is straightforward, and the post-install resale uplift is meaningful in this segment.",
+  },
+  {
+    slug: "mid-terrace-modern",
+    name: "Modern mid-terrace (1980–2010)",
+    shortDescription:
+      "Late-20th-century purpose-built terrace with cavity walls and double-glazing, typical 70–95 m² floorplate.",
+    era: "1980-2010",
+    builtForm: "Mid-terrace house",
+    floorAreaM2: { min: 70, max: 95 },
+    heatLossWPerM2: { min: 40, max: 65 },
+    annualHeatDemandKWh: { min: 6500, max: 11000 },
+    heatPumpKW: { min: 4, max: 7 },
+    commonHeatingFuel: "Mains gas (combi)",
+    typicalEpcBand: "C",
+    busQuirks: [
+      "Smallest pre-install scope of any pre-2010 archetype — fabric is usually already band C or close to it.",
+      "Mid-terrace = no side-passage access; outdoor unit MUST go in the rear garden or on the rear wall, which restricts placement options.",
+      "Typically gas-combi heated; the cylinder install is the biggest single line item in the BUS-grant scope.",
+    ],
+    preInstallUpgrades: [
+      "Usually nothing on fabric — EPC band C is already common.",
+      "Hot water cylinder install (~£1,500–£2,500) is the main scope item.",
+      "Radiator upgrade in 1–2 rooms — modern terrace radiators are often already adequate for 50°C flow.",
+      "Outdoor unit access through the house to rear garden — most installers handle this but adds half a day.",
+    ],
+    idealFor:
+      "Owner-occupiers of post-1980 mid-terraces who want a clean, cheap-as-it-gets BUS install with minimal fabric work. Often the lowest net-cost archetype.",
+  },
 ];
 
 export function getArchetypeBySlug(slug: string): PropertyArchetype | null {
