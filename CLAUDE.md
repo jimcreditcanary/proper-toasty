@@ -1,5 +1,46 @@
 @AGENTS.md
 
+## ⚠️ Secrets handling — non-negotiable
+
+`.env.local`, `.env.*`, and any file containing API keys / private
+keys / service-account credentials MUST NEVER be:
+
+- `cat`'d, `grep`'d, `head`'d, `tail`'d, or `awk`'d in a way that
+  prints raw value content
+- read via the `Read` tool in a way that emits raw lines
+- logged to terminal output even in diagnostic scripts
+- inspected with regex patterns that capture more than 4 chars
+  of the value side
+
+Diagnostic commands MUST mask values before printing. Examples:
+
+- ✅ `awk -F= '/^KEY=/ {print NR, length($2)}'` (metadata only)
+- ❌ `grep '^KEY=' file` (prints value)
+- ❌ `cat .env*` (prints values)
+- ❌ `awk '/^KEY=/' file` (prints whole line including value)
+
+For ANY env-file inspection, use the safe helper:
+
+```bash
+node --env-file=.env.local node_modules/.bin/tsx \
+  scripts/dev/inspect-env.ts
+```
+
+It prints `{key, length, first-4-chars, sha256-prefix}` per var —
+never the value itself.
+
+**Scripts that need env vars** load via `src/lib/dev/load-env.ts`
+(simple line-by-line parser that doesn't choke on multi-line PEM
+values, unlike Node's `--env-file`). Import at the top of every
+script that reads `.env.local`.
+
+If a secret leaks via terminal output during a session, the user
+MUST rotate that credential before continuing. The leaked value is
+in conversation context, shell history, and possibly elsewhere.
+
+This rule applies to EVERY future session. Add new patterns to the
+do-not-do list above as they come up.
+
 # Propertoasty (propertoasty.com)
 
 UK property eligibility app — users enter their address, upload a floorplan, and get a pre-survey report covering heat pump (Boiler Upgrade Scheme) and solar PV suitability. Designed so an MCS installer can quote remotely with high confidence.
