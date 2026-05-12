@@ -12,7 +12,17 @@ import type { BuildingInsightsResponse, RoofSegment } from "@/lib/schemas/solar"
 import type { EpcByAddressResponse } from "@/lib/schemas/epc";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+// 60s was the Vercel Hobby cap; we're on Pro so 300s is permitted.
+// Complex multi-section floorplans (3+ floors, garage, basement,
+// loft conversions, garden offices — i.e. typical UK Victorian /
+// Edwardian retrofit candidates) tip the parallel EPC + Solar +
+// flood + listed + planning chain over 60s. 300s gives headroom
+// for the worst case while keeping a hard upper bound.
+//
+// LONG-TERM: refactor to a background-job pattern (return job ID
+// immediately, client polls /api/analyse/status?id=). Removes the
+// timeout class of failures entirely. Tracked separately.
+export const maxDuration = 300;
 
 function pickBestRoofSegment(segments: RoofSegment[]): RoofSegment | null {
   if (!segments.length) return null;

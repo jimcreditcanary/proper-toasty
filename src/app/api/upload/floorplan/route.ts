@@ -28,8 +28,15 @@ import {
 import { extractFloorplan } from "@/lib/floorplan/extract";
 
 export const runtime = "nodejs";
-// 60s caps Vercel hobby tier; bump to 120 once we move to pro.
-export const maxDuration = 60;
+// 60s was the Hobby cap; we're on Pro so 300s. Complex multi-section
+// floorplans (4+ floors / garage / basement / loft conversion /
+// garden office — typical UK Edwardian + Victorian retrofit
+// candidates) push Claude Opus 4.7 vision parse over 60s. 300s gives
+// headroom for worst-case while keeping a hard upper bound.
+//
+// LONG-TERM: stream the vision response so the client sees progress,
+// OR move to a background job pattern. Tracked separately.
+export const maxDuration = 300;
 
 interface UploadOk {
   ok: true;
