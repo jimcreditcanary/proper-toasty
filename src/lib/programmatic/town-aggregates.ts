@@ -209,6 +209,122 @@ export async function loadIndexedTownAggregates(
 }
 
 /**
+ * Identifier + display metadata for a local-authority-scope upsert.
+ * Mirrors the bits of PilotTown we use, but slug-shaped (e.g.
+ * "sheffield-council") and named after the council itself rather
+ * than any one town. Keeps the LA upsert decoupled from the seed
+ * shape, so a future LA-only ingest doesn't have to fabricate
+ * PilotTown rows.
+ */
+export interface LocalAuthorityIdent {
+  /** URL-shape slug, e.g. "sheffield-council". Used as scope_key. */
+  slug: string;
+  /** Display name shown on the page header, e.g. "Sheffield". */
+  displayName: string;
+  country: "England" | "Wales" | "Scotland" | "Northern Ireland";
+  region: string | null;
+  county: string | null;
+  /** LA centroid for "near you" cross-links. Optional. */
+  lat: number | null;
+  lng: number | null;
+}
+
+/**
+ * Upsert an LA-scope aggregate row. Same compute as the town
+ * aggregate today (the EPC search API returns all rows for a
+ * council; we don't yet post-town-filter for the town scope, so
+ * both scopes contain identical numbers). When the bulk-CSV ingest
+ * lands in Phase 2b this gains the richer fields (property type
+ * mix, floor area median, etc.) and the town scope grows a
+ * post_town filter that makes the two genuinely different.
+ *
+ * Idempotent — upserts on (scope='local_authority', scope_key=slug).
+ */
+export async function upsertLAAggregate(
+  admin: AdminClient,
+  la: LocalAuthorityIdent,
+  data: TownAggregateData,
+  opts: {
+    minSampleSize?: number;
+    sourceDumpDate?: string | null;
+    forceIndexed?: boolean | null;
+  } = {},
+): Promise<void> {
+  const minSample = opts.minSampleSize ?? 50;
+  let indexed = data.sample_size >= minSample;
+  let indexReason: string | null = null;
+  if (!indexed) {
+    indexReason = `sample_size=${data.sample_size} below ${minSample} minimum`;
+  }
+  if (opts.forceIndexed === false) {
+    indexed = false;
+    indexReason = indexReason ?? "manually set to noindex";
+  } else if (opts.forceIndexed === true) {
+    indexed = true;
+    indexReason = null;
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (admin as any).from("epc_area_aggregates").upsert(
+    {
+      scope: "local_authority",
+      scope_key: la.slug,
+      display_name: la.displayName,
+      country: la.country,
+      region: la.region,
+      county: la.county,
+      lat: la.lat,
+      lng: la.lng,
+      data,
+      sample_size: data.sample_size,
+      indexed,
+      index_reason: indexReason,
+      refreshed_at: new Date().toISOString(),
+      source_dump_date: opts.sourceDumpDate ?? null,
+    },
+    { onConflict: "scope,scope_key" },
+  );
+  if (error) {
+    throw new Error(`Upsert failed for LA ${la.slug}: ${error.message}`);
+  }
+}
+
+/**
+ * Load all indexed LA-scope aggregates. Mirrors loadIndexedTownAggregates;
+ * used by future sitemap-areas.xml + the admin tooling that needs
+ * to enumerate populated areas.
+ */
+export async function loadIndexedLAAggregates(
+  admin: AdminClient,
+): Promise<TownAggregateRow[]> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (admin as any)
+    .from("epc_area_aggregates")
+    .select("*")
+    .eq("scope", "local_authority")
+    .eq("indexed", true)
+    .order("scope_key", { ascending: true });
+  if (error || !data) return [];
+  return data as TownAggregateRow[];
+}
+
+/**
+ * Derive a stable LA slug from a council name. Lowercase, replace
+ * non-alphanumerics with hyphens, collapse runs, trim hyphens.
+ * "Kingston upon Hull, City of" → "kingston-upon-hull-city-of".
+ * "Sheffield" → "sheffield".
+ */
+export function laSlugFromCouncilName(councilName: string): string {
+  return councilName
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+/**
  * Upsert a computed aggregate. Used by the build script.
  *
  * `indexed` defaults to true when sample_size ≥ minSampleSize;

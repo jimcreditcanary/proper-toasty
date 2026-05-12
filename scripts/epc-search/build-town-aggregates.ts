@@ -43,8 +43,11 @@ import { searchByTown } from "../../src/lib/programmatic/epc-search";
 import {
   computeTownAggregate,
   upsertTownAggregate,
+  upsertLAAggregate,
+  laSlugFromCouncilName,
   type TownAggregateData,
   type EnergyBand,
+  type LocalAuthorityIdent,
 } from "../../src/lib/programmatic/town-aggregates";
 
 function parseArgs(): { towns: string[] | null; synthetic: boolean } {
@@ -100,6 +103,11 @@ function syntheticAggregate(): TownAggregateData {
 async function buildOne(
   town: PilotTown,
   synthetic: boolean,
+  /** Council names that have already had their LA-scope row upserted
+   *  in THIS run. Prevents the duplicate work + duplicate Supabase
+   *  writes when multiple towns share a council (e.g. all London
+   *  boroughs sharing "Westminster"). Mutated on each call. */
+  seenCouncils: Set<string>,
 ): Promise<{ slug: string; sample: number; indexed: boolean }> {
   console.log(`\n→ ${town.name} (${town.slug})`);
   let data: TownAggregateData;
@@ -128,6 +136,33 @@ async function buildOne(
     minSampleSize: 50,
     sourceDumpDate: synthetic ? "synthetic-2026-05" : null,
   });
+
+  // LA-scope upsert — dedup'd per councilName. Today the LA aggregate
+  // shares the same numbers as the town aggregate (the search returns
+  // the council's full row set; we don't yet post-town-filter the
+  // town scope). Phase 2b adds the post_town filter for towns +
+  // richer per-LA fields from the bulk CSV, at which point the two
+  // scopes diverge.
+  if (town.councilName && !seenCouncils.has(town.councilName)) {
+    seenCouncils.add(town.councilName);
+    const laIdent: LocalAuthorityIdent = {
+      slug: laSlugFromCouncilName(town.councilName),
+      displayName: town.councilName,
+      country: town.country,
+      region: town.region,
+      county: town.county,
+      lat: town.lat,
+      lng: town.lng,
+    };
+    await upsertLAAggregate(admin, laIdent, data, {
+      minSampleSize: 50,
+      sourceDumpDate: synthetic ? "synthetic-2026-05" : null,
+    });
+    console.log(
+      `  + LA scope: ${laIdent.slug} (council=${town.councilName})`,
+    );
+  }
+
   const indexed = data.sample_size >= 50;
   console.log(`  upserted (indexed=${indexed})`);
   return { slug: town.slug, sample: data.sample_size, indexed };
@@ -151,9 +186,13 @@ async function main() {
   );
 
   const results: Array<{ slug: string; sample: number; indexed: boolean }> = [];
+  // Shared across the loop so the same council never gets its LA row
+  // upserted twice in one run. Doesn't help across re-runs (each new
+  // invocation starts fresh), but the upsert is idempotent anyway.
+  const seenCouncils = new Set<string>();
   for (const town of list) {
     try {
-      results.push(await buildOne(town, synthetic));
+      results.push(await buildOne(town, synthetic, seenCouncils));
     } catch (err) {
       console.error(
         `  ✗ ${town.slug} failed: ${err instanceof Error ? err.message : err}`,
@@ -161,6 +200,7 @@ async function main() {
       results.push({ slug: town.slug, sample: 0, indexed: false });
     }
   }
+  console.log(`\nLA-scope rows upserted: ${seenCouncils.size} unique council(s)`);
 
   console.log("\n──── summary ────");
   for (const r of results) {
