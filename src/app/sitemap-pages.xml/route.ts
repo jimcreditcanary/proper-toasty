@@ -66,6 +66,27 @@ export async function GET(): Promise<Response> {
       changefreq: "weekly",
       priority: 0.85,
     },
+    // Comparison pages — head-term targets ("heat pump vs gas
+    // boiler" is one of the highest-search-volume UK heat queries).
+    // Hand-curated; one file each under src/app/compare/.
+    {
+      loc: `${SITE_URL}/compare/heat-pump-vs-gas-boiler`,
+      lastmod: now,
+      changefreq: "monthly",
+      priority: 0.8,
+    },
+    {
+      loc: `${SITE_URL}/compare/air-source-vs-ground-source-heat-pump`,
+      lastmod: now,
+      changefreq: "monthly",
+      priority: 0.75,
+    },
+    {
+      loc: `${SITE_URL}/compare/solar-vs-no-solar`,
+      lastmod: now,
+      changefreq: "monthly",
+      priority: 0.75,
+    },
     {
       loc: `${SITE_URL}/enterprise`,
       lastmod: now,

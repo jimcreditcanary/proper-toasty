@@ -186,6 +186,46 @@ Use cases:
 
 Volume pricing is available. The qualified-lead funnel typically halves time-to-quote and lifts close rates on accurate quotes because the homeowner already has the right expectations.`,
   },
+  // ─── Comparisons ────────────────────────────────────────────
+  // Head-term comparison pages under /compare/. Each is a single
+  // hand-curated AEOPage. Listed in the Comparisons section of
+  // llms.txt so AI engines see them as "which-to-pick" answers.
+  {
+    url: `${SITE_URL}/compare/heat-pump-vs-gas-boiler`,
+    title: "Heat pump vs gas boiler (2026)",
+    summary:
+      "Head-to-head on upfront cost, running cost, lifespan and carbon for a typical UK home, with the BUS grant worked through.",
+    section: "Comparisons",
+    content: `In 2026 a new gas boiler costs £2,500–£4,500 installed; an air-source heat pump costs £1,500–£6,500 after the £7,500 Boiler Upgrade Scheme grant. Running costs are close on equivalent tariffs at £900–£1,400 a year.
+
+Heat pumps win on lifetime cost (15–20 vs 10–15 year lifespan), carbon (one-quarter the emissions of gas), and resale value. Gas boilers win on retrofit speed in poorly insulated homes and emergency replacement scenarios.
+
+For most UK homes with reasonable insulation, the 2026 numbers favour an air-source heat pump after the BUS grant deduction.`,
+  },
+  {
+    url: `${SITE_URL}/compare/air-source-vs-ground-source-heat-pump`,
+    title: "Air source vs ground source heat pump (2026)",
+    summary:
+      "Install cost, SCOP efficiency, space requirements, lifetime cost. Which suits which UK home + when ground source actually pays back.",
+    section: "Comparisons",
+    content: `Air-source heat pumps install for £8,000–£14,000 pre-grant; ground-source costs £18,000–£35,000 because of the borehole or trench. Both qualify for the same £7,500 Boiler Upgrade Scheme grant in England and Wales.
+
+Air-source suits roughly 95% of UK homes — faster install (2–3 days vs 1–3 weeks), smaller footprint (1m × 1m outdoor unit vs 600m² trench), faster payback. Ground-source makes sense for detached properties with land + high heat demand, especially off-gas homes currently using oil or LPG.
+
+Efficiency favours ground-source (SCOP 4–5.5 vs 3–4.5), but the £10,000+ upfront cost difference means ground-source rarely pays back on running-cost savings alone — it pays back on comfort, lifespan, and house resale.`,
+  },
+  {
+    url: `${SITE_URL}/compare/solar-vs-no-solar`,
+    title: "Solar panels vs no solar (2026)",
+    summary:
+      "20-year cashflow of installing rooftop solar PV vs sticking with grid-only electricity for a typical UK home.",
+    section: "Comparisons",
+    content: `A 4 kW UK solar PV install costs £5,000–£7,500 and saves £500–£900 a year on electricity plus Smart Export Guarantee income. Payback in 7–11 years on most south-facing roofs; lifetime saving over 25 years is £8,000–£15,000.
+
+Adding a 5 kWh battery roughly doubles self-consumption and shifts payback to 9–13 years. Solar doesn't pay back well on pure north-facing roofs, heavily shaded properties, or for owners planning to move within 7 years.
+
+SEG export tariffs vary 5× between UK suppliers (3p–15p per kWh) — picking the right tariff is worth £200/year of difference.`,
+  },
   {
     url: `${SITE_URL}/blog`,
     title: "Guides + blog",
