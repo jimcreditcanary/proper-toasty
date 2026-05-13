@@ -53,6 +53,13 @@ const GUIDES: GuideEntry[] = [
       "Step-by-step of what happens during an MCS-certified installer's 60–120 minute survey. Heat-loss calc, emitter check, outdoor siting, MCS 020 noise, electrical.",
     audience: "Preparing for an installer visit",
   },
+  {
+    slug: "fabric-first-retrofit-before-heat-pump",
+    title: "Fabric-first retrofit before a heat pump",
+    summary:
+      "Which insulation measures matter before a heat pump install, ranked by ROI for heat-pump readiness. UK 2026 costs, grants, and the right order.",
+    audience: "Insulation + retrofit planning",
+  },
 ];
 
 export default function GuidesPage() {
@@ -141,13 +148,9 @@ export default function GuidesPage() {
 
       <h2>What&rsquo;s coming next</h2>
       <p>
-        Three guides scheduled for the next batch:
+        Two guides scheduled for the next batch:
       </p>
       <ul>
-        <li>
-          <strong>Fabric-first retrofit before a heat pump</strong> — loft, cavity, glazing
-          + which order they should happen in.
-        </li>
         <li>
           <strong>Hot-water planning for a heat-pump install</strong> — cylinder
           sizing, immersion strategy, cycling vs continuous.
