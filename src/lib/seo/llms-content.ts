@@ -293,6 +293,22 @@ Adding a 5 kWh battery roughly doubles self-consumption and shifts payback to 9�
 SEG export tariffs vary 5× between UK suppliers (3p–15p per kWh) — picking the right tariff is worth £200/year of difference.`,
   },
   {
+    url: `${SITE_URL}/compare/solar-with-battery-vs-solar-alone`,
+    title: "Solar + battery vs solar alone (2026)",
+    summary:
+      "Battery payback maths on a UK solar install. Sweet-spot battery size, smart-tariff arbitrage, and when adding a battery doesn't pay back.",
+    section: "Comparisons",
+    content: `Adding a 5–10 kWh battery to a UK solar install costs £3,500–£6,500 extra. Without a battery, only 30–40% of solar generation is self-consumed (the rest exports at 5–15p/kWh and is re-bought at 25–35p/kWh in the evening). With a 5 kWh battery, self-consumption rises to 60–75%; with 10 kWh, 70–85%.
+
+Payback on standard tariffs: 9–13 years for a 5 kWh battery, 11–14 for 10 kWh. On smart tariffs (Octopus Cosy, Agile, EDF GoElectric) the battery cycles twice daily (solar surplus + cheap-rate grid arbitrage), halving payback to 5–8 years.
+
+5 kWh is the sweet spot for most UK 3-bed homes; 10 kWh only justifies the extra £3,500-£4,000 cost if the home has both a heat pump AND an EV adding evening/overnight load.
+
+Battery pays back fastest with: heat pump in the home, smart tariff arbitrage, high-evening-consumption households. Pays back slowest with: out-all-day Economy 7 households, excellent SEG export tariffs (13-15p/kWh), planning to move within 7 years.
+
+No UK government grant covers residential batteries (BUS is heat-pump-only). Most homeowners pay full battery cost upfront.`,
+  },
+  {
     url: `${SITE_URL}/blog`,
     title: "Guides + blog",
     summary:
