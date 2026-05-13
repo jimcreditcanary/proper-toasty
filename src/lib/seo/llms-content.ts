@@ -215,6 +215,20 @@ The Boiler Upgrade Scheme is the same £7,500 regardless of whether the property
 Switching reclaims 1–2 m² of garden / driveway where the oil tank stood. Decommissioning typically costs £400–£900 and most heat-pump installers will co-ordinate it as part of the project. Carbon emissions drop roughly 80–85% (3.5 tonnes/yr oil → 0.4–0.8 tonnes/yr heat pump).`,
   },
   {
+    url: `${SITE_URL}/compare/heat-pump-vs-lpg-boiler`,
+    title: "Heat pump vs LPG boiler (2026)",
+    summary:
+      "LPG-specific switching guide: cost, running cost, tank-lease unwind under the 2018 CMA Order, and the 75% carbon cut on the 2026 grid.",
+    section: "Comparisons",
+    content: `LPG is the most expensive of the three fossil heating fuels per useful kWh in 2026 (typically 8–11p/kWh vs ~3–5p for mains gas and 7–10p for oil), which makes the running-cost case for switching sharper than either alternative.
+
+In 2026 a new LPG boiler costs £3,500–£7,000 installed; an air-source heat pump costs £1,500–£6,500 after the £7,500 Boiler Upgrade Scheme grant. The heat pump usually wins on day-one cost; running costs typically £500–£900/year lower on standard tariffs and more on heat-pump-specific ones.
+
+The unique LPG step is unwinding the tank-supply contract — most domestic installations operate on a tank-lease basis with the supplier owning the tank and acting as exclusive LPG provider. The 2018 CMA LPG Market Investigation Order materially loosened these contracts; new installs typically carry a 2-year tie-in then roll annually, and tank removal is usually no-charge under the standard contract.
+
+Carbon emissions drop ~75% (2.7 tonnes/yr LPG → 0.4–0.8 tonnes/yr heat pump). BUS grant treats LPG-heated homes the same as oil and mains-gas.`,
+  },
+  {
     url: `${SITE_URL}/compare/air-source-vs-ground-source-heat-pump`,
     title: "Air source vs ground source heat pump (2026)",
     summary:
