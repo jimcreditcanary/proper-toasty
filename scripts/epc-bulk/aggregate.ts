@@ -405,6 +405,55 @@ function archetypeKey(cert: CertSummary): string | null {
   return `${t}--${e}`;
 }
 
+// ─── Sharded UPRN Set ───────────────────────────────────────────────
+//
+// V8's native Set<string> has a hard maximum of 2^24 = 16,777,216
+// entries. The UK has ~30M dwellings and the EPC register holds
+// ~22M unique UPRNs once you span 13+ years of lodgements — both
+// well past the limit.
+//
+// ShardedUprnSet wraps N internal Sets, dispatching add()/has() by
+// hash of the UPRN. With 32 shards each holds ~1M entries — comfortable
+// margin under the V8 limit.
+
+class ShardedUprnSet {
+  private readonly shards: Set<string>[];
+  private readonly mask: number;
+  private _size = 0;
+
+  constructor(shardCount = 32) {
+    // Round up to next power of 2 for bitmask sharding.
+    let n = 1;
+    while (n < shardCount) n <<= 1;
+    this.shards = Array.from({ length: n }, () => new Set<string>());
+    this.mask = n - 1;
+  }
+
+  private bucket(uprn: string): number {
+    // Cheap hash: parseInt of the last 4 digits, modulo shard count.
+    // UPRNs are numeric so this distributes evenly enough.
+    const tail = uprn.length >= 4 ? uprn.slice(-4) : uprn;
+    const n = parseInt(tail, 10) | 0;
+    return n & this.mask;
+  }
+
+  has(uprn: string): boolean {
+    return this.shards[this.bucket(uprn)].has(uprn);
+  }
+
+  add(uprn: string): void {
+    const s = this.shards[this.bucket(uprn)];
+    if (!s.has(uprn)) {
+      s.add(uprn);
+      this._size += 1;
+    }
+  }
+
+  get size(): number {
+    return this._size;
+  }
+}
+
 // ─── Stream-parse one year file ─────────────────────────────────────
 
 interface YearRunStats {
@@ -418,7 +467,7 @@ interface YearRunStats {
 async function processYear(
   zipPath: string,
   year: number,
-  seenUprns: Set<string>,
+  seenUprns: ShardedUprnSet,
   ladAccs: Map<string, Accumulator>,
   archAccs: Map<string, Accumulator>,
 ): Promise<YearRunStats> {
@@ -526,7 +575,7 @@ async function main(): Promise<void> {
 
   fs.mkdirSync(outDir, { recursive: true });
 
-  const seenUprns = new Set<string>();
+  const seenUprns = new ShardedUprnSet(32);
   const ladAccs = new Map<string, Accumulator>();
   const archAccs = new Map<string, Accumulator>();
   const startedAt = Date.now();
