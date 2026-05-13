@@ -625,6 +625,140 @@ SMETS2 smart meter is mandatory for any heat-pump tariff. Half-hourly settlement
 First-month plan: days 1-7 observe consumption pattern; days 7-14 set basic schedule; days 14-28 tune weather-comp curve; days 28-60 review billed cost vs flat-rate equivalent; end-of-winter consider stepping up to dynamic tariff.`,
   },
   {
+    url: `${SITE_URL}/guides/heat-pump-running-costs-vs-gas`,
+    title: "Heat pump vs gas boiler running costs UK 2026",
+    summary:
+      "Worked UK heat pump running-cost examples by house size, tariff, and insulation level vs a modern gas boiler.",
+    section: "Guides",
+    content: `Running cost = heat demand × (1 / efficiency) × fuel price per kWh.
+
+UK 2026 baseline 3-bed semi, 12,000 kWh/year heat demand:
+- Gas boiler at 90% efficiency, 7p/kWh gas: ~£780-£900/year heating+hot water
+- Heat pump SCOP 3.2 on flat 28p electricity: ~£1,000-£1,100/year (worse than gas)
+- Heat pump SCOP 3.2 on Octopus Cosy 17p blended: ~£640/year (~18% cheaper than gas)
+- Heat pump SCOP 3.2 on Octopus Agile 14p automated: ~£525/year (~33% cheaper)
+
+Conclusion: heat pump cheaper than gas ONLY with heat-pump-specific tariff + well-tuned system. Flat-rate electricity = slightly worse than gas.
+
+Insulation impact (12,000 kWh baseline):
+- Loft top-up: 20% reduction → 9,600 kWh, saves ~£128/yr on Cosy
+- Cavity wall: 25% reduction → 9,000 kWh, saves ~£160/yr
+- Loft+cavity+draughtproofing: 40% combined → 7,200 kWh, saves ~£256/yr
+
+Weather compensation tuning: SCOP 3.0 → 3.5 = ~£100/yr saving.
+
+House sizes (heat demand UK 2026):
+- 1-bed flat: 4,000-6,000 kWh
+- 2-bed terrace: 8,000-10,000 kWh
+- 3-bed semi: 11,000-13,000 kWh
+- 4-bed detached: 15,000-18,000 kWh
+- 5-bed+ solid-wall: 20,000+ kWh
+
+Other fuels (12,000 kWh, 88% boiler efficiency):
+- Heating oil at 9p/kWh: £1,227/year (heat pump saves ~£600 on Cosy)
+- LPG at 14p/kWh: £1,909/year (heat pump saves ~£1,270)
+- Electric resistance at 28p/kWh: £3,360/year (heat pump saves ~£2,720)
+
+Off-gas-grid heat pump case is unambiguous. On-gas-grid case depends on tariff + tuning.`,
+  },
+  {
+    url: `${SITE_URL}/guides/scop-cop-spf-explained`,
+    title: "SCOP, COP, SPF explained — UK heat pump efficiency metrics",
+    summary:
+      "What COP, SCOP, and SPF mean for a UK heat pump, when each is used, typical 2026 numbers, and what to look for in installer quotes.",
+    section: "Guides",
+    content: `Three different heat pump efficiency metrics:
+
+COP (Coefficient of Performance) = instantaneous heat output ÷ electricity input at fixed test point. Standard ref: A7/W35 (7°C outside, 35°C flow). Optimistic; brochure number. Typical UK 2026 brochure COP: 4.5-5.5.
+
+SCOP (Seasonal COP) = annual-average COP across UK climate zone (EN 14825 'Average'). Weights performance map by hours per year at each outdoor temp bin. This is the number on MCS quotes — should always specify flow temperature. UK 2026 SCOP by flow temp:
+- W35 (underfloor, oversized rads): SCOP 3.8-4.5
+- W45 (typical radiator retrofit): SCOP 3.2-3.8
+- W50 (small existing rads): SCOP 2.9-3.4
+- W55 (under-sized rads): SCOP 2.5-3.0
+
+SPF (Seasonal Performance Factor) = real-world measured efficiency in YOUR home. Needs MID Class 2 heat meter (~£400) + electricity sub-meter, 12 months continuous. UK real-world from DESNZ trials: older retrofits 2.6-2.9 median; newer well-tuned 3.2-3.6 median; best-in-class 3.8-4.2.
+
+Why SPF is always lower than SCOP (typical 10-20% gap): defrost cycles (5-10% annual cost), weekly Legionella 60°C cycle (1-2%), suboptimal flow-temp tuning (5-15%), cycling/standby losses.
+
+Key insight: brand-A vs brand-B SCOP at same flow temp typically 10-20% range, NOT 50%. Bigger leverage in flow-temp design (sizing emitters for low temp) than brand choice. Install quality > brand choice.
+
+Running-cost translation: 12,000 kWh heat / SCOP / electricity price = annual electricity bill. SCOP 3.5 to 4.5 difference = £130-£213/year. Tariff difference (flat vs smart) = £300-£500/year. Tariff > SCOP for impact.`,
+  },
+  {
+    url: `${SITE_URL}/guides/mcs-020-noise-rules-explained`,
+    title: "MCS 020 heat pump noise rules — UK 2026 guide",
+    summary:
+      "What MCS 020 is, the 42 dB(A) limit, how the calculation works, and how to fix a failing siting before you commission an install.",
+    section: "Guides",
+    content: `MCS 020 = UK noise calculation that determines permitted-development (PD) status for air-source heat pump installs. Pass = no planning permission needed. Fail = full planning application required (8-12 weeks + £200-£500 fee + risk of refusal).
+
+Rule: calculated sound pressure level ≤42 dB(A) at 1m from nearest neighbour habitable-room window (bedroom/living/kitchen — not bathrooms or hallways).
+
+Full PD criteria (all 5 must pass):
+1. MCS 020 ≤42 dB(A)
+2. Single unit per dwelling
+3. Outdoor unit ≤1 m³ volume
+4. Not on wall/roof facing highway (Article 4 / conservation areas)
+5. Listed buildings excluded from PD
+
+Applies to ASHP only. GSHP (indoor unit) and WSHP not subject to MCS 020 — covered by general plant noise rules.
+
+Calculation inputs:
+1. Sound Power Level (SWL) — manufacturer declares per ISO 9614-2. UK 2026 typical: quiet R290 units 50-54 dB(A); standard R32 55-60 dB(A); older/larger 60-68 dB(A).
+2. Distance to nearest habitable window. Sound drops 6 dB per doubling: 1m=full, 2m=-6, 4m=-12, 8m=-18.
+3. Reflection corrections: rear wall +3 dB; acoustic barrier in line of sight up to -10 dB.
+
+Worked example: SWL 56 dB at 5m + rear wall = 56 - 14 + 3 = 45 dB(A). Fails by 3 dB. Fixes: acoustic fence (1.8m) drops to 39 dB(A) PASS; or relocate to 8m PASS.
+
+Properties at risk: narrow-passage terraces, end-terrace with neighbour-facing alley, maisonettes/flats, Victorian terraces in conservation areas.
+
+Fixes for failing calc (cost order): relocate unit; switch to quieter R290 model (-4 to -8 dB); acoustic fence £400-£1,200 (-5 to -8 dB); planning application (£200-£500, 8-12 weeks); consider GSHP (no external unit) or hybrid (smaller HP).
+
+Always ask installer for the MCS 020 workings on any quote — required for MCS Installation Certificate.`,
+  },
+  {
+    url: `${SITE_URL}/guides/heat-pump-payback-period-uk`,
+    title: "Heat pump payback period UK 2026 — worked examples",
+    summary:
+      "Three worked payback scenarios — gas, oil, LPG replacement — with the £7,500 BUS grant + smart tariff factored in.",
+    section: "Guides",
+    content: `Simple payback = (net install cost after grants) ÷ (annual running-cost savings vs system replaced).
+
+Install cost assumptions UK 2026 (3-bed semi, 12,000 kWh/yr heat demand):
+- Heat pump gross: £14,000 install + cylinder + rad upgrades
+- BUS grant: -£7,500
+- Net heat pump: £6,500
+- Comparison replacement boilers: gas £3,500, oil £4,200, LPG £3,800
+
+Scenario 1: replacing WORKING gas boiler
+- Annual gas: £780; HP on Cosy: £640; saving £140/yr; payback ~46 years (outside unit life)
+
+Scenario 1b: replacing gas boiler at END OF LIFE
+- Net premium £6,500 - £3,500 = £3,000; saving £140/yr; payback ~21 years
+- With tuned SCOP 3.5+ and smart-tariff optimisation saving £200-£300/yr → 10-15 years
+
+Scenario 2: replacing OIL boiler (working)
+- Annual oil: £1,227; HP on Cosy: £640; saving £587/yr; payback ~11 years
+Scenario 2b at end-of-life: premium £2,300; payback ~4 years
+
+Scenario 3: replacing LPG boiler (working)
+- Annual LPG: £1,909; HP on Cosy: £640; saving £1,269/yr; payback ~5 years
+Scenario 3b at end-of-life: premium £2,700; payback ~2.1 years
+
+Big swing factors:
+- House size: scales proportionally
+- Tariff choice: flat-rate vs Cosy = £300-£500/yr difference (3-5 years payback)
+- SCOP achieved: 3.0 vs 4.0 = ~£200/yr (1-3 years)
+- Solar PV alongside: 30-50% self-consumption = £100-£200/yr (1-3 years)
+- Future gas-price increases (carbon levies + network costs forecast to rise): each 1p relative gas rise = +£120/yr saving
+
+Non-payback benefits not in maths: future-proofing (Future Homes Standard 2025, gas-only phase-out 2035); resale value (EPC A/B sells 2-5% premium UK 2026 data); comfort (more even heat at lower flow temps).
+
+Best-case payback recipe: replace oil/LPG at end-of-life, smart tariff, tuned weather comp, solar PV alongside, insulation cleared = 3-5 years.
+Worst-case: working gas boiler, flat-rate tariff, no insulation, untuned = 30+ years.`,
+  },
+  {
     url: `${SITE_URL}/blog`,
     title: "Guides + blog",
     summary:
