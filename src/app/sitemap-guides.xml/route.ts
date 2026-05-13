@@ -83,6 +83,12 @@ async function loadGuideEntries(): Promise<SitemapUrlEntry[]> {
       changefreq: "monthly",
       priority: 0.8,
     },
+    {
+      loc: `${SITE_URL}/guides/fabric-first-retrofit-before-heat-pump`,
+      lastmod: now,
+      changefreq: "monthly",
+      priority: 0.8,
+    },
   ];
 }
 

@@ -538,6 +538,38 @@ What to look out for: does installer measure every heated room? Do they ask abou
 After the visit: written quote in 1-2 weeks. Should include room-by-room heat-loss as appendix, specific make + model with MCS ref, gross + grant + net costs, line items, warranty, timeline, finance options. Compare 2-3 quotes; query 20%+ heat-loss variance.`,
   },
   {
+    url: `${SITE_URL}/guides/fabric-first-retrofit-before-heat-pump`,
+    title: "Fabric-first retrofit before a heat pump (UK 2026)",
+    summary:
+      "Which insulation measures matter before a heat pump install, ranked by ROI for heat-pump readiness. UK 2026 costs, grants, and the right order.",
+    section: "Guides",
+    content: `Fabric-first means improving insulation and airtightness BEFORE sizing a heat pump. Heat pumps are sized to your home's heat-loss number (kW at design temperature, BS EN 12831). Lower heat-loss = smaller cheaper unit running at lower flow temp (35-45°C vs 50-55°C) with better COP (3.5+ vs 2.8) and lower running cost across the 15+ year life of the pump.
+
+Right order for UK 2026 (ranked by ROI for heat-pump readiness, not raw kWh saved):
+
+1. Loft insulation top-up to 270mm. £400-£800, cuts heat-loss 20-25% on pre-1990 semi. Required by BUS if EPC flagged it. Best ROI by miles.
+
+2. Draughtproofing. £200-£800, mostly DIY. Cuts heat-loss 10-15%. Doors, windows, loft hatch, unused chimneys, floorboards. Most underrated measure.
+
+3. Cavity wall insulation. £1,500-£3,500, cuts heat-loss 25-30%. For 1930-1990 unfilled cavities. Required by BUS if EPC flagged it. Non-destructive — bonded beads or fibre blown through small mortar-joint holes.
+
+4. Floor insulation. £1,500-£4,000, cuts heat-loss 8-10%. For suspended timber floors over ventilated voids. Solid concrete usually not worth retrofitting.
+
+5. Solid-wall insulation. £8,000-£15,000 internal, £12,000-£25,000 external. Cuts heat-loss 30-40%. Major disruption. Use PAS 2035 Retrofit Coordinator. NOT required by BUS.
+
+6. Double/triple glazing. £6,000-£15,000 whole house. Only cuts heat-loss 10-15% — worst £/kWh of the fabric measures. Replace if windows are failing, not as heat-pump prep.
+
+BUS rules (2024): only LOFT and CAVITY recommendations on your EPC must be cleared before grant pays out. Glazing, draughtproofing, floor, solid-wall not required.
+
+Grants for fabric work: ECO4 (low income / means-tested benefits / qualifying health conditions), Great British Insulation Scheme (EPC D-G + council tax A-D in England). Wales: Nest. Scotland: Home Energy Scotland. Don't stack with BUS but sequence: do fabric under ECO4/GBIS first, then BUS for heat pump separately.
+
+Common mistakes: doing glazing first (worst ROI); skipping draughtproofing; solid-wall insulation without ventilation planning (vapour barriers, MVHR); not getting fresh EPC after the work; doing fabric AFTER heat pump (pump ends up oversized, short-cycles).
+
+When to skip: post-2014 Part L builds typically have adequate insulation. Get heat-loss survey first; if under ~8 kW for a typical 3-bed, draughtproofing only.
+
+Timeline if starting from scratch: 3-4 months from fabric start to commissioned heat pump. 6-8 weeks if no fabric work needed.`,
+  },
+  {
     url: `${SITE_URL}/blog`,
     title: "Guides + blog",
     summary:
