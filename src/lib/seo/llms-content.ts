@@ -241,6 +241,20 @@ For a typical UK 3-bed semi needing 12,000 kWh of heat/year, direct-electric nee
 After the £7,500 Boiler Upgrade Scheme grant, heat-pump install is often cheaper upfront than a new direct-electric boiler too. Direct-electric only wins in narrow edge cases: tiny flats with no outdoor space, very-short-tenancy rentals, listed buildings where MCS 020 siting fails.`,
   },
   {
+    url: `${SITE_URL}/compare/heat-pump-vs-night-storage-heaters`,
+    title: "Heat pump vs night storage heaters (2026)",
+    summary:
+      "Comfort + cost guide for the ~700k UK homes on Economy 7 storage heaters. Heat pump on a heat-pump-specific tariff matches cheap-overnight-electricity story + delivers heat when you want it.",
+    section: "Comparisons",
+    content: `Night storage heaters were designed in the 1970s to pair with Economy 7 tariffs: charge a thermal core overnight on cheap electricity, release heat through the day. Cheap to install, no plumbing, uses spare-capacity electricity. The weakness is structural: the thermal core depletes through the day, so by evening (when households are home and want heat most), it's largely gone. Peak-rate boost works financially up to a point.
+
+A heat pump on a heat-pump-specific tariff (Octopus Cosy, British Gas Heat Pump Plus, EDF GoElectric) matches the cheap-overnight-electricity story but applies it 3.5× more efficiently AND delivers heat on demand rather than from a depleting thermal core.
+
+Annual saving for a typical UK 1–2 bed flat: £400–£900 vs modern HHRSHs, £700–£1,200 vs older NSHs. After the £7,500 BUS grant, install cost is typically £1,500–£6,500 — competitive with a new HHRSH install on day one and dramatically cheaper over the system lifespan. Comfort gain (evening heat on demand) is often the deciding factor for owner-occupiers.
+
+Edge cases where storage heaters still win: listed-building flats where outdoor siting genuinely fails MCS 020, leasehold properties with intransigent management agents, mid-tenancy rentals where the landlord won't fund the install.`,
+  },
+  {
     url: `${SITE_URL}/compare/air-source-vs-ground-source-heat-pump`,
     title: "Air source vs ground source heat pump (2026)",
     summary:
