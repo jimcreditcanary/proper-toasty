@@ -203,6 +203,18 @@ Heat pumps win on lifetime cost (15–20 vs 10–15 year lifespan), carbon (one-
 For most UK homes with reasonable insulation, the 2026 numbers favour an air-source heat pump after the BUS grant deduction.`,
   },
   {
+    url: `${SITE_URL}/compare/heat-pump-vs-oil-boiler`,
+    title: "Heat pump vs oil boiler (2026)",
+    summary:
+      "Off-gas-grid switching guide: cost, running cost, lifespan, carbon, plus oil-tank removal logistics. Aimed at the ~1M UK homes on heating oil.",
+    section: "Comparisons",
+    content: `In 2026 a new oil boiler costs £3,000–£6,500 installed; an air-source heat pump costs £1,500–£6,500 after the £7,500 Boiler Upgrade Scheme grant — so the heat pump usually wins on day-one cost. Running costs favour the heat pump by £300–£700 a year on typical UK oil prices, more on heat-pump-specific tariffs.
+
+The Boiler Upgrade Scheme is the same £7,500 regardless of whether the property is on the gas grid; off-gas-grid oil homes have been over-represented in BUS uptake because the running-cost case is stronger than the mains-gas comparison.
+
+Switching reclaims 1–2 m² of garden / driveway where the oil tank stood. Decommissioning typically costs £400–£900 and most heat-pump installers will co-ordinate it as part of the project. Carbon emissions drop roughly 80–85% (3.5 tonnes/yr oil → 0.4–0.8 tonnes/yr heat pump).`,
+  },
+  {
     url: `${SITE_URL}/compare/air-source-vs-ground-source-heat-pump`,
     title: "Air source vs ground source heat pump (2026)",
     summary:
