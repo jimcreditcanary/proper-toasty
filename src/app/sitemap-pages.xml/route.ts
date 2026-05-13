@@ -154,6 +154,12 @@ export async function GET(): Promise<Response> {
       priority: 0.75,
     },
     {
+      loc: `${SITE_URL}/compare/solar-pv-vs-solar-thermal`,
+      lastmod: now,
+      changefreq: "monthly",
+      priority: 0.7,
+    },
+    {
       loc: `${SITE_URL}/enterprise`,
       lastmod: now,
       changefreq: "monthly",
