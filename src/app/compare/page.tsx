@@ -101,6 +101,13 @@ const COMPARISONS: ComparisonEntry[] = [
       "20-year cashflow on a 4 kW UK install. Payback in 7–11 years on most south-facing roofs. SEG tariff selection matters.",
     audience: "Considering rooftop solar PV",
   },
+  {
+    slug: "solar-with-battery-vs-solar-alone",
+    title: "Solar + battery vs solar alone",
+    summary:
+      "Adding a 5–10 kWh battery costs £3,500–£6,500. Pays back in 9–13 years; faster (5–8) on smart tariffs or with heat pump / EV load.",
+    audience: "Spec'ing your solar system",
+  },
 ];
 
 export default function ComparePage() {
