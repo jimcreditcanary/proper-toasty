@@ -15,7 +15,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getTownBySlug, allTownSlugs, type PilotTown } from "@/lib/programmatic/towns";
+import { getTownBySlug, allTownSlugs, getNearbyTowns, type PilotTown } from "@/lib/programmatic/towns";
 import {
   loadTownAggregate,
   ALL_BANDS,
@@ -138,6 +138,9 @@ function TownPageWithData({
     `MCS-certified installer required for SEG eligibility + DNO sign-off.`,
   ];
 
+  const faqs = buildSolarTownFaqs(town, medianBand, samplePretty, cOrBetterPct);
+  const nearby = getNearbyTowns(town.slug, 3);
+
   // Same band-distribution table as heat-pumps, but with a SOLAR-
   // specific interpretation column.
   const tableRows: Array<Array<string | number>> = ALL_BANDS.map((b) => {
@@ -168,6 +171,7 @@ function TownPageWithData({
       ]}
       directAnswer={directAnswer}
       tldr={tldr}
+      faqs={faqs}
       sourcesEpc
       sources={[
         {
@@ -293,6 +297,27 @@ function TownPageWithData({
         kWh/year output, payback in years, and a list of MCS-certified
         installers covering {town.name}.
       </p>
+
+      {nearby.length > 0 && (
+        <>
+          <h3>Nearby towns we cover</h3>
+          <p>
+            Solar comparison data for areas near {town.name} —
+            useful if your property sits on a boundary or
+            you&rsquo;re comparing across the wider region:
+          </p>
+          <ul>
+            {nearby.map((n) => (
+              <li key={n.slug}>
+                <a href={`/solar-panels/${n.slug}`}>
+                  Solar panels in {n.name}
+                </a>{" "}
+                — {n.region}, {n.country}.
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
     </AEOPage>
   );
 }
@@ -304,6 +329,39 @@ function buildDirectAnswer(
   cOrBetterPct: number,
 ): string {
   return `Most homes in ${town.name} qualify for rooftop solar PV under permitted development, with install costs running £4,000 to £8,000 for a typical 3.5–5 kW system. Across ${samplePretty} EPCs lodged for the area, the median band is ${medianBand} and ${cOrBetterPct.toFixed(0)}% sit at band C or better — usually intact roofs ready for install. Smart Export Guarantee tariffs pay 3 to 15p per kWh exported.`;
+}
+
+function buildSolarTownFaqs(
+  town: PilotTown,
+  medianBand: EnergyBand | "D",
+  samplePretty: string,
+  cOrBetterPct: number,
+) {
+  const roofReadiness =
+    cOrBetterPct >= 50
+      ? "most"
+      : cOrBetterPct >= 30
+      ? "around half of"
+      : "a minority of";
+
+  return [
+    {
+      question: `Is solar PV worth installing in ${town.name}?`,
+      answer: `For most homes in ${town.name} a 3.5–5 kW rooftop solar PV system generates roughly 2,800–3,800 kWh per year. UK irradiance varies less by latitude than people assume; ${town.region} sits within ~10% of the national average for annual yield. Combined with self-consumption savings (no electricity import for daytime use) and the Smart Export Guarantee (3–15p/kWh exported), payback typically falls in 7–12 years on a no-battery install in ${town.name}.`,
+    },
+    {
+      question: `What's the typical roof condition in ${town.name}?`,
+      answer: `Across the EPC sample for ${town.name}, the median rating is band ${medianBand} and ${cOrBetterPct.toFixed(0)}% of properties sit at band C or better — typically homes with intact modern roofs that accept a solar PV install with minimal pre-work. ${roofReadiness} the area is ready without structural intervention. The balance (band D and below) usually warrants a quick roof-condition check before commissioning to confirm the structure can carry panel weight without reinforcement.`,
+    },
+    {
+      question: `Do I need planning permission for solar panels in ${town.name}?`,
+      answer: `For most ${town.name} properties solar PV falls under permitted development — no planning application required as long as panels don't project more than 200mm above the roof plane, don't cover the highest part of the roof, and (for flat roofs) aren't closer than 1m to the edge. Exceptions: properties in Conservation Areas or Listed Buildings need planning consent, and panels can't face a highway. Check gov.uk/check-planning-permission with your specific postcode before committing.`,
+    },
+    {
+      question: `Does the £7,500 BUS grant cover solar?`,
+      answer: `No — the Boiler Upgrade Scheme is for heat pumps and biomass boilers, not solar PV. The main UK solar incentive is the Smart Export Guarantee, which pays you per kWh exported to the grid. Solar installs are not currently grant-subsidised in ${town.name} or anywhere else in the UK, but the install qualifies for 0% VAT (extended through to March 2027) and battery storage qualifies for the same VAT relief when fitted with solar.`,
+    },
+  ];
 }
 
 function solarHint(band: EnergyBand): string {

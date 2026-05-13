@@ -685,3 +685,44 @@ export function getTownBySlug(slug: string): PilotTown | null {
 export function allTownSlugs(): string[] {
   return PILOT_TOWNS.map((t) => t.slug);
 }
+
+/**
+ * Nearest N towns to the given slug, ranked by haversine distance
+ * on the seed lat/lng. Used by town pages to surface "How {town}
+ * compares" internal links — each town links to ~3 nearby siblings,
+ * which gives crawlers a denser intra-section graph and gives
+ * readers a natural next step.
+ */
+export function getNearbyTowns(slug: string, limit = 3): PilotTown[] {
+  const origin = getTownBySlug(slug);
+  if (!origin) return [];
+
+  return PILOT_TOWNS
+    .filter((t) => t.slug !== origin.slug)
+    .map((t) => ({
+      town: t,
+      distanceKm: haversineKm(origin.lat, origin.lng, t.lat, t.lng),
+    }))
+    .sort((a, b) => a.distanceKm - b.distanceKm)
+    .slice(0, limit)
+    .map((entry) => entry.town);
+}
+
+function haversineKm(
+  lat1: number,
+  lng1: number,
+  lat2: number,
+  lng2: number,
+): number {
+  const R = 6371;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function toRad(deg: number): number {
+  return (deg * Math.PI) / 180;
+}

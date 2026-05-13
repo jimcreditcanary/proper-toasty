@@ -22,7 +22,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getTownBySlug, allTownSlugs, type PilotTown } from "@/lib/programmatic/towns";
+import { getTownBySlug, allTownSlugs, getNearbyTowns, type PilotTown } from "@/lib/programmatic/towns";
 import {
   getArchetypeBySlug,
   allArchetypeSlugs,
@@ -220,6 +220,12 @@ function TownPageWithData({
     `MCS-certified installer required for a binding heat-loss quote.`,
   ];
 
+  // ── Town-specific FAQs ──────────────────────────────────────────
+  const faqs = buildTownFaqs(town, medianBand, samplePretty, dOrWorsePct);
+
+  // ── Nearby towns for internal linking ───────────────────────────
+  const nearby = getNearbyTowns(town.slug, 3);
+
   // ── Comparison table data ───────────────────────────────────────
   const tableRows: Array<Array<string | number>> = ALL_BANDS.map((b) => {
     const count = data.band_distribution[b] ?? 0;
@@ -249,6 +255,7 @@ function TownPageWithData({
       ]}
       directAnswer={directAnswer}
       tldr={tldr}
+      faqs={faqs}
       sourcesEpc
       sources={[
         {
@@ -362,6 +369,27 @@ function TownPageWithData({
         % of the local sample, which compares to the E&W average of
         around 22%.
       </p>
+
+      {nearby.length > 0 && (
+        <>
+          <h3>Nearby towns we cover</h3>
+          <p>
+            Comparison data for areas near {town.name} —
+            useful if your property sits on a boundary or
+            you&rsquo;re comparing across the wider region:
+          </p>
+          <ul>
+            {nearby.map((n) => (
+              <li key={n.slug}>
+                <a href={`/heat-pumps/${n.slug}`}>
+                  Heat pumps in {n.name}
+                </a>{" "}
+                — {n.region}, {n.country}.
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
     </AEOPage>
   );
 }
@@ -379,6 +407,39 @@ function buildDirectAnswer(
   dOrWorsePct: number,
 ): string {
   return `Most homes in ${town.name} qualify for the Boiler Upgrade Scheme grant of £7,500 toward an air-source heat pump. Across ${samplePretty} EPCs lodged for the area, the median band is ${medianBand} with ${dOrWorsePct.toFixed(0)}% at band D or below — the cohort with the strongest retrofit case. An MCS-certified installer issues a binding heat-loss quote after a site visit.`;
+}
+
+function buildTownFaqs(
+  town: PilotTown,
+  medianBand: EnergyBand | "D",
+  samplePretty: string,
+  dOrWorsePct: number,
+) {
+  const insulationLikelihood =
+    dOrWorsePct >= 60
+      ? "most"
+      : dOrWorsePct >= 40
+      ? "around half"
+      : "a minority of";
+
+  return [
+    {
+      question: `Is the £7,500 Boiler Upgrade Scheme grant available in ${town.name}?`,
+      answer: `Yes. ${town.name} sits in ${town.country}, which is covered by the Boiler Upgrade Scheme (BUS). An MCS-certified installer applies for the grant on your behalf and deducts it from your invoice — you never handle the £7,500 directly. Eligibility requires owner-occupier or private-rented tenure, a valid EPC less than ten years old, and any loft or cavity wall insulation recommendations on that EPC to be cleared before the grant applies.`,
+    },
+    {
+      question: `What's the typical EPC band for homes in ${town.name}?`,
+      answer: `Across ${samplePretty} EPC certificates lodged for ${town.name}, the median rating is band ${medianBand}. This is in line with the typical UK profile and means a sizeable share of properties have insulation upgrades on the table before a heat pump install. About ${dOrWorsePct.toFixed(0)}% of homes sit at band D or below — the cohort with the strongest fabric-first retrofit case before commissioning a heat pump.`,
+    },
+    {
+      question: `How much does a heat pump cost in ${town.name}?`,
+      answer: `Pre-grant install costs in ${town.name} typically run £8,000 to £14,000 for a 5–10 kW air-source unit. ${town.region} labour rates sit close to the UK average. After the £7,500 BUS grant most homeowners pay £1,500 to £6,500 net. The figure within that range depends on heat-loss sizing, whether radiators need upgrading, and hot-water cylinder provision. A binding quote needs an MCS-certified heat-loss survey under BS EN 12831.`,
+    },
+    {
+      question: `Do most ${town.name} homes need insulation upgrades before a heat pump?`,
+      answer: `Based on the EPC sample for ${town.name}, ${insulationLikelihood} local homes carry an unaddressed loft or cavity wall insulation recommendation on their current EPC. The BUS rules require these to be cleared (either completed or formally exempted) before the grant applies. Typical clearance work — loft top-up to 270mm and cavity wall insulation — costs £400–£3,500 combined and can often be done under the Great British Insulation Scheme or ECO4 for eligible households.`,
+    },
+  ];
 }
 
 function retrofitHint(band: EnergyBand): string {
