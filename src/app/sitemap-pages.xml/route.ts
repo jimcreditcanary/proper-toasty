@@ -112,6 +112,12 @@ export async function GET(): Promise<Response> {
       priority: 0.75,
     },
     {
+      loc: `${SITE_URL}/compare/hybrid-vs-full-heat-pump`,
+      lastmod: now,
+      changefreq: "monthly",
+      priority: 0.8,
+    },
+    {
       loc: `${SITE_URL}/compare/solar-vs-no-solar`,
       lastmod: now,
       changefreq: "monthly",
