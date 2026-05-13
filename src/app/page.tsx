@@ -239,6 +239,54 @@ export default function Home() {
         </ul>
       </section>
 
+      {/* Compare options — internal-link surface for /compare.
+          Sits between the "What you get" feature grid and the CTA.
+          Three highest-value comparisons surfaced directly + a
+          "see all" link to the hub. Without this section, every
+          /compare/* page was orphaned from a PageRank standpoint —
+          discoverable only via sitemap. */}
+      <section className="border-y border-[var(--border)] bg-cream-deep">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 py-20">
+          <div className="max-w-xl">
+            <p className="eyebrow">Compare your options</p>
+            <h2 className="mt-3 text-3xl sm:text-4xl text-navy">
+              Not sure which switch makes sense for your home?
+            </h2>
+            <p className="mt-4 text-slate-600">
+              We&rsquo;ve worked through the 2026 UK numbers for the
+              most common switching decisions. Read the one that
+              matches your current setup.
+            </p>
+          </div>
+          <ul className="mt-10 grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <CompareCard
+              audience="Most UK homes"
+              title="Heat pump vs gas boiler"
+              href="/compare/heat-pump-vs-gas-boiler"
+            />
+            <CompareCard
+              audience="~1.1M oil-heated homes"
+              title="Heat pump vs oil boiler"
+              href="/compare/heat-pump-vs-oil-boiler"
+            />
+            <CompareCard
+              audience="Considering solar PV"
+              title="Solar panels vs no solar"
+              href="/compare/solar-vs-no-solar"
+            />
+          </ul>
+          <div className="mt-8">
+            <Link
+              href="/compare"
+              className="inline-flex items-center gap-1.5 text-sm font-semibold text-coral hover:text-coral-dark transition-colors"
+            >
+              See all comparisons
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
+        </div>
+      </section>
+
       {/* CTA */}
       <section className="mx-auto max-w-6xl px-4 sm:px-6 pb-24">
         <div className="rounded-3xl bg-coral text-cream p-10 sm:p-14 text-center relative overflow-hidden">
@@ -344,6 +392,36 @@ function Feature({
         <p className="font-semibold text-navy">{title}</p>
         <p className="mt-1 text-sm text-[var(--muted-brand)] leading-relaxed">{body}</p>
       </div>
+    </li>
+  );
+}
+
+function CompareCard({
+  audience,
+  title,
+  href,
+}: {
+  audience: string;
+  title: string;
+  href: string;
+}) {
+  return (
+    <li>
+      <Link
+        href={href}
+        className="group block h-full rounded-2xl border border-[var(--border)] bg-white p-5 shadow-sm transition-colors hover:border-coral hover:shadow-md"
+      >
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-coral">
+          {audience}
+        </p>
+        <p className="mt-2 text-base font-semibold text-navy leading-snug">
+          {title}
+        </p>
+        <span className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-coral group-hover:gap-2 transition-all">
+          Read it
+          <ArrowRight className="w-3.5 h-3.5" />
+        </span>
+      </Link>
     </li>
   );
 }
