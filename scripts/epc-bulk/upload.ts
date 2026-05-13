@@ -35,6 +35,7 @@ const VALID_SCOPES = [
   "local_authority",
   "town",
   "archetype",
+  "postcode_district",
 ] as const;
 type Scope = (typeof VALID_SCOPES)[number];
 
@@ -103,6 +104,7 @@ interface AggregateOutput {
   property_type_distribution: Record<string, number>;
   construction_age_distribution: Record<string, number>;
   built_form_distribution: Record<string, number>;
+  dominant_posttown: string | null;
   earliest_lodgement: string | null;
   latest_lodgement: string | null;
 }
@@ -401,6 +403,145 @@ async function uploadArchetypes(
   return stats;
 }
 
+async function uploadPostcodeDistricts(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  admin: any,
+  pcdAggs: AggregateOutput[],
+  dryRun: boolean,
+  minSampleSize: number,
+  sourceDumpDate: string,
+): Promise<ScopeStats> {
+  const stats: ScopeStats = {
+    scope: "postcode_district",
+    attempted: 0,
+    written: 0,
+    noindex: 0,
+    skipped: 0,
+    errors: 0,
+  };
+
+  for (const agg of pcdAggs) {
+    stats.attempted += 1;
+    if (!agg.scope_key) {
+      stats.skipped += 1;
+      continue;
+    }
+    // postcode district is always uppercase (e.g. "S1", "M14").
+    // scope_key is the slug "pc-s1" (lowercase) — lets URLs stay lowercase.
+    const slug = `pc-${agg.scope_key.toLowerCase()}`;
+    const indexed = agg.sample_size >= minSampleSize;
+    if (!indexed) stats.noindex += 1;
+
+    const posttown = agg.dominant_posttown
+      ? toTitleCase(agg.dominant_posttown)
+      : null;
+    const displayName = posttown
+      ? `${agg.scope_key.toUpperCase()} (${posttown})`
+      : `${agg.scope_key.toUpperCase()} postcode area`;
+
+    const country = inferPostcodeCountry(agg.scope_key);
+    if (!country) {
+      // Postcode districts in NI / Channel Islands / overseas: drop.
+      stats.skipped += 1;
+      continue;
+    }
+
+    const row = {
+      scope: "postcode_district",
+      scope_key: slug,
+      display_name: displayName,
+      country,
+      region: agg.region,
+      county: null,
+      lat: null,
+      lng: null,
+      data: toDbPayload(agg),
+      sample_size: agg.sample_size,
+      indexed,
+      index_reason: indexed
+        ? null
+        : `sample_size=${agg.sample_size} below ${minSampleSize} minimum`,
+      refreshed_at: new Date().toISOString(),
+      source_dump_date: sourceDumpDate,
+    };
+
+    if (dryRun) {
+      stats.written += 1;
+      continue;
+    }
+    try {
+      await upsertOne(admin, row);
+      stats.written += 1;
+    } catch (err) {
+      stats.errors += 1;
+      console.warn(
+        `[upload] postcode_district ${slug} FAILED: ${err instanceof Error ? err.message : err}`,
+      );
+    }
+  }
+
+  return stats;
+}
+
+function toTitleCase(s: string): string {
+  return s
+    .toLowerCase()
+    .split(/\s+/)
+    .map((w) => (w.length > 0 ? w[0].toUpperCase() + w.slice(1) : w))
+    .join(" ");
+}
+
+// Best-effort country inference from the postcode district prefix.
+// England & Wales prefixes are most of the alphabet; Scotland uses
+// AB, DD, DG, EH, FK, G, HS, IV, KA, KW, KY, ML, PA, PH, TD, ZE;
+// Northern Ireland is BT. The EPC bulk dump only covers England + Wales
+// + Scotland (NI uses a separate scheme), so BT prefixes shouldn't
+// appear — but we filter defensively.
+function inferPostcodeCountry(
+  district: string,
+): "England" | "Wales" | "Scotland" | "Northern Ireland" | null {
+  const d = district.toUpperCase();
+  const scottishPrefixes = [
+    "AB",
+    "DD",
+    "DG",
+    "EH",
+    "FK",
+    "G",
+    "HS",
+    "IV",
+    "KA",
+    "KW",
+    "KY",
+    "ML",
+    "PA",
+    "PH",
+    "TD",
+    "ZE",
+  ];
+  const welshPrefixes = ["CF", "LD", "LL", "NP", "SA", "SY"];
+  if (d.startsWith("BT")) return "Northern Ireland";
+  for (const p of scottishPrefixes) {
+    if (
+      d.startsWith(p) &&
+      (d.length === p.length || /^\d/.test(d.charAt(p.length)))
+    ) {
+      return "Scotland";
+    }
+  }
+  for (const p of welshPrefixes) {
+    if (
+      d.startsWith(p) &&
+      (d.length === p.length || /^\d/.test(d.charAt(p.length)))
+    ) {
+      return "Wales";
+    }
+  }
+  // Default — assume England. The bulk EPC dump is E&W-only so this
+  // is correct for the residual ~80% of districts.
+  return "England";
+}
+
 function prettyArchetypeName(slug: string): string {
   // "mid-terrace-house--interwar-1930s" → "Mid-terrace 1930s house"
   const [type, era] = slug.split("--");
@@ -420,6 +561,7 @@ async function main(): Promise<void> {
 
   const ladPath = path.join(inDir, "lad-aggregates.json");
   const archPath = path.join(inDir, "archetype-aggregates.json");
+  const pcdPath = path.join(inDir, "postcode-district-aggregates.json");
   const metaPath = path.join(inDir, "meta.json");
 
   if (!fs.existsSync(ladPath)) {
@@ -432,6 +574,9 @@ async function main(): Promise<void> {
   const archAggs = fs.existsSync(archPath)
     ? (JSON.parse(fs.readFileSync(archPath, "utf-8")) as AggregateOutput[])
     : [];
+  const pcdAggs = fs.existsSync(pcdPath)
+    ? (JSON.parse(fs.readFileSync(pcdPath, "utf-8")) as AggregateOutput[])
+    : [];
   const meta = fs.existsSync(metaPath)
     ? (JSON.parse(fs.readFileSync(metaPath, "utf-8")) as Record<string, unknown>)
     : {};
@@ -443,6 +588,7 @@ async function main(): Promise<void> {
   console.log(`[epc-bulk] Source dump: ${sourceDumpDate}`);
   console.log(`[epc-bulk] LAD aggregates: ${laAggs.length}`);
   console.log(`[epc-bulk] Archetype aggregates: ${archAggs.length}`);
+  console.log(`[epc-bulk] Postcode-district aggregates: ${pcdAggs.length}`);
   console.log(`[epc-bulk] Scopes to upload: ${scopes.join(", ")}`);
   console.log(`[epc-bulk] Min sample size for indexed: ${minSampleSize}`);
   console.log(`[epc-bulk] Dry run: ${dryRun}`);
@@ -477,6 +623,19 @@ async function main(): Promise<void> {
       await uploadArchetypes(
         admin,
         archAggs,
+        dryRun,
+        minSampleSize,
+        sourceDumpDate,
+      ),
+    );
+  }
+
+  if (scopes.includes("postcode_district")) {
+    console.log("[upload] Upserting postcode_district rows...");
+    results.push(
+      await uploadPostcodeDistricts(
+        admin,
+        pcdAggs,
         dryRun,
         minSampleSize,
         sourceDumpDate,

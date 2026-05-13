@@ -88,6 +88,8 @@ interface CertSummary {
   lad_label: string | null;
   country: string | null;
   region: string | null;
+  postcode_district: string | null;
+  posttown: string | null;
   lodgement_date: string | null;
 }
 
@@ -118,6 +120,12 @@ function rowToCert(row: Row): CertSummary | null {
         ? false
         : null;
 
+  // Postcode district = part before the space, uppercase.
+  // "S1 1AB" -> "S1", "M14 5GH" -> "M14", "GIR 0AA" -> "GIR".
+  const pcRaw = row.postcode?.trim().toUpperCase() ?? "";
+  const pcdMatch = pcRaw.match(/^[A-Z]{1,2}\d[A-Z\d]?/);
+  const postcode_district = pcdMatch ? pcdMatch[0] : null;
+
   return {
     uprn,
     band: validBand,
@@ -132,6 +140,8 @@ function rowToCert(row: Row): CertSummary | null {
     lad_label: row.local_authority_label?.trim() || null,
     country: row.country?.trim() || null,
     region: row.region?.trim() || null,
+    postcode_district,
+    posttown: row.posttown?.trim() || null,
     lodgement_date: row.lodgement_date?.trim() || null,
   };
 }
@@ -151,6 +161,9 @@ interface Accumulator {
   property_type_counts: Map<string, number>;
   age_band_counts: Map<string, number>;
   built_form_counts: Map<string, number>;
+  /** Per-postcode-district accumulator: dominant post_town for the
+   *  display name. Town accumulators leave this empty. */
+  posttown_counts: Map<string, number>;
   // Identity context — first non-empty wins
   display_name: string | null;
   country: string | null;
@@ -170,6 +183,7 @@ function newAccumulator(): Accumulator {
     property_type_counts: new Map(),
     age_band_counts: new Map(),
     built_form_counts: new Map(),
+    posttown_counts: new Map(),
     display_name: null,
     country: null,
     region: null,
@@ -220,6 +234,12 @@ function accumulate(acc: Accumulator, cert: CertSummary): void {
     acc.built_form_counts.set(
       cert.built_form,
       (acc.built_form_counts.get(cert.built_form) ?? 0) + 1,
+    );
+  }
+  if (cert.posttown) {
+    acc.posttown_counts.set(
+      cert.posttown,
+      (acc.posttown_counts.get(cert.posttown) ?? 0) + 1,
     );
   }
   if (!acc.country && cert.country) acc.country = cert.country;
@@ -312,6 +332,10 @@ interface AggregateOutput {
   property_type_distribution: Record<string, number>;
   construction_age_distribution: Record<string, number>;
   built_form_distribution: Record<string, number>;
+  /** Most-common post-town in the accumulator. Used for the
+   *  postcode-district display name ("S1 (Sheffield)"). Empty for
+   *  town / LAD / archetype scopes — they have their own name. */
+  dominant_posttown: string | null;
   earliest_lodgement: string | null;
   latest_lodgement: string | null;
 }
@@ -348,6 +372,12 @@ function finalise(acc: Accumulator, scopeKey: string): AggregateOutput {
       acc.sample_size,
     ),
     built_form_distribution: topMix(acc.built_form_counts, acc.sample_size),
+    dominant_posttown:
+      acc.posttown_counts.size > 0
+        ? [...acc.posttown_counts.entries()].sort(
+            (a, b) => b[1] - a[1],
+          )[0][0]
+        : null,
     earliest_lodgement: acc.earliest_lodgement,
     latest_lodgement: acc.latest_lodgement,
   };
@@ -470,6 +500,7 @@ async function processYear(
   seenUprns: ShardedUprnSet,
   ladAccs: Map<string, Accumulator>,
   archAccs: Map<string, Accumulator>,
+  pcdAccs: Map<string, Accumulator>,
 ): Promise<YearRunStats> {
   const member = `certificates-${year}.csv`;
   const started = Date.now();
@@ -535,6 +566,16 @@ async function processYear(
         }
         accumulate(acc, cert);
       }
+
+      // Postcode-district accumulator
+      if (cert.postcode_district) {
+        let acc = pcdAccs.get(cert.postcode_district);
+        if (!acc) {
+          acc = newAccumulator();
+          pcdAccs.set(cert.postcode_district, acc);
+        }
+        accumulate(acc, cert);
+      }
     }
 
     // Progress every ~3s.
@@ -578,6 +619,7 @@ async function main(): Promise<void> {
   const seenUprns = new ShardedUprnSet(32);
   const ladAccs = new Map<string, Accumulator>();
   const archAccs = new Map<string, Accumulator>();
+  const pcdAccs = new Map<string, Accumulator>();
   const startedAt = Date.now();
   const yearStats: Array<{ year: number; stats: YearRunStats }> = [];
 
@@ -590,6 +632,7 @@ async function main(): Promise<void> {
         seenUprns,
         ladAccs,
         archAccs,
+        pcdAccs,
       );
       yearStats.push({ year, stats });
       console.log(
@@ -604,6 +647,7 @@ async function main(): Promise<void> {
   console.log(`[epc-bulk] Total unique properties: ${seenUprns.size.toLocaleString()}`);
   console.log(`[epc-bulk] LAD aggregates: ${ladAccs.size}`);
   console.log(`[epc-bulk] Archetype aggregates: ${archAccs.size}`);
+  console.log(`[epc-bulk] Postcode-district aggregates: ${pcdAccs.size}`);
   console.log("");
   console.log("[epc-bulk] Finalising + writing JSON...");
 
@@ -619,8 +663,15 @@ async function main(): Promise<void> {
   }
   archOut.sort((a, b) => b.sample_size - a.sample_size);
 
+  const pcdOut: AggregateOutput[] = [];
+  for (const [key, acc] of pcdAccs.entries()) {
+    pcdOut.push(finalise(acc, key));
+  }
+  pcdOut.sort((a, b) => b.sample_size - a.sample_size);
+
   const ladPath = path.join(outDir, "lad-aggregates.json");
   const archPath = path.join(outDir, "archetype-aggregates.json");
+  const pcdPath = path.join(outDir, "postcode-district-aggregates.json");
   const metaPath = path.join(outDir, "meta.json");
 
   fs.writeFileSync(
@@ -631,6 +682,11 @@ async function main(): Promise<void> {
   fs.writeFileSync(
     archPath,
     JSON.stringify(archOut, null, 2),
+    "utf-8",
+  );
+  fs.writeFileSync(
+    pcdPath,
+    JSON.stringify(pcdOut, null, 2),
     "utf-8",
   );
   fs.writeFileSync(
@@ -648,6 +704,7 @@ async function main(): Promise<void> {
         ),
         lad_count: ladOut.length,
         archetype_count: archOut.length,
+        pcd_count: pcdOut.length,
         elapsed_seconds: Math.round((Date.now() - startedAt) / 1000),
         per_year: yearStats.map((y) => ({
           year: y.year,
@@ -665,6 +722,7 @@ async function main(): Promise<void> {
   console.log("");
   console.log(`[epc-bulk] Wrote ${ladPath}`);
   console.log(`[epc-bulk] Wrote ${archPath}`);
+  console.log(`[epc-bulk] Wrote ${pcdPath}`);
   console.log(`[epc-bulk] Wrote ${metaPath}`);
   console.log("");
   console.log(`[epc-bulk] Done. Total elapsed: ${Math.round((Date.now() - startedAt) / 60000)} min`);

@@ -20,6 +20,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import {
   loadIndexedTownAggregates,
   loadIndexedLAAggregates,
+  loadIndexedPostcodeDistrictAggregates,
 } from "@/lib/programmatic/town-aggregates";
 import { PILOT_TOWNS } from "@/lib/programmatic/towns";
 import { PILOT_ARCHETYPES } from "@/lib/programmatic/archetypes";
@@ -88,6 +89,25 @@ async function loadTownEntries(): Promise<SitemapUrlEntry[]> {
         lastmod: r.refreshed_at,
         changefreq: "monthly",
         priority: 0.55,
+      });
+    }
+
+    // Postcode-district pages — most granular geographic surface.
+    // Priority slightly lower than LAs because the data is thinner
+    // per page; the sheer page count compensates.
+    const pcdRows = await loadIndexedPostcodeDistrictAggregates(admin);
+    for (const r of pcdRows) {
+      entries.push({
+        loc: `${SITE_URL}/heat-pumps/${r.scope_key}`,
+        lastmod: r.refreshed_at,
+        changefreq: "monthly",
+        priority: 0.5,
+      });
+      entries.push({
+        loc: `${SITE_URL}/solar-panels/${r.scope_key}`,
+        lastmod: r.refreshed_at,
+        changefreq: "monthly",
+        priority: 0.5,
       });
     }
     return entries;
