@@ -287,29 +287,33 @@ export default function Home() {
         </div>
       </section>
 
-      {/* CTA */}
-      <section className="mx-auto max-w-6xl px-4 sm:px-6 pb-24">
-        <div className="rounded-3xl bg-coral text-cream p-10 sm:p-14 text-center relative overflow-hidden">
-          <div className="absolute inset-0 opacity-20 pointer-events-none" aria-hidden>
-            <div className="absolute -top-20 -right-20 w-80 h-80 rounded-full bg-terracotta blur-3xl" />
-            <div className="absolute -bottom-20 -left-20 w-80 h-80 rounded-full bg-[var(--sage)] blur-3xl" />
-          </div>
-          <div className="relative">
-            <h2 className="text-3xl sm:text-4xl">Ready for a warmer home?</h2>
-            <p className="mt-4 text-cream/80 max-w-xl mx-auto">
-              Your first check is free. Five minutes, no jargon, a report you can actually use.
-            </p>
-            <Link
-              href="/check"
-              className="mt-8 inline-flex items-center gap-2 h-12 px-7 rounded-full bg-cream text-coral-dark hover:bg-cream-deep font-semibold transition-colors"
-            >
-              Check my home
-              <ArrowRight className="w-4 h-4" />
-            </Link>
-            <p className="mt-5 text-xs text-cream/60">
-              England &amp; Wales only for now — Scotland and Northern Ireland coming soon.
-            </p>
-          </div>
+      {/* CTA — full-width green band.
+          Previously a centered rounded card sat on the page's
+          cream background, which left a visible cream strip
+          between the "Compare your options" section and the
+          card. Going full-width matches the rhythm of the other
+          section bands (focused-CTAs / how-it-works / compare)
+          and removes the gap. */}
+      <section className="bg-coral text-cream relative overflow-hidden">
+        <div className="absolute inset-0 opacity-20 pointer-events-none" aria-hidden>
+          <div className="absolute -top-20 -right-20 w-80 h-80 rounded-full bg-terracotta blur-3xl" />
+          <div className="absolute -bottom-20 -left-20 w-80 h-80 rounded-full bg-[var(--sage)] blur-3xl" />
+        </div>
+        <div className="relative mx-auto max-w-3xl px-4 sm:px-6 py-20 sm:py-24 text-center">
+          <h2 className="text-3xl sm:text-4xl">Ready for a warmer home?</h2>
+          <p className="mt-4 text-cream/80 max-w-xl mx-auto">
+            Your first check is free. Five minutes, no jargon, a report you can actually use.
+          </p>
+          <Link
+            href="/check"
+            className="mt-8 inline-flex items-center gap-2 h-12 px-7 rounded-full bg-cream text-coral-dark hover:bg-cream-deep font-semibold transition-colors"
+          >
+            Check my home
+            <ArrowRight className="w-4 h-4" />
+          </Link>
+          <p className="mt-5 text-xs text-cream/60">
+            England &amp; Wales only for now — Scotland and Northern Ireland coming soon.
+          </p>
         </div>
       </section>
 
