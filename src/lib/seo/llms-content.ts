@@ -351,6 +351,26 @@ UK installer footprint: Mitsubishi has the longer-established heat-pump-primary 
 Practical pick depends on installer preference + familiarity in your area, refrigerant choice (R290 lowest long-term GWP; R32 broader service-tech pool), and indoor space constraints (Vaillant's integrated uniTOWER saves cylinder-room floor area).`,
   },
   {
+    url: `${SITE_URL}/compare/underfloor-heating-vs-radiators-for-heat-pumps`,
+    title: "Underfloor heating vs radiators for heat pumps (2026)",
+    summary:
+      "Install-time emitter decision. UFH delivers higher SCOP but costs much more to retrofit; upgraded radiators are usually the cheaper, faster path.",
+    section: "Comparisons",
+    content: `Heat pumps work efficiently with both wet underfloor heating (UFH) and properly-sized radiators. UFH delivers a slightly higher seasonal efficiency (SCOP 4.5–5.0 vs 3.8–4.5 on rads) because it runs at lower flow temperatures (35–40°C vs 45–55°C); the physics is unavoidable, smaller temperature lift = better compressor efficiency.
+
+The cost story is the trade-off. Radiator upgrades on a typical UK 3-bed semi run £1,500–£5,500 with 1–3 days of disruption. Full wet UFH retrofit costs £6,000–£15,000 with 1–3 weeks of disruption per area (floor lift, insulation, screed, re-floor). Low-profile retrofit UFH (15–25mm panels over existing floors) lands at £4,000–£10,000 with less disruption but reduced thermal mass.
+
+The £4,500+ cost premium for UFH needs ~£300–£700/year of saving to pay back over 20 years; the SCOP advantage delivers £80–£200/year. So UFH retrofit doesn't pay back on running cost alone — it pays back on comfort and resale.
+
+When UFH is the right call: new builds, major renovations where floors are coming up anyway, solid-floor properties that need insulation work regardless, comfort-priority owner-occupiers.
+
+When upgraded radiators are the right call: most existing-home retrofits, older properties with sensitive flooring (parquet, listed, original tile), phased retrofitters spreading cost room-by-room.
+
+Hybrid approach (UFH on ground floor, upgraded radiators upstairs) lands at £4,500–£10,000 and captures most of UFH's SCOP advantage — often the best practical middle ground for retrofitters with budget headroom for partial UFH.
+
+BUS grant £7,500 applies regardless of emitter choice; the grant covers the heat pump unit + standard install. UFH and rad upgrades sit on top of the grant scope.`,
+  },
+  {
     url: `${SITE_URL}/blog`,
     title: "Guides + blog",
     summary:

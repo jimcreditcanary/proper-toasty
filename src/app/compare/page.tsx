@@ -129,6 +129,13 @@ const COMPARISONS: ComparisonEntry[] = [
       "Top-3 UK brand comparison. R290 propane vs R32 refrigerant, sound-power gap (~3-4 dB(A) lower for Vaillant), installer-footprint differences.",
     audience: "Picking a heat pump brand",
   },
+  {
+    slug: "underfloor-heating-vs-radiators-for-heat-pumps",
+    title: "Underfloor heating vs radiators (heat pumps)",
+    summary:
+      "Install-time decision: UFH (£6-£15k retrofit) vs upgraded radiators (£1.5-£5.5k). SCOP advantage to UFH but rarely pays back on running cost alone.",
+    audience: "Spec'ing your heat pump install",
+  },
 ];
 
 export default function ComparePage() {
