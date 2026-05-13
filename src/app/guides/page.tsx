@@ -60,6 +60,20 @@ const GUIDES: GuideEntry[] = [
       "Which insulation measures matter before a heat pump install, ranked by ROI for heat-pump readiness. UK 2026 costs, grants, and the right order.",
     audience: "Insulation + retrofit planning",
   },
+  {
+    slug: "hot-water-planning-heat-pump",
+    title: "Hot water planning for a heat pump install",
+    summary:
+      "Cylinder sizing, immersion strategy, cycling vs continuous, the weekly Legionella cycle — the hot-water side of a UK heat-pump install.",
+    audience: "Cylinder + hot-water planning",
+  },
+  {
+    slug: "heat-pump-smart-tariff-setup",
+    title: "Setting up a heat pump smart tariff",
+    summary:
+      "Schedule, weather compensation, app integration — how to actually run a heat pump on a UK smart tariff for lowest running cost.",
+    audience: "Post-install optimisation",
+  },
 ];
 
 export default function GuidesPage() {
@@ -79,11 +93,10 @@ export default function GuidesPage() {
       ]}
       directAnswer="These guides walk through the practical steps of a UK heat-pump install in 2026 — how the £7,500 BUS grant application flows, what happens during an MCS-certified installer's site visit, and what to look out for at each stage. Written for homeowners considering or about to commission an install."
       tldr={[
-        "Two production guides covering BUS application + MCS site visits.",
+        "Five production guides covering BUS application, MCS site visits, fabric-first retrofit, hot-water planning, and smart-tariff setup.",
         "Every guide uses 2026 UK numbers and current Ofgem / MCS rules.",
-        "Aimed at homeowners 1–3 months from commissioning an install.",
+        "Aimed at homeowners 1–3 months from commissioning an install (or freshly commissioned).",
         "Pair these with the comparison pages at /compare for technology decisions.",
-        "More guides coming — fabric-first retrofit, hot-water planning, smart-tariff configuration.",
       ]}
       sources={[
         {
@@ -146,20 +159,13 @@ export default function GuidesPage() {
         those decisions side by side.
       </p>
 
-      <h2>What&rsquo;s coming next</h2>
+      <h2>More guides</h2>
       <p>
-        Two guides scheduled for the next batch:
+        More homeowner guides land here as we write them. If
+        there&rsquo;s a specific stage of the heat-pump or solar
+        install process you&rsquo;d like covered, let us know
+        via the contact link.
       </p>
-      <ul>
-        <li>
-          <strong>Hot-water planning for a heat-pump install</strong> — cylinder
-          sizing, immersion strategy, cycling vs continuous.
-        </li>
-        <li>
-          <strong>Setting up a heat-pump smart tariff</strong> — schedule
-          configuration, weather compensation, app integration.
-        </li>
-      </ul>
     </AEOPage>
   );
 }
