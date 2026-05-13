@@ -88,6 +88,13 @@ const COMPARISONS: ComparisonEntry[] = [
     audience: "Choosing your heat pump type",
   },
   {
+    slug: "hybrid-vs-full-heat-pump",
+    title: "Hybrid vs full heat pump",
+    summary:
+      "BUS grant excludes hybrid installs since 2023. Full heat pump usually wins on cost, carbon, and complexity — narrow niche for hybrids remains.",
+    audience: "Hybrid quote? Read this first",
+  },
+  {
     slug: "solar-vs-no-solar",
     title: "Solar panels vs no solar",
     summary:

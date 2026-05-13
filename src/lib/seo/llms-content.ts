@@ -267,6 +267,20 @@ Air-source suits roughly 95% of UK homes — faster install (2–3 days vs 1–3
 Efficiency favours ground-source (SCOP 4–5.5 vs 3–4.5), but the £10,000+ upfront cost difference means ground-source rarely pays back on running-cost savings alone — it pays back on comfort, lifespan, and house resale.`,
   },
   {
+    url: `${SITE_URL}/compare/hybrid-vs-full-heat-pump`,
+    title: "Hybrid vs full heat pump (2026)",
+    summary:
+      "Hybrid systems combine a heat pump with a gas/oil boiler. BUS grant excluded hybrids since May 2023 — full heat pump usually wins on cost, carbon, and complexity.",
+    section: "Comparisons",
+    content: `The Boiler Upgrade Scheme stopped funding hybrid heat pump installs in May 2023 to focus the £7,500 grant on full fossil-fuel-replacement pathways. The economic case for hybrids shifted decisively as a result: a full heat pump now gets £7,500 off upfront cost, while a hybrid install gets nothing from BUS.
+
+For a 3-bed UK semi: full heat pump net cost £1,500–£6,500 (£8,000–£14,000 pre-grant minus £7,500); hybrid net cost £9,000–£15,000. Running cost difference is modest (£100–£200/yr in the hybrid's favour at most), nowhere near closing the £7,500+ upfront gap over the system's 15–20 year lifespan.
+
+Hybrids retain a narrow niche: very large old homes (200+ m², solid-wall, EPC band F/G) where peak heat demand exceeds any single residential heat pump's capacity, OR homeowners willing to forgo BUS for a phased transition. Both are minority cases; in most homes, fabric retrofit + full heat pump beats hybrid lifetime cost.
+
+Most pre-2023 UK advice that recommends hybrids as "best of both worlds" is now economically out of date.`,
+  },
+  {
     url: `${SITE_URL}/compare/solar-vs-no-solar`,
     title: "Solar panels vs no solar (2026)",
     summary:
