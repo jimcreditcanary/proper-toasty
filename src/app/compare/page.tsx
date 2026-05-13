@@ -164,6 +164,13 @@ const COMPARISONS: ComparisonEntry[] = [
       "Only air-to-water qualifies for the £7,500 BUS grant. Air-to-air is cheaper pre-grant but can't heat hot water — narrow niche only.",
     audience: "Heat pump type decision",
   },
+  {
+    slug: "new-build-vs-retrofit-heat-pump",
+    title: "New build vs retrofit heat pump",
+    summary:
+      "Future Homes Standard 2025 made heat pumps standard in English new builds. Retrofit gets the £7,500 BUS grant; new build doesn't (it's mandatory).",
+    audience: "Buying new vs upgrading existing",
+  },
 ];
 
 export default function ComparePage() {
