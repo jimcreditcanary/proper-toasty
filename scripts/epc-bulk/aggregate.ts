@@ -201,7 +201,7 @@ function accumulate(acc: Accumulator, cert: CertSummary): void {
   // we sample to a 200,000-value cap per aggregator to keep RAM in check.
   // 200k is plenty for stable p25/p50/p75 estimation.
   if (cert.floor_area != null && cert.floor_area > 0 && cert.floor_area < 2000) {
-    if (acc.floor_area_samples.length < 200_000) {
+    if (acc.floor_area_samples.length < 20_000) {
       acc.floor_area_samples.push(cert.floor_area);
     }
   }
@@ -210,7 +210,7 @@ function accumulate(acc: Accumulator, cert: CertSummary): void {
     cert.heating_cost > 0 &&
     cert.heating_cost < 20_000
   ) {
-    if (acc.heating_cost_samples.length < 200_000) {
+    if (acc.heating_cost_samples.length < 20_000) {
       acc.heating_cost_samples.push(cert.heating_cost);
     }
   }
