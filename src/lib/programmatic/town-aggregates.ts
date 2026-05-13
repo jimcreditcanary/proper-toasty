@@ -53,14 +53,23 @@ export interface TownAggregateData {
   // ─── Bulk-dump-only fields (populated by Phase 2b) ───────────
   /** Median total floor area in m². Null until bulk-dump ingest. */
   median_floor_area_m2?: number | null;
+  /** 25th percentile floor area in m². */
+  floor_area_p25_m2?: number | null;
+  /** 75th percentile floor area in m². */
+  floor_area_p75_m2?: number | null;
   /** Property type mix — keys like "Flat", "Mid-terrace house". */
   property_type_distribution?: Record<string, number>;
   /** Construction age band mix — keys like "1930-1949", "Pre 1900". */
   construction_age_distribution?: Record<string, number>;
+  /** Built-form mix — keys like "Detached", "Mid-Terrace", "Semi-Detached". */
+  built_form_distribution?: Record<string, number>;
   /** % of properties with mains gas connection. */
   mains_gas_pct?: number | null;
   /** Median current heating cost, £/yr. */
   median_heating_cost_current_gbp?: number | null;
+  /** 25th / 75th percentile current heating cost, £/yr. */
+  heating_cost_p25_gbp?: number | null;
+  heating_cost_p75_gbp?: number | null;
   /** Median heating cost after recommended improvements, £/yr. */
   median_heating_cost_potential_gbp?: number | null;
 }

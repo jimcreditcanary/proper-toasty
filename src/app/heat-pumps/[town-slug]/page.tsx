@@ -304,6 +304,118 @@ function TownPageWithData({
         footnote={`Source: GOV.UK EPC Register. Sample collected ${row.refreshed_at.slice(0, 10)}.`}
       />
 
+      {(data.median_floor_area_m2 != null ||
+        data.median_heating_cost_current_gbp != null ||
+        data.mains_gas_pct != null ||
+        (data.built_form_distribution &&
+          Object.keys(data.built_form_distribution).length > 0)) && (
+        <>
+          <h2>The typical {town.name} home</h2>
+          <p>
+            What the EPC data shows beyond the headline rating —
+            useful context for sizing a heat-pump install.
+          </p>
+          <ul>
+            {data.median_floor_area_m2 != null && (
+              <li>
+                <strong>Floor area:</strong> median{" "}
+                {Math.round(data.median_floor_area_m2)} m²
+                {data.floor_area_p25_m2 != null &&
+                  data.floor_area_p75_m2 != null && (
+                    <>
+                      {" "}
+                      (25th–75th percentile:{" "}
+                      {Math.round(data.floor_area_p25_m2)}–
+                      {Math.round(data.floor_area_p75_m2)} m²)
+                    </>
+                  )}
+                . Heat-pump sizing scales roughly with floor area —
+                expect a 5–8 kW unit at the median.
+              </li>
+            )}
+            {data.median_heating_cost_current_gbp != null && (
+              <li>
+                <strong>Current heating cost:</strong> median £
+                {Math.round(data.median_heating_cost_current_gbp).toLocaleString("en-GB")}/yr
+                {data.heating_cost_p25_gbp != null &&
+                  data.heating_cost_p75_gbp != null && (
+                    <>
+                      {" "}
+                      (£{Math.round(data.heating_cost_p25_gbp).toLocaleString("en-GB")}–
+                      £{Math.round(data.heating_cost_p75_gbp).toLocaleString("en-GB")} typical range)
+                    </>
+                  )}
+                . The number an installer&rsquo;s running-cost saving
+                projection sits against.
+              </li>
+            )}
+            {data.mains_gas_pct != null && (
+              <li>
+                <strong>Mains gas connection:</strong>{" "}
+                {data.mains_gas_pct.toFixed(0)}% of properties.
+                {data.mains_gas_pct >= 80 ? (
+                  <>
+                    {" "}
+                    Most homes are replacing a working gas boiler — the
+                    payback case depends heavily on tariff choice + smart
+                    scheduling.
+                  </>
+                ) : data.mains_gas_pct >= 50 ? (
+                  <>
+                    {" "}
+                    Mixed grid: heat-pump payback runs much shorter for
+                    the off-grid minority (oil / LPG).
+                  </>
+                ) : (
+                  <>
+                    {" "}
+                    Predominantly off-grid — heat-pump running-cost case
+                    is unambiguous vs oil and LPG.
+                  </>
+                )}
+              </li>
+            )}
+            {data.built_form_distribution &&
+              Object.keys(data.built_form_distribution).length > 0 && (
+                <li>
+                  <strong>Property type mix:</strong>{" "}
+                  {Object.entries(data.built_form_distribution)
+                    .filter(
+                      ([k]) =>
+                        k.toLowerCase() !== "not recorded" &&
+                        k.toLowerCase() !== "nodata!",
+                    )
+                    .slice(0, 4)
+                    .map(
+                      ([form, pct]) =>
+                        `${form} ${(pct as number).toFixed(0)}%`,
+                    )
+                    .join(", ")}
+                  .
+                </li>
+              )}
+            {data.construction_age_distribution &&
+              Object.keys(data.construction_age_distribution).length > 0 && (
+                <li>
+                  <strong>Dominant age band:</strong>{" "}
+                  {
+                    Object.entries(data.construction_age_distribution).sort(
+                      (a, b) => (b[1] as number) - (a[1] as number),
+                    )[0][0]
+                  }{" "}
+                  ({(
+                    Object.entries(data.construction_age_distribution).sort(
+                      (a, b) => (b[1] as number) - (a[1] as number),
+                    )[0][1] as number
+                  ).toFixed(0)}%
+                  of homes). Sets the fabric-first work expected before
+                  commissioning.
+                </li>
+              )}
+          </ul>
+        </>
+      )}
+
       <h2>Does the Boiler Upgrade Scheme apply in {town.name}?</h2>
       <p>
         Yes. {town.name} is in {town.country}, where the Boiler Upgrade
