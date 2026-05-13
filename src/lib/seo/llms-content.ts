@@ -389,6 +389,22 @@ PV + cylinder diverter (~£200-£500 fitted) achieves solar-thermal-style hot-wa
 Solar thermal retains a niche for very-high-hot-water-demand households (large families, gym home use) or off-grid properties without grid-export option. Otherwise PV is the clear pick.`,
   },
   {
+    url: `${SITE_URL}/compare/samsung-vs-lg-heat-pump`,
+    title: "Samsung vs LG heat pump (2026)",
+    summary:
+      "Korean-brand pair, typically 5–10% below Daikin / Mitsubishi pricing. Spec comparison from published UK product data.",
+    section: "Comparisons",
+    content: `Samsung EHS Mono and LG Therma V are Korean-manufactured air-source heat pump ranges that have grown UK MCS install share notably since 2022. Both deliver BUS-grant-eligible installs across the 5–16 kW UK capacity range with similar SCOP (3.9–4.7 at W35), R32 refrigerant standard, and 5–7 year warranties.
+
+Position vs the top-3 (Daikin / Mitsubishi / Vaillant): Korean ranges price typically 5–10% lower on install for equivalent capacity. The trade-off is installer-network thickness — Samsung + LG MCS coverage is strong in major UK metros (London, Manchester, Birmingham, Glasgow, Edinburgh) and thins out in rural areas. Run an MCS installer search for your postcode + 30-mile radius before assuming Korean-brand options are available.
+
+Notable refrigerant divergence: LG launched an R290 (propane, GWP 3) Therma V variant in late 2024 — the only mainstream Korean-priced R290 option in 2026. Samsung's current UK range stays on R32 across the board.
+
+Smart-home integration: Samsung's SmartThings has the broadest third-party device ecosystem of any heat-pump brand. LG's ThinQ is similarly capable but with smaller third-party reach. If you already live in a SmartThings or ThinQ household, the brand-match makes controls integration cleaner.
+
+Practical decision usually comes down to: which Korean brand your local installer carries (most carry one not both), refrigerant preference (LG R290 if you want low-GWP at Korean pricing), and existing smart-home platform.`,
+  },
+  {
     url: `${SITE_URL}/blog`,
     title: "Guides + blog",
     summary:

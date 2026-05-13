@@ -143,6 +143,13 @@ const COMPARISONS: ComparisonEntry[] = [
       "Electricity vs hot water. PV almost always wins on 2026 UK economics — RHI closed 2022, PV prices fell, heat pumps + PV pair natively. Niche thermal use cases remain.",
     audience: "Solar buyers considering both",
   },
+  {
+    slug: "samsung-vs-lg-heat-pump",
+    title: "Samsung vs LG heat pump",
+    summary:
+      "Korean-brand pair, typically 5–10% below Daikin / Mitsubishi pricing. R32 across both; LG has an R290 variant from late 2024.",
+    audience: "Picking a heat pump brand",
+  },
 ];
 
 export default function ComparePage() {
