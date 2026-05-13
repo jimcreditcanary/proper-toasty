@@ -221,6 +221,31 @@ export default function AshpVsGshp() {
         for a standalone survey upfront unless the installer requires
         it.
       </p>
+
+      <h2>Related reading</h2>
+      <ul>
+        <li>
+          <a href="/guides/mcs-020-noise-rules-explained">
+            MCS 020 noise rules explained
+          </a>{" "}
+          — only applies to air-source units; the most common
+          reason a homeowner switches from ASHP to GSHP.
+        </li>
+        <li>
+          <a href="/guides/mcs-site-visit-what-to-expect">
+            MCS heat pump site visit: what to expect
+          </a>{" "}
+          — what installers measure during the 60–120 minute
+          survey for either system.
+        </li>
+        <li>
+          <a href="/guides/scop-cop-spf-explained">
+            SCOP, COP, SPF explained
+          </a>{" "}
+          — GSHPs typically out-perform ASHPs on SCOP, but the
+          numbers need comparing on like-for-like flow temp.
+        </li>
+      </ul>
     </AEOPage>
   );
 }

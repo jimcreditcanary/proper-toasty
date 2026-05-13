@@ -329,6 +329,31 @@ export default function SolarWithBatteryVsSolarAlone() {
         for most homes, 10 kWh only justifies the extra cost if
         you&rsquo;ve also got heat pump + EV evening load.
       </p>
+
+      <h2>Related reading</h2>
+      <ul>
+        <li>
+          <a href="/guides/heat-pump-smart-tariff-setup">
+            Setting up a heat pump smart tariff
+          </a>{" "}
+          — how to combine a battery + heat pump + smart tariff
+          for maximum cheap-rate arbitrage.
+        </li>
+        <li>
+          <a href="/compare/solar-pv-vs-solar-thermal">
+            Solar PV vs solar thermal
+          </a>{" "}
+          — if you also need hot-water heat, PV + heat pump
+          almost always beats a dedicated thermal system.
+        </li>
+        <li>
+          <a href="/compare/solar-vs-no-solar">
+            Solar vs no solar
+          </a>{" "}
+          — start here if you&rsquo;re not sure whether solar
+          itself makes sense for your roof and usage.
+        </li>
+      </ul>
     </AEOPage>
   );
 }
