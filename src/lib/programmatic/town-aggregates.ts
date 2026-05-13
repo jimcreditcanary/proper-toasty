@@ -318,6 +318,25 @@ export async function loadIndexedLAAggregates(
 }
 
 /**
+ * Load a single LA aggregate row by slug (e.g. "la-e08000025").
+ * Returns null when no row exists; the page route renders a 404.
+ */
+export async function loadLAAggregate(
+  admin: AdminClient,
+  slug: string,
+): Promise<TownAggregateRow | null> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (admin as any)
+    .from("epc_area_aggregates")
+    .select("*")
+    .eq("scope", "local_authority")
+    .eq("scope_key", slug)
+    .maybeSingle();
+  if (error || !data) return null;
+  return data as TownAggregateRow;
+}
+
+/**
  * Derive a stable LA slug from a council name. Lowercase, replace
  * non-alphanumerics with hyphens, collapse runs, trim hyphens.
  * "Kingston upon Hull, City of" → "kingston-upon-hull-city-of".

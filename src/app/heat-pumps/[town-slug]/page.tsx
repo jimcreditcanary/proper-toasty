@@ -22,13 +22,14 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getTownBySlug, allTownSlugs, getNearbyTowns, type PilotTown } from "@/lib/programmatic/towns";
+import { getTownBySlug, allTownSlugs, getNearbyTowns, PILOT_TOWNS, type PilotTown } from "@/lib/programmatic/towns";
 import {
   getArchetypeBySlug,
   allArchetypeSlugs,
 } from "@/lib/programmatic/archetypes";
 import {
   loadTownAggregate,
+  loadLAAggregate,
   ALL_BANDS,
   type TownAggregateRow,
   type EnergyBand,
@@ -53,9 +54,41 @@ export const revalidate = 3600;
 // based on which seed the slug matches. Slug collisions between the
 // two seeds MUST be avoided when adding new entries.
 export async function generateStaticParams() {
+  // Build-time enumeration of LA aggregate slugs we should render.
+  // Filter out LAs whose GSS code already maps to a PILOT_TOWN — those
+  // are covered by the curated town pages and shouldn't duplicate.
+  const pilotLaGss = new Set(
+    PILOT_TOWNS.map((t) => t.laGssCode.toUpperCase()),
+  );
+  let laSlugs: string[] = [];
+  try {
+    const admin = createAdminClient();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data } = await (admin as any)
+      .from("epc_area_aggregates")
+      .select("scope_key")
+      .eq("scope", "local_authority")
+      .eq("indexed", true);
+    laSlugs = ((data ?? []) as Array<{ scope_key: string }>)
+      .filter((r) => {
+        const gss = r.scope_key.replace(/^la-/i, "").toUpperCase();
+        return !pilotLaGss.has(gss);
+      })
+      .map((r) => r.scope_key);
+  } catch (err) {
+    // No DB at build time (preview without env) — skip LA pages
+    // rather than fail the whole build. Town + archetype routes
+    // still build.
+    console.warn(
+      "[heat-pumps] generateStaticParams: LA enum failed, skipping:",
+      err instanceof Error ? err.message : err,
+    );
+  }
+
   return [
     ...allTownSlugs().map((slug) => ({ "town-slug": slug })),
     ...allArchetypeSlugs().map((slug) => ({ "town-slug": slug })),
+    ...laSlugs.map((slug) => ({ "town-slug": slug })),
   ];
 }
 
@@ -74,6 +107,32 @@ export async function generateMetadata({
     const url = `https://www.propertoasty.com/heat-pumps/${slug}`;
     const title = `Heat pump for a ${archetype.name}: 2026 cost + sizing guide`;
     const description = `Air-source heat pump suitability for a ${archetype.name.toLowerCase()}, with sizing, install cost, BUS grant eligibility and pre-install fabric work.`;
+    return {
+      title,
+      description,
+      alternates: { canonical: url },
+      openGraph: {
+        title,
+        description,
+        type: "article",
+        url,
+        siteName: "Propertoasty",
+        locale: "en_GB",
+        images: [{ url: "/hero-heatpump.jpg", width: 1200, height: 630 }],
+      },
+    };
+  }
+
+  // LA branch — slug shape "la-<gss>".
+  if (slug.startsWith("la-")) {
+    const admin = createAdminClient();
+    const row = await loadLAAggregate(admin, slug);
+    if (!row || !row.indexed) {
+      return { robots: { index: false, follow: false } };
+    }
+    const url = `https://www.propertoasty.com/heat-pumps/${slug}`;
+    const title = `Heat pumps across ${row.display_name}: 2026 grant + cost guide`;
+    const description = `Air-source heat pump suitability across the ${row.display_name} local authority area, with BUS grant breakdown and EPC band data from ${row.sample_size.toLocaleString("en-GB")} local properties.`;
     return {
       title,
       description,
@@ -133,6 +192,20 @@ export default async function HeatPumpsTownPage({ params }: PageProps) {
     return <HeatPumpArchetypePage archetype={archetype} />;
   }
 
+  // LA branch — slug shape "la-<gss>". Adapts the LA aggregate row
+  // into a town-shaped object and reuses TownPageWithData. Display
+  // copy is slightly different in the LA branch ("across the X area"
+  // rather than "in X") which is handled at the title / breadcrumb
+  // layer — body content is identical because the data is the same
+  // shape regardless of scope.
+  if (slug.startsWith("la-")) {
+    const admin = createAdminClient();
+    const row = await loadLAAggregate(admin, slug);
+    if (!row) notFound();
+    const fakeTown = laToTownAdapter(row);
+    return <TownPageWithData town={fakeTown} row={row} isLA />;
+  }
+
   // Town branch — needs DB lookup.
   const town = getTownBySlug(slug);
   if (!town) notFound();
@@ -148,6 +221,25 @@ export default async function HeatPumpsTownPage({ params }: PageProps) {
 
   // From here on we have data. Build the page.
   return <TownPageWithData town={town} row={row} />;
+}
+
+// Adapt an LA aggregate row into a town-shaped object so TownPageWithData
+// can render it. Only the fields TownPageWithData actually reads are
+// populated meaningfully; the rest get safe defaults.
+function laToTownAdapter(row: TownAggregateRow): PilotTown {
+  return {
+    slug: row.scope_key,
+    name: row.display_name,
+    laGssCode: row.scope_key.replace(/^la-/i, "").toUpperCase(),
+    councilName: row.display_name,
+    postTowns: [],
+    postcodeDistricts: [],
+    county: row.county ?? "",
+    region: row.region ?? "",
+    country: row.country as PilotTown["country"],
+    lat: row.lat ?? 0,
+    lng: row.lng ?? 0,
+  };
 }
 
 // ─── No-data shell ────────────────────────────────────────────────
@@ -182,12 +274,19 @@ function NoDataShell({ town }: { town: PilotTown }) {
 function TownPageWithData({
   town,
   row,
+  isLA = false,
 }: {
   town: PilotTown;
   row: TownAggregateRow;
+  /** True when this page is rendering a Local Authority aggregate
+   *  rather than a single town. Drives copy variations ("across X
+   *  area" vs "in X") without forking the body content. */
+  isLA?: boolean;
 }) {
   const data = row.data;
   const url = `https://www.propertoasty.com/heat-pumps/${town.slug}`;
+  const inOrAcross = isLA ? "across" : "in";
+  const areaLabel = isLA ? `${town.name} (local authority area)` : town.name;
 
   // ── Body-driving data points ────────────────────────────────────
   const medianBand = data.median_band ?? "D";
@@ -240,8 +339,8 @@ function TownPageWithData({
 
   return (
     <AEOPage
-      headline={`Heat pumps in ${town.name}: 2026 grant + cost guide`}
-      description={`Air-source heat pump suitability in ${town.name}, with BUS grant breakdown, install cost ranges, and EPC band data from ${samplePretty} local properties.`}
+      headline={`Heat pumps ${inOrAcross} ${areaLabel}: 2026 grant + cost guide`}
+      description={`Air-source heat pump suitability ${inOrAcross} ${areaLabel}, with BUS grant breakdown, install cost ranges, and EPC band data from ${samplePretty} local properties.`}
       url={url}
       image="/hero-heatpump.jpg"
       datePublished="2026-05-11"
@@ -251,7 +350,7 @@ function TownPageWithData({
       breadcrumbs={[
         { name: "Home", url: "/" },
         { name: "Heat pumps", url: "/heat-pumps" },
-        { name: town.name },
+        { name: areaLabel },
       ]}
       directAnswer={directAnswer}
       tldr={tldr}
