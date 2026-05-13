@@ -368,6 +368,32 @@ export default function BusApplicationWalkthrough() {
         mcscertified.com. Everything else flows from a competent
         MCS installer&rsquo;s standard process.
       </p>
+
+      <h2>Related reading</h2>
+      <ul>
+        <li>
+          <a href="/guides/fabric-first-retrofit-before-heat-pump">
+            Fabric-first retrofit before a heat pump
+          </a>{" "}
+          — how to clear the loft + cavity recommendations
+          that gate the BUS grant, and which insulation
+          measures most help heat-pump performance.
+        </li>
+        <li>
+          <a href="/guides/mcs-site-visit-what-to-expect">
+            MCS heat pump site visit: what to expect
+          </a>{" "}
+          — the installer survey that produces the quote on
+          which your BUS application is based.
+        </li>
+        <li>
+          <a href="/compare/heat-pump-vs-gas-boiler">
+            Heat pump vs gas boiler comparison
+          </a>{" "}
+          — the decision context most BUS applicants are
+          working through alongside the grant paperwork.
+        </li>
+      </ul>
     </AEOPage>
   );
 }

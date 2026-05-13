@@ -241,6 +241,38 @@ export default function HeatPumpVsGasBoiler() {
         exceptions (emergency replacement, severely uninsulated
         properties) are real but increasingly narrow.
       </p>
+
+      <h2>Related reading</h2>
+      <ul>
+        <li>
+          <a href="/guides/heat-pump-running-costs-vs-gas">
+            Heat pump vs gas running costs UK 2026: the real numbers
+          </a>{" "}
+          — worked annual cost figures by house size, tariff, and
+          insulation level.
+        </li>
+        <li>
+          <a href="/guides/heat-pump-payback-period-uk">
+            Heat pump payback period UK 2026
+          </a>{" "}
+          — gas-replacement, oil-replacement, LPG-replacement
+          scenarios with BUS factored in.
+        </li>
+        <li>
+          <a href="/guides/bus-application-walkthrough">
+            BUS grant application walkthrough
+          </a>{" "}
+          — how the £7,500 actually flows from Ofgem to your
+          invoice.
+        </li>
+        <li>
+          <a href="/guides/fabric-first-retrofit-before-heat-pump">
+            Fabric-first retrofit before a heat pump
+          </a>{" "}
+          — clearing the loft + cavity recommendations that
+          gate the grant.
+        </li>
+      </ul>
     </AEOPage>
   );
 }

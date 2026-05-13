@@ -289,6 +289,30 @@ export default function HeatPumpVsOilBoiler() {
         (constrained electricity supply, listed exteriors,
         emergency replacement) are real but narrow.
       </p>
+
+      <h2>Related reading</h2>
+      <ul>
+        <li>
+          <a href="/guides/heat-pump-payback-period-uk">
+            Heat pump payback period UK 2026
+          </a>{" "}
+          — oil-replacement scenarios typically pay back in
+          3–9 years; worked examples inside.
+        </li>
+        <li>
+          <a href="/guides/heat-pump-running-costs-vs-gas">
+            Heat pump vs gas running costs UK 2026
+          </a>{" "}
+          — covers oil and LPG running costs alongside gas.
+        </li>
+        <li>
+          <a href="/guides/bus-application-walkthrough">
+            BUS grant application walkthrough
+          </a>{" "}
+          — how the £7,500 grant flows from Ofgem to your
+          invoice, including off-grid eligibility.
+        </li>
+      </ul>
     </AEOPage>
   );
 }

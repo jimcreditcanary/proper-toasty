@@ -422,6 +422,34 @@ export default function HeatPumpFinanceOptions() {
         Every option works through an FCA-authorised provider —
         verify the lender registration before signing anything.
       </p>
+
+      <h2>Related reading</h2>
+      <ul>
+        <li>
+          <a href="/guides/heat-pump-payback-period-uk">
+            Heat pump payback period UK 2026
+          </a>{" "}
+          — worked payback calculations help decide whether
+          financing is worth the interest cost or whether cash
+          out-performs over time.
+        </li>
+        <li>
+          <a href="/guides/bus-application-walkthrough">
+            BUS grant application walkthrough
+          </a>{" "}
+          — confirm grant eligibility before committing to a
+          finance product; ineligibility shifts the funding
+          gap dramatically.
+        </li>
+        <li>
+          <a href="/guides/heat-pump-running-costs-vs-gas">
+            Heat pump vs gas running costs UK 2026
+          </a>{" "}
+          — the running-cost saving is what justifies the
+          install over a finance term; make sure the maths
+          works.
+        </li>
+      </ul>
     </AEOPage>
   );
 }

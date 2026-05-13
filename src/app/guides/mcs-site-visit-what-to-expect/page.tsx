@@ -449,6 +449,32 @@ export default function McsSiteVisitWhatToExpect() {
         committing. Variance between quotes is mostly about
         sizing assumptions — query 20%+ gaps directly.
       </p>
+
+      <h2>Related reading</h2>
+      <ul>
+        <li>
+          <a href="/guides/mcs-020-noise-rules-explained">
+            MCS 020 noise rules explained
+          </a>{" "}
+          — the most common reason a site visit produces a
+          &ldquo;planning permission needed&rdquo; flag
+          rather than permitted development.
+        </li>
+        <li>
+          <a href="/guides/bus-application-walkthrough">
+            BUS grant application walkthrough
+          </a>{" "}
+          — the grant paperwork side that follows from the
+          site visit&rsquo;s quote.
+        </li>
+        <li>
+          <a href="/compare/air-source-vs-ground-source-heat-pump">
+            ASHP vs GSHP comparison
+          </a>{" "}
+          — if the site visit flags issues with MCS 020 or
+          outdoor siting, GSHP becomes the natural alternative.
+        </li>
+      </ul>
     </AEOPage>
   );
 }
