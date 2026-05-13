@@ -70,6 +70,12 @@ export async function GET(): Promise<Response> {
     // boiler" is one of the highest-search-volume UK heat queries).
     // Hand-curated; one file each under src/app/compare/.
     {
+      loc: `${SITE_URL}/compare`,
+      lastmod: now,
+      changefreq: "weekly",
+      priority: 0.85,
+    },
+    {
       loc: `${SITE_URL}/compare/heat-pump-vs-gas-boiler`,
       lastmod: now,
       changefreq: "monthly",
