@@ -42,6 +42,34 @@ export default function HeatPumpSmartTariffSetup() {
       dateModified="2026-05-13"
       authorSlug={DEFAULT_AUTHOR_SLUG}
       section="Guide · Tariffs + controls"
+      kind="howto"
+      howToTotalTime="P2M"
+      howToSteps={[
+        {
+          name: "Pick a heat-pump-specific tariff",
+          text: "Fixed-window options: Octopus Cosy (three cheap windows daily), British Gas HomeEnergy (single overnight cheap rate), EDF GoElectric Heat Pump. Dynamic options: Octopus Agile (half-hourly pricing), Octopus Tracker (daily). Pick fixed-window first; consider dynamic after 6-12 months.",
+        },
+        {
+          name: "Enable + tune weather compensation",
+          text: "Single biggest lever. Heat pump scales flow temperature to outdoor temperature. Every 5°C lower flow temp = 10-15% better COP. Start at the installer's commissioning curve, tune down 1-2°C per week across the first winter until comfort drops, then back off one notch.",
+        },
+        {
+          name: "Configure the heating schedule",
+          text: "Pre-heat the house during cheap-rate windows (target +1-2°C, finish 30-60 min before window ends). Coast during peak windows (drop to maintenance e.g. 18°C). Schedule the cylinder reheat inside the longest cheap window. Use the heat pump's built-in scheduler.",
+        },
+        {
+          name: "Pick a smart controller (dynamic tariffs only)",
+          text: "Skip for fixed-window tariffs. For Agile or Tracker: Homely (£200 + ~£10/mo, plug-and-play), Adia (Octopus partner), or Home Assistant (free, runs on Raspberry Pi, DIY). Smart controller pulls day-ahead prices and shifts loads automatically.",
+        },
+        {
+          name: "Confirm SMETS2 smart meter",
+          text: "Mandatory for any UK heat-pump-specific tariff. Half-hourly settlement via the DCC network. SMETS1 meters may need firmware updates or replacement. Book the install before signing up — adds 2-6 weeks if you don't already have one.",
+        },
+        {
+          name: "Monitor + tune across the first month",
+          text: "Days 1-7: observe consumption pattern in supplier app. Days 7-14: set basic schedule. Days 14-28: tune weather-comp curve down. Days 28-60: review billed cost vs flat-rate. End of winter: consider stepping up to dynamic tariff for the last 10-20% of savings.",
+        },
+      ]}
       breadcrumbs={[
         { name: "Home", url: "/" },
         { name: "Guides", url: "/guides" },

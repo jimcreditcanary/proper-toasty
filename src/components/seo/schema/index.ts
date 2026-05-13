@@ -17,3 +17,8 @@ export {
   type BreadcrumbListSchemaProps,
 } from "./BreadcrumbListSchema";
 export { PersonSchema, type PersonSchemaProps } from "./PersonSchema";
+export {
+  HowToSchema,
+  type HowToSchemaProps,
+  type HowToStep,
+} from "./HowToSchema";

@@ -46,8 +46,10 @@ import {
   ArticleSchema,
   BreadcrumbListSchema,
   FaqPageSchema,
+  HowToSchema,
   type BreadcrumbItem,
   type FaqEntry,
+  type HowToStep,
 } from "@/components/seo/schema";
 import { DirectAnswer } from "./DirectAnswer";
 import { LastUpdated } from "./LastUpdated";
@@ -96,6 +98,19 @@ export interface AEOPageProps {
   /** Set true when the page renders aggregated EPC data —
    *  surfaces the OGL v3.0 attribution line in the footer. */
   sourcesEpc?: boolean;
+  /** Schema kind: "article" for explainers/comparisons, "howto" for
+   *  procedural step-by-step guides. Defaults to "article".
+   *  HowTo unlocks step-by-step rich results in Google search and
+   *  is the right choice for any guide whose body is a numbered
+   *  walkthrough (BUS application, MCS site visit, fabric-first,
+   *  hot-water planning, smart-tariff setup). */
+  kind?: "article" | "howto";
+  /** Ordered step list — required when kind="howto", ignored
+   *  otherwise. Each step's `name` becomes a carousel entry. */
+  howToSteps?: HowToStep[];
+  /** Optional total time estimate for HowTo schema (ISO 8601
+   *  duration: "PT4H" for 4 hours, "P3M" for 3 months). */
+  howToTotalTime?: string;
   /** Body content — H2/H3/p/img/etc. */
   children: React.ReactNode;
 }
@@ -144,6 +159,9 @@ export function AEOPage(props: AEOPageProps): React.ReactElement {
     faqs,
     section,
     sourcesEpc = false,
+    kind = "article",
+    howToSteps,
+    howToTotalTime,
     children,
   } = props;
 
@@ -159,18 +177,33 @@ export function AEOPage(props: AEOPageProps): React.ReactElement {
       <MarketingHeader />
 
       {/* ─── JSON-LD ─────────────────────────────────────────────── */}
-      <ArticleSchema
-        headline={headline}
-        description={description}
-        url={url}
-        image={image}
-        datePublished={datePublished}
-        dateModified={dateModified}
-        authorSlug={authorSlug}
-        reviewerSlug={reviewerSlug}
-        section={section}
-        wordCount={wordCount}
-      />
+      {kind === "howto" && howToSteps && howToSteps.length > 0 ? (
+        <HowToSchema
+          headline={headline}
+          description={description}
+          url={url}
+          image={image}
+          datePublished={datePublished}
+          dateModified={dateModified}
+          authorSlug={authorSlug}
+          reviewerSlug={reviewerSlug}
+          steps={howToSteps}
+          totalTime={howToTotalTime}
+        />
+      ) : (
+        <ArticleSchema
+          headline={headline}
+          description={description}
+          url={url}
+          image={image}
+          datePublished={datePublished}
+          dateModified={dateModified}
+          authorSlug={authorSlug}
+          reviewerSlug={reviewerSlug}
+          section={section}
+          wordCount={wordCount}
+        />
+      )}
       <BreadcrumbListSchema items={breadcrumbs} />
       {faqs && faqs.length > 0 && <FaqPageSchema faqs={faqs} />}
 

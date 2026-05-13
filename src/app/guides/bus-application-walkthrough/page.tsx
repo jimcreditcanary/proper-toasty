@@ -42,6 +42,34 @@ export default function BusApplicationWalkthrough() {
       dateModified="2026-05-13"
       authorSlug={DEFAULT_AUTHOR_SLUG}
       section="Guide · BUS scheme"
+      kind="howto"
+      howToTotalTime="P10W"
+      howToSteps={[
+        {
+          name: "Hire an MCS-certified installer",
+          text: "Find a heat-pump installer with active MCS certification at mcscertified.com. Verify the installer's MCS number AND that the specific heat-pump product is on the MCS product register before signing anything.",
+        },
+        {
+          name: "Receive a quote with BUS deduction applied",
+          text: "The installer quotes the gross install cost and applies the £7,500 BUS deduction as a line item. Your contractually-owed amount is the net figure (gross minus £7,500).",
+        },
+        {
+          name: "Sign the BUS consent form + installation contract",
+          text: "Two documents: the standardised Ofgem BUS consent form authorising the installer to claim the grant on your behalf, and the installer's standard installation contract referencing the gross + net amounts.",
+        },
+        {
+          name: "Verify EPC validity + clear insulation recommendations",
+          text: "The EPC must be less than 10 years old. Any loft or cavity insulation recommendations must be cleared (work done with fresh EPC OR exemption applies) before the grant applies. Typical clearance: 2-6 weeks.",
+        },
+        {
+          name: "Install + commissioning",
+          text: "Install typically takes 2-3 working days on site. Commissioning follows: installer runs the system, tunes weather compensation, issues the MCS Installation Certificate. You pay the NET-of-grant invoice at this point.",
+        },
+        {
+          name: "Installer submits the BUS claim to Ofgem",
+          text: "After commissioning + MCS registration, the installer submits the BUS claim. Ofgem processes within 4-6 weeks and pays £7,500 directly to the installer. You're not involved in this leg — keep your MCS certificate and invoices for your records.",
+        },
+      ]}
       breadcrumbs={[
         { name: "Home", url: "/" },
         { name: "Guides", url: "/guides" },

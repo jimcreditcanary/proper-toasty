@@ -42,6 +42,33 @@ export default function HotWaterPlanning() {
       dateModified="2026-05-13"
       authorSlug={DEFAULT_AUTHOR_SLUG}
       section="Guide · Hot water + cylinders"
+      kind="howto"
+      howToSteps={[
+        {
+          name: "Size the cylinder (45 litres per person)",
+          text: "Rule of thumb: 45L per person. 90L for a single occupant, 180L for a 4-person family, 250L for 5+. Bump up for multiple bathrooms, baths, or power showers. Down to 35L/person only if space is genuinely tight and you accept occasional immersion top-ups.",
+        },
+        {
+          name: "Choose unvented (default) vs vented",
+          text: "Unvented is standard for 90%+ of UK heat-pump installs. Mains-pressure (3-6 bar) to taps + showers, no loft tank needed. Requires a G3-qualified installer. Adds £300-£600 over vented. Vented persists only where mains pressure is poor.",
+        },
+        {
+          name: "Set the heating schedule (1-2 cycles per day, not continuous)",
+          text: "Single overnight cycle (1am-5am) suits morning-heavy households. Twin daily (4am-6am + 1pm-3pm) suits evening-shower households. Continuous keeping-warm forces short cycles at higher flow temps and hurts COP.",
+        },
+        {
+          name: "Configure the weekly Legionella cycle",
+          text: "HSE L8 requires hot-water cylinder to reach 60°C once a week. Heat pump runs 50°C daily; the integrated 3 kW immersion boosts to 60°C for ~1 hour. Schedule overnight (2am Sunday typical). Costs ~£44/year, automatic.",
+        },
+        {
+          name: "Align the cylinder cycle to your smart tariff",
+          text: "Shift cylinder reheat to your tariff's cheap-rate window. Octopus Cosy cheap rates: 4am-7am, 1pm-4pm. A 4-person household saves ~£300/year on the cylinder cycle alone vs flat-rate. Dynamic tariffs (Agile, Tracker) need a smart controller for daily price-following.",
+        },
+        {
+          name: "Pick the physical cylinder location",
+          text: "Priority order: airing cupboard (existing), utility / downstairs cupboard, insulated garage, loft. 180L is ~600mm diameter × 1500mm tall; 250L is ~600mm × 1800mm. Loft locations need joist strength check (~250kg full).",
+        },
+      ]}
       breadcrumbs={[
         { name: "Home", url: "/" },
         { name: "Guides", url: "/guides" },
