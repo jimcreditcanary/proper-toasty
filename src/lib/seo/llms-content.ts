@@ -229,6 +229,18 @@ The unique LPG step is unwinding the tank-supply contract — most domestic inst
 Carbon emissions drop ~75% (2.7 tonnes/yr LPG → 0.4–0.8 tonnes/yr heat pump). BUS grant treats LPG-heated homes the same as oil and mains-gas.`,
   },
   {
+    url: `${SITE_URL}/compare/heat-pump-vs-electric-boiler`,
+    title: "Heat pump vs electric boiler (2026)",
+    summary:
+      "Same fuel, very different bill. Aimed at the ~500k UK homes on direct-electric heating where heat pumps deliver the biggest running-cost saving of any switch.",
+    section: "Comparisons",
+    content: `Both systems run on grid electricity but at very different efficiency. A direct-electric boiler outputs 1 kWh of heat per 1 kWh of electricity; a heat pump outputs ~3.5 kWh of heat per 1 kWh of electricity (SCOP 3.5).
+
+For a typical UK 3-bed semi needing 12,000 kWh of heat/year, direct-electric needs ~12,000 kWh of electricity (£3,000–£4,500/year at 2026 prices), while a heat pump needs ~3,400 kWh (£850/year on standard tariffs, less on heat-pump tariffs). Annual saving on switching: £2,000+ — the biggest of any heating switch.
+
+After the £7,500 Boiler Upgrade Scheme grant, heat-pump install is often cheaper upfront than a new direct-electric boiler too. Direct-electric only wins in narrow edge cases: tiny flats with no outdoor space, very-short-tenancy rentals, listed buildings where MCS 020 siting fails.`,
+  },
+  {
     url: `${SITE_URL}/compare/air-source-vs-ground-source-heat-pump`,
     title: "Air source vs ground source heat pump (2026)",
     summary:
