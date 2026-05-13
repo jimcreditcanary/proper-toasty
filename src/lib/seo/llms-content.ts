@@ -478,6 +478,65 @@ The BUS grant is paid by Ofgem to the installer, not the homeowner — finance a
 
 Every finance product must come from an FCA-authorised provider. Verify lender registration at fca.org.uk/firms/financial-services-register before signing.`,
   },
+  // ─── Guides ─────────────────────────────────────────────────
+  // Production guide pages under /guides/[slug]. Hand-written
+  // step-by-step walkthroughs of UK heat-pump install processes.
+  {
+    url: `${SITE_URL}/guides`,
+    title: "Guides hub",
+    summary:
+      "Practical step-by-step guides on the UK heat-pump install process — BUS grant application, MCS site visits, install logistics.",
+    section: "Guides",
+    content: `Propertoasty's guides cover the PROCESS of installing a heat pump in the UK: how the £7,500 BUS grant application flows, what happens during an MCS-certified installer's site visit, what to ask, what to prepare. Two production guides published as of May 2026; more in the pipeline.
+
+Distinct from the comparison pages at /compare which work through technology decisions (heat pump vs gas boiler, brand vs brand, etc.). Use the comparisons to decide WHAT to install; use the guides for HOW the install process works.`,
+  },
+  {
+    url: `${SITE_URL}/guides/bus-application-walkthrough`,
+    title: "BUS grant application walkthrough (2026)",
+    summary:
+      "Step-by-step of how the £7,500 BUS grant flows from installer through Ofgem to your invoice. Timeline, eligibility, paperwork, what can go wrong.",
+    section: "Guides",
+    content: `The £7,500 Boiler Upgrade Scheme grant is applied for by your MCS-certified installer, not by you. Ofgem pays the £7,500 directly to the installer; you see it as a line-item discount on your final invoice.
+
+Sequence: (1) hire MCS-certified installer, (2) installer applies £7,500 deduction to quote, (3) you sign BUS consent form, (4) install + commissioning happens, (5) you pay NET amount to installer, (6) installer claims grant from Ofgem, (7) Ofgem pays £7,500 to installer in 4-6 weeks.
+
+Eligibility: property in England/Wales, owner-occupier or private rented, EPC less than 10 years old with loft + cavity insulation recommendations cleared.
+
+Three documents: BUS consent form (Ofgem), installation contract, MCS Installation Certificate (post-install).
+
+Timeline: 4-10 weeks quote to commissioning. Add 2-4 weeks if EPC needs renewal or insulation needs clearing.
+
+What can go wrong: EPC out of date (~£60-£120 + 1-2 weeks for fresh one), insulation recommendations uncleared (£400-£3,500 cost), installer or product not MCS-certified (verify at mcscertified.com BEFORE signing).
+
+Dispute paths: installer's complaints process, MCS Complaints Service, Renewable Energy Consumer Code (RECC), Ofgem for scheme-specific issues.`,
+  },
+  {
+    url: `${SITE_URL}/guides/mcs-site-visit-what-to-expect`,
+    title: "MCS heat pump site visit: what to expect (2026)",
+    summary:
+      "Practical walkthrough of an MCS-certified installer's 60-120 minute survey — heat-loss calc, emitter check, outdoor siting, MCS 020 noise, electrical.",
+    section: "Guides",
+    content: `An MCS-certified installer's site visit takes 60-120 minutes and produces the data needed for a binding quote. Six steps:
+
+1. Heat-loss survey (BS EN 12831). Room-by-room measurement: dimensions, fabric assessment (wall + window + floor + roof construction), air-tightness indication. Whole-house peak demand for the local design temperature. Typical UK 3-bed semi: 8-14 kW.
+
+2. Existing-system assessment. Radiator sizes vs room-level heat loss at the proposed flow temperature. Pipework (microbore 10mm often needs upsizing to 15mm). Hot water cylinder suitability. What boiler / fuel source is being replaced.
+
+3. Outdoor unit siting. Permitted-development criteria (1m from boundary, <1m³ volume, not on principal elevation facing road, not in conservation area). MCS 020 noise calc (sound pressure at neighbour boundary ≤42 dB(A)). Refrigerant pipe distance to indoor plant location. Service access clearance.
+
+4. Electrical assessment. Consumer unit capacity (most UK homes have 60-100A; heat pump typically adds dedicated 32A or 40A breaker). Single vs three-phase. Earthing arrangement (TT/TN-S/TN-C-S).
+
+5. Cylinder + plant location. Airing cupboard typical; utility / garage / loft as alternatives.
+
+6. Quote conversation. Indicative capacity + brand, radiator upgrades needed, cylinder choice, outdoor siting, pre-grant + net-of-grant costs, BUS timing, install timeline.
+
+What to prepare: EPC certificate, last 12 months of gas + electricity bills, loft + consumer unit access, candidate outdoor unit location, list of questions.
+
+What to look out for: does installer measure every heated room? Do they ask about usage patterns? Do they walk through MCS 020 numbers? Pushy same-day signing is a flag.
+
+After the visit: written quote in 1-2 weeks. Should include room-by-room heat-loss as appendix, specific make + model with MCS ref, gross + grant + net costs, line items, warranty, timeline, finance options. Compare 2-3 quotes; query 20%+ heat-loss variance.`,
+  },
   {
     url: `${SITE_URL}/blog`,
     title: "Guides + blog",

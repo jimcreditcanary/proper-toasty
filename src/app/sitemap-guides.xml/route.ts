@@ -55,16 +55,35 @@ async function loadBlogEntries(): Promise<SitemapUrlEntry[]> {
   }
 }
 
-// Placeholder for /guides/[slug] pages once they exist. The AEOPage
-// template is in place but no production guides have been authored
-// yet (deliverable #6 shipped only an internal demo). When real
-// guides land, query whatever store they live in here and concat
-// onto the blog entries.
+// Production guide pages under /guides/[slug]. Hand-curated list
+// because guides are React files in src/app/guides/, not DB-driven
+// like blog posts. New guides get added here when they ship.
+//
+// The /guides hub itself + individual guides are listed; the
+// /guides/aeo-demo internal template is excluded (it's noindex'd at
+// the page level too).
 async function loadGuideEntries(): Promise<SitemapUrlEntry[]> {
-  // TODO: query the future `guides` table (or filesystem walk) when
-  // editorial guides land. Returns empty until then — keeps the
-  // sub-sitemap valid + ready.
-  return [];
+  const now = new Date();
+  return [
+    {
+      loc: `${SITE_URL}/guides`,
+      lastmod: now,
+      changefreq: "weekly",
+      priority: 0.85,
+    },
+    {
+      loc: `${SITE_URL}/guides/bus-application-walkthrough`,
+      lastmod: now,
+      changefreq: "monthly",
+      priority: 0.8,
+    },
+    {
+      loc: `${SITE_URL}/guides/mcs-site-visit-what-to-expect`,
+      lastmod: now,
+      changefreq: "monthly",
+      priority: 0.8,
+    },
+  ];
 }
 
 export async function GET(): Promise<Response> {
