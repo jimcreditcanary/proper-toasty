@@ -172,6 +172,12 @@ export async function GET(): Promise<Response> {
       priority: 0.85,
     },
     {
+      loc: `${SITE_URL}/compare/air-to-air-vs-air-to-water-heat-pump`,
+      lastmod: now,
+      changefreq: "monthly",
+      priority: 0.75,
+    },
+    {
       loc: `${SITE_URL}/enterprise`,
       lastmod: now,
       changefreq: "monthly",
