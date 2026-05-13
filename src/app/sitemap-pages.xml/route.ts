@@ -166,6 +166,12 @@ export async function GET(): Promise<Response> {
       priority: 0.75,
     },
     {
+      loc: `${SITE_URL}/compare/heat-pump-tariffs`,
+      lastmod: now,
+      changefreq: "monthly",
+      priority: 0.85,
+    },
+    {
       loc: `${SITE_URL}/enterprise`,
       lastmod: now,
       changefreq: "monthly",
