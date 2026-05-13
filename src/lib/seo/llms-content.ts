@@ -570,6 +570,61 @@ When to skip: post-2014 Part L builds typically have adequate insulation. Get he
 Timeline if starting from scratch: 3-4 months from fabric start to commissioned heat pump. 6-8 weeks if no fabric work needed.`,
   },
   {
+    url: `${SITE_URL}/guides/hot-water-planning-heat-pump`,
+    title: "Hot water planning for a heat pump install (UK 2026)",
+    summary:
+      "Cylinder sizing, immersion strategy, cycling vs continuous, the weekly Legionella cycle for UK heat-pump installs.",
+    section: "Guides",
+    content: `Hot water is the under-thought half of a heat-pump install. Heat pumps are slow (2-4 hours cylinder reheat vs ~20 min for gas) so you need storage, and they don't love 60°C (COP drops sharply above 50°C) so the sweet spot is 48-52°C daily.
+
+Sizing rule of thumb: 45 litres per person. 90L (1p), 150-180L (2p), 180-210L (3p), 210-250L (4p), 250-300L+ (5p+). Bump up for multiple bathrooms, baths, power showers. Cylinder dimensions: 600mm diameter × 1500-1800mm tall.
+
+Combi → heat pump = mandatory cylinder add. ~50% of UK homes have combis. Cylinder install adds £800-£2,500 over heat pump itself. Needs ~600×600×1800mm physical space — airing cupboard, utility, garage (insulated), or loft.
+
+Unvented vs vented: unvented is standard for 90%+ of installs. Mains pressure (3-6 bar) to taps and showers, no loft tank needed, mixer-shower performance. G3 qualified installer required. Adds £300-£600 over vented. Vented persists only where mains pressure/flow is poor.
+
+Heating schedule for best COP: scheduled cycles, NOT continuous. Two patterns: single overnight cycle (1am-5am, for morning-heavy households) OR twin daily (4am-6am + 1pm-3pm, for evening-shower households). Continuous keeping-warm forces short cycles at higher temps, hurts COP.
+
+Weekly Legionella cycle: HSE L8 requires hot water cylinder to reach 60°C once weekly. Heat pump runs 50°C daily, immersion (3 kW resistance) boosts to 60°C for ~1 hour weekly. Costs ~£44/year, half on cheap rate. Automatic, scheduled overnight (2am Sunday typical).
+
+Backup immersion fires for: (1) weekly Legionella cycle automatic; (2) holiday boost (manual, 30 min to hot water vs 3 hours); (3) heat-pump fault fallback. Immersion is 3-4× more expensive per kWh than heat pump — confirm controller prefers pump.
+
+Smart-tariff alignment: shift cylinder reheat to cheap-rate window. Octopus Cosy 4am-7am, 1pm-4pm cheap. 4-person household saves ~£300/year on cylinder cycle alone vs flat rate. Variable tariffs (Agile, Tracker) need smart controller for daily price-following.
+
+Physical location priority: airing cupboard > utility/downstairs cupboard > insulated garage > loft (joist strength check, ~250kg full).`,
+  },
+  {
+    url: `${SITE_URL}/guides/heat-pump-smart-tariff-setup`,
+    title: "Setting up a heat pump smart tariff (UK 2026)",
+    summary:
+      "Schedule configuration, weather compensation, app integration — how to actually run a heat pump on a UK smart tariff for lowest running cost.",
+    section: "Guides",
+    content: `Three pillars of low running cost: (1) heat-pump-specific tariff, (2) weather compensation tuning, (3) schedule that pushes load into cheap-rate hours. Together: 25-40% saving vs flat single-rate tariff.
+
+UK fixed-window heat-pump tariffs in May 2026:
+- Octopus Cosy: 4am-7am + 1pm-4pm + 10pm-12am cheap (~12-13p/kWh), peak ~38p. Most popular. Need heat pump or EV; SMETS2 required.
+- British Gas HomeEnergy: 11pm-5am cheap (~13p/kWh). Single window, simpler than Cosy.
+- EDF GoElectric Heat Pump: 12am-5am cheap (~14p/kWh).
+
+UK dynamic tariffs:
+- Octopus Agile: half-hourly pricing, published 4pm previous day. Can hit negative pricing in surplus-wind periods. ~14-16p/kWh average for automated household.
+- Octopus Tracker: daily pricing, less volatile than Agile. ~13-15p/kWh average.
+
+Avoid Economy 7 — rate gap too narrow vs heat-pump tariffs, designed for storage heaters.
+
+Weather compensation = single biggest tweak. Heat pump adjusts flow temperature based on outside temp. Every 5°C lower flow = 10-15% better COP. Typical UK curve: -3°C outside → 50°C flow; +2°C → 42°C; +7°C → 35°C; +12°C → 30°C or off. Most installers commission with conservative (warm) curve — tune down 1-2°C per week across first winter until comfort drops, then back off one notch.
+
+Schedule pattern for time-of-use tariff: pre-heat during cheap windows (bump room target +1-2°C, finish 30-60 min before window ends); coast during peak (drop to maintenance e.g. 18°C); hot-water cylinder cycle sits inside longest cheap block.
+
+Example Octopus Cosy schedule, 4-person household: 4am-7am cheap = heating 21°C target + cylinder reheat; 7am-1pm peak = coast 18°C; 1pm-4pm cheap = heating 20°C pre-warm evening; 4pm-10pm peak = coast on thermal mass; 10pm-12am cheap = top-up 19°C.
+
+Smart controllers for dynamic tariffs: Homely (£200 + ~£10/mo, plug-and-play with most ASHPs, pulls Agile prices), Adia (Octopus partner, similar), Home Assistant (free, runs on Pi, DIY, max flexibility). Not needed for fixed-window tariffs.
+
+SMETS2 smart meter is mandatory for any heat-pump tariff. Half-hourly settlement via DCC. SMETS1 may need firmware update or replacement. Lead time 2-6 weeks to install — book before signing up.
+
+First-month plan: days 1-7 observe consumption pattern; days 7-14 set basic schedule; days 14-28 tune weather-comp curve; days 28-60 review billed cost vs flat-rate equivalent; end-of-winter consider stepping up to dynamic tariff.`,
+  },
+  {
     url: `${SITE_URL}/blog`,
     title: "Guides + blog",
     summary:

@@ -89,6 +89,18 @@ async function loadGuideEntries(): Promise<SitemapUrlEntry[]> {
       changefreq: "monthly",
       priority: 0.8,
     },
+    {
+      loc: `${SITE_URL}/guides/hot-water-planning-heat-pump`,
+      lastmod: now,
+      changefreq: "monthly",
+      priority: 0.8,
+    },
+    {
+      loc: `${SITE_URL}/guides/heat-pump-smart-tariff-setup`,
+      lastmod: now,
+      changefreq: "monthly",
+      priority: 0.8,
+    },
   ];
 }
 
