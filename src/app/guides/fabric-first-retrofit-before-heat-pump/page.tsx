@@ -42,6 +42,34 @@ export default function FabricFirstRetrofit() {
       dateModified="2026-05-13"
       authorSlug={DEFAULT_AUTHOR_SLUG}
       section="Guide · Fabric-first retrofit"
+      kind="howto"
+      howToTotalTime="P3M"
+      howToSteps={[
+        {
+          name: "Loft insulation top-up to 270mm",
+          text: "Highest-ROI fabric measure. £400-£800 for a typical semi, cuts heat-loss 20-25% on pre-1990 stock. Mandatory for BUS if flagged on your EPC. Worth doing whether or not you fit a heat pump.",
+        },
+        {
+          name: "Draughtproofing",
+          text: "Most underrated measure. £200-£800, mostly DIY. Targets: door + window seals, loft hatch, unused chimneys, floorboard gaps, letterboxes, service penetrations. Cuts heat-loss 10-15%.",
+        },
+        {
+          name: "Cavity wall insulation (if applicable)",
+          text: "For 1930-1990 unfilled cavities. £1,500-£3,500, cuts heat-loss 25-30%. Non-destructive — bonded beads or mineral fibre blown into the cavity through small external mortar-joint holes. Mandatory for BUS if EPC flagged.",
+        },
+        {
+          name: "Floor insulation",
+          text: "For suspended timber floors over ventilated underfloor voids. £1,500-£4,000, cuts heat-loss 8-10%. Boards lifted or accessed from a cellar. Solid concrete floors usually not worth retrofitting.",
+        },
+        {
+          name: "Solid-wall insulation (optional, expensive)",
+          text: "For pre-1930 solid brick or stone walls. £8,000-£15,000 internal, £12,000-£25,000 external. Cuts heat-loss 30-40%. Major disruption. Use a PAS 2035 Retrofit Coordinator. Not required by BUS.",
+        },
+        {
+          name: "Double or triple glazing (last)",
+          text: "£6,000-£15,000 whole house. Surprisingly modest impact (10-15% heat-loss reduction) for the cost. Replace only if windows are failing — never as a heat-pump pre-step. Get a fresh EPC after the work to capture the rating improvement.",
+        },
+      ]}
       breadcrumbs={[
         { name: "Home", url: "/" },
         { name: "Guides", url: "/guides" },

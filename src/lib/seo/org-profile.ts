@@ -100,7 +100,7 @@ export const ORG_PROFILE = {
     /** One-paragraph bio shown on the author page + lifted into the
      *  Person schema's `description`. Keep factual, no marketing puff
      *  — LLMs read this verbatim. */
-    bio: "Founder of Propertoasty. CEO of Credit Canary, a UK fintech. Building Propertoasty after spending 3 years watching homeowners get lost between energy-upgrade decisions and the MCS installer market.",
+    bio: "Founder of Propertoasty and CEO of Credit Canary, a UK fintech. Built Propertoasty after watching homeowners get lost between the Boiler Upgrade Scheme, MCS-certified installers, and the unfamiliar engineering of heat pumps and solar PV — and finding no single source that combined property data, grant eligibility, and installer-grade pre-survey output in one place. The site combines the GOV.UK EPC Register, Google's Solar API, and machine-vision floorplan analysis to produce installer-ready reports for UK homeowners. Focuses on Boiler Upgrade Scheme rules, solar PV economics, MCS installer standards, and the practical decisions homeowners face when commissioning low-carbon heating. Based in the UK; writes about UK 2026 numbers using current Ofgem, MCS, and DESNZ guidance.",
     /** Sitewide credentials / qualifications worth surfacing. Empty
      *  array is fine; Google won't penalise. Examples:
      *    - "BEng, Mechanical Engineering"

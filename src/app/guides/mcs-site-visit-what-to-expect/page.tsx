@@ -44,6 +44,34 @@ export default function McsSiteVisitWhatToExpect() {
       dateModified="2026-05-13"
       authorSlug={DEFAULT_AUTHOR_SLUG}
       section="Guide · Install process"
+      kind="howto"
+      howToTotalTime="PT2H"
+      howToSteps={[
+        {
+          name: "Heat-loss survey (BS EN 12831)",
+          text: "Room-by-room measurement: dimensions, fabric assessment (walls, windows, floor, roof construction), air-tightness indication. Whole-house peak demand calculated for the local design temperature. Typical UK 3-bed semi: 8-14 kW.",
+        },
+        {
+          name: "Existing-system assessment",
+          text: "Radiator sizes compared with room-level heat-loss at the proposed flow temperature. Pipework checked (microbore 10mm often needs upsizing to 15mm). Hot-water cylinder suitability assessed. Existing boiler / fuel source documented.",
+        },
+        {
+          name: "Outdoor unit siting",
+          text: "Permitted-development criteria (1m from boundary, ≤1m³ volume, not on principal elevation facing road). MCS 020 noise calc (sound pressure at neighbour boundary ≤42 dB(A)). Refrigerant pipe distance to indoor plant. Service-access clearance.",
+        },
+        {
+          name: "Electrical assessment",
+          text: "Consumer-unit capacity check (UK domestic typically 60-100A; heat pump adds a dedicated 32A or 40A breaker). Single vs three-phase confirmed. Earthing arrangement noted (TT / TN-S / TN-C-S).",
+        },
+        {
+          name: "Cylinder + plant location",
+          text: "Airing cupboard is the typical location; utility room, garage, or loft as alternatives. Confirm joist strength for loft locations (~250kg full cylinder load).",
+        },
+        {
+          name: "Quote conversation + follow-up",
+          text: "Discussion of indicative capacity + brand, radiator upgrades, cylinder choice, outdoor siting, gross + grant + net costs, BUS timing, install timeline. Written quote follows in 1-2 weeks with room-by-room heat-loss appendix.",
+        },
+      ]}
       breadcrumbs={[
         { name: "Home", url: "/" },
         { name: "Guides", url: "/guides" },
