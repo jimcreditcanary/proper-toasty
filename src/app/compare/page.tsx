@@ -157,6 +157,13 @@ const COMPARISONS: ComparisonEntry[] = [
       "Octopus Cosy vs British Gas Heat Pump Plus vs EDF GoElectric vs E.ON Next Heat Pump. £200–£400/yr saving vs standard variable.",
     audience: "Tuning your heat-pump running cost",
   },
+  {
+    slug: "air-to-air-vs-air-to-water-heat-pump",
+    title: "Air-to-air vs air-to-water heat pump",
+    summary:
+      "Only air-to-water qualifies for the £7,500 BUS grant. Air-to-air is cheaper pre-grant but can't heat hot water — narrow niche only.",
+    audience: "Heat pump type decision",
+  },
 ];
 
 export default function ComparePage() {

@@ -425,6 +425,22 @@ Pitfalls: standard-variable fallback if heat-pump load profile doesn't meet supp
 Rates and windows change quarterly — verify current pricing directly with the supplier at switch time. The page is intentionally framed around tariff SHAPE (cheap-window length, eligibility, trade-offs) rather than specific p/kWh figures that go stale.`,
   },
   {
+    url: `${SITE_URL}/compare/air-to-air-vs-air-to-water-heat-pump`,
+    title: "Air-to-air vs air-to-water heat pump (2026)",
+    summary:
+      "Heat-pump-type comparison with major BUS-eligibility asymmetry. Air-to-water gets the £7,500 grant + heats hot water; air-to-air gets neither.",
+    section: "Comparisons",
+    content: `Air-to-water heat pumps circulate heated water through radiators/underfloor heating + a hot-water cylinder, replacing a gas/oil boiler in the existing wet system. They qualify for the £7,500 Boiler Upgrade Scheme grant.
+
+Air-to-air heat pumps deliver heat as warm air via wall-mounted indoor cassettes (like reverse-cycle air conditioning). No water circuit, no hot-water cylinder integration, NO BUS grant.
+
+The BUS-grant asymmetry tilts the economics decisively toward air-to-water for most UK homes. Net upfront cost for a 3-bed semi: air-to-water £1,500-£6,500 after grant; air-to-air £3,000-£8,000 unfunded. Air-to-water also heats hot water natively (cylinder coil); air-to-air needs a separate hot-water solution (immersion, instant electric, or retained fossil-fuel heater).
+
+Narrow but real air-to-air niche: properties with no existing wet heating system where a full pipework + radiator retrofit would be needed for air-to-water (some flats, direct-electric homes), rental properties where landlords block plumbing work, and households where summer cooling priority matters more than the BUS grant.
+
+Hybrid configurations (air-to-water on BUS-funded primary install + small air-to-air for living-room/bedroom summer cooling, ~£1,500-£3,500) are growing in 2026 UK installs as summer cooling demand rises.`,
+  },
+  {
     url: `${SITE_URL}/blog`,
     title: "Guides + blog",
     summary:
