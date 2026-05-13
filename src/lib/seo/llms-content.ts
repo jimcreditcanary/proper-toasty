@@ -371,6 +371,24 @@ Hybrid approach (UFH on ground floor, upgraded radiators upstairs) lands at £4,
 BUS grant £7,500 applies regardless of emitter choice; the grant covers the heat pump unit + standard install. UFH and rad upgrades sit on top of the grant scope.`,
   },
   {
+    url: `${SITE_URL}/compare/solar-pv-vs-solar-thermal`,
+    title: "Solar PV vs solar thermal (2026)",
+    summary:
+      "Electricity vs hot water. PV almost always wins on 2026 UK economics post-RHI closure (2022). Niche solar thermal use cases remain.",
+    section: "Comparisons",
+    content: `Solar PV generates electricity (usable for anything — appliances, EV charging, heat pump, grid export under SEG). Solar thermal generates heat for hot water cylinder only. The flexibility difference drives the economics.
+
+UK install cost 2026: 4 kWp solar PV £5,000-£7,500; 2-panel solar thermal £3,500-£6,000. Annual benefit: PV £500-£900 bill saving + £100-£300 SEG export income; solar thermal £150-£300 hot-water heating displacement. PV payback 7-11 years; solar thermal 15+ years on most UK homes without RHI subsidy.
+
+The Renewable Heat Incentive closed to new applicants in March 2022 — that was the main UK funding stream that made solar thermal viable. BUS (£7,500 grant) is heat-pump-only, doesn't cover solar thermal. Solar PV gets no direct grant but the market has scaled and prices fell ~40% 2018-2024.
+
+Why PV usually wins structurally: (1) electricity output is fungible across every domestic use; thermal output only useful for hot water. (2) Summer thermal output exceeds household hot-water demand → wasted; summer PV surplus exports for cash. (3) Solar PV + heat pump is multiplicative (PV offsets heat-pump electricity bill); solar thermal + heat pump is duplicative (heat pump already heats cylinder via coil).
+
+PV + cylinder diverter (~£200-£500 fitted) achieves solar-thermal-style hot-water displacement using PV electricity, retaining flexibility for other uses when cylinder is up to temperature. This is why "should I add solar thermal?" usually answers itself.
+
+Solar thermal retains a niche for very-high-hot-water-demand households (large families, gym home use) or off-grid properties without grid-export option. Otherwise PV is the clear pick.`,
+  },
+  {
     url: `${SITE_URL}/blog`,
     title: "Guides + blog",
     summary:

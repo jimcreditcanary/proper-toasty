@@ -136,6 +136,13 @@ const COMPARISONS: ComparisonEntry[] = [
       "Install-time decision: UFH (£6-£15k retrofit) vs upgraded radiators (£1.5-£5.5k). SCOP advantage to UFH but rarely pays back on running cost alone.",
     audience: "Spec'ing your heat pump install",
   },
+  {
+    slug: "solar-pv-vs-solar-thermal",
+    title: "Solar PV vs solar thermal",
+    summary:
+      "Electricity vs hot water. PV almost always wins on 2026 UK economics — RHI closed 2022, PV prices fell, heat pumps + PV pair natively. Niche thermal use cases remain.",
+    audience: "Solar buyers considering both",
+  },
 ];
 
 export default function ComparePage() {
