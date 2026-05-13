@@ -150,6 +150,13 @@ const COMPARISONS: ComparisonEntry[] = [
       "Korean-brand pair, typically 5–10% below Daikin / Mitsubishi pricing. R32 across both; LG has an R290 variant from late 2024.",
     audience: "Picking a heat pump brand",
   },
+  {
+    slug: "heat-pump-tariffs",
+    title: "Heat pump electricity tariffs UK 2026",
+    summary:
+      "Octopus Cosy vs British Gas Heat Pump Plus vs EDF GoElectric vs E.ON Next Heat Pump. £200–£400/yr saving vs standard variable.",
+    audience: "Tuning your heat-pump running cost",
+  },
 ];
 
 export default function ComparePage() {

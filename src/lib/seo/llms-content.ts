@@ -405,6 +405,26 @@ Smart-home integration: Samsung's SmartThings has the broadest third-party devic
 Practical decision usually comes down to: which Korean brand your local installer carries (most carry one not both), refrigerant preference (LG R290 if you want low-GWP at Korean pricing), and existing smart-home platform.`,
   },
   {
+    url: `${SITE_URL}/compare/heat-pump-tariffs`,
+    title: "Heat pump electricity tariffs UK 2026",
+    summary:
+      "Octopus Cosy vs British Gas Heat Pump Plus vs EDF GoElectric vs E.ON Next Heat Pump. Cheap-rate window shapes + £200–£400/yr saving framework.",
+    section: "Comparisons",
+    content: `Heat-pump-specific UK electricity tariffs price your heat-pump electricity at 13–18p/kWh during designated cheap-rate windows (typically 4–7 hours overnight + sometimes daytime), vs 25–35p/kWh on standard variable. For a typical UK heat-pump home using 3,400–4,500 kWh/year on the heat-pump portion, the saving vs standard variable is £200–£400/year.
+
+Four major UK options in 2026:
+- Octopus Cosy: 6 hours/day cheap rate split across 4 windows (overnight, mid-morning, lunch, late evening). Largest potential saving when paired with smart-home scheduling.
+- British Gas Heat Pump Plus: single 5-hour overnight cheap block. Simplest set-and-forget option.
+- EDF GoElectric: 5 hours overnight + 2 hours midday. Suits daytime-occupancy households.
+- E.ON Next Heat Pump: 5 hours overnight. Most useful for existing E.ON dual-fuel customers.
+
+Eligibility: MCS-certified heat pump on property + SMETS2 smart meter. BUS-funded installs meet the first requirement by definition.
+
+Pitfalls: standard-variable fallback if heat-pump load profile doesn't meet supplier threshold, exit fees on fixed-term variants (most are rolling, some have £50-£150 exit fees), hot-water immersion peak-rate use erasing tariff savings.
+
+Rates and windows change quarterly — verify current pricing directly with the supplier at switch time. The page is intentionally framed around tariff SHAPE (cheap-window length, eligibility, trade-offs) rather than specific p/kWh figures that go stale.`,
+  },
+  {
     url: `${SITE_URL}/blog`,
     title: "Guides + blog",
     summary:
