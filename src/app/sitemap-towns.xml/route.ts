@@ -17,7 +17,11 @@
 // Sitemap + meta-robots agree.
 
 import { createAdminClient } from "@/lib/supabase/admin";
-import { loadIndexedTownAggregates } from "@/lib/programmatic/town-aggregates";
+import {
+  loadIndexedTownAggregates,
+  loadIndexedLAAggregates,
+} from "@/lib/programmatic/town-aggregates";
+import { PILOT_TOWNS } from "@/lib/programmatic/towns";
 import { PILOT_ARCHETYPES } from "@/lib/programmatic/archetypes";
 import {
   SITE_URL,
@@ -59,6 +63,31 @@ async function loadTownEntries(): Promise<SitemapUrlEntry[]> {
         lastmod: now,
         changefreq: "monthly",
         priority: 0.7,
+      });
+    }
+
+    // Local-authority scope pages. Each indexed LA gets a heat-pump
+    // + solar URL under /heat-pumps/la-<gss> and /solar-panels/la-<gss>.
+    // Exclude LAs that map to a PILOT_TOWN — those are covered by
+    // the town pages above and shouldn't duplicate.
+    const pilotLaGss = new Set(
+      PILOT_TOWNS.map((t) => t.laGssCode.toUpperCase()),
+    );
+    const laRows = await loadIndexedLAAggregates(admin);
+    for (const r of laRows) {
+      const gss = r.scope_key.replace(/^la-/i, "").toUpperCase();
+      if (pilotLaGss.has(gss)) continue;
+      entries.push({
+        loc: `${SITE_URL}/heat-pumps/${r.scope_key}`,
+        lastmod: r.refreshed_at,
+        changefreq: "monthly",
+        priority: 0.55,
+      });
+      entries.push({
+        loc: `${SITE_URL}/solar-panels/${r.scope_key}`,
+        lastmod: r.refreshed_at,
+        changefreq: "monthly",
+        priority: 0.55,
       });
     }
     return entries;

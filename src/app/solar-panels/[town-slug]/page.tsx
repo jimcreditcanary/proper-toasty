@@ -15,9 +15,10 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getTownBySlug, allTownSlugs, getNearbyTowns, type PilotTown } from "@/lib/programmatic/towns";
+import { getTownBySlug, allTownSlugs, getNearbyTowns, PILOT_TOWNS, type PilotTown } from "@/lib/programmatic/towns";
 import {
   loadTownAggregate,
+  loadLAAggregate,
   ALL_BANDS,
   type TownAggregateRow,
   type EnergyBand,
@@ -28,7 +29,38 @@ import { DEFAULT_AUTHOR_SLUG } from "@/lib/seo/authors";
 export const revalidate = 3600;
 
 export async function generateStaticParams() {
-  return allTownSlugs().map((slug) => ({ "town-slug": slug }));
+  // LA slugs — same enumeration pattern as the heat-pump route.
+  // Filter out LAs that have a matching PILOT_TOWN to avoid
+  // duplicating town pages.
+  const pilotLaGss = new Set(
+    PILOT_TOWNS.map((t) => t.laGssCode.toUpperCase()),
+  );
+  let laSlugs: string[] = [];
+  try {
+    const admin = createAdminClient();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data } = await (admin as any)
+      .from("epc_area_aggregates")
+      .select("scope_key")
+      .eq("scope", "local_authority")
+      .eq("indexed", true);
+    laSlugs = ((data ?? []) as Array<{ scope_key: string }>)
+      .filter((r) => {
+        const gss = r.scope_key.replace(/^la-/i, "").toUpperCase();
+        return !pilotLaGss.has(gss);
+      })
+      .map((r) => r.scope_key);
+  } catch (err) {
+    console.warn(
+      "[solar-panels] generateStaticParams: LA enum failed, skipping:",
+      err instanceof Error ? err.message : err,
+    );
+  }
+
+  return [
+    ...allTownSlugs().map((slug) => ({ "town-slug": slug })),
+    ...laSlugs.map((slug) => ({ "town-slug": slug })),
+  ];
 }
 
 interface PageProps {
@@ -39,6 +71,33 @@ export async function generateMetadata({
   params,
 }: PageProps): Promise<Metadata> {
   const { "town-slug": slug } = await params;
+
+  // LA branch — slug shape "la-<gss>".
+  if (slug.startsWith("la-")) {
+    const admin = createAdminClient();
+    const row = await loadLAAggregate(admin, slug);
+    if (!row || !row.indexed) {
+      return { robots: { index: false, follow: false } };
+    }
+    const url = `https://www.propertoasty.com/solar-panels/${slug}`;
+    const title = `Solar panels across ${row.display_name}: 2026 cost + SEG guide`;
+    const description = `Rooftop solar PV suitability across the ${row.display_name} local authority area, with install cost ranges, Smart Export Guarantee context, and EPC band data from ${row.sample_size.toLocaleString("en-GB")} local properties.`;
+    return {
+      title,
+      description,
+      alternates: { canonical: url },
+      openGraph: {
+        title,
+        description,
+        type: "article",
+        url,
+        siteName: "Propertoasty",
+        locale: "en_GB",
+        images: [{ url: "/hero-solar.jpg", width: 1200, height: 630 }],
+      },
+    };
+  }
+
   const town = getTownBySlug(slug);
   if (!town) return { robots: { index: false, follow: false } };
 
@@ -73,6 +132,16 @@ export async function generateMetadata({
 
 export default async function SolarPanelsTownPage({ params }: PageProps) {
   const { "town-slug": slug } = await params;
+
+  // LA branch — slug shape "la-<gss>".
+  if (slug.startsWith("la-")) {
+    const admin = createAdminClient();
+    const row = await loadLAAggregate(admin, slug);
+    if (!row) notFound();
+    const fakeTown = laToTownAdapter(row);
+    return <TownPageWithData town={fakeTown} row={row} isLA />;
+  }
+
   const town = getTownBySlug(slug);
   if (!town) notFound();
 
@@ -81,6 +150,22 @@ export default async function SolarPanelsTownPage({ params }: PageProps) {
 
   if (!row) return <NoDataShell town={town} />;
   return <TownPageWithData town={town} row={row} />;
+}
+
+function laToTownAdapter(row: TownAggregateRow): PilotTown {
+  return {
+    slug: row.scope_key,
+    name: row.display_name,
+    laGssCode: row.scope_key.replace(/^la-/i, "").toUpperCase(),
+    councilName: row.display_name,
+    postTowns: [],
+    postcodeDistricts: [],
+    county: row.county ?? "",
+    region: row.region ?? "",
+    country: row.country as PilotTown["country"],
+    lat: row.lat ?? 0,
+    lng: row.lng ?? 0,
+  };
 }
 
 function NoDataShell({ town }: { town: PilotTown }) {
@@ -108,12 +193,16 @@ function NoDataShell({ town }: { town: PilotTown }) {
 function TownPageWithData({
   town,
   row,
+  isLA = false,
 }: {
   town: PilotTown;
   row: TownAggregateRow;
+  isLA?: boolean;
 }) {
   const data = row.data;
   const url = `https://www.propertoasty.com/solar-panels/${town.slug}`;
+  const inOrAcross = isLA ? "across" : "in";
+  const areaLabel = isLA ? `${town.name} (local authority area)` : town.name;
 
   // Band data — same source as the heat-pump variant. We interpret
   // it through a SOLAR lens: well-rated homes typically have intact
@@ -156,8 +245,8 @@ function TownPageWithData({
 
   return (
     <AEOPage
-      headline={`Solar panels in ${town.name}: 2026 cost + SEG guide`}
-      description={`Rooftop solar PV suitability in ${town.name}, with install cost ranges, payback periods, Smart Export Guarantee context, and EPC band data from ${samplePretty} local properties.`}
+      headline={`Solar panels ${inOrAcross} ${areaLabel}: 2026 cost + SEG guide`}
+      description={`Rooftop solar PV suitability ${inOrAcross} ${areaLabel}, with install cost ranges, payback periods, Smart Export Guarantee context, and EPC band data from ${samplePretty} local properties.`}
       url={url}
       image="/hero-solar.jpg"
       datePublished="2026-05-11"
@@ -167,7 +256,7 @@ function TownPageWithData({
       breadcrumbs={[
         { name: "Home", url: "/" },
         { name: "Solar panels", url: "/solar-panels" },
-        { name: town.name },
+        { name: areaLabel },
       ]}
       directAnswer={directAnswer}
       tldr={tldr}
