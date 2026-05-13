@@ -457,6 +457,28 @@ Three policy trends matter through 2030: FHS 2025 transitional window closes 202
 For new-build buyers: confirm developer's brand/model spec + handover documentation. For retrofitters: fabric-first conversation before heat-pump quote — insulation pays back in shorter time than the heat-pump itself and lets you spec smaller + cheaper.`,
   },
   {
+    url: `${SITE_URL}/compare/heat-pump-finance-options`,
+    title: "Heat pump finance options UK 2026",
+    summary:
+      "Five paths to pay for the £1,500-£6,500 net cost after BUS grant: cash, 0% installer finance, green mortgage, secured loan, heat-pump-as-a-service.",
+    section: "Comparisons",
+    content: `After the £7,500 Boiler Upgrade Scheme grant covers most of the heat-pump install cost, UK homeowners typically face a net balance of £1,500-£6,500. Five major finance paths cover this:
+
+Cash from savings: cheapest in absolute terms (no interest, no fees), but consider opportunity cost on long-term invested savings at higher real returns.
+
+0% APR installer finance: common path, FCA-regulated. Most large MCS installers partner with Hitachi Capital, Klarna, Novuna, V12 to offer 24-60 month 0% terms. Eligibility = credit check + 0-20% deposit. Watch for subvention markup — ask for cash-equivalent price as sanity check.
+
+Green mortgage add-on (Halifax, NatWest, Nationwide, Barclays, Santander): rate typically 0.05-0.25% below SVR, lowest non-cash rate but pays over 25-30 years. Heat pump becomes part of mortgage-secured debt.
+
+Secured personal loan: 6-10% APR over 3-7 years. Fastest disbursement of credit options. Repossession risk if secured against property.
+
+Heat-pump-as-a-service: emerging UK product where third party installs + owns the heat pump; you pay monthly fee for 10-15 years. Removes upfront cost but total cost 1.5-2x cash-equivalent. Read FCA-authorised terms carefully — exit clauses can be costly.
+
+The BUS grant is paid by Ofgem to the installer, not the homeowner — finance amounts always quote the NET-of-grant balance, not the gross install cost.
+
+Every finance product must come from an FCA-authorised provider. Verify lender registration at fca.org.uk/firms/financial-services-register before signing.`,
+  },
+  {
     url: `${SITE_URL}/blog`,
     title: "Guides + blog",
     summary:

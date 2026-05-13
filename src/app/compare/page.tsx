@@ -171,6 +171,13 @@ const COMPARISONS: ComparisonEntry[] = [
       "Future Homes Standard 2025 made heat pumps standard in English new builds. Retrofit gets the £7,500 BUS grant; new build doesn't (it's mandatory).",
     audience: "Buying new vs upgrading existing",
   },
+  {
+    slug: "heat-pump-finance-options",
+    title: "Heat pump finance options UK 2026",
+    summary:
+      "Five paths for the £1,500–£6,500 net cost after BUS: cash, 0% installer finance, green mortgage, secured loan, heat-pump-as-a-service.",
+    audience: "Paying for the heat pump",
+  },
 ];
 
 export default function ComparePage() {
