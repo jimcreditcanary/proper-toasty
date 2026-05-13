@@ -74,6 +74,13 @@ const COMPARISONS: ComparisonEntry[] = [
     audience: "~500k UK homes on direct electric",
   },
   {
+    slug: "heat-pump-vs-night-storage-heaters",
+    title: "Heat pump vs night storage heaters",
+    summary:
+      "Storage heaters run on cheap Economy 7 overnight electricity but the heat is gone by evening. Heat pump on a time-of-use tariff matches the cost story + delivers heat on demand.",
+    audience: "~700k UK homes on Economy 7",
+  },
+  {
     slug: "air-source-vs-ground-source-heat-pump",
     title: "Air source vs ground source heat pump",
     summary:
