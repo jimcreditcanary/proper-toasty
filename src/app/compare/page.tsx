@@ -115,6 +115,13 @@ const COMPARISONS: ComparisonEntry[] = [
       "Side-by-side spec comparison of Daikin Altherma and Mitsubishi Ecodan ranges in the UK. SCOP, sound, warranty, controls — published data only.",
     audience: "Picking a heat pump brand",
   },
+  {
+    slug: "vaillant-vs-daikin-heat-pump",
+    title: "Vaillant vs Daikin heat pump",
+    summary:
+      "Vaillant aroTHERM plus runs R290 propane (lowest-GWP refrigerant); Daikin Altherma 3 R runs R32. Spec comparison from published UK product data.",
+    audience: "Picking a heat pump brand",
+  },
 ];
 
 export default function ComparePage() {

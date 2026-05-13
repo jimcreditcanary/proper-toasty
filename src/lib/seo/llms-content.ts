@@ -323,6 +323,20 @@ Material differences land in: refrigerant (Daikin runs R32 on the 3 R range plus
 The practical pick usually comes down to your installer's preferred range, indoor-unit space constraints, and whether your existing radiators can take a standard flow temperature. Both brands have wide UK MCS-installer coverage; check 2–3 quotes locally. Brand choice doesn't affect the £7,500 BUS grant — both ranges have MCS-certified models.`,
   },
   {
+    url: `${SITE_URL}/compare/vaillant-vs-daikin-heat-pump`,
+    title: "Vaillant vs Daikin heat pump (2026)",
+    summary:
+      "Spec comparison of Vaillant aroTHERM and Daikin Altherma ranges in the UK. Notable: Vaillant aroTHERM plus runs R290 propane refrigerant (lowest GWP); Daikin runs R32.",
+    section: "Comparisons",
+    content: `Vaillant aroTHERM and Daikin Altherma are both top-five UK air-source heat pump ranges by 2025 MCS install count. Both deliver BUS-grant-eligible installs across the typical 4–16 kW UK capacity range with comparable SCOP figures (3.9–5.1 at W35) — within ~5% across overlapping capacities.
+
+The single most material spec difference is refrigerant. Vaillant's current aroTHERM plus runs R290 (propane, GWP 3) — the lowest-GWP refrigerant in mainstream UK residential heat pumps. Daikin's Altherma 3 R runs R32 (GWP 675), with some R410A (GWP 2,088) in legacy stock. R290 is the long-term industry direction; R32 is current mainstream.
+
+Other differences: cylinder pairing (Vaillant uniTOWER + uniSTOR vs Daikin EKHWS — both clean integrations), high-temperature capability (Daikin Altherma 3 H HT delivers up to 70°C flow; standard Vaillant aroTHERM tops at ~55°C), and installer footprint (Vaillant strongest with installers transitioning from its gas-boiler dealer network; Daikin has wider heat-pump-specialist coverage).
+
+Practical pick depends on: installer preference + familiarity, refrigerant choice (R290 long-term-greener, slightly thinner service-tech pool outside metros), and whether existing radiators need flow temperatures above 55°C (Daikin's high-temperature option doesn't have a Vaillant residential equivalent).`,
+  },
+  {
     url: `${SITE_URL}/blog`,
     title: "Guides + blog",
     summary:
