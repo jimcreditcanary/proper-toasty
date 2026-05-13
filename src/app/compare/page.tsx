@@ -67,6 +67,13 @@ const COMPARISONS: ComparisonEntry[] = [
     audience: "~150k UK homes on LPG",
   },
   {
+    slug: "heat-pump-vs-electric-boiler",
+    title: "Heat pump vs electric boiler",
+    summary:
+      "Same fuel (grid electricity), very different efficiency. Heat pump delivers 3.5× the heat per kWh; switching saves £600–£1,200/year on a typical UK home.",
+    audience: "~500k UK homes on direct electric",
+  },
+  {
     slug: "air-source-vs-ground-source-heat-pump",
     title: "Air source vs ground source heat pump",
     summary:
