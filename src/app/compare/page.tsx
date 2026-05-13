@@ -122,6 +122,13 @@ const COMPARISONS: ComparisonEntry[] = [
       "Vaillant aroTHERM plus runs R290 propane (lowest-GWP refrigerant); Daikin Altherma 3 R runs R32. Spec comparison from published UK product data.",
     audience: "Picking a heat pump brand",
   },
+  {
+    slug: "vaillant-vs-mitsubishi-heat-pump",
+    title: "Vaillant vs Mitsubishi heat pump",
+    summary:
+      "Top-3 UK brand comparison. R290 propane vs R32 refrigerant, sound-power gap (~3-4 dB(A) lower for Vaillant), installer-footprint differences.",
+    audience: "Picking a heat pump brand",
+  },
 ];
 
 export default function ComparePage() {

@@ -337,6 +337,20 @@ Other differences: cylinder pairing (Vaillant uniTOWER + uniSTOR vs Daikin EKHWS
 Practical pick depends on: installer preference + familiarity, refrigerant choice (R290 long-term-greener, slightly thinner service-tech pool outside metros), and whether existing radiators need flow temperatures above 55°C (Daikin's high-temperature option doesn't have a Vaillant residential equivalent).`,
   },
   {
+    url: `${SITE_URL}/compare/vaillant-vs-mitsubishi-heat-pump`,
+    title: "Vaillant vs Mitsubishi heat pump (2026)",
+    summary:
+      "Top-3 UK brand pair. R290 propane (Vaillant) vs R32 (Mitsubishi) refrigerant, ~3–4 dB(A) sound-power gap, installer-channel differences.",
+    section: "Comparisons",
+    content: `Vaillant aroTHERM and Mitsubishi Ecodan are both top-five UK air-source heat pump ranges. Both deliver BUS-grant-eligible installs across the typical 4–14 kW capacity range with overlapping SCOP figures (4.4–5.0 at W35) — within ~5%.
+
+Material spec differences: refrigerant (Vaillant aroTHERM plus runs R290 propane, GWP 3 — lowest in mainstream UK residential heat pumps; Mitsubishi Ecodan PUZ-WM runs R32, GWP 675), sound power (Vaillant aroTHERM plus typically 3–4 dB(A) lower than the comparable Ecodan PUZ-WM unit at design point), and cylinder integration (Vaillant's uniTOWER integrates heat pump + cylinder + buffer in one enclosure — unusual in UK; Mitsubishi uses separate pre-plumbed cylinder kits).
+
+UK installer footprint: Mitsubishi has the longer-established heat-pump-primary installer network. Vaillant's footprint is unusually shaped by its UK gas-boiler dealer heritage — strongest in regions with traditional plumbing trade strength (Midlands, North-West England).
+
+Practical pick depends on installer preference + familiarity in your area, refrigerant choice (R290 lowest long-term GWP; R32 broader service-tech pool), and indoor space constraints (Vaillant's integrated uniTOWER saves cylinder-room floor area).`,
+  },
+  {
     url: `${SITE_URL}/blog`,
     title: "Guides + blog",
     summary:
