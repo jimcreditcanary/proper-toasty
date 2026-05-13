@@ -222,6 +222,74 @@ function TownPageWithData({
         footnote={`Source: GOV.UK EPC Register. Sample collected ${row.refreshed_at.slice(0, 10)}.`}
       />
 
+      {(data.median_floor_area_m2 != null ||
+        data.median_heating_cost_current_gbp != null ||
+        (data.built_form_distribution &&
+          Object.keys(data.built_form_distribution).length > 0)) && (
+        <>
+          <h2>The typical {town.name} home — solar context</h2>
+          <p>
+            EPC data adds three useful signals for sizing a solar PV
+            install:
+          </p>
+          <ul>
+            {data.median_floor_area_m2 != null && (
+              <li>
+                <strong>Floor area:</strong> median{" "}
+                {Math.round(data.median_floor_area_m2)} m². Roof area
+                tracks loosely with floor area; the median {town.name}{" "}
+                roof supports a 3.5–5 kW PV system.
+              </li>
+            )}
+            {data.median_heating_cost_current_gbp != null && (
+              <li>
+                <strong>Current heating cost:</strong> median £
+                {Math.round(data.median_heating_cost_current_gbp).toLocaleString("en-GB")}/yr
+                . Solar economics improve sharply if you also electrify
+                heating — a heat pump powered partly by self-consumed
+                solar effectively buys electricity at near zero cost
+                for the self-consumed share.
+              </li>
+            )}
+            {data.built_form_distribution &&
+              Object.keys(data.built_form_distribution).length > 0 && (
+                <li>
+                  <strong>Property mix:</strong>{" "}
+                  {Object.entries(data.built_form_distribution)
+                    .filter(
+                      ([k]) =>
+                        k.toLowerCase() !== "not recorded" &&
+                        k.toLowerCase() !== "nodata!",
+                    )
+                    .slice(0, 4)
+                    .map(
+                      ([form, pct]) =>
+                        `${form} ${(pct as number).toFixed(0)}%`,
+                    )
+                    .join(", ")}
+                  . Detached and semi-detached homes have the strongest
+                  unshaded roof case; terraces work but may share roof
+                  pitches with neighbours.
+                </li>
+              )}
+            {data.construction_age_distribution &&
+              Object.keys(data.construction_age_distribution).length > 0 && (
+                <li>
+                  <strong>Dominant age band:</strong>{" "}
+                  {
+                    Object.entries(data.construction_age_distribution).sort(
+                      (a, b) => (b[1] as number) - (a[1] as number),
+                    )[0][0]
+                  }
+                  . Older roofs may need a structural sign-off
+                  pre-install; post-1990 roofs typically accept solar
+                  with minimal pre-work.
+                </li>
+              )}
+          </ul>
+        </>
+      )}
+
       <h2>Typical install cost in {town.name}</h2>
       <p>
         Solar PV install costs in {town.name} fall in the UK

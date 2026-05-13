@@ -759,6 +759,32 @@ Best-case payback recipe: replace oil/LPG at end-of-life, smart tariff, tuned we
 Worst-case: working gas boiler, flat-rate tariff, no insulation, untuned = 30+ years.`,
   },
   {
+    url: `${SITE_URL}/research/uk-affordability-index`,
+    title: "UK Heat Pump & Solar Affordability Index 2026",
+    summary:
+      "EPC-backed annual snapshot of UK home energy affordability — band shares, heating costs, mains-gas coverage, by year and region. Drawn from the full GOV.UK EPC Register.",
+    section: "Data",
+    content: `Annual data asset tracking how UK home energy affordability has shifted year-on-year, drawn from the full GOV.UK EPC Register (Open Government Licence v3.0). Snapshot years 2012, 2016, 2020, 2024, 2026 by default.
+
+Metrics published per snapshot year (national + per Government Statistical Service region):
+- EPC band distribution (A-G shares)
+- Band C+ share — proxy for "heat-pump-ready without significant fabric work"
+- Band D+ share — proxy for retrofit-opportunity cohort
+- Median floor area (m²)
+- Median current heating cost (£/yr)
+- Mains gas connection share (%)
+- Dominant property type
+- Dominant construction age band
+
+Methodology caveats:
+- EPCs are required at sale and new build, so each year cohort over-represents moving-house events. The dataset is the population of EPC lodgements, not the population of UK homes.
+- EPC methodology has changed across the snapshot period (RdSAP updates, age-band relabelling, glazing assessment refinements). Year-on-year comparisons are directionally robust; pixel-perfect comparisons are not.
+
+Refresh cadence: monthly with the bulk EPC dump from api.get-energy-performance-data.communities.gov.uk.
+
+Source data: GOV.UK EPC Register, Open Government Licence v3.0, © Crown copyright. Press/research enquiries via /contact.`,
+  },
+  {
     url: `${SITE_URL}/blog`,
     title: "Guides + blog",
     summary:

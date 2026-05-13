@@ -1,0 +1,5 @@
+{
+  "_note": "Replace this file by copying tmp/epc-aggregates/trends.json after running scripts/epc-bulk/trends.ts. The Affordability Index page reads from here at build time. Stub data below is a placeholder so the page renders during initial development.",
+  "_placeholder": true,
+  "snapshots": []
+}
