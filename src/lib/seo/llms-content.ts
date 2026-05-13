@@ -441,6 +441,22 @@ Narrow but real air-to-air niche: properties with no existing wet heating system
 Hybrid configurations (air-to-water on BUS-funded primary install + small air-to-air for living-room/bedroom summer cooling, ~£1,500-£3,500) are growing in 2026 UK installs as summer cooling demand rises.`,
   },
   {
+    url: `${SITE_URL}/compare/new-build-vs-retrofit-heat-pump`,
+    title: "New build vs retrofit heat pump (2026)",
+    summary:
+      "Install context comparison. Future Homes Standard 2025 made heat pumps mandatory in English new builds; BUS grant covers retrofits in existing homes.",
+    section: "Comparisons",
+    content: `The 2025 Future Homes Standard (FHS) update to UK Building Regulations Part L effectively excluded gas-boiler installs from new English homes by setting emissions limits only achievable with low-carbon heating. Heat pumps became the dominant new-build choice; transitional arrangements close fully by 2027.
+
+New-build heat pumps are designed in: smaller capacity (4-6 kW vs 10-14 kW retrofit because of FHS fabric performance), UFH on the ground floor as standard, properly sized cylinder, outdoor unit pre-sited for MCS 020. SCOP typically 4.5-5.0. Cost folded into build price (~£6,500-£10,000 inclusive); NO BUS grant — the £7,500 funds REPLACEMENT of existing fossil-fuel heating, which new builds don't have.
+
+Retrofit heat pumps adapt to existing homes: heat-loss survey determines sizing, emitter upgrades (radiator changes) often needed, cylinder space found in airing cupboard or relocated, outdoor siting compromise within existing garden. Net cost £1,500-£6,500 after £7,500 BUS grant. SCOP 3.2-4.5 depending on fabric — the single biggest performance lever is loft + cavity insulation before sizing.
+
+Three policy trends matter through 2030: FHS 2025 transitional window closes 2027 (full new-build heat-pump-only); BUS funded through 2028 minimum; gas-boiler-in-existing-homes ban consulted in 2023, deferred — most UK homes will retain gas-boiler replacement option through 2030+.
+
+For new-build buyers: confirm developer's brand/model spec + handover documentation. For retrofitters: fabric-first conversation before heat-pump quote — insulation pays back in shorter time than the heat-pump itself and lets you spec smaller + cheaper.`,
+  },
+  {
     url: `${SITE_URL}/blog`,
     title: "Guides + blog",
     summary:
