@@ -101,6 +101,30 @@ async function loadGuideEntries(): Promise<SitemapUrlEntry[]> {
       changefreq: "monthly",
       priority: 0.8,
     },
+    {
+      loc: `${SITE_URL}/guides/heat-pump-running-costs-vs-gas`,
+      lastmod: now,
+      changefreq: "monthly",
+      priority: 0.8,
+    },
+    {
+      loc: `${SITE_URL}/guides/scop-cop-spf-explained`,
+      lastmod: now,
+      changefreq: "monthly",
+      priority: 0.8,
+    },
+    {
+      loc: `${SITE_URL}/guides/mcs-020-noise-rules-explained`,
+      lastmod: now,
+      changefreq: "monthly",
+      priority: 0.8,
+    },
+    {
+      loc: `${SITE_URL}/guides/heat-pump-payback-period-uk`,
+      lastmod: now,
+      changefreq: "monthly",
+      priority: 0.8,
+    },
   ];
 }
 

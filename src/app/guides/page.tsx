@@ -74,6 +74,34 @@ const GUIDES: GuideEntry[] = [
       "Schedule, weather compensation, app integration — how to actually run a heat pump on a UK smart tariff for lowest running cost.",
     audience: "Post-install optimisation",
   },
+  {
+    slug: "heat-pump-running-costs-vs-gas",
+    title: "Heat pump vs gas running costs",
+    summary:
+      "Worked examples of UK heat pump running cost in 2026 by house size, tariff, and insulation level — vs a modern gas boiler.",
+    audience: "Understanding running costs",
+  },
+  {
+    slug: "scop-cop-spf-explained",
+    title: "SCOP, COP, SPF explained",
+    summary:
+      "The three efficiency metrics for UK heat pumps — when each is used, typical 2026 numbers, what to look for in an installer quote.",
+    audience: "Efficiency basics",
+  },
+  {
+    slug: "mcs-020-noise-rules-explained",
+    title: "MCS 020 noise rules explained",
+    summary:
+      "What MCS 020 is, the 42 dB(A) limit, how the calculation works, and how to fix a failing siting before you commission.",
+    audience: "Siting + planning rules",
+  },
+  {
+    slug: "heat-pump-payback-period-uk",
+    title: "Heat pump payback period UK",
+    summary:
+      "Three worked payback scenarios — gas, oil, LPG replacement — with the £7,500 BUS grant + smart tariff factored in.",
+    audience: "Economics + payback",
+  },
 ];
 
 export default function GuidesPage() {
@@ -93,7 +121,7 @@ export default function GuidesPage() {
       ]}
       directAnswer="These guides walk through the practical steps of a UK heat-pump install in 2026 — how the £7,500 BUS grant application flows, what happens during an MCS-certified installer's site visit, and what to look out for at each stage. Written for homeowners considering or about to commission an install."
       tldr={[
-        "Five production guides covering BUS application, MCS site visits, fabric-first retrofit, hot-water planning, and smart-tariff setup.",
+        "Nine production guides covering BUS application, MCS site visits, fabric-first retrofit, hot-water planning, smart-tariff setup, running costs, SCOP/COP/SPF, MCS 020 noise, and payback.",
         "Every guide uses 2026 UK numbers and current Ofgem / MCS rules.",
         "Aimed at homeowners 1–3 months from commissioning an install (or freshly commissioned).",
         "Pair these with the comparison pages at /compare for technology decisions.",
