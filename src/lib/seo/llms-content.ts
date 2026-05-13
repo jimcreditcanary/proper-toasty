@@ -309,6 +309,20 @@ Battery pays back fastest with: heat pump in the home, smart tariff arbitrage, h
 No UK government grant covers residential batteries (BUS is heat-pump-only). Most homeowners pay full battery cost upfront.`,
   },
   {
+    url: `${SITE_URL}/compare/daikin-vs-mitsubishi-heat-pump`,
+    title: "Daikin vs Mitsubishi heat pump (2026)",
+    summary:
+      "Objective spec comparison of the two highest-volume UK heat-pump brands. SCOP, sound, refrigerant, warranty, controls — published data only.",
+    section: "Comparisons",
+    content: `Daikin Altherma and Mitsubishi Ecodan are the two highest-volume air-source heat pump ranges in the UK by 2025 MCS install count. Both deliver BUS-grant-eligible installs across the typical 4–16 kW UK capacity range.
+
+Published specs are closer than search-result framing suggests. SCOP at W35 (low-temperature heating): Daikin Altherma 3 R 4.5–5.1, Mitsubishi Ecodan PUZ-WM 4.4–4.8 — within ~10% across overlapping capacities, smaller than installer commissioning quality typically affects real-world efficiency.
+
+Material differences land in: refrigerant (Daikin runs R32 on the 3 R range plus some R410A legacy stock; Mitsubishi Ecodan PUZ-WM is R32 across the current range), high-temperature capability (Daikin Altherma 3 H HT delivers up to 70°C flow for retrofit installs where radiators can't be upgraded; standard Ecodan tops out at ~55°C), and controls app (Daikin Onecta vs MELCloud — feature-equivalent in 2026).
+
+The practical pick usually comes down to your installer's preferred range, indoor-unit space constraints, and whether your existing radiators can take a standard flow temperature. Both brands have wide UK MCS-installer coverage; check 2–3 quotes locally. Brand choice doesn't affect the £7,500 BUS grant — both ranges have MCS-certified models.`,
+  },
+  {
     url: `${SITE_URL}/blog`,
     title: "Guides + blog",
     summary:

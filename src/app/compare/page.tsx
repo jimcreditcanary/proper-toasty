@@ -108,6 +108,13 @@ const COMPARISONS: ComparisonEntry[] = [
       "Adding a 5–10 kWh battery costs £3,500–£6,500. Pays back in 9–13 years; faster (5–8) on smart tariffs or with heat pump / EV load.",
     audience: "Spec'ing your solar system",
   },
+  {
+    slug: "daikin-vs-mitsubishi-heat-pump",
+    title: "Daikin vs Mitsubishi heat pump",
+    summary:
+      "Side-by-side spec comparison of Daikin Altherma and Mitsubishi Ecodan ranges in the UK. SCOP, sound, warranty, controls — published data only.",
+    audience: "Picking a heat pump brand",
+  },
 ];
 
 export default function ComparePage() {
