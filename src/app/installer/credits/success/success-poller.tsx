@@ -41,6 +41,7 @@ export function SuccessPoller({ sessionId }: Props) {
       // No session id in the URL — show the timeout view straight away
       // with a refresh CTA. This shouldn't happen in practice (Stripe
       // always passes the placeholder back) but it's a graceful fall.
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot fallback
       setState({ kind: "timeout", balance: null });
       return;
     }

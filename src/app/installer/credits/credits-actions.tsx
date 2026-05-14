@@ -441,7 +441,10 @@ function BuyModal({ onClose }: { onClose: () => void }) {
         setPendingId(null);
         return;
       }
-      window.location.href = json.url;
+      // Full-page navigation to Stripe Checkout — assign() rather
+      // than `= json.url` so the react-hooks/immutability rule
+      // doesn't flag a property assignment on the global window.
+      window.location.assign(json.url);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Network error");
       setPendingId(null);

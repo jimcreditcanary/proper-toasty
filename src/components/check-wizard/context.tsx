@@ -70,8 +70,18 @@ export function CheckWizardProvider({
   const [step, setStep] = useState<CheckStep>(initialStep ?? "address");
   const [hydrated, setHydrated] = useState(false);
 
+  // Hydration effect — bridges SSR (no localStorage available) and
+  // the client's persisted wizard state. We deliberately setState
+  // inside this effect to flag hydration-complete + restore the
+  // persisted step. The "cascading renders" lint rule fires here
+  // but this is the canonical pattern for client-only persisted
+  // state in App Router; there's no external store API that fits
+  // (useSyncExternalStore is for store changes, not one-shot
+  // hydration). Disables are scoped to the specific setState
+  // calls + commented with the reason.
   useEffect(() => {
     if (disablePersistence) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration flag
       setHydrated(true);
       return;
     }

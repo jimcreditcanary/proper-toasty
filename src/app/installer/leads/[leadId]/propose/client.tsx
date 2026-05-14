@@ -34,7 +34,6 @@ import {
   computeTotals,
   formatGbp,
   groupByCategory,
-  presetsFor,
   HEAT_PUMP_PRESETS,
   SOLAR_PV_PRESETS,
   BATTERY_PRESETS,

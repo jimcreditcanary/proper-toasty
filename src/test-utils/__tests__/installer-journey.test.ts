@@ -49,6 +49,27 @@ vi.mock("@/lib/email/client", async (importOriginal) => {
   };
 });
 
+// next/server.after() requires a request scope. In Vitest we don't
+// have one (we're invoking the POST handler directly), so calling
+// it throws "after was called outside a request scope". Stub it as
+// a no-op that swallows whatever's passed in — capture/route.ts
+// passes the *result* of an async call (a Promise), so we just
+// silently await it. The side effects still execute; they just
+// complete inline rather than after the response is flushed.
+vi.mock("next/server", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("next/server")>();
+  return {
+    ...actual,
+    after: (work: (() => unknown | Promise<unknown>) | Promise<unknown>) => {
+      if (typeof work === "function") {
+        void Promise.resolve().then(() => work());
+      } else {
+        void Promise.resolve(work);
+      }
+    },
+  };
+});
+
 // Required env vars for the various token signers.
 process.env.PRE_SURVEY_TOKEN_SECRET = "x".repeat(32);
 process.env.PROPOSAL_TOKEN_SECRET = "y".repeat(32);

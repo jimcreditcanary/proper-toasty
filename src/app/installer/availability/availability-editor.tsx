@@ -11,10 +11,7 @@ import {
   AlertCircle,
   Copy,
 } from "lucide-react";
-import type {
-  AvailabilityResponse,
-  AvailabilitySettings,
-} from "@/lib/schemas/installer-availability";
+import type { AvailabilityResponse } from "@/lib/schemas/installer-availability";
 
 // Editor surface for /installer/availability.
 //

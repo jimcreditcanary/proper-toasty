@@ -181,9 +181,10 @@ export function FloorplanEditor({
   onRequestPlacements,
   placementsRunning,
   placementsError,
-  onRequestAutorun,
+  // onRequestAutorun + autorunError accepted on the prop type but
+  // not extracted here — kept for callers that still pass them in
+  // (no-op today). See the trailing comment in the help-text panel.
   autorunRunning,
-  autorunError,
   onComplete,
 }: FloorplanEditorProps) {
   // Pick initial stage based on what's already in analysis (for back-and-

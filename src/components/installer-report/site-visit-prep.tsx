@@ -439,12 +439,19 @@ function ScoreBreakdown({
   }
 
   // Running total + check that our parsing matches the model's total.
-  let running = 0;
-  const rows = lines.map((line) => {
-    running += line.delta;
-    return { ...line, running };
-  });
-  const parseMatches = running === total;
+  // reduce() satisfies react-hooks/immutability (no post-render
+  // variable reassignment) while still producing a single-pass
+  // running-total array.
+  const rows = lines.reduce<Array<(typeof lines)[number] & { running: number }>>(
+    (acc, line) => {
+      const running = (acc[acc.length - 1]?.running ?? 0) + line.delta;
+      acc.push({ ...line, running });
+      return acc;
+    },
+    [],
+  );
+  const finalRunning = rows[rows.length - 1]?.running ?? 0;
+  const parseMatches = finalRunning === total;
 
   return (
     <div className="mb-3 rounded-xl border border-slate-200 bg-white overflow-hidden">
@@ -497,8 +504,8 @@ function ScoreBreakdown({
         // declared total. Surface a small disclaimer rather than
         // silently misrepresent the math.
         <p className="px-3 py-2 text-[10px] text-amber-700 bg-amber-50 border-t border-amber-100">
-          Parsed adjustments sum to {running}, model declared {total}. Some
-          nuance may be in the original rationale.
+          Parsed adjustments sum to {finalRunning}, model declared {total}.
+          Some nuance may be in the original rationale.
         </p>
       )}
     </div>
