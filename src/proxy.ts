@@ -102,6 +102,36 @@ export async function proxy(request: NextRequest) {
     });
   }
 
+  // Cache-control override for public SEO routes.
+  //
+  // The MarketingHeader reads `pt_audience` via cookies(), which
+  // forces Next.js to mark every page that renders it as dynamic +
+  // private. The response leaves Next with
+  // `cache-control: private, no-cache, no-store, must-revalidate` —
+  // which is correct for genuinely user-specific content but wrong
+  // for our SEO pages where the cookie just toggles a header label.
+  // Bing reads "private" as "personalised, don't index" and refuses
+  // to crawl.
+  //
+  // Fix: for public routes where THIS specific response didn't write
+  // any cookies (so the response truly doesn't contain user state),
+  // override the cache-control to a CDN-cacheable value. The
+  // `s-maxage=300` allows Vercel's edge to cache for 5 minutes,
+  // `stale-while-revalidate=86400` serves stale up to a day while
+  // revalidating in the background. `max-age=0` keeps the browser
+  // honest — every reload re-checks.
+  //
+  // Auth routes (gated above with needsAuthSession) keep their
+  // original headers — they DO carry user state and shouldn't be
+  // shared-cached.
+  const hasSetCookie = response.headers.has("set-cookie");
+  if (!needsAuthSession(path) && !hasSetCookie) {
+    response.headers.set(
+      "cache-control",
+      "public, max-age=0, s-maxage=300, stale-while-revalidate=86400",
+    );
+  }
+
   return response;
 }
 
