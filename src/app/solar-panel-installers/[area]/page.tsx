@@ -94,8 +94,8 @@ export async function generateStaticParams() {
   const pilotLaGss = new Set(
     PILOT_TOWNS.map((t) => t.laGssCode.toUpperCase()),
   );
+  // PCD pages — lazy via ISR, not pre-built.
   let laSlugs: string[] = [];
-  let pcdSlugs: string[] = [];
   try {
     const admin = createAdminClient();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -110,19 +110,9 @@ export async function generateStaticParams() {
         return !pilotLaGss.has(gss);
       })
       .map((r) => r.scope_key);
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: pcdData } = await (admin as any)
-      .from("epc_area_aggregates")
-      .select("scope_key")
-      .eq("scope", "postcode_district")
-      .eq("indexed", true);
-    pcdSlugs = ((pcdData ?? []) as Array<{ scope_key: string }>).map(
-      (r) => r.scope_key,
-    );
   } catch (err) {
     console.warn(
-      "[solar-panel-installers] generateStaticParams: LA/PCD enum failed:",
+      "[solar-panel-installers] generateStaticParams: LA enum failed:",
       err instanceof Error ? err.message : err,
     );
   }
@@ -130,7 +120,6 @@ export async function generateStaticParams() {
   return [
     ...townSlugs.map((slug) => ({ area: slug })),
     ...laSlugs.map((slug) => ({ area: slug })),
-    ...pcdSlugs.map((slug) => ({ area: slug })),
   ];
 }
 
