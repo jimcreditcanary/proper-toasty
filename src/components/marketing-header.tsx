@@ -24,21 +24,29 @@
 //   - Signed out + homeowner audience → no auth surface (homeowners
 //     don't need to sign in for a free check).
 //
-// Async server component — reads cookies + Supabase session at
-// render time. Mobile menu still <details>/<summary> so no client JS.
+// Pure synchronous server component. Used to read cookies + Supabase
+// session at render time but those calls forced Next.js to mark every
+// page that includes the header as dynamic + private, which broke
+// Bing indexability on all SEO surfaces (Bing won't index pages with
+// cache-control: private).
+//
+// Now: audience defaults to "homeowner" when not passed; pages that
+// need the installer view pass audience="installer" explicitly.
+// Auth state is no longer read here — the "Sign in" link is generic;
+// /auth/login handles already-signed-in users with a server-side
+// redirect to their role-based home.
+//
+// Mobile menu still <details>/<summary> so no client JS needed.
 
 import Link from "next/link";
 import { ArrowRight, CircleUserRound, Hammer, Home, Menu } from "lucide-react";
 import { Logo } from "@/components/logo";
-import { createClient } from "@/lib/supabase/server";
-import {
-  type MarketingAudience,
-  getAudienceFromCookie,
-} from "@/lib/marketing/audience";
+import { type MarketingAudience } from "@/lib/marketing/audience";
 
 interface MarketingHeaderProps {
-  /** Which audience this page is for. When omitted, the cookie
-   *  (pinned by the proxy on canonical-page visits) decides. */
+  /** Which audience this page is for. Defaults to "homeowner" when
+   *  not passed. Pages targeting installers (/enterprise, /pricing,
+   *  /installer-signup) pass audience="installer". */
   audience?: MarketingAudience;
   /** Highlight whichever nav item matches the current page so it
    *  reads as "you are here". */
@@ -49,36 +57,16 @@ interface MarketingHeaderProps {
   compact?: boolean;
 }
 
-export async function MarketingHeader({
-  audience,
+export function MarketingHeader({
+  audience = "homeowner",
   active,
   compact = false,
 }: MarketingHeaderProps) {
-  const resolvedAudience = audience ?? (await getAudienceFromCookie());
-  const isInstaller = resolvedAudience === "installer";
-
-  // Auth state. Signed-in users get an "Account" link instead of
-  // "Sign in". Their target depends on role — looked up from the
-  // users table when there's a logged-in user.
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  let accountHref: string | null = null;
-  if (user) {
-    const { data: profile } = await supabase
-      .from("users")
-      .select("role")
-      .eq("id", user.id)
-      .maybeSingle<{ role: string | null }>();
-    const role = profile?.role ?? "user";
-    accountHref =
-      role === "admin"
-        ? "/admin"
-        : role === "installer"
-          ? "/installer"
-          : "/dashboard";
-  }
+  const isInstaller = audience === "installer";
+  // accountHref kept null to maintain the existing render logic
+  // (signed-out branch). Signed-in users get redirected from
+  // /auth/login if they hit it, which the auth callback handles.
+  const accountHref: string | null = null;
 
   return (
     <header className="bg-cream/80 backdrop-blur-md border-b border-[var(--border)] sticky top-0 z-50">
@@ -100,7 +88,7 @@ export async function MarketingHeader({
                 aria-hidden="true"
                 className="hidden md:block h-6 w-px bg-[var(--border)]"
               />
-              <AudienceTabs current={resolvedAudience} />
+              <AudienceTabs current={audience} />
             </>
           )}
         </div>
@@ -196,7 +184,7 @@ export async function MarketingHeader({
                     inline tabs don't fit in the small-screen header
                     so we surface the choice here as a pill toggle. */}
                 <div className="p-3 bg-cream-deep/40">
-                  <AudienceTogglePill current={resolvedAudience} />
+                  <AudienceTogglePill current={audience} />
                 </div>
                 {isInstaller ? (
                   <>
