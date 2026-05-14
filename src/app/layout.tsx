@@ -116,10 +116,12 @@ export default function RootLayout({
       dir="ltr"
       className={`${GeistSans.variable} ${GeistMono.variable} ${fraunces.variable} h-full`}
     >
-      <head>
-        <link rel="dns-prefetch" href="https://va.vercel-scripts.com" />
-        <link rel="preconnect" href="https://va.vercel-scripts.com" crossOrigin="anonymous" />
-      </head>
+      {/* No explicit <head>: we previously rendered a preconnect to
+          va.vercel-scripts.com here, but PSI flagged it as "Unused
+          preconnect" (LCP penalty) — Vercel Analytics defers its
+          tracker until after first paint, so the early connection
+          buys nothing and costs LCP. Removed. Next.js injects all
+          metadata + font links into <head> automatically. */}
       <body className="min-h-full flex flex-col">
         {/* Sitewide JSON-LD — Organization + WebSite. Renders into
             every page's HTML (server-component, no client cost).

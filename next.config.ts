@@ -17,6 +17,16 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // Inline above-the-fold critical CSS into the HTML response,
+  // defer the rest. Without this, Next ships every page's CSS as
+  // a render-blocking <link rel="stylesheet">, which PSI flagged
+  // as costing ~580ms on the mobile homepage (two CSS chunks
+  // worth 24 KiB blocking initial paint). Uses Critters under the
+  // hood — it scans the SSR'd HTML, picks the rules that match,
+  // and inlines them. The rest of the stylesheet loads async.
+  experimental: {
+    optimizeCss: true,
+  },
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "images.unsplash.com" },
