@@ -973,6 +973,12 @@ export interface Database {
           checkatrade_url: string | null;
           checkatrade_fetched_at: string | null;
           checkatrade_status: string | null;
+          // Migration 063 — Google reviews on-demand cache
+          google_place_id: string | null;
+          google_rating: number | null;
+          google_review_count: number | null;
+          google_captured_at: string | null;
+          google_status: string | null;
           // Migration 037 — installer-configurable visit length + travel buffer
           meeting_duration_min: number;
           travel_buffer_min: number;
@@ -1045,6 +1051,12 @@ export interface Database {
           checkatrade_url?: string | null;
           checkatrade_fetched_at?: string | null;
           checkatrade_status?: string | null;
+          // Migration 063 — Google reviews on-demand cache
+          google_place_id?: string | null;
+          google_rating?: number | null;
+          google_review_count?: number | null;
+          google_captured_at?: string | null;
+          google_status?: string | null;
           // Migration 037 — installer-configurable visit length + travel buffer
           meeting_duration_min?: number;
           travel_buffer_min?: number;
