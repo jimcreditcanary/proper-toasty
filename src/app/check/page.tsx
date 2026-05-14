@@ -1,10 +1,22 @@
 // /check — entry point to the 6-step pre-survey wizard.
 //
-// If ?presurvey=<token> is present we pre-validate the token server-
-// side and seed the wizard with the customer's name/email + the
-// requesting installer's id. Stamps `clicked_at` on the request row
-// so the installer-side list shows it as "clicked" rather than
-// still "pending".
+// Three entry shapes:
+//
+//   1. /check                                — plain entry, no installer attached
+//   2. /check?presurvey=<token>              — installer-initiated (installer sent
+//                                              a magic link). Token resolves to an
+//                                              installer_pre_survey_requests row +
+//                                              pre-fills customer name/email.
+//   3. /check?installer=<id>&capability=…    — customer-initiated (user clicked
+//                                              "Request a quote" on an installer
+//                                              card). Pre-binds the chosen
+//                                              installer through the wizard +
+//                                              into the report's Book-a-visit tab.
+//
+// Both pre-fill paths populate the same wizard-state fields
+// (preSurveyInstallerId + preSurveyInstallerName + focus) so
+// downstream tabs render identical "single installer" UX regardless
+// of which entry was used.
 
 import { notFound } from "next/navigation";
 import { CheckWizard } from "@/components/check-wizard/wizard-shell";
@@ -20,7 +32,11 @@ export const metadata = {
 };
 
 interface PageProps {
-  searchParams: Promise<{ presurvey?: string }>;
+  searchParams: Promise<{
+    presurvey?: string;
+    installer?: string;
+    capability?: string;
+  }>;
 }
 
 export const dynamic = "force-dynamic";
@@ -29,13 +45,95 @@ export default async function CheckPage({ searchParams }: PageProps) {
   if (!isFeatureEnabled("propertoasty_check")) notFound();
 
   const params = await searchParams;
-  const initialState = params.presurvey
-    ? await loadPresurveyPrefill(params.presurvey)
-    : undefined;
+
+  // Resolve initial state from whichever entry param is present.
+  // Installer-initiated wins over customer-initiated (an installer's
+  // magic link is a stronger signal than a URL param).
+  let initialState: Partial<CheckWizardState> | undefined;
+  if (params.presurvey) {
+    initialState = await loadPresurveyPrefill(params.presurvey);
+  } else if (params.installer) {
+    initialState = await loadCustomerInitiatedPrefill(
+      params.installer,
+      params.capability,
+    );
+  }
 
   // Header + sticky progress bar live inside <CheckWizard /> so the
   // progress can read from the wizard context.
   return <CheckWizard initialState={initialState} />;
+}
+
+/**
+ * Customer-initiated entry: user clicked "Request a quote" on an
+ * installer card under /heat-pump-installers/… or
+ * /solar-panel-installers/…. The URL carries the chosen installer's
+ * id + the capability they were researching.
+ *
+ * We validate the installer exists + is BUS-registered (for heat
+ * pump capability) or solar-capable (for solar capability), then
+ * seed the wizard state with the installer's name + id + the
+ * appropriate focus. No installer_pre_survey_requests row is created
+ * — that table is for installer-initiated requests. Customer-
+ * initiated leads attribute to the installer via the lead-capture
+ * step's payload, which forwards preSurveyInstallerId to
+ * /api/leads/capture (this still works because preSurveyRequestId
+ * is null but installer attribution can be inferred from
+ * preSurveyInstallerId in the lead row).
+ *
+ * Returns undefined when the installer doesn't exist OR doesn't
+ * have the requested capability — the wizard then runs as a plain
+ * /check.
+ */
+async function loadCustomerInitiatedPrefill(
+  installerIdRaw: string,
+  capabilityRaw: string | undefined,
+): Promise<Partial<CheckWizardState> | undefined> {
+  const installerId = parseInt(installerIdRaw, 10);
+  if (!Number.isInteger(installerId) || installerId <= 0) return undefined;
+
+  // Capability → wizard focus.
+  const capability: "heat_pump" | "solar" | null =
+    capabilityRaw === "heat_pump"
+      ? "heat_pump"
+      : capabilityRaw === "solar"
+        ? "solar"
+        : null;
+  const focus: "all" | "solar" | "heatpump" =
+    capability === "heat_pump"
+      ? "heatpump"
+      : capability === "solar"
+        ? "solar"
+        : "all";
+
+  const admin = createAdminClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: installer } = await (admin as any)
+    .from("installers")
+    .select(
+      "id, company_name, bus_registered, cap_air_source_heat_pump, cap_solar_pv",
+    )
+    .eq("id", installerId)
+    .maybeSingle();
+  if (!installer) return undefined;
+
+  // Capability gating — don't let someone request a heat-pump quote
+  // from a solar-only installer or vice versa. Falls back to plain
+  // /check if the capability doesn't match.
+  if (capability === "heat_pump" && !installer.cap_air_source_heat_pump) {
+    return undefined;
+  }
+  if (capability === "solar" && !installer.cap_solar_pv) {
+    return undefined;
+  }
+
+  return {
+    focus,
+    preSurveyInstallerId: installer.id,
+    preSurveyInstallerName: installer.company_name,
+    // The rest stay null — no installer-initiated request row,
+    // no pre-existing customer details, no pre-booked meeting.
+  };
 }
 
 /**

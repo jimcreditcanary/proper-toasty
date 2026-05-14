@@ -104,10 +104,24 @@ export function ReportShell({ audience = "homeowner" }: ReportShellProps = {}) {
   const [tab, setTab] = useState<ReportTabKey>("overview");
   const [shareOpen, setShareOpen] = useState(false);
 
+  // "presurvey" mode covers two entry paths:
+  //   - Installer-initiated: state.preSurveyRequestId is set (the
+  //     homeowner arrived via /check?presurvey=<token>).
+  //   - Customer-initiated: state.preSurveyInstallerId is set without
+  //     a request id (the homeowner arrived via
+  //     /check?installer=<id>&capability=… after clicking a card on
+  //     /heat-pump-installers/… or /solar-panel-installers/…).
+  //
+  // Either way the book-a-visit tab needs to render the single-
+  // installer surface (not the marketplace picker), and the overview
+  // banner should reference the chosen installer by name. So we
+  // treat both as "presurvey" for audience-driven behaviour.
+  const hasPinnedInstaller =
+    !!state.preSurveyRequestId || !!state.preSurveyInstallerId;
   const effectiveAudience: EffectiveAudience =
     audience === "installer"
       ? "installer"
-      : state.preSurveyRequestId
+      : hasPinnedInstaller
         ? "presurvey"
         : "homeowner";
   const isInstaller = effectiveAudience === "installer";
