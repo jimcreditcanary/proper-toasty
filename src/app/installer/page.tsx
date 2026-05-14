@@ -106,9 +106,13 @@ export default async function InstallerHomePage() {
         }>(),
       admin
         .from("installers")
-        .select("id, company_name")
+        .select("id, company_name, logo_url")
         .eq("user_id", user.id)
-        .maybeSingle<{ id: number; company_name: string }>(),
+        .maybeSingle<{
+          id: number;
+          company_name: string;
+          logo_url: string | null;
+        }>(),
     ]);
 
     pageReadError = profileRes.error?.message ?? null;
@@ -161,6 +165,7 @@ export default async function InstallerHomePage() {
       pendingLeads = pendingRes.count ?? 0;
       checklist = buildChecklist({
         hasAvailability: (availabilityRes.count ?? 0) > 0,
+        hasLogo: !!installerRes.data.logo_url,
         creditBalance,
         preSurveyRequestCount: preSurveyRes.count ?? 0,
         proposalSentCount: proposalRes.count ?? 0,
@@ -199,12 +204,12 @@ export default async function InstallerHomePage() {
     { title: "Leads", icon: Inbox, href: "/installer/leads", badge: pendingLeads },
     { title: "Quotes", icon: Send, href: "/installer/proposals" },
     { title: "Reports", icon: FileText, href: "/installer/reports" },
-    { title: "Pre-survey requests", icon: Zap, href: "/installer/pre-survey-requests" },
+    { title: "Profile + boost", icon: ImageIcon, href: "/installer/profile" },
     { title: "Availability", icon: CalendarDays, href: "/installer/availability" },
+    { title: "Pre-survey requests", icon: Zap, href: "/installer/pre-survey-requests" },
     { title: "Performance", icon: TrendingUp, href: "/installer/performance" },
     { title: "Credits", icon: CreditCard, href: "/installer/credits" },
     { title: "Billing", icon: Wallet, href: "/installer/billing" },
-    { title: "Profile + boost", icon: ImageIcon, href: "/installer/profile" },
     { title: "API access", icon: KeyRound, href: "/installer/api-access" },
   ];
 

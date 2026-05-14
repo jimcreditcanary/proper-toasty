@@ -8,11 +8,12 @@
 //
 // Steps are deliberately in dependency order:
 //   1. Set availability — without this, you can't take leads
-//   2. Buy credit pack — without these, you can't accept leads or
+//   2. Upload your logo — directory listings look generic without one
+//   3. Buy credit pack — without these, you can't accept leads or
 //      send pre-survey requests
-//   3. Send your first pre-survey — proves the end-to-end flow
+//   4. Send your first pre-survey — proves the end-to-end flow
 //      and gets the installer their first lead in the inbox
-//   4. (optional) Accepted lead → quote sent — milestone marker;
+//   5. (optional) Accepted lead → quote sent — milestone marker;
 //      hides once a quote has been sent
 //
 // The checklist surfaces "current step" so the UI can highlight
@@ -22,6 +23,10 @@
 export interface ChecklistInputs {
   /** True when the installer has at least one availability block. */
   hasAvailability: boolean;
+  /** True when installers.logo_url is non-null. Directory listings
+   *  use this for the avatar slot; without one, the card falls back
+   *  to grey initials and looks under-baked. */
+  hasLogo: boolean;
   /** Current credit balance — > 0 unlocks lead acceptance + sends. */
   creditBalance: number;
   /** Total pre-survey requests they've ever sent (any status). */
@@ -33,6 +38,7 @@ export interface ChecklistInputs {
 export interface ChecklistItem {
   id:
     | "availability"
+    | "logo"
     | "credits"
     | "first_pre_survey"
     | "first_quote";
@@ -67,6 +73,15 @@ export function buildChecklist(input: ChecklistInputs): ChecklistResult {
       ctaLabel: "Set availability",
       ctaHref: "/installer/availability",
       done: input.hasAvailability,
+    },
+    {
+      id: "logo",
+      title: "Upload your company logo",
+      body:
+        "Shown on every directory listing in your area. Square image (1:1), PNG/JPEG/WEBP/SVG up to 2 MB. Without one, we render generic grey initials and your card looks half-finished next to competitors.",
+      ctaLabel: "Upload logo",
+      ctaHref: "/installer/profile",
+      done: input.hasLogo,
     },
     {
       id: "credits",
