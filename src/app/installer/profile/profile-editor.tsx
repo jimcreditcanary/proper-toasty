@@ -89,6 +89,17 @@ function LogoCard({
         throw new Error("Use PNG, JPEG, WEBP or SVG");
       }
 
+      // Square-only — best-effort pre-check before upload. Server
+      // re-validates as the trust boundary. We use a hidden <img>
+      // because it works for all four MIME types we accept,
+      // including SVG (which uses viewBox to compute naturalSize).
+      const dims = await readImageDimensions(file);
+      if (dims && dims.width !== dims.height) {
+        throw new Error(
+          `Logo must be square. This one is ${dims.width}×${dims.height}. Re-export at a 1:1 aspect ratio (e.g. 512×512).`,
+        );
+      }
+
       const fd = new FormData();
       fd.append("file", file);
       const res = await fetch("/api/installer/profile/logo", {
@@ -145,7 +156,12 @@ function LogoCard({
       </header>
       <p className="text-xs text-slate-500 mb-5 leading-relaxed">
         Shown on your card across {companyName}&rsquo;s directory
-        listings. Square works best. PNG, JPEG, WEBP, SVG. Up to 2 MB.
+        listings.{" "}
+        <strong className="text-navy">
+          Must be square (1:1 aspect ratio)
+        </strong>{" "}
+        — e.g. 512×512 px. PNG, JPEG, WEBP or SVG, up to 2 MB.
+        Non-square uploads are rejected so logos never stretch.
       </p>
 
       <div className="flex flex-col sm:flex-row items-start gap-5">
@@ -449,6 +465,33 @@ function InactiveState({
 }
 
 // ─── Shared ─────────────────────────────────────────────────────────
+
+/**
+ * Read image natural dimensions in the browser without uploading.
+ * Works for raster + SVG (SVG uses viewBox to compute naturalSize).
+ * Returns null on decode failure so the caller can fall back to
+ * server-side validation.
+ */
+async function readImageDimensions(
+  file: File,
+): Promise<{ width: number; height: number } | null> {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file);
+    const img = new window.Image();
+    img.onload = () => {
+      const w = img.naturalWidth;
+      const h = img.naturalHeight;
+      URL.revokeObjectURL(url);
+      if (w > 0 && h > 0) resolve({ width: w, height: h });
+      else resolve(null);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      resolve(null);
+    };
+    img.src = url;
+  });
+}
 
 function InlineAlert({
   kind,

@@ -12,6 +12,10 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import {
+  getImageDimensions,
+  isSquare,
+} from "@/lib/installers/logo-validation";
 
 export const runtime = "nodejs";
 
@@ -113,14 +117,38 @@ export async function POST(req: Request) {
     );
   }
 
+  const buffer = new Uint8Array(await file.arrayBuffer());
+
+  // Square-only — see logo-validation.ts file-header for the why.
+  // Client-side check should catch this first; this is the server-
+  // side trust boundary.
+  const dimensions = getImageDimensions(buffer, file.type);
+  if (!dimensions) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error:
+          "Could not read image dimensions. For SVGs, make sure the file has a viewBox attribute.",
+      },
+      { status: 400 },
+    );
+  }
+  if (!isSquare(dimensions)) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: `Logo must be square. This one is ${dimensions.width}×${dimensions.height}. Re-export at a 1:1 aspect ratio (e.g. 512×512) and try again.`,
+      },
+      { status: 400 },
+    );
+  }
+
   const admin = createAdminClient();
   const ext = extensionFor(file.type);
   // Path scheme: <installerId>/<timestamp>.<ext>. Including a
   // timestamp avoids hitting CDN-cached previous logos after a
   // replace + makes the per-installer namespace flat + auditable.
   const key = `${ctx.installer.id}/${Date.now()}.${ext}`;
-
-  const buffer = new Uint8Array(await file.arrayBuffer());
   const { error: uploadErr } = await admin.storage
     .from(BUCKET)
     .upload(key, buffer, {
