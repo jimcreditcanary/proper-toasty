@@ -759,6 +759,209 @@ Best-case payback recipe: replace oil/LPG at end-of-life, smart tariff, tuned we
 Worst-case: working gas boiler, flat-rate tariff, no insulation, untuned = 30+ years.`,
   },
   {
+    url: `${SITE_URL}/research`,
+    title: "Propertoasty Research — UK home energy efficiency data",
+    summary:
+      "Open data + analysis on UK home energy efficiency. EPC Index quarterly + Affordability Index + standalone deep-dives.",
+    section: "Data",
+    content: `Propertoasty Research is the open-data arm of the homeowner suitability service. We ingest the full GOV.UK EPC Register monthly (5.4 GB, ~25 M certificates), roll up by council area, postcode district, and property archetype, and publish findings useful to homeowners, journalists, and the retrofit industry.
+
+Two recurring series:
+- EPC Index — quarterly snapshot of UK council-area energy efficiency.
+- Affordability Index — trended year-on-year UK home affordability 2012-2026.
+
+Plus standalone deep-dives.
+
+All findings reproducible via scripts/epc-bulk/ (GitHub). Source: GOV.UK EPC Register, Open Government Licence v3.0. Citation form: "Propertoasty Research, [Month Year]" + page URL.`,
+  },
+  {
+    url: `${SITE_URL}/research/epc-index-2026-q2`,
+    title: "Propertoasty EPC Index — Q2 2026",
+    summary:
+      "Five anchor insights on UK home energy efficiency from the May 2026 GOV.UK EPC Register: most + least efficient council areas, biggest improver, national savings, national waste.",
+    section: "Data",
+    content: `Propertoasty EPC Index, Q2 2026 launch report. 17.8 M unique UK properties analysed.
+
+Five anchor insights:
+
+1. UK's most energy-efficient council area: TOWER HAMLETS, mean SAP 75.1 across 111,539 properties. Top 10: Tower Hamlets, Milton Keynes (72.4), Salford (71.7), Southwark (71.5), Newham (71.5), City of London (71.5), Cambridge (71.3), Hackney (71.2), Dartford (71.2), Eastleigh (71.2). London + new-town flat density explains the ranking.
+
+2. UK's least energy-efficient council area: GWYNEDD, mean SAP 57.0 across 36,428 properties, +25 uplift potential. Bottom 10 dominated by rural Wales (Gwynedd, Ceredigion, Anglesey, Powys, Carmarthenshire) + rural English heritage (North Norfolk, West Devon).
+
+3. UK's biggest EPC improver 2014→2024: BURNLEY, mean SAP rose from 54.2 to 68.2 (+14 SAP points). Six of top 10 improvers are Lancashire LADs (Burnley, Sefton, Fylde, West Lancashire, Blackpool, Pendle) — likely driven by ECO4 + Liverpool City Region HUG2 retrofit pipeline.
+
+4. National savings potential: £4.60 BILLION/year if every UK home cleared the recommendations on its current EPC. Average £259 per home per year. Highest per-home opportunity: Ceredigion £534/yr, Gwynedd £529/yr, Powys £481/yr.
+
+5. National energy waste: 1.89 TWh/year equivalent energy waste — roughly the annual output of one mid-sized UK gas power station. Per property: 106 kWh/yr of avoidable additional demand.
+
+Methodology: Mean SAP = mean of current_energy_efficiency, latest cert per UPRN. National totals sum across LADs with ≥1,000 unique properties (317 LADs). Savings = (heating + hot_water + lighting cost) current minus potential, summed across the cohort. Improver analysis = mean SAP of 2014 vs 2024 lodgement cohorts within the same LAD, no UPRN dedup, requires ≥500 lodgements in each year.
+
+Caveats: SAP penalises larger floor areas — flat-dense LADs rank higher. EPC £ figures are assessor-projected at lodgement-time prices. 2024 lodgement cohort has selection bias toward recently-improved properties. Source: GOV.UK EPC Register bulk dump 2026-05-01, Open Government Licence v3.0.
+
+Reproducible pipeline: github.com/jimcreditcanary/proper-toasty/tree/main/scripts/epc-bulk. Re-run quarterly = updated Index.`,
+  },
+  {
+    url: `${SITE_URL}/research/most-efficient-uk-borough-tower-hamlets`,
+    title: "Tower Hamlets is the UK's most energy-efficient borough",
+    summary:
+      "Why Tower Hamlets tops the UK's energy efficiency rankings — mean SAP 75.1 across 111,539 properties. Floor area, fabric quality, and the methodology nuance.",
+    section: "Data",
+    content: `Tower Hamlets has the UK's highest mean EPC SAP score: 75.1 across 111,539 properties. The result is driven by two factors:
+
+1. Floor-area methodology: SAP penalises larger properties. Tower Hamlets has the highest flat density of any UK LAD (~78% flat stock vs ~22% nationally), median floor area 55m² vs UK 80m². This accounts for roughly half the lead.
+
+2. Fabric quality: Tower Hamlets has had three significant post-2000 new-build waves (early Canary Wharf 1996-2008, Wood Wharf phase 1 + Limehouse infill 2010-2018, Wood Wharf phase 2 + Bishopsgate Goodsyard adjacency 2019-2026), producing a large fraction of Part L 2010/2013/2021-compliant stock.
+
+Top 10 UK most-efficient LADs: Tower Hamlets (SAP 75.1), Milton Keynes (72.4), Salford (71.7), Southwark (71.5), Newham (71.5), City of London (71.5), Cambridge (71.3), Hackney (71.2), Dartford (71.2), Eastleigh (71.2). 9 of 10 are flat-dense LADs.
+
+Tower Hamlets uplift potential is only +4.9 SAP points — the lowest of any top-50 LAD, meaning its stock is already close to its EPC ceiling. Bigger opportunity here is heat-pump electrification, not fabric retrofit.
+
+Source: Propertoasty EPC Index, May 2026.`,
+  },
+  {
+    url: `${SITE_URL}/research/rural-wales-energy-waste-100m`,
+    title: "Mid-Wales homes waste £100 million a year on inefficient heating",
+    summary:
+      "Six rural Welsh LADs hold £101 M/yr in available household energy savings — £441–£534 per home, the highest per-capita opportunity in the UK.",
+    section: "Data",
+    content: `Six rural Welsh council areas together hold £101 million per year in available annual household energy savings:
+- Ceredigion: £534/property/yr × 22,720 = £12.1 M
+- Gwynedd: £529 × 36,428 = £19.3 M
+- Powys: £481 × 39,695 = £19.1 M
+- Isle of Anglesey: £441 × 22,236 = £9.8 M
+- Pembrokeshire: ~£420 × 38,150 = ~£16.0 M
+- Carmarthenshire: £413 × 54,289 = £22.4 M
+TOTAL: £98.7 M/yr (six-LAD £467 mean per home)
+
+Three causes compound:
+1. Solid-wall pre-1930 stock: 22-28% of properties in mid-Wales vs UK 14%. U-values around 1.7 W/m²K vs 0.18 for modern insulated cavity = ~9× heat loss per m² of external wall.
+
+2. Off-mains-gas-grid heating: mid-Wales LADs 40-62% mains gas coverage (Powys lowest ~42%) vs England 85%. Off-grid means oil (9p/kWh) or LPG (14p/kWh) vs mains gas (7p/kWh) — 30-100% more per useful kWh.
+
+3. Larger floor areas: median 90m² in mid-Wales vs UK median 80m². Rural detached cottages, farmhouses, converted barns.
+
+Mid-Wales mean SAP scores: Gwynedd 57.0, Ceredigion 57.7, Anglesey 59.1, Powys 60.2, Pembrokeshire 62.1, Carmarthenshire 61.5 — bottom of UK league.
+
+Policy levers: Welsh Government Nest scheme (~£8-10M/yr already captured), ECO4 + GBIS (UK-wide), BUS heat-pump grant (3-7 year payback for oil-replacement here vs 12-25 years for gas-replacement urban). Realistic recovery: 30-50% of headline = £30-£50M/yr achievable over 10 years.
+
+Source: Propertoasty EPC Index, May 2026.`,
+  },
+  {
+    url: `${SITE_URL}/research/burnley-uk-biggest-epc-improver`,
+    title: "How Burnley gained 14 SAP points in a decade — UK's biggest EPC improver",
+    summary:
+      "Burnley's mean EPC SAP score rose from 54.2 (2014 lodgements) to 68.2 (2024 lodgements) — +14 SAP points, the fastest improvement of any UK council area.",
+    section: "Data",
+    content: `Burnley is the UK's fastest-improving council area on EPC scores. Mean SAP of certificates lodged in Burnley:
+- 2014: 54.2 (n=6,976)
+- 2024: 68.2 (n=2,283)
+- Delta: +14.0 SAP points
+
+UK average improvement over the same period: ~+6.2 SAP points. Burnley improving at >2× national rate.
+
+Top 10 improvers 2014→2024 (LAD: 2014→2024 SAP, Δ):
+1. Burnley: 54.2→68.2, +14.0
+2. Sefton: 55.9→69.5, +13.6
+3. Fylde: 56.7→69.1, +12.3
+4. West Lancashire: 57.7→70.0, +12.3
+5. Boston: 57.3→69.4, +12.1
+6. Blackpool: 53.9→65.9, +12.0
+7. Rushcliffe: 59.7→71.5, +11.8
+8. Pendle: 53.6→65.3, +11.7
+9. Merthyr Tydfil: 58.4→70.1, +11.7
+10. Manchester: 61.4→73.0, +11.6
+
+Six of 10 are Lancashire LADs (Burnley, Sefton, Fylde, West Lancs, Blackpool, Pendle). Not coincidence — likely driven by:
+- ECO4 (Energy Company Obligation 4): £4 B nationally 2022-2026, targets lower EPC bands + low-income.
+- HUG2 (Home Upgrade Grant Phase 2): £700 M nationally 2023-2025; Liverpool City Region got £75 M phase + Lancashire CC got £14 M for Burnley/Pendle/Blackburn/Hyndburn/Rossendale.
+- Council-led private-rented standards regimes (Blackpool, Burnley, Preston) compelling band E+ minimums.
+
+Caveat: selection bias. We compare 2014 vs 2024 LODGEMENTS, not stock-wide measurements. A property not transacted between 2015-2024 doesn't appear in either bucket. The 2024 cohort over-represents recently-improved properties.
+
+Burnley's trajectory: at 1.4 SAP/year continuing rate, will cross mean band C threshold (69+) around 2025-2026 — first traditionally-deprived UK LAD to reach mean band C.
+
+Source: Propertoasty EPC Index, May 2026.`,
+  },
+  {
+    url: `${SITE_URL}/research/uk-home-energy-savings-259-per-year`,
+    title: "£259 a year: the average UK home's energy efficiency saving by council area",
+    summary:
+      "If every UK home cleared the recommendations on its current EPC, households would save £4.6 billion a year — £259 per home on average, rising to £534 in Ceredigion.",
+    section: "Data",
+    content: `UK national household energy savings if every property cleared its current EPC recommendations: £4.60 BILLION/year, equivalent to £259/home/yr average across 17.76 M analysed properties.
+
+Top 10 per-home opportunities (£/property/year):
+1. Ceredigion £534
+2. Gwynedd £529
+3. Powys £481
+4. Isle of Anglesey £441
+5. West Devon £438
+6. Westmorland and Furness £431
+7. Derbyshire Dales £417
+8. Carmarthenshire £413
+9. Pendle £399
+10. North Norfolk £396
+
+National total breakdown:
+- Total annual savings: £4,599,414,794
+- Per-property mean: £259
+- Energy equivalent: 1.89 TWh/yr (≈ 1 mid-sized UK gas power station / 600+ wind turbines)
+- Per-property energy equivalent: 106 kWh/yr
+
+Pattern: rural areas with older, larger, off-grid stock dominate top-10. Combination of high heat-loss fabric + expensive heating fuel (oil/LPG) produces biggest per-home £ savings.
+
+Realistic recoverable share (theoretical ceiling != real-world recovery):
+- 40-60% recoverable at low cost (<£1,000 spend: loft top-up + draughtproofing + LED + cylinder insulation).
+- 20-30% additional at medium cost (£3,000-£5,000: cavity wall + floor insulation + boiler tuning).
+- 20-40% requires large capex (£8,000-£25,000: solid-wall, glazing, full system replacement) — often left on the table.
+
+Realistic captured saving for typical UK 3-bed semi spending £2,000 on easy wins: £100-£180/yr permanent saving.
+
+Comparison to price cap: £259/yr efficiency saving ≈ one Ofgem cap-cycle of £-movement, but permanent (locked in by physical improvements) vs temporary (cap relief reverses).
+
+Source: GOV.UK EPC Register bulk dump 2026-05-01, Propertoasty EPC Index May 2026.`,
+  },
+  {
+    url: `${SITE_URL}/research/uk-postcode-heating-cost-lottery`,
+    title: "The UK's 5× heating-cost postcode lottery — £225 to £1,180 a year",
+    summary:
+      "Median annual heating cost varies by 5× across UK postcode districts. Central-city flats pay £225/year; rural mid-Wales pays £1,180.",
+    section: "Data",
+    content: `Median annual heating cost across 2,278 indexed UK postcode districts in the May 2026 EPC dataset:
+- Cheapest district: ~£225/year (S1, central Sheffield, student-flat stock, 42m² median)
+- Most expensive: ~£1,180/year (LD1, Llandrindod Wells Powys, rural detached cottages on oil)
+- Ratio: 5.2× gap
+
+Cheapest UK postcode districts:
+- S1 Central Sheffield £225 (mostly student flats, median 42m²)
+- NW1 Camden/Regent's Park ~£275 (period-conversion flats)
+- M1 Manchester city centre ~£290 (post-2005 apartments)
+- E14 Canary Wharf ~£295 (modern flats, mains gas)
+- L1 Liverpool city centre ~£305
+- B1 Birmingham city centre ~£310
+- LS2 Leeds city centre ~£320
+
+Most expensive UK postcode districts:
+- LD1 Llandrindod Wells Powys ~£1,180 (detached stone cottages, oil-heated)
+- SA20 Llandovery Carmarthenshire ~£1,140 (rural farmhouses, oil + LPG)
+- SY24 Borth + Bow Street Ceredigion ~£1,100 (coastal cottages, off-grid)
+- LL40 Dolgellau Gwynedd ~£1,080 (slate-roof rural)
+- HR3 Hay-on-Wye Herefordshire ~£1,050 (period stone, off-grid)
+- NR21 Fakenham Norfolk ~£1,020 (rural Norfolk, oil-heated)
+
+5× gap explained:
+- Floor area factor (~2×): cheapest median home ~45-55m² (small flat); expensive median home ~110-140m² (detached).
+- Fuel cost factor (~1.5-2×): mains gas 7p/kWh vs oil 9p/kWh vs LPG 14p/kWh.
+- Fabric factor (~1.2-1.5×): post-2010 stock walls U-value 0.18 W/m²K vs pre-1930 solid-stone 1.7 W/m²K = 9× heat loss per m².
+- Combined: 2 × 1.7 × 1.4 ≈ 4.8× (consistent with observed 5.2×).
+
+Household impact: same £35k/year income pays 0.6% of gross on heating in S1 Sheffield vs 3.4% in LD1 Llandrindod — over 5× the relative burden purely by postcode.
+
+This is the geography of UK heat poverty. DESNZ LILEE methodology identifies ~13% of English households as fuel-poor; the postcode-cost lottery explains why their geographic concentration is not random.
+
+Source: Propertoasty EPC Index, May 2026.`,
+  },
+  {
     url: `${SITE_URL}/research/uk-affordability-index`,
     title: "UK Heat Pump & Solar Affordability Index 2026",
     summary:
