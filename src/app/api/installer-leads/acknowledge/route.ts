@@ -12,7 +12,7 @@ import { buildInstallerEmail } from "@/lib/email/templates/booking-installer";
 import { buildReschedulingHomeownerEmail } from "@/lib/email/templates/booking-rescheduling-homeowner";
 import { buildDeclinedHomeownerEmail } from "@/lib/email/templates/booking-declined-homeowner";
 import { buildIcs, icsToBase64 } from "@/lib/email/ics";
-import { LEAD_ACCEPT_COST_CREDITS } from "@/lib/booking/credits";
+import { effectiveLeadAcceptCost } from "@/lib/booking/credits";
 import { findNearby } from "@/lib/services/installers";
 import { resolveInstallerProfile } from "@/lib/installer-claim/resolve-profile";
 import { maybeRunAutoRecharge } from "@/lib/billing/auto-recharge";
@@ -36,7 +36,7 @@ const DECLINE_NEARBY_RADIUS_KM = DECLINE_NEARBY_RADIUS_MILES * 1.609344;
 // match between installers.email and users.email.
 //
 //   action=accept     — book the slot. Calendar invite + confirmed
-//                        emails fire. Debits LEAD_ACCEPT_COST_CREDITS.
+//                        emails fire. Debits leadAcceptCost.
 //   action=reschedule — installer takes the lead but can't make the
 //                        slot. Meeting → cancelled (slot freed).
 //                        Debits credits. Homeowner gets a "they took
@@ -231,7 +231,7 @@ export async function POST(req: Request) {
     admin
       .from("installers")
       .select(
-        "id, company_name, email, telephone, website, postcode, user_id",
+        "id, company_name, email, telephone, website, postcode, user_id, sponsored_until",
       )
       .eq("id", lead.installer_id)
       .maybeSingle<
@@ -244,6 +244,7 @@ export async function POST(req: Request) {
           | "website"
           | "postcode"
           | "user_id"
+          | "sponsored_until"
         >
       >(),
   ]);
@@ -316,14 +317,18 @@ export async function POST(req: Request) {
     return NextResponse.redirect(new URL(backToAcceptUrl(leadId, token), url), 303);
   }
   // Pre-survey leads were paid for at send time (1 credit per send).
-  // Skip the standard 5-credit lead-accept charge — the homeowner
-  // has already booked a slot from the report and the installer is
-  // just confirming. Doing this both:
+  // Skip the standard lead-accept charge — the homeowner has already
+  // booked a slot from the report and the installer is just
+  // confirming. Doing this both:
   //   - waives the credit-balance gate (so a low-balance installer
   //     can still confirm a meeting that's already lined up)
   //   - skips the deduct_credits RPC further down via the same flag
   const skipCreditDebit = lead.pre_survey_request_id != null;
-  if (!skipCreditDebit && profile.credits < LEAD_ACCEPT_COST_CREDITS) {
+  // Sponsored installers pay double per organically-routed lead. The
+  // pre-survey path stays free regardless — they already paid 1 credit
+  // at send time.
+  const leadAcceptCost = effectiveLeadAcceptCost(installer.sponsored_until);
+  if (!skipCreditDebit && profile.credits < leadAcceptCost) {
     console.warn("[ack] insufficient credits at submit", {
       userId: profile.id,
       credits: profile.credits,
@@ -372,7 +377,7 @@ export async function POST(req: Request) {
       "deduct_credits",
       {
         p_user_id: profile.id,
-        p_count: LEAD_ACCEPT_COST_CREDITS,
+        p_count: leadAcceptCost,
       },
     );
     if (debitErr || !debited) {
@@ -393,7 +398,7 @@ export async function POST(req: Request) {
     }
     console.log("[ack] credits debited", {
       userId: profile.id,
-      cost: LEAD_ACCEPT_COST_CREDITS,
+      cost: leadAcceptCost,
       action,
     });
   } else {
@@ -412,7 +417,7 @@ export async function POST(req: Request) {
     props: {
       installer_id: lead.installer_id,
       source: skipCreditDebit ? "pre_survey" : "directory",
-      cost_credits: skipCreditDebit ? 0 : LEAD_ACCEPT_COST_CREDITS,
+      cost_credits: skipCreditDebit ? 0 : leadAcceptCost,
     },
     userId: profile.id,
   });
@@ -423,13 +428,17 @@ export async function POST(req: Request) {
     void maybeRunAutoRecharge({
       admin,
       userId: profile.id,
-      balanceAfter: profile.credits - LEAD_ACCEPT_COST_CREDITS,
+      balanceAfter: profile.credits - leadAcceptCost,
     });
   }
 
   // ── Lead status update ────────────────────────────────────────
   // accept → visit_booked, reschedule → installer_acknowledged (took
   // the lead, no slot booked).
+  // accept_cost_credits records what was actually debited so the
+  // installer-billing usage page can SUM real cost rather than guess.
+  // Stays NULL on the pre-survey path (zero debit) — usage queries
+  // COALESCE to 0 there.
   const { error: leadUpdateErr } = await admin
     .from("installer_leads")
     .update({
@@ -438,6 +447,7 @@ export async function POST(req: Request) {
       status: action === "accept" ? "visit_booked" : "installer_acknowledged",
       visit_booked_for:
         action === "accept" ? meeting?.scheduled_at ?? null : null,
+      accept_cost_credits: skipCreditDebit ? null : leadAcceptCost,
     })
     .eq("id", leadId);
   if (leadUpdateErr) {

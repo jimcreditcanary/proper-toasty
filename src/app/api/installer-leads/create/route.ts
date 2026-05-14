@@ -8,7 +8,7 @@ import { sendEmail, type SendEmailResult } from "@/lib/email/client";
 import { signLeadAckToken } from "@/lib/email/tokens";
 import { buildPendingInstallerEmail } from "@/lib/email/templates/booking-pending-installer";
 import { buildPendingHomeownerEmail } from "@/lib/email/templates/booking-pending-homeowner";
-import { LEAD_ACCEPT_COST_CREDITS } from "@/lib/booking/credits";
+import { effectiveLeadAcceptCost } from "@/lib/booking/credits";
 import type { Database } from "@/types/database";
 
 // POST /api/installer-leads/create
@@ -163,7 +163,7 @@ export async function POST(req: Request) {
   const { data: installer, error: lookupError } = await admin
     .from("installers")
     .select(
-      "id, company_name, email, telephone, website, postcode, county, meeting_duration_min, travel_buffer_min",
+      "id, company_name, email, telephone, website, postcode, county, meeting_duration_min, travel_buffer_min, sponsored_until",
     )
     .eq("id", input.installerId)
     .maybeSingle<
@@ -178,6 +178,7 @@ export async function POST(req: Request) {
         | "county"
         | "meeting_duration_min"
         | "travel_buffer_min"
+        | "sponsored_until"
       >
     >();
   if (lookupError) {
@@ -300,7 +301,7 @@ export async function POST(req: Request) {
         hpVerdict: reportFacts.hpVerdict,
         solarRating: reportFacts.solarRating,
         acknowledgeUrl,
-        creditCost: LEAD_ACCEPT_COST_CREDITS,
+        creditCost: effectiveLeadAcceptCost(installer.sponsored_until),
       })
     : null;
 

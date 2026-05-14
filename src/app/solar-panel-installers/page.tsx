@@ -107,7 +107,7 @@ export default function SolarPanelInstallersHubPage() {
         {
           question: "How are installers ranked on Propertoasty?",
           answer:
-            "We rank by straight-line distance from your area's centroid (town centre, local authority centre, or postcode district centre depending on which page you're on). When installer density is low in your area, we widen the search radius automatically so the section doesn't render empty. We don't accept paid placement — installers can't pay to rank higher. Google verified reviews are displayed when available; absent ratings just don't render a stars row (no fabricated stars).",
+            "We geo-filter by straight-line distance from your area's centroid (town centre, local authority centre, or postcode district centre depending on which page you're on), widening the radius automatically when installer density is low so the section doesn't render empty. We then rank by a Bayesian-smoothed Google review score — installers with very few reviews are damped toward the national average so a 5★/3 doesn't beat a 4.8★/200. Distance is the tie-break. Sponsored installers (clearly flagged with a 'Sponsored' badge) float to the top of the list; the same Bayesian ranking applies between them, and they pay double credits per accepted lead in exchange for the placement. We never fabricate ratings.",
         },
         {
           question: "What's a typical solar PV install cost in 2026?",
@@ -201,8 +201,10 @@ export default function SolarPanelInstallersHubPage() {
         in business (where Companies House data is available),
         Google verified reviews (when a Google Business listing
         exists), and a Checkatrade verification link-out (when
-        present). We don&rsquo;t accept paid placement and we
-        don&rsquo;t fabricate ratings.
+        present). Sponsored installers are clearly flagged with a
+        &ldquo;Sponsored&rdquo; badge. We don&rsquo;t fabricate
+        ratings — if Google has no data for an installer, we
+        simply don&rsquo;t show a stars row.
       </p>
 
       <h2>Browse by area</h2>

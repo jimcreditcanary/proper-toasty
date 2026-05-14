@@ -22,8 +22,9 @@
 // Helper subtext clarifies the path.
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, Star, ShieldCheck, Award } from "lucide-react";
+import { ArrowRight, Star, ShieldCheck, Award, Sparkles } from "lucide-react";
 import type { InstallerCardData } from "@/lib/installers/by-area";
 
 interface InstallerCardProps {
@@ -121,18 +122,42 @@ export function InstallerCard({ installer, capability }: InstallerCardProps) {
     installer.checkatrade_url != null && installer.checkatrade_status === "ok";
 
   return (
-    <article className="rounded-2xl border border-[var(--border)] bg-white p-5 sm:p-6 flex flex-col sm:flex-row gap-5 sm:gap-6 hover:border-coral/40 hover:shadow-sm transition-all">
+    <article
+      className={`rounded-2xl border bg-white p-5 sm:p-6 flex flex-col sm:flex-row gap-5 sm:gap-6 hover:shadow-sm transition-all ${
+        installer.is_sponsored
+          ? "border-coral/50 ring-1 ring-coral/20"
+          : "border-[var(--border)] hover:border-coral/40"
+      }`}
+    >
       {/* ─── Left: company info ─────────────────────────────────────── */}
       <div className="flex flex-1 gap-4 min-w-0">
-        {/* Initials avatar */}
-        <div
-          aria-hidden
-          className="hidden sm:flex shrink-0 w-12 h-12 rounded-full bg-cream border border-[var(--border)] items-center justify-center text-sm font-semibold text-navy"
-        >
-          {companyInitials(installer.company_name)}
-        </div>
+        {/* Logo (when uploaded) / initials avatar fallback */}
+        {installer.logo_url ? (
+          <div className="hidden sm:flex shrink-0 w-12 h-12 rounded-full overflow-hidden border border-[var(--border)] bg-white relative">
+            <Image
+              src={installer.logo_url}
+              alt={`${installer.company_name} logo`}
+              fill
+              sizes="48px"
+              className="object-contain"
+            />
+          </div>
+        ) : (
+          <div
+            aria-hidden
+            className="hidden sm:flex shrink-0 w-12 h-12 rounded-full bg-cream border border-[var(--border)] items-center justify-center text-sm font-semibold text-navy"
+          >
+            {companyInitials(installer.company_name)}
+          </div>
+        )}
 
         <div className="min-w-0 flex-1">
+          {installer.is_sponsored && (
+            <p className="inline-flex items-center gap-1 mb-1.5 rounded-full bg-coral-pale text-coral-dark text-[10px] font-bold uppercase tracking-wider px-2 py-0.5">
+              <Sparkles className="w-3 h-3" aria-hidden />
+              Sponsored
+            </p>
+          )}
           <h3 className="text-base sm:text-lg font-semibold text-navy leading-tight">
             {installer.company_name}
           </h3>

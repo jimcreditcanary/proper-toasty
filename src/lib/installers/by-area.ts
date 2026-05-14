@@ -4,11 +4,32 @@
 // postcode-district pages. Returns the nearest N installers to the
 // area centroid, filtered by capability flag (heat pump / solar / both).
 //
-// Why distance-based rather than region-flag-based: the MCS region
-// coverage flags (region_yorkshire_humberside, etc.) are coarse —
-// an installer in Sheffield is also in "Yorkshire & Humberside" but
-// the flag also catches installers in Hull, 70 miles away. Distance
-// gives us a tighter ranking + matches user intent ("solar near me").
+// ── Ranking (post m064) ─────────────────────────────────────────
+//
+// 1. Sponsored installers (sponsored_until > now()) float to the
+//    top. Ranked among themselves by Bayesian review score, then
+//    distance.
+// 2. Organic installers ranked by Bayesian review score, then
+//    distance.
+//
+// Bayesian score (rather than naive rating × count) damps low-count
+// installers toward the global mean so a 5★/3 doesn't beat a
+// 4.7★/250. Formula:
+//
+//     score = (n × r + C × M) / (n + C)
+//
+// where n = review_count, r = rating, M = global mean (4.6 for
+// home-trades on Google in the UK, taken from MCS dataset), and
+// C = prior strength (10 — equivalent to "we trust this rating
+// once you have 10+ reviews"). Installers with no Google data
+// score M, sit mid-pack.
+//
+// Why distance-based for the geo-filter step rather than region-flag-
+// based: the MCS region coverage flags (region_yorkshire_humberside,
+// etc.) are coarse — an installer in Sheffield is also in
+// "Yorkshire & Humberside" but the flag also catches installers in
+// Hull, 70 miles away. Distance gives us a tighter geo-filter +
+// matches user intent ("solar near me").
 //
 // Capability flags:
 //   heat_pump → cap_air_source_heat_pump = true (the dominant tech
@@ -46,8 +67,34 @@ export interface InstallerCardData {
   checkatrade_url: string | null;
   checkatrade_fetched_at: string | null;
   checkatrade_status: string | null;
+  // Migration 064 — sponsored placement + logo.
+  sponsored_until: string | null;
+  logo_url: string | null;
   /** Computed distance in km from the area centroid. */
   distance_km: number;
+  /** Bayesian-smoothed review score (see formula in file header).
+   *  Always defined — installers with no Google data get the
+   *  global prior mean (4.6). */
+  bayesian_score: number;
+  /** True when sponsored_until > now() at query time. Drives the
+   *  "Sponsored" badge in the UI + the top-of-list float. */
+  is_sponsored: boolean;
+}
+
+/** Global prior mean for Bayesian smoothing — 4.6★ matches the
+ *  observed mean on Google reviews for UK home-trades. */
+const BAYESIAN_PRIOR_MEAN = 4.6;
+/** Prior strength — equivalent to "trust kicks in around 10
+ *  reviews". Higher = more regression to the mean. */
+const BAYESIAN_PRIOR_STRENGTH = 10;
+
+function bayesianScore(rating: number | null, count: number | null): number {
+  const n = count ?? 0;
+  const r = rating ?? BAYESIAN_PRIOR_MEAN;
+  return (
+    (n * r + BAYESIAN_PRIOR_STRENGTH * BAYESIAN_PRIOR_MEAN) /
+    (n + BAYESIAN_PRIOR_STRENGTH)
+  );
 }
 
 export type InstallerCapability = "heat_pump" | "solar";
@@ -135,7 +182,7 @@ export async function selectInstallersByArea(
     let query = (admin as unknown as { from: (t: string) => { select: (s: string) => unknown } })
       .from("installers")
       .select(
-        "id, certification_number, company_name, postcode, latitude, longitude, bus_registered, cap_air_source_heat_pump, cap_solar_pv, cap_ground_source_heat_pump, cap_battery_storage, years_in_business, google_place_id, google_rating, google_review_count, google_captured_at, google_status, checkatrade_score, checkatrade_review_count, checkatrade_url, checkatrade_fetched_at, checkatrade_status",
+        "id, certification_number, company_name, postcode, latitude, longitude, bus_registered, cap_air_source_heat_pump, cap_solar_pv, cap_ground_source_heat_pump, cap_battery_storage, years_in_business, google_place_id, google_rating, google_review_count, google_captured_at, google_status, checkatrade_score, checkatrade_review_count, checkatrade_url, checkatrade_fetched_at, checkatrade_status, sponsored_until, logo_url",
       ) as {
       eq: (c: string, v: unknown) => typeof query;
       gte: (c: string, v: unknown) => typeof query;
@@ -163,18 +210,41 @@ export async function selectInstallersByArea(
       return [];
     }
 
-    type Row = Omit<InstallerCardData, "distance_km">;
+    type Row = Omit<
+      InstallerCardData,
+      "distance_km" | "bayesian_score" | "is_sponsored"
+    >;
     const rows = (data ?? []) as Row[];
+    const nowMs = Date.now();
 
     const ranked: InstallerCardData[] = rows
       .map((r) => {
         if (r.latitude == null || r.longitude == null) return null;
         const d = haversineKm(lat, lng, r.latitude, r.longitude);
         if (d > radiusKm) return null;
-        return { ...r, distance_km: d };
+        const sponsored =
+          r.sponsored_until != null &&
+          new Date(r.sponsored_until).getTime() > nowMs;
+        return {
+          ...r,
+          distance_km: d,
+          bayesian_score: bayesianScore(r.google_rating, r.google_review_count),
+          is_sponsored: sponsored,
+        };
       })
       .filter((r): r is InstallerCardData => r !== null)
-      .sort((a, b) => a.distance_km - b.distance_km)
+      .sort((a, b) => {
+        // Sponsored first.
+        if (a.is_sponsored !== b.is_sponsored) {
+          return a.is_sponsored ? -1 : 1;
+        }
+        // Then Bayesian review score (desc).
+        if (b.bayesian_score !== a.bayesian_score) {
+          return b.bayesian_score - a.bayesian_score;
+        }
+        // Then distance (asc) as the tiebreak.
+        return a.distance_km - b.distance_km;
+      })
       .slice(0, limit);
 
     // Found enough — return.
