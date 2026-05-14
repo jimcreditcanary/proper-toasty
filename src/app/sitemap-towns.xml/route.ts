@@ -39,9 +39,9 @@ async function loadTownEntries(): Promise<SitemapUrlEntry[]> {
     const rows = await loadIndexedTownAggregates(admin);
     const entries: SitemapUrlEntry[] = [];
     for (const r of rows) {
-      // Each town gets two pages — the heat-pump and the solar
-      // variant. Both are indexed when the aggregate is indexed
-      // (same quality bar applies to both).
+      // Each town gets four pages — heat-pump guide + solar guide
+      // (the deep technology pages) AND heat-pump-installers +
+      // solar-panel-installers (the focused directory pages).
       entries.push({
         loc: `${SITE_URL}/heat-pumps/${r.scope_key}`,
         lastmod: r.refreshed_at,
@@ -53,6 +53,18 @@ async function loadTownEntries(): Promise<SitemapUrlEntry[]> {
         lastmod: r.refreshed_at,
         changefreq: "monthly",
         priority: 0.6,
+      });
+      entries.push({
+        loc: `${SITE_URL}/heat-pump-installers/${r.scope_key}`,
+        lastmod: r.refreshed_at,
+        changefreq: "weekly",
+        priority: 0.65,
+      });
+      entries.push({
+        loc: `${SITE_URL}/solar-panel-installers/${r.scope_key}`,
+        lastmod: r.refreshed_at,
+        changefreq: "weekly",
+        priority: 0.65,
       });
     }
     // Archetype pages — curated, always indexed. Same /heat-pumps/<slug>
@@ -90,6 +102,18 @@ async function loadTownEntries(): Promise<SitemapUrlEntry[]> {
         changefreq: "monthly",
         priority: 0.55,
       });
+      entries.push({
+        loc: `${SITE_URL}/heat-pump-installers/${r.scope_key}`,
+        lastmod: r.refreshed_at,
+        changefreq: "weekly",
+        priority: 0.6,
+      });
+      entries.push({
+        loc: `${SITE_URL}/solar-panel-installers/${r.scope_key}`,
+        lastmod: r.refreshed_at,
+        changefreq: "weekly",
+        priority: 0.6,
+      });
     }
 
     // Postcode-district pages — most granular geographic surface.
@@ -108,6 +132,18 @@ async function loadTownEntries(): Promise<SitemapUrlEntry[]> {
         lastmod: r.refreshed_at,
         changefreq: "monthly",
         priority: 0.5,
+      });
+      entries.push({
+        loc: `${SITE_URL}/heat-pump-installers/${r.scope_key}`,
+        lastmod: r.refreshed_at,
+        changefreq: "weekly",
+        priority: 0.55,
+      });
+      entries.push({
+        loc: `${SITE_URL}/solar-panel-installers/${r.scope_key}`,
+        lastmod: r.refreshed_at,
+        changefreq: "weekly",
+        priority: 0.55,
       });
     }
     return entries;

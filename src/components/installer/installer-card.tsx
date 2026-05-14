@@ -1,18 +1,25 @@
 "use client";
 
 // Installer card — public-facing trust signal for town / LA / postcode
-// pages. Server-renders the static data (name, certifications,
-// services); client-side useEffect hydrates the Google rating row.
+// + dedicated installer-listing pages.
+//
+// Layout: horizontal 1-column card. Company info + trust badges on
+// the left, rating + CTA stack on the right. More breathing room than
+// the previous 3-col grid version which felt cramped.
+//
+// Server-renders the static data; client-side useEffect hydrates the
+// Google rating row on demand.
 //
 // Phase 5 constraints (per the brief):
 //   MUST show: company name, Google rating + count + "last verified"
 //              date, Checkatrade verification badge (when URL is on
-//              file), services covered, primary CTA "Get a free
-//              suitability report".
+//              file), services covered, primary CTA.
 //   MUST NOT show: phone, email, website, "Book a meeting" CTA.
 //
-// The card's only job is to communicate trust and route the user into
-// the Phase 6 questionnaire flow with the installer-id pre-bound.
+// CTA copy: "Request a quote" — matches user expectation from
+// directory sites (Checkatrade, MyBuilder, Bark) + honest about the
+// flow (users DO get a quote after the 5-minute property check).
+// Helper subtext clarifies the path.
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -50,15 +57,22 @@ function fmtDate(iso: string | null): string {
   if (!iso) return "—";
   const d = new Date(iso);
   if (isNaN(d.getTime())) return "—";
-  return d.toLocaleDateString("en-GB", {
-    month: "short",
-    year: "numeric",
-  });
+  return d.toLocaleDateString("en-GB", { month: "short", year: "numeric" });
+}
+
+function companyInitials(name: string): string {
+  // Strip "Limited" / "Ltd" / "LLP" so initials are about the brand
+  // not the corporate suffix.
+  const stripped = name
+    .replace(/\b(limited|ltd\.?|llp|plc)\b/gi, "")
+    .trim();
+  const words = stripped.split(/\s+/).filter(Boolean);
+  if (words.length === 0) return "—";
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+  return (words[0][0] + words[1][0]).toUpperCase();
 }
 
 export function InstallerCard({ installer, capability }: InstallerCardProps) {
-  // The DB row carries cached review data. We hydrate on mount if
-  // the cache is stale or empty.
   const [googleRating, setGoogleRating] = useState(installer.google_rating);
   const [googleCount, setGoogleCount] = useState(installer.google_review_count);
   const [googleStatus, setGoogleStatus] = useState(installer.google_status);
@@ -93,107 +107,142 @@ export function InstallerCard({ installer, capability }: InstallerCardProps) {
 
   const ctaHref = `/check?installer=${installer.id}&capability=${capability}`;
 
-  // Capability badges — what does this installer do?
+  // Capability list — services this installer offers, relevant to
+  // the current page context.
   const capBadges: string[] = [];
   if (installer.cap_air_source_heat_pump) capBadges.push("Air-source heat pump");
   if (installer.cap_ground_source_heat_pump) capBadges.push("Ground-source heat pump");
   if (installer.cap_solar_pv) capBadges.push("Solar PV");
   if (installer.cap_battery_storage) capBadges.push("Battery storage");
 
-  const showGoogleRow = googleStatus === "ok" && googleRating != null && googleCount != null;
+  const showGoogleRow =
+    googleStatus === "ok" && googleRating != null && googleCount != null;
   const showCheckatradeBadge =
     installer.checkatrade_url != null && installer.checkatrade_status === "ok";
 
   return (
-    <article className="rounded-2xl border border-[var(--border)] bg-white p-5 flex flex-col">
-      {/* Header — name + distance */}
-      <header className="flex items-start justify-between gap-3 mb-3">
-        <div className="min-w-0">
-          <h3 className="text-base font-semibold text-navy leading-tight">
+    <article className="rounded-2xl border border-[var(--border)] bg-white p-5 sm:p-6 flex flex-col sm:flex-row gap-5 sm:gap-6 hover:border-coral/40 hover:shadow-sm transition-all">
+      {/* ─── Left: company info ─────────────────────────────────────── */}
+      <div className="flex flex-1 gap-4 min-w-0">
+        {/* Initials avatar */}
+        <div
+          aria-hidden
+          className="hidden sm:flex shrink-0 w-12 h-12 rounded-full bg-cream border border-[var(--border)] items-center justify-center text-sm font-semibold text-navy"
+        >
+          {companyInitials(installer.company_name)}
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <h3 className="text-base sm:text-lg font-semibold text-navy leading-tight">
             {installer.company_name}
           </h3>
-          <p className="mt-0.5 text-xs text-slate-500">
+          <p className="mt-1 text-xs text-slate-500">
             {installer.distance_km < 1
               ? "Under 1 km away"
               : `${installer.distance_km.toFixed(1)} km away`}
             {installer.postcode ? ` · ${installer.postcode}` : ""}
           </p>
+
+          {capBadges.length > 0 && (
+            <p className="mt-3 text-xs text-slate-600 leading-relaxed">
+              <span className="font-medium text-navy">Covers:</span>{" "}
+              {capBadges.join(" · ")}
+            </p>
+          )}
+
+          {/* Trust badges row */}
+          <ul className="not-prose mt-3 flex flex-wrap gap-1.5">
+            <li className="inline-flex items-center gap-1 rounded-full bg-cream border border-[var(--border)] px-2.5 py-1 text-[11px] text-slate-700">
+              <ShieldCheck className="w-3.5 h-3.5 text-coral" aria-hidden />
+              MCS #{installer.certification_number}
+            </li>
+            {installer.bus_registered && capability === "heat_pump" && (
+              <li className="inline-flex items-center gap-1 rounded-full bg-cream border border-[var(--border)] px-2.5 py-1 text-[11px] text-slate-700">
+                <Award className="w-3.5 h-3.5 text-coral" aria-hidden />
+                BUS registered
+              </li>
+            )}
+            {installer.years_in_business != null &&
+              installer.years_in_business >= 3 && (
+                <li className="inline-flex items-center gap-1 rounded-full bg-cream border border-[var(--border)] px-2.5 py-1 text-[11px] text-slate-700">
+                  {installer.years_in_business}+ years in business
+                </li>
+              )}
+            {showCheckatradeBadge && installer.checkatrade_url && (
+              <li>
+                <a
+                  href={installer.checkatrade_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 rounded-full bg-cream border border-[var(--border)] px-2.5 py-1 text-[11px] text-slate-700 hover:border-coral hover:text-coral transition-colors"
+                >
+                  <ShieldCheck
+                    className="w-3.5 h-3.5 text-emerald-600"
+                    aria-hidden
+                  />
+                  Verified on Checkatrade
+                  <span aria-hidden>↗</span>
+                </a>
+              </li>
+            )}
+          </ul>
         </div>
-      </header>
+      </div>
 
-      {/* Trust signals — MCS, BUS, years-in-business */}
-      <ul className="not-prose mb-3 flex flex-wrap gap-1.5">
-        <li className="inline-flex items-center gap-1 rounded-full bg-cream border border-[var(--border)] px-2.5 py-1 text-xs text-navy">
-          <ShieldCheck className="w-3.5 h-3.5 text-coral" aria-hidden />
-          MCS #{installer.certification_number}
-        </li>
-        {installer.bus_registered && capability === "heat_pump" && (
-          <li className="inline-flex items-center gap-1 rounded-full bg-cream border border-[var(--border)] px-2.5 py-1 text-xs text-navy">
-            <Award className="w-3.5 h-3.5 text-coral" aria-hidden />
-            BUS registered
-          </li>
+      {/* ─── Right: rating + CTA stack ─────────────────────────────── */}
+      <div className="flex sm:flex-col sm:items-end justify-between gap-3 sm:gap-4 sm:min-w-[200px] sm:border-l sm:border-[var(--border)] sm:pl-6">
+        {showGoogleRow ? (
+          <div className="text-left sm:text-right">
+            <div className="inline-flex items-center gap-1.5">
+              <Star
+                className="w-4 h-4 fill-current text-amber-500"
+                aria-hidden
+              />
+              <span className="text-lg font-semibold text-navy">
+                {googleRating}
+              </span>
+            </div>
+            <p className="text-xs text-slate-600 mt-0.5">
+              {googleCount} Google {googleCount === 1 ? "review" : "reviews"}
+            </p>
+            <p className="text-[10px] text-slate-400 mt-1">
+              Verified {fmtDate(googleAt)}
+            </p>
+          </div>
+        ) : (
+          // Reserve space silently so cards align in a row.
+          <div className="text-left sm:text-right opacity-0 select-none">
+            <span className="text-lg font-semibold">—</span>
+            <p className="text-xs">—</p>
+          </div>
         )}
-        {installer.years_in_business != null && installer.years_in_business >= 3 && (
-          <li className="inline-flex items-center gap-1 rounded-full bg-cream border border-[var(--border)] px-2.5 py-1 text-xs text-navy">
-            {installer.years_in_business}+ years in business
-          </li>
-        )}
-      </ul>
 
-      {/* Google rating row — hides when status != ok */}
-      {showGoogleRow && (
-        <div className="mb-2 flex items-center gap-2 text-sm">
-          <span className="inline-flex items-center gap-1 font-medium text-navy">
-            <Star className="w-4 h-4 fill-current text-amber-500" aria-hidden />
-            {googleRating}
-          </span>
-          <span className="text-slate-600">
-            ({googleCount} Google {googleCount === 1 ? "review" : "reviews"})
-          </span>
-          <span className="text-[11px] text-slate-400 ml-auto">
-            Verified {fmtDate(googleAt)}
-          </span>
+        <div className="text-right">
+          <Link
+            href={ctaHref}
+            className="inline-flex items-center justify-center gap-1.5 rounded-full bg-coral hover:bg-coral-dark text-cream font-medium text-sm h-10 px-5 transition-colors whitespace-nowrap"
+          >
+            Request a quote
+            <ArrowRight className="w-4 h-4" />
+          </Link>
+          <p className="text-[10px] text-slate-400 mt-1.5 sm:text-right">
+            Free 5-minute property check first
+          </p>
         </div>
-      )}
-
-      {/* Checkatrade link-out badge — Option A from Phase 2 */}
-      {showCheckatradeBadge && installer.checkatrade_url && (
-        <a
-          href={installer.checkatrade_url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mb-3 inline-flex items-center gap-1.5 self-start rounded-full border border-[var(--border)] bg-white px-2.5 py-1 text-xs text-slate-700 hover:border-coral hover:text-coral transition-colors"
-        >
-          <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" aria-hidden />
-          Verified on Checkatrade
-          <span aria-hidden>↗</span>
-        </a>
-      )}
-
-      {/* Services covered */}
-      {capBadges.length > 0 && (
-        <p className="text-xs text-slate-600 leading-relaxed mb-4">
-          <span className="font-medium text-navy">Covers:</span>{" "}
-          {capBadges.join(" · ")}
-        </p>
-      )}
-
-      {/* Primary CTA — routes to /check with installer pre-bound (Phase 6) */}
-      <Link
-        href={ctaHref}
-        className="mt-auto inline-flex items-center justify-center gap-1.5 rounded-full bg-coral hover:bg-coral-dark text-cream font-medium text-sm h-10 px-4 transition-colors"
-      >
-        Get a free suitability report
-        <ArrowRight className="w-4 h-4" />
-      </Link>
-
-      {/* Google attribution footnote — required by Maps Platform ToS
-          when displaying ratings sourced from Places API. */}
-      {showGoogleRow && (
-        <p className="mt-3 text-[10px] text-slate-400">
-          Rating data sourced from Google Maps. Powered by Google.
-        </p>
-      )}
+      </div>
     </article>
+  );
+}
+
+/**
+ * Small footer that should appear once at the bottom of any list of
+ * installer cards — satisfies the Google Maps Platform attribution
+ * requirement without repeating "Powered by Google" on every card.
+ */
+export function InstallerCardAttribution() {
+  return (
+    <p className="text-[11px] text-slate-400 mt-4 text-center">
+      Rating data sourced from Google Maps. Powered by Google.
+    </p>
   );
 }

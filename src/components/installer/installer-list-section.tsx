@@ -15,7 +15,9 @@
 // message rather than disappearing — so the page still has a clear
 // next-step CTA.
 
-import { InstallerCard } from "./installer-card";
+import Link from "next/link";
+import { ArrowRight } from "lucide-react";
+import { InstallerCard, InstallerCardAttribution } from "./installer-card";
 import {
   selectInstallersByArea,
   type InstallerCapability,
@@ -34,6 +36,10 @@ interface InstallerListSectionProps {
   /** Max installers to render. Defaults to 8 — enough to feel
    *  substantive without overwhelming the page. */
   limit?: number;
+  /** Optional slug for the area — when provided, the section header
+   *  links to the dedicated /heat-pump-installers/[slug] page so the
+   *  town-page reader can drop into the focused installer directory. */
+  areaSlug?: string;
 }
 
 export async function InstallerListSection({
@@ -42,6 +48,7 @@ export async function InstallerListSection({
   areaLabel,
   capability,
   limit = 8,
+  areaSlug,
 }: InstallerListSectionProps) {
   // Coordinates of 0,0 (or null) mean we don't have a sensible area
   // centroid — skip the section entirely rather than rendering all
@@ -84,11 +91,30 @@ export async function InstallerListSection({
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {installers.map((i) => (
-            <InstallerCard key={i.id} installer={i} capability={capability} />
-          ))}
-        </div>
+        <>
+          <div className="flex flex-col gap-3">
+            {installers.map((i) => (
+              <InstallerCard key={i.id} installer={i} capability={capability} />
+            ))}
+          </div>
+          <InstallerCardAttribution />
+
+          {/* Link to the dedicated installer-listing page where the
+              full list lives + the area-aggregate stats. Only shown
+              when areaSlug is provided so legacy callers without one
+              don't accidentally generate broken links. */}
+          {areaSlug && (
+            <div className="mt-6 text-center">
+              <Link
+                href={`/${capability === "solar" ? "solar-panel-installers" : "heat-pump-installers"}/${areaSlug}`}
+                className="inline-flex items-center gap-1.5 text-sm font-medium text-coral hover:text-coral-dark"
+              >
+                See all {techLabel} installers covering {areaLabel}
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+          )}
+        </>
       )}
     </section>
   );

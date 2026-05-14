@@ -531,6 +531,7 @@ function TownPageWithData({
         lng={town.lng}
         areaLabel={areaLabel}
         capability="solar"
+        areaSlug={town.slug}
       />
 
       {nearby.length > 0 && (
