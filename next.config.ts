@@ -38,6 +38,36 @@ const nextConfig: NextConfig = {
   // YEAR. Users who hit it once saw a permanently broken favicon
   // until the browser cache expired.
   //
+  // Permanent (301) redirects for common URL guesses. Helps users
+  // who type the singular form or a synonym + consolidates SEO
+  // weight onto the canonical URL. Order matters — more specific
+  // patterns must come first.
+  async redirects() {
+    return [
+      // Singular → plural canonical for the public tool routes.
+      // NOTE: do NOT redirect /installer — that's the auth-gated
+      // installer portal (real route).
+      { source: "/heat-pump", destination: "/heat-pumps", permanent: true },
+      { source: "/solar-panel", destination: "/solar-panels", permanent: true },
+
+      // Common "find an installer" synonyms → the combined hub
+      { source: "/find-installer", destination: "/installers", permanent: true },
+      { source: "/find-an-installer", destination: "/installers", permanent: true },
+      { source: "/find-installers", destination: "/installers", permanent: true },
+
+      // Quote / pricing intents → the property check (which is the
+      // entry to a quote)
+      { source: "/quote", destination: "/check", permanent: true },
+      { source: "/get-quote", destination: "/check", permanent: true },
+      { source: "/get-a-quote", destination: "/check", permanent: true },
+      { source: "/request-a-quote", destination: "/check", permanent: true },
+
+      // Plural variants of the existing singular tool routes
+      { source: "/heatpumps", destination: "/heat-pumps", permanent: true },
+      { source: "/solars", destination: "/solar-panels", permanent: true },
+    ];
+  },
+
   // beforeFiles runs before filesystem routing, so these rewrites
   // resolve BEFORE Next tries to serve the actual file path.
   async rewrites() {
