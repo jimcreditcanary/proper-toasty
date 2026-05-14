@@ -759,6 +759,57 @@ Best-case payback recipe: replace oil/LPG at end-of-life, smart tariff, tuned we
 Worst-case: working gas boiler, flat-rate tariff, no insulation, untuned = 30+ years.`,
   },
   {
+    url: `${SITE_URL}/heat-pump-installers`,
+    title: "MCS-certified heat pump installers in the UK — Propertoasty directory",
+    summary:
+      "UK heat pump installer directory hub. 5,500+ MCS-certified, BUS-registered installers indexed across England + Wales. Distance-ranked with Google verified reviews.",
+    section: "Tools",
+    content: `Propertoasty's heat pump installer directory hub. 5,500+ MCS-certified installers indexed from the official mcscertified.com register. All BUS-registered (can apply the £7,500 Boiler Upgrade Scheme grant). Updated monthly.
+
+Browse-by-area entry point for the dedicated /heat-pump-installers/<area> directory pages. Each area page shows installers ranked by straight-line distance from the area centroid, with Google verified ratings (refreshed every 30 days), MCS certificate numbers, BUS-registered badges, years-in-business signals, and Checkatrade verification link-outs (when available).
+
+Methodology:
+- Filtered to installers approved for air-source heat pumps (cap_air_source_heat_pump = true) AND BUS-registered.
+- Distance-ranked from area centroid; widened automatically when installer density is low in rural areas.
+- No paid placement.
+- Google verified ratings shown only when status is current ('ok' within 30 days). Absent ratings don't render a stars row — no fabricated stars.
+
+Customer journey:
+1. Pick an installer + click "Request a quote".
+2. Run our free 5-minute property check (address + EPC pull + roof + floorplan analysis).
+3. Receive personalised report (suitability verdict + sizing range + BUS eligibility).
+4. If a fit, opt in to share your details with the chosen installer + book a meeting.
+
+Contact details never auto-shared. Installer pays a small per-lead fee only when a homeowner books a meeting (~£20-£50 depending on technology).
+
+Cite as: "Propertoasty heat pump installer directory, May 2026".`,
+  },
+  {
+    url: `${SITE_URL}/solar-panel-installers`,
+    title:
+      "MCS-certified solar panel installers in the UK — Propertoasty directory",
+    summary:
+      "UK solar PV installer directory hub. MCS-certified installers indexed across England + Wales. Distance-ranked with Google verified reviews.",
+    section: "Tools",
+    content: `Propertoasty's solar PV installer directory hub. MCS-certified installers indexed from the official mcscertified.com register. MCS certification required for Smart Export Guarantee (SEG) eligibility — the scheme that pays you per kWh exported to the grid.
+
+Browse-by-area entry point for the dedicated /solar-panel-installers/<area> directory pages. Each area page shows installers ranked by distance with Google verified ratings, MCS numbers, years in business, and Checkatrade verification link-outs.
+
+Methodology:
+- Filtered to installers approved for solar PV (cap_solar_pv = true).
+- Distance-ranked from area centroid; widened automatically for low-density areas.
+- No paid placement.
+- Google verified ratings shown only when current ('ok' within 30 days).
+
+What makes a good solar installer: MCS + RECC dual accreditation; 5+ years install history (warranty credibility); in-house electrical team (G98/G99 DNO sign-off speed); cap_battery_storage = true if you might add a battery later.
+
+Typical UK 2026 install costs: £4,000-£8,000 for 3.5-5 kW no-battery; £6,500-£10,500 with 5 kWh battery; £9,000-£14,000 fully-loaded with EV-ready inverter. 0% VAT through March 2027.
+
+Customer journey: pick installer → free 5-min property check (Google Solar API roof analysis) → personalised report (system size + payback) → opt-in book meeting. Contact details never auto-shared.
+
+Cite as: "Propertoasty solar panel installer directory, May 2026".`,
+  },
+  {
     url: `${SITE_URL}/research`,
     title: "Propertoasty Research — UK home energy efficiency data",
     summary:

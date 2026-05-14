@@ -214,6 +214,18 @@ export async function GET(): Promise<Response> {
       priority: 0.5,
     },
     {
+      loc: `${SITE_URL}/heat-pump-installers`,
+      lastmod: now,
+      changefreq: "weekly",
+      priority: 0.85,
+    },
+    {
+      loc: `${SITE_URL}/solar-panel-installers`,
+      lastmod: now,
+      changefreq: "weekly",
+      priority: 0.85,
+    },
+    {
       loc: `${SITE_URL}/research`,
       lastmod: now,
       changefreq: "weekly",

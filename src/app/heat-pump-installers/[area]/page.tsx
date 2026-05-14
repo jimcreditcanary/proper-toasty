@@ -196,7 +196,7 @@ export default async function HeatPumpInstallersAreaPage({ params }: PageProps) 
       section="Directory · Heat pump installers"
       breadcrumbs={[
         { name: "Home", url: "/" },
-        { name: "Heat pump installers" },
+        { name: "Heat pump installers", url: "/heat-pump-installers" },
         { name: area.displayName },
       ]}
       directAnswer={`Find MCS-certified heat pump installers covering ${area.areaLabel}. Every installer below holds active MCS certification (required for the £7,500 Boiler Upgrade Scheme grant), with Google ratings + reviews verified within the last 30 days. Click any installer to start a free 5-minute property check; we'll match you with them for a quote.`}
