@@ -93,13 +93,20 @@ export default function Home() {
                 fill
                 priority
                 // priority sets fetchpriority=high + preload, which is
-                // what we want for the LCP element. sizes tells the
-                // browser which downscaled variant to fetch — at
-                // mobile this picks the ~640w WebP (~50KB) instead of
-                // the source 442KB JPG. quality=80 trims another
-                // ~10% off the JPEG before WebP encoding.
-                quality={80}
-                sizes="(max-width: 1024px) 100vw, 560px"
+                // what we want for the LCP element.
+                //
+                // quality=70 (was 80): WebP at 70 is visually identical
+                // for this kind of architectural photo at this size,
+                // saves ~14 KiB on the served variant (per PSI).
+                //
+                // sizes — tighter than before. The hero column maxes
+                // at ~560px on desktop (max-w-6xl/2 minus padding) and
+                // takes ~92vw on mobile (px-4 padding). PSI was
+                // serving a 750w variant for a 665w displayed image;
+                // the new breakdown picks a smaller candidate at
+                // every viewport.
+                quality={70}
+                sizes="(min-width: 1024px) 560px, (min-width: 640px) 92vw, 100vw"
                 className="object-cover"
               />
             </div>
