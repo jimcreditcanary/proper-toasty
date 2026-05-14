@@ -65,13 +65,24 @@ export async function proxy(request: NextRequest) {
   //
   // CRITICAL — only set the cookie when the value would actually change.
   // Every set-cookie response triggers private/no-cache in Next.js,
-  // which defeats CDN caching + crawler indexability. Setting the
-  // cookie unconditionally on every `/` visit was the second
-  // contributor (alongside the always-on Supabase session update) to
-  // Bing's "URL cannot appear" diagnosis.
+  // which defeats CDN caching + crawler indexability.
+  //
+  // Cookie-less requests (every bot/crawler, every first-time human
+  // visitor) are treated as already on the default audience
+  // ("homeowner"). That way a Bingbot fetch of `/` doesn't trigger a
+  // cookie write — `getAudienceFromCookie()` already defaults to
+  // "homeowner" when the cookie is absent, so we don't need to
+  // persist it. The cookie is only written when the user has
+  // EXPLICITLY toggled to a non-default audience (visited /enterprise,
+  // /pricing, /installer-signup) AND we need to remember that across
+  // navigation.
   const isRedirect = response.headers.has("location");
   const desiredAudience = audienceFromPath(path);
-  const existingAudience = request.cookies.get(AUDIENCE_COOKIE)?.value;
+  // Default to "homeowner" so cookie-less requests don't trigger a
+  // pointless write when they happen to land on a homeowner-canonical
+  // page. See comment above.
+  const existingAudience =
+    request.cookies.get(AUDIENCE_COOKIE)?.value ?? "homeowner";
   if (
     desiredAudience &&
     !isRedirect &&
