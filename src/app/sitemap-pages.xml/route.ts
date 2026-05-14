@@ -226,6 +226,30 @@ export async function GET(): Promise<Response> {
       priority: 0.85,
     },
     {
+      loc: `${SITE_URL}/installers`,
+      lastmod: now,
+      changefreq: "weekly",
+      priority: 0.85,
+    },
+    {
+      loc: `${SITE_URL}/authors`,
+      lastmod: now,
+      changefreq: "monthly",
+      priority: 0.5,
+    },
+    {
+      loc: `${SITE_URL}/about`,
+      lastmod: now,
+      changefreq: "monthly",
+      priority: 0.6,
+    },
+    {
+      loc: `${SITE_URL}/contact`,
+      lastmod: now,
+      changefreq: "monthly",
+      priority: 0.5,
+    },
+    {
       loc: `${SITE_URL}/research`,
       lastmod: now,
       changefreq: "weekly",
