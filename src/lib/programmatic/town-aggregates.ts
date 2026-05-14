@@ -337,6 +337,43 @@ export async function loadLAAggregate(
 }
 
 /**
+ * Load a single postcode-district aggregate row by slug (e.g. "pc-s1").
+ * Returns null when no row exists; the page route renders a 404.
+ */
+export async function loadPostcodeDistrictAggregate(
+  admin: AdminClient,
+  slug: string,
+): Promise<TownAggregateRow | null> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (admin as any)
+    .from("epc_area_aggregates")
+    .select("*")
+    .eq("scope", "postcode_district")
+    .eq("scope_key", slug)
+    .maybeSingle();
+  if (error || !data) return null;
+  return data as TownAggregateRow;
+}
+
+/**
+ * Load all indexed postcode-district aggregates. Used by the sitemap
+ * + by the static-param enumeration in the page route.
+ */
+export async function loadIndexedPostcodeDistrictAggregates(
+  admin: AdminClient,
+): Promise<TownAggregateRow[]> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (admin as any)
+    .from("epc_area_aggregates")
+    .select("*")
+    .eq("scope", "postcode_district")
+    .eq("indexed", true)
+    .order("scope_key", { ascending: true });
+  if (error || !data) return [];
+  return data as TownAggregateRow[];
+}
+
+/**
  * Derive a stable LA slug from a council name. Lowercase, replace
  * non-alphanumerics with hyphens, collapse runs, trim hyphens.
  * "Kingston upon Hull, City of" → "kingston-upon-hull-city-of".

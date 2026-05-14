@@ -19,6 +19,7 @@ import { getTownBySlug, allTownSlugs, getNearbyTowns, PILOT_TOWNS, type PilotTow
 import {
   loadTownAggregate,
   loadLAAggregate,
+  loadPostcodeDistrictAggregate,
   ALL_BANDS,
   type TownAggregateRow,
   type EnergyBand,
@@ -36,23 +37,34 @@ export async function generateStaticParams() {
     PILOT_TOWNS.map((t) => t.laGssCode.toUpperCase()),
   );
   let laSlugs: string[] = [];
+  let pcdSlugs: string[] = [];
   try {
     const admin = createAdminClient();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data } = await (admin as any)
+    const { data: laData } = await (admin as any)
       .from("epc_area_aggregates")
       .select("scope_key")
       .eq("scope", "local_authority")
       .eq("indexed", true);
-    laSlugs = ((data ?? []) as Array<{ scope_key: string }>)
+    laSlugs = ((laData ?? []) as Array<{ scope_key: string }>)
       .filter((r) => {
         const gss = r.scope_key.replace(/^la-/i, "").toUpperCase();
         return !pilotLaGss.has(gss);
       })
       .map((r) => r.scope_key);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: pcdData } = await (admin as any)
+      .from("epc_area_aggregates")
+      .select("scope_key")
+      .eq("scope", "postcode_district")
+      .eq("indexed", true);
+    pcdSlugs = ((pcdData ?? []) as Array<{ scope_key: string }>).map(
+      (r) => r.scope_key,
+    );
   } catch (err) {
     console.warn(
-      "[solar-panels] generateStaticParams: LA enum failed, skipping:",
+      "[solar-panels] generateStaticParams: LA/PCD enum failed, skipping:",
       err instanceof Error ? err.message : err,
     );
   }
@@ -60,6 +72,7 @@ export async function generateStaticParams() {
   return [
     ...allTownSlugs().map((slug) => ({ "town-slug": slug })),
     ...laSlugs.map((slug) => ({ "town-slug": slug })),
+    ...pcdSlugs.map((slug) => ({ "town-slug": slug })),
   ];
 }
 
@@ -82,6 +95,32 @@ export async function generateMetadata({
     const url = `https://www.propertoasty.com/solar-panels/${slug}`;
     const title = `Solar panels across ${row.display_name}: 2026 cost + SEG guide`;
     const description = `Rooftop solar PV suitability across the ${row.display_name} local authority area, with install cost ranges, Smart Export Guarantee context, and EPC band data from ${row.sample_size.toLocaleString("en-GB")} local properties.`;
+    return {
+      title,
+      description,
+      alternates: { canonical: url },
+      openGraph: {
+        title,
+        description,
+        type: "article",
+        url,
+        siteName: "Propertoasty",
+        locale: "en_GB",
+        images: [{ url: "/hero-solar.jpg", width: 1200, height: 630 }],
+      },
+    };
+  }
+
+  // Postcode-district branch — slug shape "pc-<district>".
+  if (slug.startsWith("pc-")) {
+    const admin = createAdminClient();
+    const row = await loadPostcodeDistrictAggregate(admin, slug);
+    if (!row || !row.indexed) {
+      return { robots: { index: false, follow: false } };
+    }
+    const url = `https://www.propertoasty.com/solar-panels/${slug}`;
+    const title = `Solar panels in ${row.display_name}: 2026 cost + SEG guide`;
+    const description = `Rooftop solar PV suitability across the ${row.display_name} postcode area, with install cost ranges, Smart Export Guarantee context, and EPC band data from ${row.sample_size.toLocaleString("en-GB")} local properties.`;
     return {
       title,
       description,
@@ -142,6 +181,15 @@ export default async function SolarPanelsTownPage({ params }: PageProps) {
     return <TownPageWithData town={fakeTown} row={row} isLA />;
   }
 
+  // Postcode-district branch — slug shape "pc-<district>".
+  if (slug.startsWith("pc-")) {
+    const admin = createAdminClient();
+    const row = await loadPostcodeDistrictAggregate(admin, slug);
+    if (!row) notFound();
+    const fakeTown = pcdToTownAdapter(row);
+    return <TownPageWithData town={fakeTown} row={row} isPCD />;
+  }
+
   const town = getTownBySlug(slug);
   if (!town) notFound();
 
@@ -160,6 +208,22 @@ function laToTownAdapter(row: TownAggregateRow): PilotTown {
     councilName: row.display_name,
     postTowns: [],
     postcodeDistricts: [],
+    county: row.county ?? "",
+    region: row.region ?? "",
+    country: row.country as PilotTown["country"],
+    lat: row.lat ?? 0,
+    lng: row.lng ?? 0,
+  };
+}
+
+function pcdToTownAdapter(row: TownAggregateRow): PilotTown {
+  return {
+    slug: row.scope_key,
+    name: row.display_name,
+    laGssCode: "",
+    councilName: "",
+    postTowns: [],
+    postcodeDistricts: [row.scope_key.replace(/^pc-/i, "").toUpperCase()],
     county: row.county ?? "",
     region: row.region ?? "",
     country: row.country as PilotTown["country"],
@@ -194,15 +258,21 @@ function TownPageWithData({
   town,
   row,
   isLA = false,
+  isPCD = false,
 }: {
   town: PilotTown;
   row: TownAggregateRow;
   isLA?: boolean;
+  isPCD?: boolean;
 }) {
   const data = row.data;
   const url = `https://www.propertoasty.com/solar-panels/${town.slug}`;
-  const inOrAcross = isLA ? "across" : "in";
-  const areaLabel = isLA ? `${town.name} (local authority area)` : town.name;
+  const inOrAcross = isLA || isPCD ? "across" : "in";
+  const areaLabel = isLA
+    ? `${town.name} (local authority area)`
+    : isPCD
+      ? `${town.name} postcode area`
+      : town.name;
 
   // Band data — same source as the heat-pump variant. We interpret
   // it through a SOLAR lens: well-rated homes typically have intact
