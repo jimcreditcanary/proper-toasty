@@ -18,6 +18,7 @@ import {
   PoundSterling,
   Send,
   Sparkles,
+  Image as ImageIcon,
   TrendingUp,
   Wallet,
   Zap,
@@ -203,6 +204,7 @@ export default async function InstallerHomePage() {
     { title: "Performance", icon: TrendingUp, href: "/installer/performance" },
     { title: "Credits", icon: CreditCard, href: "/installer/credits" },
     { title: "Billing", icon: Wallet, href: "/installer/billing" },
+    { title: "Profile + boost", icon: ImageIcon, href: "/installer/profile" },
     { title: "API access", icon: KeyRound, href: "/installer/api-access" },
   ];
 

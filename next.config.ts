@@ -20,6 +20,15 @@ const nextConfig: NextConfig = {
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "images.unsplash.com" },
+      // Installer logos live in the public installer-logos Supabase
+      // Storage bucket (migration 064). Hostname pattern covers any
+      // Supabase project ref so this works across local / preview /
+      // production without rebuilding the regex.
+      {
+        protocol: "https",
+        hostname: "*.supabase.co",
+        pathname: "/storage/v1/object/public/installer-logos/**",
+      },
     ],
     // Next 16 tightened the default: without an explicit `qualities`
     // list, the optimiser only accepts q=75 and 400s everything else

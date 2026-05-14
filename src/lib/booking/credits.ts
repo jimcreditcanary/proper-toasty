@@ -10,7 +10,23 @@
 // constant collapses to a fallback default.
 
 export const LEAD_ACCEPT_COST_CREDITS = 5;
+export const SPONSORED_LEAD_ACCEPT_COST_CREDITS = 10;
 export const PRESURVEY_REQUEST_COST_CREDITS = 1;
+
+/**
+ * Effective per-lead accept cost given the installer's sponsored
+ * state. Sponsored installers pay double — that's the deal in
+ * exchange for top-of-list placement on directory pages. Pass the
+ * `sponsored_until` value straight from the row.
+ */
+export function effectiveLeadAcceptCost(
+  sponsoredUntil: string | null,
+): number {
+  if (!sponsoredUntil) return LEAD_ACCEPT_COST_CREDITS;
+  return new Date(sponsoredUntil).getTime() > Date.now()
+    ? SPONSORED_LEAD_ACCEPT_COST_CREDITS
+    : LEAD_ACCEPT_COST_CREDITS;
+}
 
 // Free starter credits granted on first installer claim (one-shot,
 // gated by users.installer_starter_credits_granted_at). Worth ~£95

@@ -979,6 +979,9 @@ export interface Database {
           google_review_count: number | null;
           google_captured_at: string | null;
           google_status: string | null;
+          // Migration 064 — sponsored placement + logo
+          sponsored_until: string | null;
+          logo_url: string | null;
           // Migration 037 — installer-configurable visit length + travel buffer
           meeting_duration_min: number;
           travel_buffer_min: number;
@@ -1057,6 +1060,9 @@ export interface Database {
           google_review_count?: number | null;
           google_captured_at?: string | null;
           google_status?: string | null;
+          // Migration 064 — sponsored placement + logo
+          sponsored_until?: string | null;
+          logo_url?: string | null;
           // Migration 037 — installer-configurable visit length + travel buffer
           meeting_duration_min?: number;
           travel_buffer_min?: number;
@@ -1130,6 +1136,8 @@ export interface Database {
           // floorplan extract. Site brief renders the new "Site Visit
           // Prep" section when this is non-null.
           floorplan_upload_id: string | null;
+          // Migration 064 — credits actually debited at acknowledge time
+          accept_cost_credits: number | null;
           created_at: string;
           updated_at: string;
         };
@@ -1185,6 +1193,7 @@ export interface Database {
           auto_released_at?: string | null;
           installer_report_url?: string | null;
           pre_survey_request_id?: string | null;
+          accept_cost_credits?: number | null;
           created_at?: string;
           updated_at?: string;
         };

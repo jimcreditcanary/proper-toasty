@@ -49,7 +49,10 @@ import {
 } from "lucide-react";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { verifyLeadAckToken } from "@/lib/email/tokens";
-import { LEAD_ACCEPT_COST_CREDITS } from "@/lib/booking/credits";
+import {
+  LEAD_ACCEPT_COST_CREDITS,
+  effectiveLeadAcceptCost,
+} from "@/lib/booking/credits";
 import { resolveInstallerProfile } from "@/lib/installer-claim/resolve-profile";
 import type { Database } from "@/types/database";
 
@@ -94,6 +97,7 @@ type State =
       facts: BookingFacts;
       currentEmail: string;
       creditsHave: number;
+      costCredits: number;
     }
   | {
       // All three actions available.
@@ -101,6 +105,7 @@ type State =
       facts: BookingFacts;
       currentEmail: string;
       creditsHave: number;
+      costCredits: number;
     };
 
 async function loadState(leadId: string, token: string): Promise<State> {
@@ -146,10 +151,13 @@ async function loadState(leadId: string, token: string): Promise<State> {
       >(),
     admin
       .from("installers")
-      .select("id, company_name, email, user_id")
+      .select("id, company_name, email, user_id, sponsored_until")
       .eq("id", lead.installer_id)
       .maybeSingle<
-        Pick<InstallerRow, "id" | "company_name" | "email" | "user_id">
+        Pick<
+          InstallerRow,
+          "id" | "company_name" | "email" | "user_id" | "sponsored_until"
+        >
       >(),
   ]);
 
@@ -219,12 +227,17 @@ async function loadState(leadId: string, token: string): Promise<State> {
     credits: profile.credits,
   });
 
-  if (profile.credits < LEAD_ACCEPT_COST_CREDITS) {
+  const costCredits = effectiveLeadAcceptCost(
+    installerResult.data.sponsored_until,
+  );
+
+  if (profile.credits < costCredits) {
     return {
       kind: "needs-topup",
       facts,
       currentEmail: profile.email,
       creditsHave: profile.credits,
+      costCredits,
     };
   }
 
@@ -233,6 +246,7 @@ async function loadState(leadId: string, token: string): Promise<State> {
     facts,
     currentEmail: profile.email,
     creditsHave: profile.credits,
+    costCredits,
   };
 }
 
@@ -327,7 +341,12 @@ function renderState(state: State) {
 function Ready({
   state,
 }: {
-  state: { facts: BookingFacts; currentEmail: string; creditsHave: number };
+  state: {
+    facts: BookingFacts;
+    currentEmail: string;
+    creditsHave: number;
+    costCredits: number;
+  };
 }) {
   const { facts } = state;
   const slot = formatSlot(facts.scheduledAt);
@@ -336,6 +355,7 @@ function Ready({
     facts.wantsSolar,
     facts.wantsBattery,
   );
+  const isSponsored = state.costCredits > LEAD_ACCEPT_COST_CREDITS;
 
   return (
     <>
@@ -346,9 +366,16 @@ function Ready({
       <p className="text-sm text-slate-600 leading-relaxed mb-4">
         Three options. Accepting either way debits{" "}
         <strong className="text-navy">
-          {LEAD_ACCEPT_COST_CREDITS} credits
+          {state.costCredits} credits
         </strong>{" "}
         and unlocks the homeowner&rsquo;s contact details.
+        {isSponsored ? (
+          <span className="block text-xs text-coral-dark mt-1">
+            Sponsored placement is active — lead acceptance costs{" "}
+            {state.costCredits} credits instead of the standard{" "}
+            {LEAD_ACCEPT_COST_CREDITS}.
+          </span>
+        ) : null}
       </p>
 
       <ActionButton
@@ -385,7 +412,12 @@ function Ready({
 function NeedsTopup({
   state,
 }: {
-  state: { facts: BookingFacts; currentEmail: string; creditsHave: number };
+  state: {
+    facts: BookingFacts;
+    currentEmail: string;
+    creditsHave: number;
+    costCredits: number;
+  };
 }) {
   const { facts } = state;
   const slot = formatSlot(facts.scheduledAt);
@@ -394,7 +426,7 @@ function NeedsTopup({
     facts.wantsSolar,
     facts.wantsBattery,
   );
-  const shortBy = LEAD_ACCEPT_COST_CREDITS - state.creditsHave;
+  const shortBy = state.costCredits - state.creditsHave;
   return (
     <>
       <Header pillText="Top up to accept" title={facts.installerName} />
@@ -406,8 +438,8 @@ function NeedsTopup({
           You&rsquo;re {shortBy} credit{shortBy === 1 ? "" : "s"} short.
         </p>
         <p className="text-amber-900 mt-1">
-          Accepting a lead costs {LEAD_ACCEPT_COST_CREDITS} credits.
-          Sign in to top up and come straight back to this page.
+          Accepting this lead costs {state.costCredits} credits. Sign
+          in to top up and come straight back to this page.
         </p>
       </div>
 

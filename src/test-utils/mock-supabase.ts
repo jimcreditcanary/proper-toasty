@@ -5,8 +5,8 @@
 // test that issues two selects against the same table can stage
 // distinct responses (e.g. billing's "window query" vs "YTD count").
 //
-// Filters (eq / gte / not / in / order / limit) are no-ops — the
-// fixture data is presumed pre-filtered by the caller. We're
+// Filters (eq / gte / not / in / is / order / limit) are no-ops —
+// the fixture data is presumed pre-filtered by the caller. We're
 // testing aggregation logic, not the query chain itself.
 //
 // Type-asserted via `unknown as SupabaseClient` because mocking the
@@ -71,6 +71,7 @@ export function makeMockAdmin(
       lt: (...a: unknown[]) => Chain;
       gt: (...a: unknown[]) => Chain;
       not: (...a: unknown[]) => Chain;
+      is: (...a: unknown[]) => Chain;
       in: (...a: unknown[]) => Chain;
       order: (...a: unknown[]) => Chain;
       limit: (...a: unknown[]) => Chain;
@@ -95,6 +96,7 @@ export function makeMockAdmin(
       lt: () => c,
       gt: () => c,
       not: () => c,
+      is: () => c,
       in: () => c,
       order: () => c,
       limit: () => c,

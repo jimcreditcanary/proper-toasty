@@ -197,7 +197,7 @@ export default function InstallersHubPage() {
         </li>
       </ul>
 
-      <h2>How we rank installers</h2>
+      <h2 id="how-we-rank">How we rank installers</h2>
       <p>
         Both directories use the same ranking method:
       </p>
@@ -210,23 +210,37 @@ export default function InstallersHubPage() {
           For heat pumps: additionally filter to BUS-registered.
         </li>
         <li>
-          Rank by straight-line distance from the area centroid you
-          searched (town centre, local authority centroid, or
-          postcode district centre).
+          Geo-filter by straight-line distance from the area
+          centroid you searched. The radius widens automatically
+          (25 km → 50 → 100 → 200 km) when installer density is
+          low so rural postcodes don&rsquo;t render an empty
+          section.
         </li>
         <li>
-          Widen the radius automatically (25 km → 50 → 100 → 200 km)
-          when installer density is low — so rural postcodes
-          don&rsquo;t render an empty section.
+          Rank by a Bayesian-smoothed Google review score —
+          installers with very few reviews are damped toward the
+          national average so a 5★/3 doesn&rsquo;t beat a 4.8★/200.
+          Installers without a Google Business listing rank at the
+          national average and don&rsquo;t display a stars row
+          (no fabricated stars).
         </li>
         <li>
-          Show Google verified reviews when available + current
-          (refreshed within 30 days). Absent ratings just
-          don&rsquo;t display a stars row — no fabricated stars.
+          Distance is the tie-break when scores are close.
         </li>
       </ol>
+      <h3>Sponsored placement</h3>
       <p>
-        We don&rsquo;t accept paid placement.{" "}
+        We offer a paid &ldquo;sponsored placement&rdquo; option.
+        Sponsored installers float to the top of the directory and
+        are clearly flagged with a{" "}
+        <strong>Sponsored</strong> badge on their card — the same
+        Bayesian ranking applies between sponsored installers, so
+        a 5★/3 sponsored installer still sits below a 4.8★/200
+        sponsored installer. Sponsored installers pay double credits
+        per accepted lead in exchange for the placement; the
+        homeowner journey + reviews shown are otherwise identical.
+        See <Link href="/pricing">pricing</Link> for the full
+        breakdown.{" "}
         <Link href="/contact">Contact us</Link> if you have feedback
         on a specific listing.
       </p>

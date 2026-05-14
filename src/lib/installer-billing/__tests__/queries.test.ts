@@ -255,8 +255,18 @@ describe("loadBilling — YTD headline numbers", () => {
       ],
       installer_leads: [
         { data: [] },
-        // YTD head:true → just count, no rows
-        { data: null, count: 4 },
+        // YTD — m064 switched this from head:true count to a real
+        // row fetch so we can SUM accept_cost_credits (sponsored
+        // installers pay 10/lead vs the standard 5). Four rows = 4
+        // leads at the standard 5-credit cost.
+        {
+          data: [
+            { accept_cost_credits: 5 },
+            { accept_cost_credits: 5 },
+            { accept_cost_credits: 5 },
+            { accept_cost_credits: 5 },
+          ],
+        },
       ],
       installer_pre_survey_requests: [
         { data: [] },
@@ -270,5 +280,51 @@ describe("loadBilling — YTD headline numbers", () => {
     expect(out.ytd.purchaseCount).toBe(2);
     // 4 leads × 5 credits + 4 pre-survey credits = 24
     expect(out.ytd.creditsUsed).toBe(4 * LEAD_ACCEPT_COST_CREDITS + 4);
+  });
+
+  it("sums actual accept_cost_credits so sponsored installers' double-cost shows up in YTD", async () => {
+    // Three leads: two at the standard 5 credits, one at the
+    // sponsored 10. Expected: 5 + 5 + 10 = 20. Pre-survey row to
+    // confirm the addition is independent.
+    const admin = makeMockAdmin({
+      installer_credit_purchases: [{ data: [] }, { data: [], count: 0 }],
+      installer_leads: [
+        { data: [] },
+        {
+          data: [
+            { accept_cost_credits: 5 },
+            { accept_cost_credits: 5 },
+            { accept_cost_credits: 10 },
+          ],
+        },
+      ],
+      installer_pre_survey_requests: [
+        { data: [] },
+        { data: [{ total_credits_charged: 2 }] },
+      ],
+    });
+    const out = await loadBilling(admin, ARGS);
+    expect(out.ytd.creditsUsed).toBe(5 + 5 + 10 + 2);
+  });
+
+  it("falls back to LEAD_ACCEPT_COST_CREDITS for legacy NULL rows", async () => {
+    // Pre-m064 rows have accept_cost_credits = NULL. The COALESCE
+    // in loadBilling defaults those to 5 so YTD totals don't drop
+    // on rollout.
+    const admin = makeMockAdmin({
+      installer_credit_purchases: [{ data: [] }, { data: [], count: 0 }],
+      installer_leads: [
+        { data: [] },
+        {
+          data: [
+            { accept_cost_credits: null },
+            { accept_cost_credits: 10 },
+          ],
+        },
+      ],
+      installer_pre_survey_requests: [{ data: [] }, { data: [] }],
+    });
+    const out = await loadBilling(admin, ARGS);
+    expect(out.ytd.creditsUsed).toBe(LEAD_ACCEPT_COST_CREDITS + 10);
   });
 });
