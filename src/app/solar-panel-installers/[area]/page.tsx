@@ -179,7 +179,7 @@ export default async function SolarPanelInstallersAreaPage({ params }: PageProps
       section="Directory · Solar panel installers"
       breadcrumbs={[
         { name: "Home", url: "/" },
-        { name: "Solar panel installers" },
+        { name: "Solar panel installers", url: "/solar-panel-installers" },
         { name: area.displayName },
       ]}
       directAnswer={`Find MCS-certified solar PV installers covering ${area.areaLabel}. Every installer below holds active MCS certification — required for Smart Export Guarantee eligibility — with Google ratings + reviews verified within the last 30 days. Click any installer to start a free 5-minute property check; we'll match you with them for a quote.`}
