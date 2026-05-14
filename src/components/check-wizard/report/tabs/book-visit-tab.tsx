@@ -233,6 +233,7 @@ export function BookVisitTab({
       <PreSurveyBookingCard
         installerName={preSurveyInstallerName ?? "your installer"}
         techPhrase={techPhrase}
+        selection={selection}
       />
     );
   }
@@ -702,23 +703,31 @@ function FilterPill({
   );
 }
 
-// Pre-survey audience booking card. The homeowner clicked through
-// from a pre-survey email where the installer ticked "site visit
-// NOT yet booked" — so they need to lock a slot in. Renders a
-// focused single-installer slot picker for the requesting installer
-// and books the meeting via /api/pre-survey-requests/book (which
-// hangs the meeting off the EXISTING installer_lead row, rather than
-// creating a new one).
+// Pre-survey audience booking card. Used for BOTH:
 //
-// On success the wizard state flips to booked → the parent tab nav
-// drops the Book tab and the meeting banner appears at the top of
-// the report. No reload required.
+//   (a) Installer-initiated flow — homeowner arrived via the
+//       /check?presurvey=<token> link sent by the installer. An
+//       installer_lead row already exists (auto-created at lead-
+//       capture time); we just attach a meeting to it via
+//       /api/pre-survey-requests/book.
+//
+//   (b) Customer-initiated flow — homeowner arrived via
+//       /check?installer=<id>&capability=… after clicking "Request
+//       a quote" on an installer card. No installer_lead row exists
+//       yet; we create one from scratch via /api/installer-leads/create
+//       (the marketplace endpoint) with the chosen installer pre-pinned.
+//
+// The submit branches on whether state.preSurveyToken + preSurveyRequestId
+// are both set. Same UI, same outcome (meeting booked + parent shell
+// hides the Book tab + shows the meeting banner).
 function PreSurveyBookingCard({
   installerName,
   techPhrase,
+  selection,
 }: {
   installerName: string;
   techPhrase: string;
+  selection: { hasHeatPump: boolean; hasSolar: boolean; hasBattery: boolean };
 }) {
   const { state, update } = useCheckWizard();
   const installerId = state.preSurveyInstallerId;
@@ -808,38 +817,99 @@ function PreSurveyBookingCard({
       setSubmitError("Enter a valid UK mobile so the installer can confirm.");
       return;
     }
-    if (!requestId || !homeownerToken) {
-      setSubmitError("This booking link is missing — try opening it from the email again.");
+    if (!installerId) {
+      setSubmitError("This booking link is missing the installer reference. Please open it again from the original link.");
+      return;
+    }
+    if (!state.leadEmail || !state.leadName) {
+      setSubmitError("We need your name + email before booking — please complete the report first.");
       return;
     }
     setSubmitting(true);
     try {
-      const res = await fetch("/api/pre-survey-requests/book", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          preSurveyRequestId: requestId,
-          homeownerToken,
-          scheduledAtUtc: selectedSlot.startUtc,
+      let meetingAtUtc: string;
+
+      if (requestId && homeownerToken) {
+        // ─── Installer-initiated path ─────────────────────────────
+        // Existing installer_lead row already exists; just attach a
+        // meeting via the pre-survey book endpoint.
+        const res = await fetch("/api/pre-survey-requests/book", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            preSurveyRequestId: requestId,
+            homeownerToken,
+            scheduledAtUtc: selectedSlot.startUtc,
+            contactPhone: phone.trim(),
+            notes: notes.trim() || null,
+          }),
+        });
+        const data = (await res.json().catch(() => ({}))) as {
+          ok: boolean;
+          error?: string;
+          meetingAtUtc?: string;
+        };
+        if (!res.ok || !data.ok) {
+          throw new Error(data.error ?? `Couldn't save (${res.status})`);
+        }
+        meetingAtUtc = data.meetingAtUtc ?? selectedSlot.startUtc;
+      } else {
+        // ─── Customer-initiated path ──────────────────────────────
+        // No installer_lead row yet — create one from scratch with
+        // the chosen installer pre-pinned. Uses the same endpoint
+        // the marketplace BookingModal uses.
+        const body = {
+          installerId,
+          contactEmail: state.leadEmail.trim(),
+          contactName: state.leadName.trim(),
           contactPhone: phone.trim(),
+          preferredContactMethod: null,
+          preferredContactWindow: null,
           notes: notes.trim() || null,
-        }),
-      });
-      const data = (await res.json().catch(() => ({}))) as {
-        ok: boolean;
-        error?: string;
-        meetingAtUtc?: string;
-      };
-      if (!res.ok || !data.ok) {
-        throw new Error(data.error ?? `Couldn't save (${res.status})`);
+          wantsHeatPump: selection.hasHeatPump,
+          wantsSolar: selection.hasSolar,
+          wantsBattery: selection.hasBattery,
+          homeownerLeadId: state.leadId ?? null,
+          propertyAddress: state.address?.formattedAddress ?? null,
+          propertyPostcode: state.address?.postcode ?? null,
+          propertyUprn: state.address?.uprn ?? null,
+          propertyLatitude: state.address?.latitude ?? null,
+          propertyLongitude: state.address?.longitude ?? null,
+          analysisSnapshot: {
+            analysis: state.analysis,
+            floorplanAnalysis: state.floorplanAnalysis,
+            electricityTariff: state.electricityTariff,
+            gasTariff: state.gasTariff,
+          },
+          meeting: {
+            scheduledAtUtc: selectedSlot.startUtc,
+            durationMin: 60,
+            travelBufferMin: 30,
+          },
+        };
+        const res = await fetch("/api/installer-leads/create", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        const data = (await res.json().catch(() => ({}))) as {
+          ok: boolean;
+          error?: string;
+        };
+        if (!res.ok || !data.ok) {
+          throw new Error(data.error ?? `Couldn't save (${res.status})`);
+        }
+        meetingAtUtc = selectedSlot.startUtc;
       }
-      // Flip the wizard state — the report shell watches this and
-      // will hide the Book tab + show the meeting banner up top.
+
+      // Flip the wizard state regardless of path — the report shell
+      // watches this and will hide the Book tab + show the meeting
+      // banner up top.
       update({
         preSurveyMeetingStatus: "booked",
-        preSurveyMeetingAt: data.meetingAtUtc ?? selectedSlot.startUtc,
+        preSurveyMeetingAt: meetingAtUtc,
       });
-      setSuccess({ scheduledAtUtc: data.meetingAtUtc ?? selectedSlot.startUtc });
+      setSuccess({ scheduledAtUtc: meetingAtUtc });
     } catch (err) {
       setSubmitError(
         err instanceof Error ? err.message : "Something went wrong — try again",
@@ -886,11 +956,12 @@ function PreSurveyBookingCard({
     );
   }
 
-  // Defensive fallback — if the link landed on the report but didn't
-  // carry the installer id (older tokens, edge cases) we can't fetch
-  // availability. Fall back to the previous "they'll be in touch"
+  // Defensive fallback — if we don't have an installer id we can't
+  // fetch availability. Fall back to the "they'll be in touch"
   // copy rather than render a broken empty picker.
-  if (!installerId || !requestId || !homeownerToken) {
+  // (requestId + homeownerToken are optional now — customer-initiated
+  // entries have neither but still have installerId.)
+  if (!installerId) {
     return (
       <div className="space-y-6">
         <SectionCard
