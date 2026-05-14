@@ -170,6 +170,10 @@ describe("loadPerformance — quotes", () => {
       installer_leads: [{ data: [] }],
       installer_proposals: [
         {
+          // Revenue is computed from line_items, not total_pence —
+          // total_pence is the homeowner-pays figure (post-BUS); the
+          // dashboard wants the installer's gross. One non-grant
+          // line at £15,000 ex-VAT.
           data: [
             {
               id: "p1",
@@ -178,6 +182,16 @@ describe("loadPerformance — quotes", () => {
               accepted_at: "2026-05-12T10:00:00Z",
               declined_at: null,
               total_pence: 1_500_000,
+              line_items: [
+                {
+                  id: "li1",
+                  description: "Heat pump install",
+                  quantity: 1,
+                  unit_price_pence: 1_500_000,
+                  category: "heat_pump",
+                  is_bus_grant: false,
+                },
+              ],
             },
           ],
         },

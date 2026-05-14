@@ -18,6 +18,7 @@
 // over src/data/affordability-trends.json, ship the PR.
 
 import type { Metadata } from "next";
+import Link from "next/link";
 import { AEOPage } from "@/components/seo";
 import { DEFAULT_AUTHOR_SLUG } from "@/lib/seo/authors";
 import affordabilityData from "@/data/affordability-trends.json";
@@ -323,8 +324,8 @@ export default function UkAffordabilityIndexPage() {
           </p>
           <p>
             In the meantime, see the per-area data on the{" "}
-            <a href="/heat-pumps">heat-pump town pages</a> and{" "}
-            <a href="/solar-panels">solar town pages</a> for
+            <Link href="/heat-pumps">heat-pump town pages</Link> and{" "}
+            <Link href="/solar-panels">solar town pages</Link> for
             location-specific EPC aggregates.
           </p>
         </>

@@ -14,6 +14,7 @@
 // this route then renders them automatically with no per-author code.
 
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { MarketingHeader } from "@/components/marketing-header";
 import { LandingFooter } from "@/components/landing-footer";
@@ -93,9 +94,9 @@ export default async function AuthorPage({ params }: PageProps) {
         >
           <ol className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
             <li>
-              <a href="/" className="hover:text-coral transition-colors">
+              <Link href="/" className="hover:text-coral transition-colors">
                 Home
-              </a>
+              </Link>
             </li>
             <li className="inline-flex items-center gap-1.5">
               <span className="text-slate-300">›</span>

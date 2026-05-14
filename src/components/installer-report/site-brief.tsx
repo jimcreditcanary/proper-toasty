@@ -35,7 +35,6 @@ import {
   Mail,
   MapPin,
   Phone,
-  PoundSterling,
   Sun,
   Thermometer,
   XCircle,

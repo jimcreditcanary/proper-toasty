@@ -195,7 +195,6 @@ export function BookVisitTab({
         // best-effort — silent
       }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data?.installers]);
 
   // Apply patches + split into contacted vs available.

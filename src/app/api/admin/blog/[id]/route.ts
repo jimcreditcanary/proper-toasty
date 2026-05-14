@@ -2,8 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function blogTable(admin: ReturnType<typeof createAdminClient>) {
+  // The blog_posts table isn't in the generated Database type
+  // (admin-only surface, low touch — we don't regen the type when
+  // it shifts). Drop to an untyped builder here. Read shapes are
+  // validated by the route's own Zod schemas downstream.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return (admin as any).from("blog_posts");
 }
 

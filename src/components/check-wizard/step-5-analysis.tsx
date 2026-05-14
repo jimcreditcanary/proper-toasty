@@ -48,6 +48,7 @@ export function Step5Analysis() {
       return;
     }
     firedRef.current = true;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot kick-off
     setStage("running");
 
     fetch("/api/analyse", {
@@ -119,6 +120,9 @@ export function Step5Analysis() {
     state.priorHeatPumpFunding,
     state.electricityTariff,
     state.gasTariff,
+    state.floorplanAnalysis,
+    state.floorplanDegraded,
+    state.floorplanDegradedReason,
     update,
     next,
   ]);

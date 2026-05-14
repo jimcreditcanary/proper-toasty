@@ -90,20 +90,23 @@ export class InMemoryDb {
   /** Returns the chainable query builder + a SupabaseClient-shaped
    *  facade that delegates from()/rpc()/auth.admin to this store. */
   adminClient(): SupabaseClient<Database> {
-    const store = this;
+    // Arrow functions inside the returned object literal capture the
+    // method's `this`, so we can reference `this.rpcImpls` etc.
+    // directly without a `const store = this` alias (which trips
+    // @typescript-eslint/no-this-alias).
     return {
-      from: (table: string) => buildChain(store, table),
+      from: (table: string) => buildChain(this, table),
       rpc: async (name: string, args?: Record<string, unknown>) => {
-        const impl = store.rpcImpls[name];
+        const impl = this.rpcImpls[name];
         if (!impl) {
           return { data: null, error: { message: `unknown rpc: ${name}` } };
         }
-        return impl(args ?? {}, store);
+        return impl(args ?? {}, this);
       },
       auth: {
         admin: {
           getUserById: async (id: string) => {
-            const u = store.authUsers[id];
+            const u = this.authUsers[id];
             if (!u) return { data: { user: null }, error: null };
             return { data: { user: u }, error: null };
           },

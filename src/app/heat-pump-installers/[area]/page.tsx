@@ -24,7 +24,6 @@ import {
   getTownBySlug,
 } from "@/lib/programmatic/towns";
 import {
-  loadTownAggregate,
   loadLAAggregate,
   loadPostcodeDistrictAggregate,
   type TownAggregateRow,
