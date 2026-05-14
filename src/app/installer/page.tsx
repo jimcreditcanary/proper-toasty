@@ -70,13 +70,6 @@ export default async function InstallerHomePage() {
   let checklist: ChecklistResult | null = null;
   let creditBalance = 0;
   let onboardingDismissedAt: string | null = null;
-  // PT-DEBUG — surface the page-level read error to the HTML marker
-  // because Vercel's runtime-logs UI keeps reporting "no logs" for
-  // these requests. If profileRes.error is non-null, that error
-  // explains why creditBalance silently defaults to 0 even though
-  // the row exists with credits=30.
-  let pageReadError: string | null = null;
-  let pageReadDataKeys: string = "n/a";
   let metrics: Awaited<
     ReturnType<typeof loadInstallerDashboardMetrics>
   > | null = null;
@@ -115,11 +108,6 @@ export default async function InstallerHomePage() {
         }>(),
     ]);
 
-    pageReadError = profileRes.error?.message ?? null;
-    pageReadDataKeys = profileRes.data
-      ? Object.keys(profileRes.data).join(",")
-      : "data-is-null";
-
     if (profileRes.data?.auto_recharge_failed_at) {
       failureReason =
         profileRes.data.auto_recharge_failure_reason ?? "Card declined";
@@ -127,15 +115,6 @@ export default async function InstallerHomePage() {
     creditBalance = profileRes.data?.credits ?? 0;
     onboardingDismissedAt =
       profileRes.data?.installer_onboarding_dismissed_at ?? null;
-
-    console.log("[PT-DEBUG-installer-dashboard] profile read", {
-      userId: user.id,
-      userEmail: user.email,
-      profileFound: !!profileRes.data,
-      profileError: profileRes.error?.message ?? null,
-      creditBalance,
-      buildSha: process.env.VERCEL_GIT_COMMIT_SHA ?? "unknown",
-    });
 
     if (installerRes.data) {
       companyName = installerRes.data.company_name;
@@ -218,87 +197,12 @@ export default async function InstallerHomePage() {
     ? "Manage your availability, accept leads, and quote with confidence."
     : "Claim your installer profile to start accepting leads.";
 
-  // TEMP — visible in "View Page Source" so we can verify what the
-  // server actually rendered without depending on Vercel's logs UI.
-  // Search for PT-DEBUG in the page source.
-  //
-  // serviceRoleSet tells us whether SUPABASE_SERVICE_ROLE_KEY is
-  // actually present at runtime. If it shows "no", that's the smoking
-  // gun for the "DB has 30, dashboard reads 0" bug — the admin client
-  // falls back to the anon key, RLS blocks the read.
-  // Decode the JWT role claim.
-  const srKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
-  let jwtRole = "n/a";
-  let jwtRef = "n/a";
-  try {
-    const middle = srKey.split(".")[1];
-    if (middle) {
-      const decoded = Buffer.from(middle, "base64").toString("utf-8");
-      const json = JSON.parse(decoded) as { role?: string; ref?: string };
-      jwtRole = json.role ?? "no-role-claim";
-      jwtRef = json.ref ?? "no-ref-claim";
-    }
-  } catch {
-    jwtRole = "decode-failed";
-  }
-
-  // Surface the host of NEXT_PUBLIC_SUPABASE_URL — the JWT.ref claim
-  // identifies which Supabase project the key was issued for; the
-  // URL host says which project the client is talking to. They MUST
-  // match. Mismatch = key for project A but client pointed at project
-  // B → PostgREST treats the JWT as anon (signature won't validate
-  // against project B's secret) and the read is RLS-blocked.
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
-  const urlHost = url.match(/https?:\/\/([^./]+)/)?.[1] ?? "unknown";
-
-  // Real-world admin client tests. Dump:
-  //   - adminUsersCount: total row count via service-role
-  //   - allRows:         id+credits of every row (we know it's 1 row;
-  //                      lets us see if the id matches user.id)
-  //   - targetedRow:     result of the actual .eq("id", user.id)
-  //                      query we use on the page — shows us whether
-  //                      data is null (no match) or present
-  let adminUsersCount: string = "n/a";
-  let allRows: string = "n/a";
-  let targetedRow: string = "n/a";
-  try {
-    const admin = createAdminClient();
-    const { count, error } = await admin
-      .from("users")
-      .select("id", { count: "exact", head: true });
-    adminUsersCount = error ? `err:${error.message}` : String(count ?? "null");
-
-    const { data: dump, error: dumpErr } = await admin
-      .from("users")
-      .select("id, credits")
-      .limit(5);
-    allRows = dumpErr
-      ? `err:${dumpErr.message}`
-      : JSON.stringify(dump);
-
-    if (user) {
-      const { data: pData, error: pErr } = await admin
-        .from("users")
-        .select("id, credits, role")
-        .eq("id", user.id)
-        .maybeSingle();
-      targetedRow = pErr
-        ? `err:${pErr.message}`
-        : JSON.stringify(pData);
-    }
-  } catch (e) {
-    adminUsersCount = `threw:${e instanceof Error ? e.message : String(e)}`;
-  }
-
-  const debugBanner = `<!-- PT-DEBUG creditBalance=${creditBalance} userId=${user?.id ?? "no-user"} sha=${process.env.VERCEL_GIT_COMMIT_SHA ?? "unknown"} role=${jwtRole} jwtRef=${jwtRef} urlHost=${urlHost} adminUsersCount=${adminUsersCount} allRows=${allRows} targetedRow=${targetedRow} pageReadError=${pageReadError ?? "null"} pageReadDataKeys=${pageReadDataKeys} -->`;
-
   return (
     <PortalShell
       portalName="Installer"
       pageTitle={pageTitle}
       pageSubtitle={pageSubtitle}
     >
-      <div dangerouslySetInnerHTML={{ __html: debugBanner }} />
       {failureReason && (
         <Link
           href="/installer/credits"
