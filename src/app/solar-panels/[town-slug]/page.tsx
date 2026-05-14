@@ -26,6 +26,7 @@ import {
 } from "@/lib/programmatic/town-aggregates";
 import { AEOPage, ComparisonTable } from "@/components/seo";
 import { DEFAULT_AUTHOR_SLUG } from "@/lib/seo/authors";
+import { InstallerListSection } from "@/components/installer/installer-list-section";
 
 export const revalidate = 3600;
 
@@ -524,6 +525,13 @@ function TownPageWithData({
         kWh/year output, payback in years, and a list of MCS-certified
         installers covering {town.name}.
       </p>
+
+      <InstallerListSection
+        lat={town.lat}
+        lng={town.lng}
+        areaLabel={areaLabel}
+        capability="solar"
+      />
 
       {nearby.length > 0 && (
         <>

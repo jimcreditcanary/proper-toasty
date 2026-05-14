@@ -38,6 +38,7 @@ import {
 import { AEOPage, ComparisonTable } from "@/components/seo";
 import { DEFAULT_AUTHOR_SLUG } from "@/lib/seo/authors";
 import { HeatPumpArchetypePage } from "@/components/programmatic/heat-pump-archetype-page";
+import { InstallerListSection } from "@/components/installer/installer-list-section";
 
 // ISR — 1h. EPC data refreshes monthly at the source so the page
 // itself doesn't need to be hot-rebuild fast. The build-towns
@@ -636,6 +637,13 @@ function TownPageWithData({
         range, and a list of MCS-certified installers covering{" "}
         {town.name}.
       </p>
+
+      <InstallerListSection
+        lat={town.lat}
+        lng={town.lng}
+        areaLabel={areaLabel}
+        capability="heat_pump"
+      />
 
       <h3>How {town.name} compares</h3>
       <p>
