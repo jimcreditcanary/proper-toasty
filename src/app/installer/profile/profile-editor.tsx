@@ -33,12 +33,6 @@ interface Props {
   creditBalance: number;
 }
 
-// Two SKUs. Keep these in sync with the API route's accepted values.
-const BOOST_OPTIONS: Array<{ days: 7 | 30; label: string; sublabel: string }> = [
-  { days: 7, label: "7 days", sublabel: "short test" },
-  { days: 30, label: "30 days", sublabel: "recommended" },
-];
-
 export function ProfileEditor({
   companyName,
   initialLogoUrl,
@@ -227,6 +221,42 @@ function LogoCard({
 
 // ─── Sponsored card ─────────────────────────────────────────────────
 
+/**
+ * SponsoredCard UX (post Jim's UX feedback):
+ *
+ *  ┌─────────────────────────────────────────────┐
+ *  │ ✦ Sponsored placement                  [○]  │   ← Switch
+ *  │ Float to the top of directory pages…        │
+ *  │                                             │
+ *  │ ┌── only when ON (pending) ───────────────┐ │
+ *  │ │ For how long?                           │ │
+ *  │ │ [ 7 days ] [ 30 days ] [ 90 days ]      │ │   ← Each button
+ *  │ └─────────────────────────────────────────┘ │     activates
+ *  └─────────────────────────────────────────────┘
+ *
+ * Three states:
+ *   - OFF:     switch is off, card is collapsed (no duration UI)
+ *   - PENDING: user clicked switch ON but hasn't picked a duration
+ *              yet. Switch shows "on" but disabled-looking; duration
+ *              buttons revealed.
+ *   - ACTIVE:  boost has been activated. Switch on, expiry shown,
+ *              Cancel button (which flips back to OFF).
+ *
+ * Picking a duration button immediately POSTs to the API and moves
+ * the card to ACTIVE. No separate "Activate" button — the duration
+ * pick IS the activate.
+ */
+
+const BOOST_DURATIONS: Array<{
+  days: 7 | 30 | 90;
+  label: string;
+  sublabel: string;
+}> = [
+  { days: 7, label: "7 days", sublabel: "short test" },
+  { days: 30, label: "30 days", sublabel: "recommended" },
+  { days: 90, label: "90 days", sublabel: "quarterly" },
+];
+
 function SponsoredCard({
   initialSponsoredUntil,
   creditBalance,
@@ -237,14 +267,19 @@ function SponsoredCard({
   const [sponsoredUntil, setSponsoredUntil] = useState<string | null>(
     initialSponsoredUntil,
   );
-  const [selected, setSelected] = useState<7 | 30>(30);
-  const [pending, setPending] = useState(false);
+  // Drives the "PENDING" state — when the installer flips the switch
+  // ON but hasn't picked a duration yet. Resets to false on activate
+  // or when the switch goes back OFF.
+  const [pendingDuration, setPendingDuration] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
   const active =
     sponsoredUntil != null &&
     new Date(sponsoredUntil).getTime() > Date.now();
+  const switchOn = active || pendingDuration;
+
   const expiresLabel = sponsoredUntil
     ? new Intl.DateTimeFormat("en-GB", {
         day: "numeric",
@@ -253,15 +288,31 @@ function SponsoredCard({
       }).format(new Date(sponsoredUntil))
     : null;
 
-  async function onActivate() {
+  function onSwitchChange(next: boolean) {
     setError(null);
     setSuccess(null);
-    setPending(true);
+    if (next) {
+      // Flipping ON: enter PENDING — show duration buttons. The
+      // actual activate fires when the installer picks a duration.
+      setPendingDuration(true);
+    } else if (active) {
+      // Flipping OFF while ACTIVE: cancel the boost.
+      void onCancel();
+    } else {
+      // Flipping OFF while PENDING (changed their mind): just clear.
+      setPendingDuration(false);
+    }
+  }
+
+  async function onPickDuration(days: 7 | 30 | 90) {
+    setError(null);
+    setSuccess(null);
+    setBusy(true);
     try {
       const res = await fetch("/api/installer/profile/sponsored", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ days: selected }),
+        body: JSON.stringify({ days }),
       });
       const json = (await res.json()) as
         | { ok: true; sponsoredUntil: string }
@@ -270,6 +321,7 @@ function SponsoredCard({
         throw new Error(("error" in json && json.error) || "Update failed");
       }
       setSponsoredUntil(json.sponsoredUntil);
+      setPendingDuration(false);
       setSuccess(
         `Boost active until ${new Intl.DateTimeFormat("en-GB", {
           day: "numeric",
@@ -279,14 +331,12 @@ function SponsoredCard({
     } catch (e) {
       setError(e instanceof Error ? e.message : "Update failed");
     } finally {
-      setPending(false);
+      setBusy(false);
     }
   }
 
   async function onCancel() {
-    setError(null);
-    setSuccess(null);
-    setPending(true);
+    setBusy(true);
     try {
       const res = await fetch("/api/installer/profile/sponsored", {
         method: "DELETE",
@@ -298,13 +348,14 @@ function SponsoredCard({
         throw new Error(("error" in json && json.error) || "Update failed");
       }
       setSponsoredUntil(null);
+      setPendingDuration(false);
       setSuccess(
         "Boost cancelled. You're back to organic placement + the standard 5-credit lead cost.",
       );
     } catch (e) {
       setError(e instanceof Error ? e.message : "Update failed");
     } finally {
-      setPending(false);
+      setBusy(false);
     }
   }
 
@@ -316,18 +367,26 @@ function SponsoredCard({
           : "border-slate-200 bg-white"
       }`}
     >
-      <header className="flex items-center gap-2 mb-1">
-        <Sparkles className="w-4 h-4 text-coral" />
-        <h2 className="text-sm font-semibold text-navy">
-          Sponsored placement
-        </h2>
-        {active && (
-          <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-coral text-white text-[10px] font-bold uppercase tracking-wider px-2 py-0.5">
-            <Sparkles className="w-3 h-3" /> Active
-          </span>
-        )}
+      <header className="flex items-start gap-3 mb-1">
+        <Sparkles className="w-4 h-4 text-coral mt-1 shrink-0" />
+        <div className="flex-1 min-w-0">
+          <h2 className="text-sm font-semibold text-navy">
+            Sponsored placement
+            {active && (
+              <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-coral text-white text-[10px] font-bold uppercase tracking-wider px-2 py-0.5">
+                <Sparkles className="w-3 h-3" /> Active
+              </span>
+            )}
+          </h2>
+        </div>
+        <Switch
+          checked={switchOn}
+          disabled={busy}
+          onChange={onSwitchChange}
+          ariaLabel="Sponsored placement"
+        />
       </header>
-      <p className="text-xs text-slate-600 leading-relaxed mb-5">
+      <p className="text-xs text-slate-600 leading-relaxed mb-4">
         Float to the top of every directory listing in your area. While
         active, accepting a lead debits{" "}
         <strong className="text-navy">10 credits</strong> instead of the
@@ -335,21 +394,61 @@ function SponsoredCard({
         being boosted; you only pay when a homeowner accepts your slot.
       </p>
 
-      {active ? (
-        <ActiveState
-          expiresLabel={expiresLabel}
-          onCancel={onCancel}
-          pending={pending}
-        />
-      ) : (
-        <InactiveState
-          options={BOOST_OPTIONS}
-          selected={selected}
-          onSelect={setSelected}
-          onActivate={onActivate}
-          pending={pending}
-          creditBalance={creditBalance}
-        />
+      {/* ── ACTIVE state ── */}
+      {active && (
+        <div className="rounded-xl border border-coral/30 bg-white p-3 mt-3 text-sm">
+          <p className="text-navy">
+            <strong>Active</strong> until {expiresLabel}.
+          </p>
+          <p className="text-xs text-slate-600 mt-1">
+            Flip the switch off (or click below) to cancel and return to
+            organic placement.
+          </p>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={onCancel}
+            className="mt-3 inline-flex items-center gap-1.5 h-9 px-4 rounded-full bg-white border border-slate-300 hover:border-slate-400 text-slate-700 text-xs font-medium disabled:opacity-60 transition-colors"
+          >
+            {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
+            Cancel boost
+          </button>
+        </div>
+      )}
+
+      {/* ── PENDING state — installer flipped switch on, now picks duration ── */}
+      {!active && pendingDuration && (
+        <div className="mt-3 rounded-xl border border-coral/30 bg-coral-pale/30 p-3">
+          <p className="text-xs font-semibold text-navy mb-2">
+            For how long?
+          </p>
+          <div className="grid grid-cols-3 gap-2">
+            {BOOST_DURATIONS.map((o) => (
+              <button
+                key={o.days}
+                type="button"
+                disabled={busy}
+                onClick={() => void onPickDuration(o.days)}
+                className="text-left rounded-xl border border-slate-200 bg-white hover:border-coral hover:bg-coral-pale/40 disabled:opacity-60 p-3 transition-colors"
+              >
+                <p className="text-sm font-semibold text-navy">
+                  {o.label}
+                </p>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  {o.sublabel}
+                </p>
+              </button>
+            ))}
+          </div>
+          {creditBalance < 10 && (
+            <p className="mt-3 text-[11px] text-amber-700 leading-relaxed">
+              Heads up — you&rsquo;ve got {creditBalance} credit
+              {creditBalance === 1 ? "" : "s"}. Each sponsored lead
+              accept costs 10. Top up first so you don&rsquo;t miss
+              any.
+            </p>
+          )}
+        </div>
       )}
 
       {error && <InlineAlert kind="error">{error}</InlineAlert>}
@@ -358,109 +457,41 @@ function SponsoredCard({
   );
 }
 
-function ActiveState({
-  expiresLabel,
-  onCancel,
-  pending,
+// ─── Switch ────────────────────────────────────────────────────────
+//
+// Tailwind-only switch. No headlessui — we already lean on shadcn-
+// style primitives elsewhere but a single switch isn't worth the dep.
+// Uses a hidden checkbox for keyboard + screen-reader support.
+
+function Switch({
+  checked,
+  disabled,
+  onChange,
+  ariaLabel,
 }: {
-  expiresLabel: string | null;
-  onCancel: () => void;
-  pending: boolean;
+  checked: boolean;
+  disabled?: boolean;
+  onChange: (next: boolean) => void;
+  ariaLabel: string;
 }) {
   return (
-    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-5">
-      <div className="flex-1 min-w-0">
-        <p className="text-sm text-navy">
-          <strong>Active</strong> until {expiresLabel}.
-        </p>
-        <p className="text-xs text-slate-600 mt-1">
-          Cancelling demotes you back to organic placement immediately.
-          We don&rsquo;t refund the boost cost (there isn&rsquo;t one —
-          you only paid for accepted leads).
-        </p>
-      </div>
-      <button
-        type="button"
-        disabled={pending}
-        onClick={onCancel}
-        className="inline-flex items-center gap-1.5 h-10 px-4 rounded-full bg-white border border-slate-300 hover:border-slate-400 text-slate-700 text-sm font-medium disabled:opacity-60 transition-colors"
-      >
-        {pending ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-        Cancel boost
-      </button>
-    </div>
-  );
-}
-
-function InactiveState({
-  options,
-  selected,
-  onSelect,
-  onActivate,
-  pending,
-  creditBalance,
-}: {
-  options: Array<{ days: 7 | 30; label: string; sublabel: string }>;
-  selected: 7 | 30;
-  onSelect: (d: 7 | 30) => void;
-  onActivate: () => void;
-  pending: boolean;
-  creditBalance: number;
-}) {
-  return (
-    <div className="space-y-4">
-      <fieldset>
-        <legend className="text-xs font-semibold text-slate-700 mb-2">
-          Boost duration
-        </legend>
-        <div className="grid grid-cols-2 gap-3">
-          {options.map((o) => {
-            const isSelected = o.days === selected;
-            return (
-              <button
-                key={o.days}
-                type="button"
-                onClick={() => onSelect(o.days)}
-                className={`text-left rounded-xl border p-3 transition-colors ${
-                  isSelected
-                    ? "border-coral bg-coral-pale/40"
-                    : "border-slate-200 bg-white hover:border-slate-300"
-                }`}
-              >
-                <p className="text-sm font-semibold text-navy">
-                  {o.label}
-                </p>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  {o.sublabel}
-                </p>
-              </button>
-            );
-          })}
-        </div>
-      </fieldset>
-
-      <button
-        type="button"
-        disabled={pending}
-        onClick={onActivate}
-        className="inline-flex items-center gap-1.5 h-10 px-5 rounded-full bg-coral hover:bg-coral-dark text-white text-sm font-semibold disabled:opacity-60 transition-colors"
-      >
-        {pending ? (
-          <Loader2 className="w-4 h-4 animate-spin" />
-        ) : (
-          <Sparkles className="w-4 h-4" />
-        )}
-        Activate boost
-      </button>
-
-      {creditBalance < 10 && (
-        <p className="text-[11px] text-amber-700 leading-relaxed">
-          Heads up — you&rsquo;ve got {creditBalance} credit
-          {creditBalance === 1 ? "" : "s"}. Each sponsored lead accept
-          costs 10. Top up first so you don&rsquo;t miss any.
-        </p>
-      )}
-    </div>
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={ariaLabel}
+      disabled={disabled}
+      onClick={() => onChange(!checked)}
+      className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-coral focus:ring-offset-2 ${
+        checked ? "bg-coral" : "bg-slate-300"
+      }`}
+    >
+      <span
+        className={`inline-block h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${
+          checked ? "translate-x-5" : "translate-x-0.5"
+        }`}
+      />
+    </button>
   );
 }
 

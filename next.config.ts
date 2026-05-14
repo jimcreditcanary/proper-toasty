@@ -99,6 +99,51 @@ const nextConfig: NextConfig = {
         source: "/(.*)",
         headers: securityHeaders,
       },
+      // ── Auth + portal pages: no HTML caching ────────────────────
+      //
+      // Symptom this fixes: user was on /installer (logged in),
+      // pressed back several times, eventually landed on the
+      // login form with NO CSS — the page rendered as raw HTML.
+      //
+      // Root cause: browser back/forward cache (bfcache) + the
+      // HTTP cache serve the previous HTML response from memory.
+      // After a redeploy, the chunk-hashes referenced by that
+      // stale HTML no longer exist — the CSS link 404s, and the
+      // page renders unstyled.
+      //
+      // Fix: tell the browser not to cache HTML responses on
+      // routes where the user is authenticated or in the middle
+      // of an auth flow. Re-fetching from the server is cheap
+      // (these aren't ISR pages anyway) and always returns HTML
+      // with the current build's chunk hashes.
+      //
+      // We only apply this to dynamic surfaces — the homepage,
+      // blog, guides, etc. keep their default caching so they
+      // stay fast.
+      {
+        source: "/auth/:path*",
+        headers: [
+          { key: "Cache-Control", value: "no-store, must-revalidate" },
+        ],
+      },
+      {
+        source: "/installer/:path*",
+        headers: [
+          { key: "Cache-Control", value: "no-store, must-revalidate" },
+        ],
+      },
+      {
+        source: "/admin/:path*",
+        headers: [
+          { key: "Cache-Control", value: "no-store, must-revalidate" },
+        ],
+      },
+      {
+        source: "/dashboard/:path*",
+        headers: [
+          { key: "Cache-Control", value: "no-store, must-revalidate" },
+        ],
+      },
       // Long-cache static assets — root-level files only. The
       // earlier `/(.*)\\.ico` pattern matched at every depth, so a
       // 404 at /installer/favicon.ico was getting the 1-year

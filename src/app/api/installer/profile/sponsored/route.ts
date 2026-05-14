@@ -1,7 +1,7 @@
 // /api/installer/profile/sponsored — activate / cancel sponsored
 // placement.
 //
-// POST   — body { days: 7 | 30 }. Sets sponsored_until = now() +
+// POST   — body { days: 7 | 30 | 90 }. Sets sponsored_until = now() +
 //          days. Idempotent in the sense that calling again extends
 //          from the LATER of (now, current sponsored_until) so an
 //          installer who clicks "30 days" twice gets 60 days total,
@@ -21,7 +21,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
 
-const ALLOWED_DAYS = new Set([7, 30]);
+const ALLOWED_DAYS = new Set([7, 30, 90]);
 
 interface InstallerRow {
   id: number;
@@ -76,7 +76,7 @@ export async function POST(req: Request) {
   }
   if (days === null || !ALLOWED_DAYS.has(days)) {
     return NextResponse.json(
-      { ok: false, error: "days must be 7 or 30" },
+      { ok: false, error: "days must be 7, 30 or 90" },
       { status: 400 },
     );
   }
