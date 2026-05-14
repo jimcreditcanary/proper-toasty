@@ -643,6 +643,7 @@ function TownPageWithData({
         lng={town.lng}
         areaLabel={areaLabel}
         capability="heat_pump"
+        areaSlug={town.slug}
       />
 
       <h3>How {town.name} compares</h3>
