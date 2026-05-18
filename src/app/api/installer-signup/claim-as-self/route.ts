@@ -3,27 +3,30 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { completeInstallerClaim } from "@/lib/installer-claim/complete-claim";
+import { runOutreachClaim } from "@/lib/outreach/claim-rpc";
 
 // POST /api/installer-signup/claim-as-self
 //
-// Body: { installerId: number }
+// Body: { installerId: number, outreachToken?: string }
 //
 // Fast-path for users who already have a Propertoasty account and
 // just want to bind it to an installer record. Skips the F2 signup
 // flow (which would create a duplicate account + send a confirm
 // email they don't need).
 //
+// When outreachToken is set, runs the outreach claim RPC after the
+// standard bind — assigns the tier on the recipient row + records
+// the conversion. Outreach failures are non-fatal here: the
+// installer claim itself is already done, so we log + carry on.
+//
 // Auth: must be signed in. The user's auth.id becomes
 // installers.user_id.
-//
-// Outcomes mirror completeInstallerClaim: claimed / race-lost /
-// error. Race-lost = someone else got there first; the UI surfaces
-// the same "this profile has been claimed" message as F2.
 
 export const runtime = "nodejs";
 
 const RequestSchema = z.object({
   installerId: z.coerce.number().int().positive(),
+  outreachToken: z.string().optional(),
 });
 
 interface ClaimResponse {
@@ -79,6 +82,29 @@ export async function POST(req: Request): Promise<NextResponse<ClaimResponse>> {
   });
 
   if (result.kind === "claimed") {
+    // Outreach claim — non-fatal. The installer bind has already
+    // landed; the tier assignment is a bonus that we can correct
+    // later via admin tools if it fails.
+    if (parsed.data.outreachToken) {
+      const outreachResult = await runOutreachClaim({
+        admin,
+        userId: user.id,
+        outreachToken: parsed.data.outreachToken,
+      });
+      if (!outreachResult.ok) {
+        console.warn("[claim-as-self] outreach RPC failed (non-fatal)", {
+          userId: user.id,
+          installerId: parsed.data.installerId,
+          reason: outreachResult.reason,
+          error: "error" in outreachResult ? outreachResult.error : undefined,
+        });
+      } else {
+        console.log("[claim-as-self] outreach tier assigned", {
+          userId: user.id,
+          tier: outreachResult.tier,
+        });
+      }
+    }
     return NextResponse.json<ClaimResponse>({
       ok: true,
       installerId: result.installerId,

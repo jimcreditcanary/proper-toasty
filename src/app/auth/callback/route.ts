@@ -5,6 +5,7 @@ import {
   completeInstallerClaim,
   type ClaimOutcome,
 } from "@/lib/installer-claim/complete-claim";
+import { runOutreachClaim } from "@/lib/outreach/claim-rpc";
 
 // Default landing path per role — when the caller didn't supply a
 // `?next=` we want them to land somewhere sensible for who they are.
@@ -133,16 +134,49 @@ export async function GET(request: NextRequest) {
       userEmail: data.user.email ?? "",
       installerId: claimId,
     });
-    // Best-effort: clear the metadata flag so a re-issued
+
+    // Outreach claim — runs ONLY when (a) the standard claim
+    // succeeded and (b) user_metadata.outreach_token is present.
+    // Non-fatal on its own — the installer bind has landed, the
+    // tier assignment is a bonus we can correct via admin tools
+    // if it errors.
+    const outreachTokenRaw = (data.user.user_metadata as Record<string, unknown> | null)
+      ?.outreach_token;
+    const outreachToken =
+      typeof outreachTokenRaw === "string" && outreachTokenRaw.length > 0
+        ? outreachTokenRaw
+        : null;
+    if (claimResult.kind === "claimed" && outreachToken) {
+      const outreachResult = await runOutreachClaim({
+        admin,
+        userId: data.user.id,
+        outreachToken,
+      });
+      if (!outreachResult.ok) {
+        console.warn("[auth/callback] outreach RPC failed (non-fatal)", {
+          userId: data.user.id,
+          installerId: claimId,
+          reason: outreachResult.reason,
+          error: "error" in outreachResult ? outreachResult.error : undefined,
+        });
+      } else {
+        console.log("[auth/callback] outreach tier assigned", {
+          userId: data.user.id,
+          tier: outreachResult.tier,
+        });
+      }
+    }
+
+    // Best-effort: clear the metadata flags so a re-issued
     // confirmation can't re-trigger the claim. Failures are
     // non-fatal — the binding's done, the rest is hygiene.
     try {
       await supabase.auth.updateUser({
-        data: { claim_installer_id: null },
+        data: { claim_installer_id: null, outreach_token: null },
       });
     } catch (e) {
       console.warn(
-        "[auth/callback] could not clear claim_installer_id metadata",
+        "[auth/callback] could not clear claim metadata",
         e instanceof Error ? e.message : e,
       );
     }

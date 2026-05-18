@@ -8,6 +8,9 @@ interface Props {
   installerId: number;
   installerName: string;
   signedInEmail: string;
+  /** When present, the claim runs the outreach RPC after the
+   *  standard bind — assigns tier + records the conversion. */
+  outreachToken?: string | null;
 }
 
 interface ClaimResponse {
@@ -26,6 +29,7 @@ export function ClaimAsSelfButton({
   installerId,
   installerName,
   signedInEmail,
+  outreachToken,
 }: Props) {
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
@@ -38,7 +42,10 @@ export function ClaimAsSelfButton({
       const res = await fetch("/api/installer-signup/claim-as-self", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ installerId }),
+        body: JSON.stringify({
+          installerId,
+          ...(outreachToken ? { outreachToken } : {}),
+        }),
       });
       const json = (await res.json()) as ClaimResponse;
       if (!json.ok) {

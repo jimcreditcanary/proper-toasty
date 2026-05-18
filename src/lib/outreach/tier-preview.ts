@@ -140,9 +140,8 @@ export function tierLabel(tier: Tier): string {
   return map[tier];
 }
 
-/** Credits granted for each tier — single source of truth, mirrors
- *  the RPC's hard-coded values. UI uses this for the landing page
- *  "claim N credits" CTA. */
+/** Total credits awarded across all four asks for each tier. UI
+ *  uses this for the landing page headline ("up to N credits"). */
 export function tierCredits(tier: Tier): number {
   const map: Record<Tier, number> = {
     founder: 300,
@@ -150,4 +149,41 @@ export function tierCredits(tier: Tier): number {
     standard: 30,
   };
   return map[tier];
+}
+
+export type OnboardingStep =
+  | "signup"
+  | "profile"
+  | "questions"
+  | "card";
+
+/**
+ * Credits awarded for completing each step, per tier. Sums to the
+ * tier total (founder 30+60+120+90=300, early 30+20+30+20=100,
+ * standard 30+0+0+0=30).
+ *
+ * - Signup is the same 30 for everyone — same amount as a self-
+ *   claim installer gets via the existing starter grant; outreach
+ *   doesn't short-circuit that path post-m066.
+ * - Standard tier gets nothing beyond the signup grant. Their
+ *   onboarding flow renders the profile/questions/card steps
+ *   without a "+N credits" badge to avoid demoralising "+0".
+ */
+export function tierStepCredits(tier: Tier, step: OnboardingStep): number {
+  const grid: Record<Tier, Record<OnboardingStep, number>> = {
+    founder: { signup: 30, profile: 60, questions: 120, card: 90 },
+    early_access: { signup: 30, profile: 20, questions: 30, card: 20 },
+    standard: { signup: 30, profile: 0, questions: 0, card: 0 },
+  };
+  return grid[tier][step];
+}
+
+/** Convenience — full per-tier breakdown for landing-page rendering. */
+export function tierBreakdown(tier: Tier): Array<{
+  step: OnboardingStep;
+  credits: number;
+}> {
+  return (
+    ["signup", "profile", "questions", "card"] as const
+  ).map((step) => ({ step, credits: tierStepCredits(tier, step) }));
 }

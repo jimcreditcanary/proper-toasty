@@ -27,12 +27,26 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { Logo } from "@/components/logo";
-import { Building2 } from "lucide-react";
+import { Building2, Sparkles, ShieldCheck } from "lucide-react";
 import { ClaimSignupForm } from "./signup-form";
 import { ClaimSearch } from "./search";
 import { ClaimAsSelfButton } from "./claim-button";
 import { maskEmail } from "@/lib/installer-claim/email-mask";
 import { INSTALLER_FREE_STARTER_CREDITS } from "@/lib/booking/credits";
+import { verifyClaimToken } from "@/lib/outreach/claim-token";
+import {
+  primaryRegion,
+  primaryTechBucket,
+  previewTier,
+  regionDisplayName,
+  techBucketDisplayName,
+  tierLabel,
+  tierCredits,
+  tierBreakdown,
+  type Tier,
+  type Region,
+  type TechBucket,
+} from "@/lib/outreach/tier-preview";
 import type { Database } from "@/types/database";
 
 export const dynamic = "force-dynamic";
@@ -43,8 +57,22 @@ interface PageProps {
   searchParams: Promise<{
     id?: string;
     email?: string;
+    /** HMAC-signed token from an outreach email. Resolves to a
+     *  recipient row that determines the live tier offer. */
+    outreach?: string;
     error?: "race_lost" | "email_mismatch" | "no_email" | string;
   }>;
+}
+
+interface OutreachContext {
+  recipientId: string;
+  /** Token is passed through to the signup form / claim-as-self
+   *  button so the post-auth side can call the claim RPC. */
+  token: string;
+  tier: Tier;
+  region: Region;
+  techBucket: TechBucket;
+  founderSpotsRemaining: number;
 }
 
 interface PrefillData {
@@ -66,6 +94,87 @@ interface PrefillData {
    *  them straight to /installer rather than show "claimed by
    *  someone else". */
   ownerUserId: string | null;
+}
+
+/**
+ * Resolve the outreach context for a token-bearing landing-page
+ * hit: verify the HMAC, look up the recipient, check it hasn't
+ * been used / expired / unsubscribed, derive the LIVE tier from
+ * the current founder_claims state for the installer's region +
+ * tech bucket.
+ *
+ * "Live" tier — the email may have been sent when the recipient
+ * was tier=founder but the spot has since been claimed by someone
+ * else. We surface the current offer (Phase 0 decision 10) rather
+ * than the stale one.
+ *
+ * Returns null when the token's invalid, the recipient's already
+ * claimed, or the linked installer doesn't match the URL's `id=`.
+ */
+async function loadOutreachContext(
+  token: string,
+  expectedInstallerId: number,
+): Promise<OutreachContext | null> {
+  const recipientId = verifyClaimToken(token);
+  if (!recipientId) return null;
+
+  const admin = createAdminClient();
+
+  const { data: recipient } = await admin
+    .from("outreach_recipients")
+    .select("id, installer_id, signed_up_at, state")
+    .eq("id", recipientId)
+    .maybeSingle<{
+      id: string;
+      installer_id: number;
+      signed_up_at: string | null;
+      state: string;
+    }>();
+  if (!recipient) return null;
+  // URL id must match the recipient's installer id — defends against
+  // a malformed link with a swapped id.
+  if (recipient.installer_id !== expectedInstallerId) return null;
+  // Terminal states — don't render the outreach hero (they'll just
+  // see the standard signup flow if they're not signed in).
+  if (
+    recipient.state === "unsubscribed" ||
+    recipient.state === "complained" ||
+    recipient.state === "bounced"
+  ) {
+    return null;
+  }
+
+  const { data: installer } = await admin
+    .from("installers")
+    .select("*")
+    .eq("id", recipient.installer_id)
+    .maybeSingle<InstallerRow>();
+  if (!installer) return null;
+
+  const region = primaryRegion(installer);
+  const bucket = primaryTechBucket(installer);
+  if (!region || !bucket) return null;
+
+  const { data: claims } = await admin
+    .from("outreach_founder_claims")
+    .select("*")
+    .eq("region", region)
+    .eq("tech_bucket", bucket)
+    .maybeSingle<
+      Database["public"]["Tables"]["outreach_founder_claims"]["Row"]
+    >();
+
+  const tier = previewTier(claims ?? null);
+  return {
+    recipientId,
+    token,
+    tier,
+    region,
+    techBucket: bucket,
+    founderSpotsRemaining: claims
+      ? Math.max(0, 5 - claims.tier_2_claimed_count)
+      : 5,
+  };
 }
 
 async function loadInstaller(id: number): Promise<PrefillData | null> {
@@ -110,6 +219,7 @@ export default async function InstallerSignupPage({ searchParams }: PageProps) {
   const idRaw = params.id;
   const emailOverride = params.email;
   const errorFlag = params.error ?? null;
+  const outreachToken = params.outreach ?? null;
   const idNum = idRaw ? Number(idRaw) : null;
 
   // Resolve the installer if we got an id. Bad ids fall back to
@@ -118,6 +228,15 @@ export default async function InstallerSignupPage({ searchParams }: PageProps) {
   let prefill: PrefillData | null = null;
   if (idNum && Number.isFinite(idNum) && idNum > 0) {
     prefill = await loadInstaller(idNum);
+  }
+
+  // Outreach context — only present when a recipient is landing here
+  // via an outreach email's claim URL. Verified independently of the
+  // installer prefill so a missing/expired token falls back to the
+  // plain signup view without breaking anything.
+  let outreach: OutreachContext | null = null;
+  if (outreachToken && idNum) {
+    outreach = await loadOutreachContext(outreachToken, idNum);
   }
 
   // Detect a signed-in user so we can short-circuit the F2 signup
@@ -185,6 +304,13 @@ export default async function InstallerSignupPage({ searchParams }: PageProps) {
           </div>
         )}
 
+        {outreach && prefill && (
+          <OutreachHero
+            outreach={outreach}
+            companyName={prefill.companyName}
+          />
+        )}
+
         <div className="rounded-2xl bg-white border border-slate-200 shadow-sm p-6 sm:p-8">
           {prefill ? (
             <PrefillView
@@ -192,6 +318,7 @@ export default async function InstallerSignupPage({ searchParams }: PageProps) {
               emailOverride={emailOverride}
               signedInEmail={signedInEmail}
               errorFlag={errorFlag}
+              outreachToken={outreach?.token ?? null}
             />
           ) : (
             <ClaimSearch />
@@ -232,11 +359,16 @@ function PrefillView({
   emailOverride,
   signedInEmail,
   errorFlag,
+  outreachToken,
 }: {
   prefill: PrefillData;
   emailOverride: string | undefined;
   signedInEmail: string | null;
   errorFlag: string | null;
+  /** Outreach claim token passed through to the signup form +
+   *  claim-as-self button so the post-auth side can call the
+   *  outreach_claim_founder_offer RPC. */
+  outreachToken: string | null;
 }) {
   const installerEmail = prefill.email?.toLowerCase().trim() ?? null;
   const userEmail = signedInEmail?.toLowerCase().trim() ?? null;
@@ -265,6 +397,7 @@ function PrefillView({
         installerId={prefill.id}
         installerName={prefill.companyName}
         signedInEmail={signedInEmail}
+        outreachToken={outreachToken}
       />
     );
   } else {
@@ -273,6 +406,7 @@ function PrefillView({
         installerId={prefill.id}
         installerName={prefill.companyName}
         defaultEmail={emailOverride ?? prefill.email ?? ""}
+        outreachToken={outreachToken}
       />
     );
   }
@@ -395,12 +529,21 @@ function UnauthenticatedClaimChoices({
   installerId,
   installerName,
   defaultEmail,
+  outreachToken,
 }: {
   installerId: number;
   installerName: string;
   defaultEmail: string;
+  outreachToken: string | null;
 }) {
-  const signInHref = `/auth/login?redirect=${encodeURIComponent(`/installer-signup?id=${installerId}`)}`;
+  // Outreach claimants who sign in (rather than create an account)
+  // come back to this exact page, so the redirect target preserves
+  // the outreach token — otherwise the post-signin redirect would
+  // drop the tier offer.
+  const returnPath = outreachToken
+    ? `/installer-signup?id=${installerId}&outreach=${encodeURIComponent(outreachToken)}`
+    : `/installer-signup?id=${installerId}`;
+  const signInHref = `/auth/login?redirect=${encodeURIComponent(returnPath)}`;
   return (
     <div className="space-y-5">
       <div className="rounded-xl border border-coral/30 bg-coral-pale/40 p-4">
@@ -435,6 +578,7 @@ function UnauthenticatedClaimChoices({
           installerId={installerId}
           installerName={installerName}
           defaultEmail={defaultEmail}
+          outreachToken={outreachToken}
         />
       </div>
     </div>
@@ -521,5 +665,105 @@ function AlreadyClaimedNote({
         and we&rsquo;ll sort it out.
       </p>
     </div>
+  );
+}
+
+// ─── Outreach hero ──────────────────────────────────────────────────
+//
+// Rendered above the standard signup card when the URL carries a
+// valid outreach token. Mirrors the four trust beats from the Phase 4
+// brief:
+//
+//   1. Personalised hero — "<First>, here's your <Tier> offer"
+//   2. Live tier counter — only for founder + early_access (standard
+//      doesn't have a "scarcity" angle)
+//   3. Progressive unlocks — 4 asks with per-step credit amounts.
+//      Standard tier hides the per-step badges (all zeros would
+//      look demoralising).
+//   4. Trust copy — reject any lead, no charge until value, etc.
+
+function OutreachHero({
+  outreach,
+  companyName,
+}: {
+  outreach: OutreachContext;
+  companyName: string;
+}) {
+  const breakdown = tierBreakdown(outreach.tier);
+  const showCounter =
+    outreach.tier === "founder" || outreach.tier === "early_access";
+  const showCreditBadges = outreach.tier !== "standard";
+  const headline =
+    outreach.tier === "founder"
+      ? `Founder offer for ${companyName}`
+      : outreach.tier === "early_access"
+        ? `Early access offer for ${companyName}`
+        : `Welcome offer for ${companyName}`;
+  const stepLabel: Record<typeof breakdown[number]["step"], string> = {
+    signup: "Create your account",
+    profile: "Complete your profile (logo, services, coverage, bio)",
+    questions: "Answer 6 questions (becomes your installer-bylined blog post)",
+    card: "Connect a card for future top-ups (no charge today)",
+  };
+  return (
+    <section className="rounded-2xl border border-coral/40 bg-white shadow-sm p-6 sm:p-8 mb-6">
+      <header className="flex items-start gap-3 mb-3">
+        <span className="shrink-0 inline-flex items-center justify-center w-10 h-10 rounded-xl bg-coral-pale text-coral-dark">
+          <Sparkles className="w-5 h-5" />
+        </span>
+        <div className="flex-1 min-w-0">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-coral">
+            {tierLabel(outreach.tier)} tier · up to {tierCredits(outreach.tier)} credits
+          </p>
+          <h2 className="text-xl sm:text-2xl font-bold text-navy leading-tight mt-1">
+            {headline}
+          </h2>
+        </div>
+      </header>
+
+      {showCounter && (
+        <p className="text-xs text-slate-600 leading-relaxed mb-4">
+          {outreach.tier === "founder"
+            ? `You're the first ${techBucketDisplayName(outreach.techBucket)} installer we've offered the founder slot to in ${regionDisplayName(outreach.region)}. Claim it and you're our exclusive featured installer for this combo.`
+            : `${outreach.founderSpotsRemaining} of 5 early access spots remain for ${techBucketDisplayName(outreach.techBucket)} installers in ${regionDisplayName(outreach.region)}.`}
+        </p>
+      )}
+
+      <ol className="space-y-2 mb-5">
+        {breakdown.map((step, i) => (
+          <li
+            key={step.step}
+            className="flex items-start gap-3 text-sm leading-relaxed"
+          >
+            <span className="shrink-0 inline-flex items-center justify-center w-6 h-6 rounded-full bg-cream border border-[var(--border)] text-[11px] font-bold text-navy mt-0.5">
+              {i + 1}
+            </span>
+            <div className="flex-1 min-w-0 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+              <span className="text-navy">{stepLabel[step.step]}</span>
+              {showCreditBadges && step.credits > 0 && (
+                <span className="inline-flex items-center text-[11px] font-bold text-coral-dark bg-coral-pale rounded-full px-2 py-0.5">
+                  +{step.credits} credits
+                </span>
+              )}
+            </div>
+          </li>
+        ))}
+      </ol>
+
+      <ul className="space-y-1.5 mb-1 text-xs text-slate-600 leading-relaxed">
+        <li className="flex items-start gap-2">
+          <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
+          <span>Reject any lead, one click, no charge.</span>
+        </li>
+        <li className="flex items-start gap-2">
+          <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
+          <span>No subscription. No minimum spend.</span>
+        </li>
+        <li className="flex items-start gap-2">
+          <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
+          <span>We don&rsquo;t charge a penny until you&rsquo;ve had value out of us.</span>
+        </li>
+      </ul>
+    </section>
   );
 }

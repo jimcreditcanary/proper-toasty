@@ -24,6 +24,11 @@ interface Props {
   installerId: number;
   installerName: string;
   defaultEmail: string;
+  /** When the signup originated from an outreach email, this is the
+   *  HMAC-signed claim token. We stash it on user_metadata so the
+   *  auth callback can call outreach_claim_founder_offer once the
+   *  email is confirmed + the installer is bound. */
+  outreachToken?: string | null;
 }
 
 // Helper — case-insensitive trimmed compare for email-match.
@@ -39,6 +44,7 @@ export function ClaimSignupForm({
   installerId,
   installerName,
   defaultEmail,
+  outreachToken,
 }: Props) {
   const router = useRouter();
   const supabase = createClient();
@@ -55,8 +61,13 @@ export function ClaimSignupForm({
 
   function loginRedirectUrl(): string {
     // After sign-in, drop them back here so the page re-renders into
-    // the one-click claim-as-self button.
-    return `/auth/login?redirect=${encodeURIComponent(`/installer-signup?id=${installerId}`)}`;
+    // the one-click claim-as-self button. Outreach token preserved
+    // through the redirect chain so the tier offer doesn't get
+    // dropped if the user takes the sign-in detour.
+    const back = outreachToken
+      ? `/installer-signup?id=${installerId}&outreach=${encodeURIComponent(outreachToken)}`
+      : `/installer-signup?id=${installerId}`;
+    return `/auth/login?redirect=${encodeURIComponent(back)}`;
   }
 
   async function onSubmit(e: React.FormEvent) {
@@ -88,9 +99,12 @@ export function ClaimSignupForm({
       password,
       options: {
         // Stashed in raw_user_meta_data — visible to the auth callback
-        // as `user.user_metadata.claim_installer_id`.
+        // as `user.user_metadata.claim_installer_id`. When outreachToken
+        // is set, also stash it so the callback can call
+        // outreach_claim_founder_offer after the standard claim binds.
         data: {
           claim_installer_id: installerId,
+          ...(outreachToken ? { outreach_token: outreachToken } : {}),
         },
         emailRedirectTo: `${window.location.origin}/auth/callback`,
       },
