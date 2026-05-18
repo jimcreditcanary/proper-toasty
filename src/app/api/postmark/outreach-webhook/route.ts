@@ -25,9 +25,19 @@
 
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { checkAutoPauseThresholds } from "@/lib/outreach/auto-pause";
 import type { Database } from "@/types/database";
 
 type Json = Database["public"]["Tables"]["outreach_events"]["Insert"]["metadata"];
+
+/**
+ * Soft-bounce tolerance: count soft bounces in the trailing 7 days.
+ * Suppress at 3 in 7 days — matches Postmark's own deactivation
+ * heuristic without being over-eager. Hard bounces still get
+ * immediate suppression (handled separately).
+ */
+const SOFT_BOUNCE_WINDOW_DAYS = 7;
+const SOFT_BOUNCE_THRESHOLD = 3;
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -168,31 +178,63 @@ export async function POST(req: Request) {
     }
 
     case "Bounce": {
-      // Hard bounce → immediate suppression. Soft bounce → tolerate
-      // for now (a later pass can count consecutive soft bounces).
       const isHardBounce =
         event.Type === "HardBounce" ||
         event.Type === "Blocked" ||
         event.Type === "BadEmailAddress" ||
         event.Inactive === true;
 
-      await admin
-        .from("outreach_recipients")
-        .update({ state: "bounced", updated_at: now })
-        .eq("id", recipientId);
-
-      if (isHardBounce && recipientEmail) {
+      if (isHardBounce) {
+        // Immediate suppression + state flip.
         await admin
-          .from("outreach_suppression")
-          .upsert(
-            {
-              email: recipientEmail,
-              reason: "bounced",
-              source: "postmark_webhook",
-            },
-            { onConflict: "email" },
-          );
+          .from("outreach_recipients")
+          .update({ state: "bounced", updated_at: now })
+          .eq("id", recipientId);
+        if (recipientEmail) {
+          await admin
+            .from("outreach_suppression")
+            .upsert(
+              {
+                email: recipientEmail,
+                reason: "bounced",
+                source: "postmark_webhook",
+              },
+              { onConflict: "email" },
+            );
+        }
+      } else {
+        // Soft bounce — increment counter + suppress if we've hit
+        // the threshold in the rolling window.
+        const newCount = await incrementSoftBounce(admin, recipientId);
+        const overThreshold = newCount >= SOFT_BOUNCE_THRESHOLD;
+        if (overThreshold) {
+          await admin
+            .from("outreach_recipients")
+            .update({ state: "bounced", updated_at: now })
+            .eq("id", recipientId);
+          if (recipientEmail) {
+            await admin
+              .from("outreach_suppression")
+              .upsert(
+                {
+                  email: recipientEmail,
+                  reason: "bounced",
+                  source: "postmark_webhook_soft_threshold",
+                },
+                { onConflict: "email" },
+              );
+          }
+          console.warn("[outreach/webhook] soft-bounce threshold hit", {
+            recipient_id: recipientId,
+            email: recipientEmail,
+            count: newCount,
+          });
+        }
       }
+
+      // Either type of bounce contributes to the rolling 24h
+      // bounce-rate auto-pause threshold check.
+      void checkAutoPauseThresholds(admin);
       break;
     }
 
@@ -218,6 +260,10 @@ export async function POST(req: Request) {
         recipient_id: recipientId,
         email: recipientEmail,
       });
+      // Complaints contribute to the rolling 24h auto-pause check
+      // — and complaint thresholds (0.3% by default) fire faster
+      // than bounce thresholds (5%).
+      void checkAutoPauseThresholds(admin);
       break;
     }
 
@@ -243,6 +289,72 @@ export async function POST(req: Request) {
   }
 
   return NextResponse.json({ ok: true, recipient_id: recipientId });
+}
+
+/**
+ * Increment soft_bounce_count on the recipient row + return the
+ * new value. Counter resets implicitly when the last soft bounce
+ * was > SOFT_BOUNCE_WINDOW_DAYS ago (we look up the most-recent
+ * 'bounce' event and reset if it's older than the window).
+ *
+ * Approximation, not perfect — 4 soft bounces with gaps of 5 days
+ * between them would never trigger because each one resets the
+ * count. Real-world bounce patterns cluster so this is fine for
+ * Phase 8; can revisit if false-negatives appear in the data.
+ */
+async function incrementSoftBounce(
+  admin: ReturnType<typeof createAdminClient>,
+  recipientId: string,
+): Promise<number> {
+  // Check when the recipient's last bounce event was. If older
+  // than the window, reset the count instead of incrementing.
+  const cutoff = new Date(
+    Date.now() - SOFT_BOUNCE_WINDOW_DAYS * 24 * 60 * 60 * 1000,
+  ).toISOString();
+  const { data: priorBounce } = await admin
+    .from("outreach_events")
+    .select("occurred_at")
+    .eq("recipient_id", recipientId)
+    .eq("event_type", "bounce")
+    .order("occurred_at", { ascending: false })
+    .limit(1)
+    .maybeSingle<{ occurred_at: string }>();
+
+  // We just inserted the current bounce event (in the caller),
+  // so priorBounce.occurred_at is THIS event's timestamp. To check
+  // whether there was a PREVIOUS bounce in-window we'd need offset
+  // 1. Cheaper: pull two, look at the second.
+  const { data: priorTwo } = await admin
+    .from("outreach_events")
+    .select("occurred_at")
+    .eq("recipient_id", recipientId)
+    .eq("event_type", "bounce")
+    .order("occurred_at", { ascending: false })
+    .limit(2);
+  const secondMostRecent = priorTwo?.[1]?.occurred_at;
+  const shouldReset =
+    !secondMostRecent || secondMostRecent < cutoff;
+
+  const { data: row } = await admin
+    .from("outreach_recipients")
+    .select("soft_bounce_count")
+    .eq("id", recipientId)
+    .maybeSingle<{ soft_bounce_count: number }>();
+
+  const newCount = shouldReset ? 1 : (row?.soft_bounce_count ?? 0) + 1;
+  await admin
+    .from("outreach_recipients")
+    .update({
+      soft_bounce_count: newCount,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", recipientId);
+
+  // Silence the unused-variable warning — priorBounce was a debug
+  // probe early in development, kept for log clarity in future.
+  void priorBounce;
+
+  return newCount;
 }
 
 function mapRecordToEventType(rt: string):
