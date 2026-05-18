@@ -77,8 +77,48 @@ export async function GET(req: Request) {
   let evaluated = 0;
   let advanced = 0;
   let completed = 0;
+  let spotCounterQueued = 0;
+  let lowEngagementSuppressed = 0;
 
   for (const campaign of activeCampaigns) {
+    // ── Spot-counter side-channel ──
+    // Fires 2 days after a click without a signup, regardless of
+    // where the recipient is in the main sequence. Independent of
+    // current_step — goes through next_send_template_alias so the
+    // send-queue uses the spot-counter template AND doesn't touch
+    // state / advance step.
+    const spotCutoff = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000)
+      .toISOString();
+    const { data: spotCandidates } = await admin
+      .from("outreach_recipients")
+      .select("id, last_clicked_at")
+      .eq("campaign_id", campaign.id)
+      .is("signed_up_at", null)
+      .is("spot_counter_sent_at", null)
+      .not("last_clicked_at", "is", null)
+      .lte("last_clicked_at", spotCutoff)
+      .in("state", ["clicked", "opened", "delivered", "sent"]);
+    for (const c of spotCandidates ?? []) {
+      await admin
+        .from("outreach_recipients")
+        .update({
+          next_send_template_alias: "outreach-spot-counter",
+          next_action_at: now.toISOString(),
+          updated_at: now.toISOString(),
+        })
+        .eq("id", c.id);
+      await admin.from("outreach_events").insert({
+        recipient_id: c.id,
+        event_type: "queued",
+        metadata: {
+          template: "outreach-spot-counter",
+          side_channel: true,
+          clicked_at: c.last_clicked_at,
+        },
+      });
+      spotCounterQueued++;
+    }
+
     // Sequence ordered by step_number.
     const { data: sequenceRows } = await admin
       .from("outreach_email_sequence")
@@ -103,13 +143,24 @@ export async function GET(req: Request) {
     for (const r of (recipients ?? []) as RecipientRow[]) {
       evaluated++;
 
-      // Past the last step? Mark completed.
+      // Past the last step? Mark completed + low-engagement check.
       if (r.current_step >= maxStep) {
         await admin
           .from("outreach_recipients")
           .update({ state: "completed", updated_at: now.toISOString() })
           .eq("id", r.id);
         completed++;
+
+        // Low-engagement cohort: zero opens across the full
+        // sequence → suppress their email so they're excluded
+        // from future campaigns. Defends against repeat-blasting
+        // people who clearly aren't interested. We DON'T suppress
+        // anyone who opened at any point — they engaged, just
+        // didn't convert.
+        if (r.last_opened_at == null) {
+          const suppressed = await suppressLowEngagement(admin, r.installer_id);
+          if (suppressed) lowEngagementSuppressed++;
+        }
         continue;
       }
 
@@ -170,7 +221,46 @@ export async function GET(req: Request) {
     evaluated,
     advanced,
     completed,
+    spotCounterQueued,
+    lowEngagementSuppressed,
   };
   console.log("[outreach/follow-up] done", summary);
   return NextResponse.json(summary);
+}
+
+/**
+ * Add the installer's email to the suppression list with reason
+ * 'low_engagement'. Best-effort — returns true when we actually
+ * added a row (false on missing email / already suppressed).
+ */
+async function suppressLowEngagement(
+  admin: ReturnType<typeof createAdminClient>,
+  installerId: number,
+): Promise<boolean> {
+  const { data: installer } = await admin
+    .from("installers")
+    .select("email")
+    .eq("id", installerId)
+    .maybeSingle<{ email: string | null }>();
+  if (!installer?.email) return false;
+  const email = installer.email.toLowerCase().trim();
+
+  const { error } = await admin
+    .from("outreach_suppression")
+    .upsert(
+      {
+        email,
+        reason: "low_engagement",
+        source: "follow_up_completion_zero_opens",
+      },
+      { onConflict: "email", ignoreDuplicates: true },
+    );
+  if (error) {
+    console.warn("[outreach/follow-up] low-engagement suppress failed", {
+      installer_id: installerId,
+      err: error.message,
+    });
+    return false;
+  }
+  return true;
 }

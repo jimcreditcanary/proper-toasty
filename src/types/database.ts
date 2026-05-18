@@ -1665,6 +1665,10 @@ export interface Database {
           // Migration 067 — onboarding storage
           blog_draft_markdown: string | null;
           questions_answers: Json | null;
+          // Migration 069 — compliance hardening
+          soft_bounce_count: number;
+          spot_counter_sent_at: string | null;
+          next_send_template_alias: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -1702,6 +1706,9 @@ export interface Database {
           credits_granted?: number;
           blog_draft_markdown?: string | null;
           questions_answers?: Json | null;
+          soft_bounce_count?: number;
+          spot_counter_sent_at?: string | null;
+          next_send_template_alias?: string | null;
           created_at?: string;
           updated_at?: string;
         };

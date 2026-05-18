@@ -79,6 +79,26 @@ function templateForInitialStep(tier: string): string {
  *  recipient_id hash so the same recipient on a resend gets a
  *  different subject (mild A/B), but a re-tick of the same row gets
  *  the same subject (deterministic). */
+/**
+ * Subject for a side-channel send (e.g. spot-counter). Uses a tiny
+ * built-in variant set per template since the sequence row's
+ * subject_variants doesn't apply here.
+ */
+function sideChannelSubjectFor(
+  templateAlias: string,
+  recipientId: string,
+): string {
+  const variants: Record<string, string[]> = {
+    "outreach-spot-counter": [
+      "{{first_name}} — quick check-in",
+      "Re: {{company_name}}",
+      "Following up on our note",
+    ],
+  };
+  const v = variants[templateAlias] ?? ["Following up"];
+  return pickSubject(v, recipientId);
+}
+
 function pickSubject(variants: string[], recipientId: string): string {
   if (variants.length === 0) return "";
   // Sum char codes — cheap deterministic hash.
@@ -192,19 +212,37 @@ export async function GET(req: Request) {
       ? Math.max(0, 5 - claims.tier_2_claimed_count)
       : 5;
 
-    // ── Pick template + subject for this step ──
+    // ── Pick template + subject ──
+    // next_send_template_alias is the side-channel override (set
+    // by the follow-up scheduler when it queues a spot-counter or
+    // other one-off). When present, we skip the sequence lookup
+    // entirely AND treat the send as state-preserving (don't reset
+    // 'clicked'/'opened' back to 'sent', don't advance current_step).
+    const isSideChannel = r.next_send_template_alias != null;
     const step = sequence.find((s) => s.step_number === r.current_step);
-    if (!step) {
-      console.warn("[outreach/send-queue] no sequence row for step", {
-        recipient_id: r.id,
-        step: r.current_step,
-      });
-      skipped++;
-      continue;
+
+    let templateAlias: string;
+    let subject: string;
+    if (isSideChannel) {
+      templateAlias = r.next_send_template_alias!;
+      // Side-channel sends use a generic subject — no per-step
+      // A/B variants available. The template's subject is rendered
+      // via the {{subject}} merge variable so we still need to pass
+      // something sensible.
+      subject = sideChannelSubjectFor(templateAlias, r.id);
+    } else {
+      if (!step) {
+        console.warn("[outreach/send-queue] no sequence row for step", {
+          recipient_id: r.id,
+          step: r.current_step,
+        });
+        skipped++;
+        continue;
+      }
+      templateAlias =
+        r.current_step === 0 ? templateForInitialStep(tier) : step.template_id;
+      subject = pickSubject(step.subject_variants, r.id);
     }
-    const templateAlias =
-      r.current_step === 0 ? templateForInitialStep(tier) : step.template_id;
-    const subject = pickSubject(step.subject_variants, r.id);
 
     // ── Build URLs ──
     const claimUrl = `${baseUrl}/installer-signup?id=${installer.id}&outreach=${encodeURIComponent(
@@ -235,9 +273,25 @@ export async function GET(req: Request) {
 
     if (send.ok) {
       const sentAt = new Date().toISOString();
+      // Side-channel sends don't reset state (a recipient who clicked
+      // earlier shouldn't have their state downgraded back to 'sent'
+      // because a spot-counter just fired). Clear the template
+      // override so the next regular tick uses the sequence row again.
+      // Also stamp spot_counter_sent_at when this WAS the spot-counter
+      // so the follow-up scheduler doesn't re-queue.
+      const sideChannelUpdate = isSideChannel
+        ? {
+            next_send_template_alias: null,
+            last_sent_at: sentAt,
+            updated_at: sentAt,
+            ...(templateAlias === "outreach-spot-counter"
+              ? { spot_counter_sent_at: sentAt }
+              : {}),
+          }
+        : null;
       await admin
         .from("outreach_recipients")
-        .update({
+        .update(sideChannelUpdate ?? {
           state: "sent",
           assigned_tier: r.assigned_tier ?? tier,
           last_sent_at: sentAt,
