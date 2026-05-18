@@ -1,0 +1,25 @@
+{{first_name}} — spotted {{company_name}} on the MCS list this week.{{#checkatrade_score}} A {{checkatrade_score}}-star Checkatrade across {{checkatrade_review_count}} reviews is the reason I'm reaching out.{{/checkatrade_score}}{{^checkatrade_score}}{{#google_rating}} A {{google_rating}}-star Google rating across {{google_review_count}} reviews is the reason I'm reaching out.{{/google_rating}}{{/checkatrade_score}}
+
+I'm building Propertoasty — a UK pre-survey platform for homeowners researching {{tech_bucket_display}}. We do the property check (EPC, Google Solar API, AI floorplan analysis) before passing the lead to MCS-certified installers like {{company_name}}.
+
+Our founder + early-access cohorts for {{tech_bucket_display}} in {{region}} are now full, but the standard offer is open and worth a look:
+
+- 30 starter credits on signup (enough for 6 accepted leads)
+- Listed in the {{region}} directory ranked by Bayesian-smoothed review score{{#checkatrade_score}}, so your {{checkatrade_score}}-star average works for you{{/checkatrade_score}}{{^checkatrade_score}}{{#google_rating}}, so your {{google_rating}}-star average works for you{{/google_rating}}{{/checkatrade_score}}
+- No subscription. No minimum spend.
+
+The honest trust line: reject any lead, one click, no charge. We don't charge a penny until you've had value.
+
+If you want a look:
+
+{{claim_url}}
+
+Not for you? Reply "no thanks" and I'll mark you off.
+
+Jim
+jim@propertoasty.com
+
+
+--
+Propertoasty · [ADDRESS_TBC]
+Unsubscribe in one click: {{unsubscribe_url}}

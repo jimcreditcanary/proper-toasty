@@ -1,0 +1,17 @@
+{{first_name}} — sent {{company_name}} a note last week that may have got buried.
+
+The short version: we're sending MCS-certified installers fully-qualified {{tech_bucket_display}} leads in {{region}}. {{tier_credits}} starter credits on signup, no subscription, reject any lead one-click.
+
+Worth a look?
+
+{{claim_url}}
+
+If not — reply "no thanks" and I'll stop.
+
+Jim
+jim@propertoasty.com
+
+
+--
+Propertoasty · [ADDRESS_TBC]
+Unsubscribe in one click: {{unsubscribe_url}}
