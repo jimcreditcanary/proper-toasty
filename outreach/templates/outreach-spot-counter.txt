@@ -1,0 +1,17 @@
+{{first_name}} — you took a look at our note earlier this week. Wanted to check in once.
+
+You're still on the list for {{tier_label}} placement in {{region}} for {{tech_bucket_display}}{{#founder_spots_remaining}}, with {{founder_spots_remaining}} spots remaining{{/founder_spots_remaining}}. If something wasn't clear from the first email, I'd genuinely like to know what it was — reply to this email and I'll answer directly.
+
+If you want to claim the offer:
+
+{{claim_url}}
+
+If you've decided against — reply "no thanks" and I'll mark you off.
+
+Jim
+jim@propertoasty.com
+
+
+--
+Propertoasty · [ADDRESS_TBC]
+Unsubscribe in one click: {{unsubscribe_url}}

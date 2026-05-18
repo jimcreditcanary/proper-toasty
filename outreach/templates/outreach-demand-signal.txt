@@ -1,0 +1,25 @@
+{{first_name}} — quick update from the {{region}} side.
+
+Since I last wrote, homeowners in your area have been completing pre-survey checks on Propertoasty for {{tech_bucket_display}}. The ones whose properties qualify get routed to installers in the {{region}} directory — and right now {{company_name}} isn't on that list, so they're going elsewhere.
+
+I'm not going to fabricate stats. We're early enough that the volumes aren't huge yet, but the direction of travel is real and your slot for {{tech_bucket_display}} in {{region}} is still open.
+
+The offer is the same as my first note:
+
+- {{tier_credits}} credits on signup
+- Reject any lead one-click, no charge
+- No subscription. No minimum spend.
+
+If now's a better time:
+
+{{claim_url}}
+
+If not — reply "no thanks" and I'll stop.
+
+Jim
+jim@propertoasty.com
+
+
+--
+Propertoasty · [ADDRESS_TBC]
+Unsubscribe in one click: {{unsubscribe_url}}

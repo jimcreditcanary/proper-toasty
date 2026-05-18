@@ -1,0 +1,27 @@
+{{first_name}} — spotted {{company_name}} on the MCS list this week.{{#checkatrade_score}} A {{checkatrade_score}}-star Checkatrade across {{checkatrade_review_count}} reviews is the reason I'm reaching out to you first.{{/checkatrade_score}}{{^checkatrade_score}}{{#google_rating}} A {{google_rating}}-star Google rating across {{google_review_count}} reviews is the reason I'm reaching out to you first.{{/google_rating}}{{/checkatrade_score}}
+
+I'm building Propertoasty — a UK pre-survey platform that sends MCS-certified installers fully-qualified {{tech_bucket_display}} leads. We do the property check up front (EPC, Google Solar API, AI floorplan analysis) before the homeowner gets in touch with you.
+
+For each region + tech combo we're offering one founder spot. {{company_name}} is the first {{tech_bucket_display}} installer I'm offering it to in {{region}}.
+
+The founder offer:
+
+- 300 credits across 4 quick setup steps (enough for ~60 accepted leads)
+- Permanent top-of-list placement for {{tech_bucket_display}} in {{region}}
+- No-one else gets this slot for the same combo. Ever.
+
+The trust stuff that actually matters: reject any lead, one click, no charge. No subscription. No minimum spend. We don't charge a penny until you've had value out of us.
+
+If you want a look:
+
+{{claim_url}}
+
+If not — reply "no thanks" and I'll mark you off the list.
+
+Jim
+jim@propertoasty.com
+
+
+--
+Propertoasty · [ADDRESS_TBC]
+Unsubscribe in one click: {{unsubscribe_url}}

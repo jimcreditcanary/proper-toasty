@@ -1,0 +1,22 @@
+{{first_name}} — last note from me, then I'll stop.
+
+I've been reaching out to MCS-certified {{tech_bucket_display}} installers in {{region}} to test whether Propertoasty's pre-survey leads are worth your time. {{company_name}} was on my shortlist because of {{#checkatrade_score}}your {{checkatrade_score}}-star Checkatrade rating{{/checkatrade_score}}{{^checkatrade_score}}{{#google_rating}}your {{google_rating}}-star Google rating{{/google_rating}}{{^google_rating}}your MCS profile{{/google_rating}}{{/checkatrade_score}}.
+
+I won't keep emailing if this isn't a fit. Three possible outcomes from here:
+
+1. You want a look:
+   {{claim_url}}
+
+2. Not now, but maybe later — reply "later" and I'll check back in 6 months.
+
+3. Not interested at all — reply "no" or hit the unsubscribe link below. Either way I'm marked off, no follow-ups.
+
+No hard feelings. Thanks for the time.
+
+Jim
+jim@propertoasty.com
+
+
+--
+Propertoasty · [ADDRESS_TBC]
+Unsubscribe in one click: {{unsubscribe_url}}

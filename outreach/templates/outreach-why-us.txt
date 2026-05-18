@@ -1,0 +1,29 @@
+{{first_name}} — saw you opened my note about {{company_name}}. Wanted to give you the 90-second version of why we're different from every other lead-gen pitch landing in your inbox.
+
+Most platforms send installers raw enquiries: a name + phone number + "interested in solar". You then spend an hour qualifying — does their roof face south, can they afford it, is the EPC any good, is the property even suitable.
+
+We do that work before you ever see the lead. Every Propertoasty {{tech_bucket_display}} lead arrives with:
+
+- EPC pulled from the official register
+- Roof analysis from the Google Solar API (kWh yield, panel count, shading factor)
+- AI floorplan analysis (room layout, radiator sizing for heat pumps)
+- Homeowner's confirmed budget + timeline
+- Their actual property address
+
+If the report says they're not suitable for {{tech_bucket_display}}, we tell them. They don't get passed to you. That's why our per-lead acceptance rate is high — installers aren't drowning in junk enquiries.
+
+The deal stays the same: reject any lead one-click, no charge, no subscription, no minimum spend.
+
+If you want a look:
+
+{{claim_url}}
+
+If you've decided against — reply "no thanks" and I'll stop.
+
+Jim
+jim@propertoasty.com
+
+
+--
+Propertoasty · [ADDRESS_TBC]
+Unsubscribe in one click: {{unsubscribe_url}}
