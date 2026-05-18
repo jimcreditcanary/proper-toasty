@@ -1896,6 +1896,27 @@ export interface Database {
         };
         Returns: number;
       };
+      outreach_grant_credits: {
+        Args: {
+          p_user_id: string;
+          p_recipient_id: string;
+          p_delta: number;
+          p_reason: string;
+        };
+        Returns: number;
+      };
+      outreach_claim_founder_offer: {
+        Args: {
+          p_recipient_id: string;
+          p_user_id: string;
+        };
+        // Set-returning function — Supabase types it as the row shape.
+        Returns: Array<{
+          tier: "founder" | "early_access" | "standard";
+          region: string;
+          tech_bucket: string;
+        }>;
+      };
     };
     Enums: {
       [_ in never]: never;
