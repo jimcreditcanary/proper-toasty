@@ -30,6 +30,13 @@
 -- No credit grant, no starter-grant short-circuit. Phase 5 handlers
 -- grant per-step using the existing outreach_grant_credits RPC.
 
+-- Drop first — the return signature has changed since m065 (we
+-- removed credits_granted from the OUT params), and Postgres won't
+-- let CREATE OR REPLACE alter the row-type of a returns-table
+-- function. DROP IF EXISTS keeps this idempotent on fresh DBs
+-- where m065 might not have run.
+drop function if exists public.outreach_claim_founder_offer(uuid, uuid);
+
 create or replace function public.outreach_claim_founder_offer(
   p_recipient_id uuid,
   p_user_id uuid
