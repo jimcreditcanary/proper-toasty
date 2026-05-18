@@ -4,6 +4,18 @@
     {
       "path": "/api/cron/release-stale-leads",
       "schedule": "*/30 * * * *"
+    },
+    {
+      "path": "/api/cron/outreach/select-batch",
+      "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/cron/outreach/send-queue",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/outreach/follow-up",
+      "schedule": "0 7 * * *"
     }
   ]
 }
