@@ -33,7 +33,9 @@ const REQUIRED_ENV: { key: string; minLength: number }[] = [
   { key: "CRON_SECRET", minLength: 16 },
   { key: "ANTHROPIC_API_KEY", minLength: 30 },
   { key: "NEXT_PUBLIC_SUPABASE_URL", minLength: 20 },
-  { key: "SUPABASE_SERVICE_ROLE_KEY", minLength: 100 },
+  // New sb_secret_... format is ~40 chars; legacy JWT was ~200+. 40
+  // is the conservative floor for either.
+  { key: "SUPABASE_SERVICE_ROLE_KEY", minLength: 40 },
   { key: "NEXT_PUBLIC_APP_URL", minLength: 10 },
 ];
 
