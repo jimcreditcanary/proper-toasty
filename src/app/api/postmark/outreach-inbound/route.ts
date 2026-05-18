@@ -42,11 +42,22 @@ function requireWebhookAuth(req: Request): NextResponse | null {
       { status: 500 },
     );
   }
+
+  // Accept the secret via either the Authorization header OR a
+  // ?secret= query param. Postmark's inbound webhook UI doesn't
+  // expose a custom-headers section (outbound webhooks do, inbound
+  // doesn't) so we fall back to query-param auth — slightly less
+  // hygienic (query strings can show up in some logs) but the
+  // alternative is no auth at all on a webhook receiving raw email.
+  // HTTPS keeps the secret off-the-wire either way.
   const auth = req.headers.get("authorization");
-  if (auth !== `Bearer ${expected}`) {
-    return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
-  }
-  return null;
+  if (auth === `Bearer ${expected}`) return null;
+
+  const url = new URL(req.url);
+  const querySecret = url.searchParams.get("secret");
+  if (querySecret === expected) return null;
+
+  return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
 }
 
 export async function POST(req: Request) {
