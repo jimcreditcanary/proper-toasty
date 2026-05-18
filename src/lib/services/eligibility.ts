@@ -31,6 +31,10 @@ import type { BuildingInsightsResponse } from "@/lib/schemas/solar";
 import type { EpcByAddressResponse } from "@/lib/schemas/epc";
 import type { AnalyseRequest } from "@/lib/schemas/analyse";
 import type { Eligibility, Finance } from "@/lib/schemas/eligibility";
+import {
+  DEFAULT_SIZING_INPUTS,
+  type SizingInputs,
+} from "@/lib/admin/sizing-inputs";
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -45,6 +49,11 @@ function num(env: string, fallback: number): number {
   const v = Number(process.env[env]);
   return Number.isFinite(v) && v > 0 ? v : fallback;
 }
+
+// num() above is kept for the EPC renewal cost line, which still
+// lives on its own env var. Sizing + finance values now flow in via
+// SizingInputs (admin_settings overridable) rather than ad-hoc env
+// reads in the middle of the rule engine.
 
 // Fuel classification. Maps EPC main-fuel free-text to one of our enums.
 function classifyFuel(
@@ -72,11 +81,15 @@ export function householdBaselineKWh(floorAreaM2: number | null): number {
 
 /**
  * Additional electricity demand if a heat pump is fitted (SCOP ~2.8).
- * Env: HEAT_PUMP_DEMAND_KWH_PER_M2 (default 60).
+ * Per-m² figure now sourced from admin Inputs (sizing-inputs);
+ * defaults preserved from the prior HEAT_PUMP_DEMAND_KWH_PER_M2 env.
  */
-export function heatPumpExtraKWh(floorAreaM2: number | null): number {
+export function heatPumpExtraKWh(
+  floorAreaM2: number | null,
+  sizing: SizingInputs = DEFAULT_SIZING_INPUTS,
+): number {
   if (!floorAreaM2) return 0;
-  return Math.round(floorAreaM2 * num("HEAT_PUMP_DEMAND_KWH_PER_M2", 60));
+  return Math.round(floorAreaM2 * sizing.heat_pump_demand_kwh_per_m2);
 }
 
 // ─── heat pump (BUS) eligibility ─────────────────────────────────────────────
@@ -89,9 +102,14 @@ export interface HeatPumpInput {
   priorHeatPumpFunding: AnalyseRequest["questionnaire"]["priorHeatPumpFunding"];
   epc: EpcByAddressResponse;
   floorAreaM2: number | null;
+  /** Sizing + grant constants — optional so unit tests can call
+   *  this without wiring admin_settings. Defaults preserve the
+   *  pre-migration env-var behaviour. */
+  sizing?: SizingInputs;
 }
 
 export function heatPumpEligibility(input: HeatPumpInput): Eligibility["heatPump"] {
+  const sizing = input.sizing ?? DEFAULT_SIZING_INPUTS;
   const blockers: string[] = [];
   const warnings: string[] = [];
   const notes: string[] = [];
@@ -147,7 +165,7 @@ export function heatPumpEligibility(input: HeatPumpInput): Eligibility["heatPump
   // Rule: fully replacing a fossil-fuel or electric heating system.
   // Replacement of existing low-carbon heat (heat pump, biomass) is excluded.
   // User's Step 3 answer is the source of truth; fall back to EPC main fuel.
-  let estimatedGrantGBP = num("BUS_ASHP_GRANT_GBP", 7500);
+  let estimatedGrantGBP = sizing.bus_ashp_grant_gbp;
   const userFuel = input.currentHeatingFuel;
   const epcFuel = input.epc.found ? classifyFuel(input.epc.certificate.mainFuel) : "other";
   const combinedFuel =
@@ -157,7 +175,7 @@ export function heatPumpEligibility(input: HeatPumpInput): Eligibility["heatPump
       "Property already has low-carbon heating (per the EPC). BUS funds replacement of fossil-fuel or electric systems only."
     );
   }
-  if (epcFuel === "biomass") estimatedGrantGBP = num("BUS_BIOMASS_GRANT_GBP", 5000);
+  if (epcFuel === "biomass") estimatedGrantGBP = sizing.bus_biomass_grant_gbp;
 
   // Rule: new-build and social housing excluded; self-builds allowed.
   // We already block social-housing tenure above. For new-builds, we soft-note
@@ -176,7 +194,9 @@ export function heatPumpEligibility(input: HeatPumpInput): Eligibility["heatPump
   let recommendedSystemKW: number | null = null;
   let heatLossPlanningW: number | null = null;
   if (input.floorAreaM2) {
-    heatLossPlanningW = Math.round(input.floorAreaM2 * num("HEAT_PUMP_W_PER_M2", 50));
+    heatLossPlanningW = Math.round(
+      input.floorAreaM2 * sizing.heat_pump_w_per_m2,
+    );
     recommendedSystemKW = Math.min(45, Math.max(4, Math.round(heatLossPlanningW / 1000)));
     notes.push(
       `Planning-estimate system size: ${recommendedSystemKW} kW (from floor area × 50 W/m²). An MCS heat-loss survey will refine this.`
@@ -296,6 +316,10 @@ export interface FinanceInput {
   /** True when no EPC was found at all. Same effect — homeowner
    *  needs to commission a new one for BUS eligibility. */
   epcMissing?: boolean;
+  /** Sizing + tariff inputs (admin-tunable). Optional so tests +
+   *  ad-hoc callers can omit; defaults preserve legacy env-var
+   *  behaviour. */
+  sizing?: SizingInputs;
 }
 
 // Average UK domestic EPC cost (mid 2024). Configurable via env so
@@ -305,10 +329,11 @@ function epcRenewalCostGBP(): number {
 }
 
 export function financeModel(input: FinanceInput): Finance {
-  const importP = num("ENERGY_IMPORT_PRICE_P_PER_KWH", 27);
-  const exportP = num("ENERGY_EXPORT_PRICE_P_PER_KWH", 15);
-  const selfRate = num("SELF_CONSUMPTION_RATE_NO_BATTERY", 0.6);
-  const solarPerKWp = num("SOLAR_INSTALL_PRICE_PER_KWP_GBP", 1_100);
+  const sizing = input.sizing ?? DEFAULT_SIZING_INPUTS;
+  const importP = sizing.energy_import_price_p_per_kwh;
+  const exportP = sizing.energy_export_price_p_per_kwh;
+  const selfRate = sizing.self_consumption_rate_no_battery;
+  const solarPerKWp = sizing.solar_install_price_per_kwp_gbp;
 
   // Heat pump: cost band is gross. Grant subtracts.
   const band = ashpCostBand(input.floorAreaM2);
@@ -374,12 +399,18 @@ export interface BuildEligibilityInput {
   epc: EpcByAddressResponse;
   pvgisAnnualKwh: number | null;
   pvgisPeakKwp: number | null;
+  /** Sizing + tariff inputs from admin_settings (loaded once
+   *  per request by the analyse route). Optional — defaults to
+   *  DEFAULT_SIZING_INPUTS so direct callers + tests don't have to
+   *  thread admin_settings to use the engine. */
+  sizing?: SizingInputs;
 }
 
 export function buildEligibility(input: BuildEligibilityInput): {
   eligibility: Eligibility;
   finance: Finance;
 } {
+  const sizing = input.sizing ?? DEFAULT_SIZING_INPUTS;
   const floorAreaM2 = input.epc.found ? input.epc.certificate.totalFloorAreaM2 : null;
 
   const heatPump = heatPumpEligibility({
@@ -390,6 +421,7 @@ export function buildEligibility(input: BuildEligibilityInput): {
     priorHeatPumpFunding: input.request.questionnaire.priorHeatPumpFunding,
     epc: input.epc,
     floorAreaM2,
+    sizing,
   });
 
   const solar = solarSuitability({
@@ -410,6 +442,7 @@ export function buildEligibility(input: BuildEligibilityInput): {
     solar,
     epcExpired: input.epc.found ? input.epc.certificate.expired : false,
     epcMissing: !input.epc.found,
+    sizing,
   });
 
   return { eligibility, finance };
