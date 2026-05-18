@@ -57,9 +57,12 @@ export function ClaimAsSelfButton({
         setSubmitting(false);
         return;
       }
-      // Hard-redirect to /installer so the role flip + middleware
-      // session refresh both pick up cleanly.
-      window.location.href = "/installer";
+      // Hard-redirect — outreach claimants land on the four-step
+      // onboarding flow so they can earn the rest of their tier
+      // credits; self-claims go straight to the portal.
+      window.location.href = outreachToken
+        ? "/installer/onboarding"
+        : "/installer";
     } catch (e) {
       setError(e instanceof Error ? e.message : "Network error");
       setSubmitting(false);

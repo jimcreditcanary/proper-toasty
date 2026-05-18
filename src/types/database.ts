@@ -982,6 +982,8 @@ export interface Database {
           // Migration 064 — sponsored placement + logo
           sponsored_until: string | null;
           logo_url: string | null;
+          // Migration 067 — onboarding bio
+          bio: string | null;
           // Migration 037 — installer-configurable visit length + travel buffer
           meeting_duration_min: number;
           travel_buffer_min: number;
@@ -1063,6 +1065,7 @@ export interface Database {
           // Migration 064 — sponsored placement + logo
           sponsored_until?: string | null;
           logo_url?: string | null;
+          bio?: string | null;
           // Migration 037 — installer-configurable visit length + travel buffer
           meeting_duration_min?: number;
           travel_buffer_min?: number;
@@ -1659,6 +1662,9 @@ export interface Database {
           blog_post_completed_at: string | null;
           card_connected_at: string | null;
           credits_granted: number;
+          // Migration 067 — onboarding storage
+          blog_draft_markdown: string | null;
+          questions_answers: Json | null;
           created_at: string;
           updated_at: string;
         };
@@ -1694,6 +1700,8 @@ export interface Database {
           blog_post_completed_at?: string | null;
           card_connected_at?: string | null;
           credits_granted?: number;
+          blog_draft_markdown?: string | null;
+          questions_answers?: Json | null;
           created_at?: string;
           updated_at?: string;
         };
