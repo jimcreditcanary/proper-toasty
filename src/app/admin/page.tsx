@@ -6,6 +6,7 @@ import {
   FileText,
   Newspaper,
   PoundSterling,
+  Send,
   Users,
   type LucideIcon,
 } from "lucide-react";
@@ -88,6 +89,13 @@ export default async function AdminHomePage() {
       icon: PoundSterling,
       status: "live",
       href: "/admin/settings/cost-rates",
+    },
+    {
+      title: "Outreach engine",
+      body: "Live funnel, founder claims map, recent replies, today's batch + suppression list. Pause/resume the campaign.",
+      icon: Send,
+      status: "live",
+      href: "/admin/outreach",
     },
     {
       // Whether ChatGPT / Claude / Perplexity et al cite us when
