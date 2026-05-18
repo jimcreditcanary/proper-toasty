@@ -1862,7 +1862,16 @@ export interface Database {
       };
     };
     Views: {
-      [_ in never]: never;
+      outreach_eligibility: {
+        Row: {
+          installer_id: number;
+          email: string;
+          company_name: string;
+          postcode: string | null;
+          quality_score: number;
+        };
+        Relationships: [];
+      };
     };
     Functions: {
       deduct_credit: {
