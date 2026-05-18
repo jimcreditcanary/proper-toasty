@@ -1592,6 +1592,250 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["installer_pre_survey_requests"]["Insert"]>;
         Relationships: [];
       };
+      outreach_campaigns: {
+        Row: {
+          id: string;
+          name: string;
+          status: "draft" | "active" | "paused" | "complete";
+          daily_send_limit: number;
+          send_window_timezone: string;
+          daily_send_window_start_hour_local: number;
+          daily_send_window_end_hour_local: number;
+          peak_hours_local: number[];
+          weekdays_only: boolean;
+          bounce_rate_pause_threshold: number;
+          complaint_rate_pause_threshold: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          status?: "draft" | "active" | "paused" | "complete";
+          daily_send_limit?: number;
+          send_window_timezone?: string;
+          daily_send_window_start_hour_local?: number;
+          daily_send_window_end_hour_local?: number;
+          peak_hours_local?: number[];
+          weekdays_only?: boolean;
+          bounce_rate_pause_threshold?: number;
+          complaint_rate_pause_threshold?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["outreach_campaigns"]["Insert"]>;
+        Relationships: [];
+      };
+      outreach_recipients: {
+        Row: {
+          id: string;
+          campaign_id: string;
+          installer_id: number;
+          state:
+            | "queued"
+            | "scheduled"
+            | "sent"
+            | "delivered"
+            | "opened"
+            | "clicked"
+            | "signed_up"
+            | "completed"
+            | "bounced"
+            | "unsubscribed"
+            | "complained"
+            | "replied"
+            | "failed";
+          assigned_tier: "founder" | "early_access" | "standard" | null;
+          current_step: number;
+          next_action_at: string;
+          claim_token: string;
+          last_sent_at: string | null;
+          last_opened_at: string | null;
+          last_clicked_at: string | null;
+          last_replied_at: string | null;
+          signed_up_at: string | null;
+          profile_completed_at: string | null;
+          questions_completed_at: string | null;
+          blog_post_completed_at: string | null;
+          card_connected_at: string | null;
+          credits_granted: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          campaign_id: string;
+          installer_id: number;
+          state?:
+            | "queued"
+            | "scheduled"
+            | "sent"
+            | "delivered"
+            | "opened"
+            | "clicked"
+            | "signed_up"
+            | "completed"
+            | "bounced"
+            | "unsubscribed"
+            | "complained"
+            | "replied"
+            | "failed";
+          assigned_tier?: "founder" | "early_access" | "standard" | null;
+          current_step?: number;
+          next_action_at?: string;
+          claim_token: string;
+          last_sent_at?: string | null;
+          last_opened_at?: string | null;
+          last_clicked_at?: string | null;
+          last_replied_at?: string | null;
+          signed_up_at?: string | null;
+          profile_completed_at?: string | null;
+          questions_completed_at?: string | null;
+          blog_post_completed_at?: string | null;
+          card_connected_at?: string | null;
+          credits_granted?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["outreach_recipients"]["Insert"]>;
+        Relationships: [];
+      };
+      outreach_events: {
+        Row: {
+          id: string;
+          recipient_id: string;
+          event_type:
+            | "queued"
+            | "sent"
+            | "delivered"
+            | "open"
+            | "click"
+            | "bounce"
+            | "spam_complaint"
+            | "subscription_change"
+            | "inbound_reply"
+            | "landing_page_view"
+            | "signed_up"
+            | "task_completed"
+            | "credits_granted"
+            | "tier_assigned"
+            | "campaign_paused";
+          metadata: Json | null;
+          occurred_at: string;
+        };
+        Insert: {
+          id?: string;
+          recipient_id: string;
+          event_type:
+            | "queued"
+            | "sent"
+            | "delivered"
+            | "open"
+            | "click"
+            | "bounce"
+            | "spam_complaint"
+            | "subscription_change"
+            | "inbound_reply"
+            | "landing_page_view"
+            | "signed_up"
+            | "task_completed"
+            | "credits_granted"
+            | "tier_assigned"
+            | "campaign_paused";
+          metadata?: Json | null;
+          occurred_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["outreach_events"]["Insert"]>;
+        Relationships: [];
+      };
+      outreach_email_sequence: {
+        Row: {
+          id: string;
+          campaign_id: string;
+          step_number: number;
+          name: string;
+          delay_days_after_previous: number;
+          condition:
+            | "always"
+            | "not_opened"
+            | "opened_not_clicked"
+            | "clicked_not_signed_up"
+            | "not_signed_up";
+          template_id: string;
+          subject_variants: string[];
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          campaign_id: string;
+          step_number: number;
+          name: string;
+          delay_days_after_previous?: number;
+          condition?:
+            | "always"
+            | "not_opened"
+            | "opened_not_clicked"
+            | "clicked_not_signed_up"
+            | "not_signed_up";
+          template_id: string;
+          subject_variants?: string[];
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["outreach_email_sequence"]["Insert"]>;
+        Relationships: [];
+      };
+      outreach_founder_claims: {
+        Row: {
+          region: string;
+          tech_bucket: string;
+          tier_1_filled: boolean;
+          tier_1_claimed_by_installer_id: number | null;
+          tier_1_claimed_at: string | null;
+          tier_2_claimed_count: number;
+          updated_at: string;
+        };
+        Insert: {
+          region: string;
+          tech_bucket: string;
+          tier_1_filled?: boolean;
+          tier_1_claimed_by_installer_id?: number | null;
+          tier_1_claimed_at?: string | null;
+          tier_2_claimed_count?: number;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["outreach_founder_claims"]["Insert"]>;
+        Relationships: [];
+      };
+      outreach_suppression: {
+        Row: {
+          email: string;
+          reason:
+            | "bounced"
+            | "complained"
+            | "unsubscribed"
+            | "manual"
+            | "spam_trap"
+            | "low_engagement"
+            | "invalid";
+          source: string | null;
+          created_at: string;
+        };
+        Insert: {
+          email: string;
+          reason:
+            | "bounced"
+            | "complained"
+            | "unsubscribed"
+            | "manual"
+            | "spam_trap"
+            | "low_engagement"
+            | "invalid";
+          source?: string | null;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["outreach_suppression"]["Insert"]>;
+        Relationships: [];
+      };
       admin_credit_adjustments: {
         Row: {
           id: string;
