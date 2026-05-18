@@ -189,11 +189,18 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${origin}${explicitNext}`);
   }
 
-  // If we just successfully bound an installer, route them straight
-  // to the installer portal regardless of what the role lookup says
-  // (PostgREST may not have noticed the role flip yet).
+  // If we just successfully bound an installer, route to the
+  // onboarding flow when this was an outreach claim (so the user
+  // walks through the four asks immediately) — otherwise the
+  // dashboard. Outreach claims set user_metadata.outreach_token,
+  // which we read above to decide whether to call the RPC; same
+  // signal here decides the post-claim landing.
   if (claimResult?.kind === "claimed") {
-    return NextResponse.redirect(`${origin}/installer`);
+    const cameFromOutreach = !!(data.user.user_metadata as Record<string, unknown> | null)
+      ?.outreach_token;
+    return NextResponse.redirect(
+      `${origin}${cameFromOutreach ? "/installer/onboarding" : "/installer"}`,
+    );
   }
   if (claimResult?.kind === "race-lost") {
     return NextResponse.redirect(`${origin}/installer-signup?error=race_lost`);
