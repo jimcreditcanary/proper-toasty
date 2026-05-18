@@ -1,6 +1,7 @@
 "use client";
 
-// Editable cost-rate grid for /admin/settings/cost-rates.
+// Editable cost-rate grid for the /admin/settings/inputs page
+// (one of two sections; the other is the sizing-inputs form).
 //
 // One row per rate field with a numeric input + label + hint + a
 // "(default 4p)" reset hint when the current value differs from the

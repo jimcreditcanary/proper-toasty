@@ -619,10 +619,10 @@ function PlCard({ pl }: { pl: PlSummary }) {
           V1 estimate — costs derived from existing usage counts ×
           per-unit rates editable at{" "}
           <Link
-            href="/admin/settings/cost-rates"
+            href="/admin/settings/inputs"
             className="text-coral hover:text-coral-dark font-semibold"
           >
-            Settings → Cost rates
+            Settings → Inputs
           </Link>
           . Per-call ledger is the precision upgrade. Fixed hosting
           line is pro-rated to the {pl.quantities.daysInRange}-day
