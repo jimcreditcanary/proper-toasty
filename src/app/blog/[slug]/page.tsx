@@ -12,6 +12,16 @@ import { RelatedPosts } from "@/components/blog/related-posts";
 import { SocialShare } from "@/components/blog/social-share";
 import { ArticleSchema, BreadcrumbListSchema } from "@/components/seo/schema";
 import { DEFAULT_AUTHOR_SLUG } from "@/lib/seo/authors";
+import { InstallerPostByline } from "@/components/blog/installer-post-byline";
+import { InstallerPostCta } from "@/components/blog/installer-post-cta";
+import { InstallerPostRelated } from "@/components/blog/installer-post-related";
+import { resolveInstallerArea } from "@/lib/installers/area-resolve";
+import {
+  primaryTechBucket,
+  techBucketDisplayName,
+} from "@/lib/outreach/tier-preview";
+import { creditForCoverImage } from "@/lib/outreach/cover-image-library";
+import type { Database } from "@/types/database";
 
 const SITE_URL = "https://www.propertoasty.com";
 
@@ -22,12 +32,15 @@ const SITE_URL = "https://www.propertoasty.com";
 const DEFAULT_COVER_IMAGE = "/hero-uk-home.jpg";
 
 // Roughly the median adult reading speed for non-fiction. We strip
-// HTML tags before counting so embedded markup doesn't inflate it.
+// HTML / markdown markers before counting so embedded syntax doesn't
+// inflate it.
 const READING_WORDS_PER_MIN = 220;
 
-function estimateReadingMinutes(html: string): number {
-  const text = html.replace(/<[^>]*>/g, " ");
-  const words = text.split(/\s+/).filter(Boolean).length;
+type InstallerRow = Database["public"]["Tables"]["installers"]["Row"];
+
+function estimateReadingMinutes(text: string): number {
+  const stripped = text.replace(/<[^>]*>/g, " ").replace(/[#*_>`-]+/g, " ");
+  const words = stripped.split(/\s+/).filter(Boolean).length;
   return Math.max(1, Math.round(words / READING_WORDS_PER_MIN));
 }
 
@@ -46,12 +59,25 @@ async function fetchPost(slug: string): Promise<Record<string, unknown> | null> 
   return (data ?? null) as Record<string, unknown> | null;
 }
 
+async function fetchInstaller(
+  installerId: number,
+): Promise<InstallerRow | null> {
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from("installers")
+    .select("*")
+    .eq("id", installerId)
+    .maybeSingle<InstallerRow>();
+  return data ?? null;
+}
+
 const CATEGORY_COLORS: Record<string, string> = {
   "Fraud Prevention": "bg-red-50 text-red-700 border-red-200",
   Guides: "bg-blue-50 text-blue-700 border-blue-200",
   News: "bg-amber-50 text-amber-700 border-amber-200",
   Safety: "bg-emerald-50 text-emerald-700 border-emerald-200",
   Business: "bg-purple-50 text-purple-700 border-purple-200",
+  "Installer Voices": "bg-coral-pale text-coral-dark border-coral/20",
 };
 
 function formatDate(iso: string): string {
@@ -60,6 +86,22 @@ function formatDate(iso: string): string {
     month: "long",
     year: "numeric",
   });
+}
+
+/** Tech bucket → capability filter used by selectInstallersByArea. */
+function capabilityForInstaller(
+  installer: InstallerRow,
+): "heat_pump" | "solar" {
+  const bucket = primaryTechBucket(installer);
+  return bucket === "solar_pv" ? "solar" : "heat_pump";
+}
+
+/** Rating-cache freshness check — matches the 30-day TTL the card
+ *  client-refresh hits in @/components/installer/installer-card. */
+function isGoogleFresh(capturedAt: string | null): boolean {
+  if (!capturedAt) return false;
+  const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+  return new Date(capturedAt).getTime() > cutoff;
 }
 
 export async function generateMetadata({
@@ -79,6 +121,8 @@ export async function generateMetadata({
   // the missing-image placeholder.
   const coverPath = (post.cover_image as string | null) ?? DEFAULT_COVER_IMAGE;
   const ogImage = coverPath.startsWith("http") ? coverPath : `${SITE_URL}${coverPath}`;
+  const publishedAt = post.published_at as string | undefined;
+  const updatedAt = (post.updated_at as string | undefined) ?? publishedAt;
   return {
     title,
     description: excerpt,
@@ -88,9 +132,12 @@ export async function generateMetadata({
       description: excerpt,
       type: "article",
       url,
-      siteName: "Propertoasty",
+      siteName: "Proper Toasty",
       locale: "en_GB",
       images: [{ url: ogImage, width: 1200, height: 630, alt: title }],
+      publishedTime: publishedAt,
+      modifiedTime: updatedAt,
+      authors: [post.author as string],
     },
     twitter: {
       card: "summary_large_image",
@@ -122,9 +169,45 @@ export default async function BlogPostPage({
   const publishedAt = post.published_at as string;
   const updatedAt = (post.updated_at as string | undefined) ?? publishedAt;
   const coverImage = (post.cover_image as string | null) ?? DEFAULT_COVER_IMAGE;
+  const isInstallerPost =
+    (post.is_installer_profile as boolean | null) === true ||
+    post.installer_id != null;
+  const installerId = post.installer_id as number | null;
   const readingMinutes = estimateReadingMinutes(content);
   const categoryColors =
     CATEGORY_COLORS[category] ?? "bg-slate-50 text-slate-700 border-slate-200";
+
+  // Installer-bylined posts: pull the installer row once + reuse for
+  // byline + CTA + related-installers. Posts where `installer_id`
+  // is set but the row's gone (rare — ON DELETE SET NULL hasn't
+  // fired because the FK is non-cascading) fall back to editorial-
+  // post rendering.
+  const installer =
+    isInstallerPost && installerId != null
+      ? await fetchInstaller(installerId)
+      : null;
+
+  const installerArea = installer
+    ? resolveInstallerArea({
+        postcode: installer.postcode,
+        county: installer.county,
+        latitude: installer.latitude,
+        longitude: installer.longitude,
+      })
+    : null;
+
+  const installerCapability = installer
+    ? capabilityForInstaller(installer)
+    : null;
+  const installerTechBucket = installer ? primaryTechBucket(installer) : null;
+  const installerTechDisplay = installerTechBucket
+    ? techBucketDisplayName(installerTechBucket)
+    : null;
+
+  const directoryHref =
+    installerArea?.slug && installerCapability
+      ? `/${installerCapability === "solar" ? "solar-panel-installers" : "heat-pump-installers"}/${installerArea.slug}`
+      : null;
 
   // ─── JSON-LD structured data ────────────────────────────────
   // ArticleSchema + BreadcrumbListSchema components (in
@@ -148,8 +231,13 @@ export default async function BlogPostPage({
     : `${SITE_URL}${coverImage}`;
   const wordCount = content
     .replace(/<[^>]*>/g, " ")
+    .replace(/[#*_>`-]+/g, " ")
     .split(/\s+/)
     .filter(Boolean).length;
+
+  const googleFresh =
+    !!installer && isGoogleFresh(installer.google_captured_at);
+  const photoCredit = creditForCoverImage(post.cover_image as string | null);
 
   return (
     <div className="flex min-h-screen flex-col bg-cream text-slate-900">
@@ -212,6 +300,18 @@ export default async function BlogPostPage({
           {title}
         </h1>
 
+        {/* Installer byline — slotted between the title and the
+            excerpt so "By {company}" lands before the reader hits
+            "I've been fitting…". Skipped on editorial posts. */}
+        {installer && (
+          <InstallerPostByline
+            companyName={installer.company_name}
+            logoUrl={installer.logo_url}
+            locationLabel={installerArea?.label ?? installer.county ?? null}
+            techDisplay={installerTechDisplay}
+          />
+        )}
+
         {/* Excerpt */}
         <p className="mt-4 text-lg text-slate-600 leading-relaxed">
           {excerpt}
@@ -232,6 +332,19 @@ export default async function BlogPostPage({
             className="object-cover"
           />
         </div>
+        {photoCredit && (
+          <p className="mt-2 text-[11px] text-slate-400 text-right">
+            Photo:{" "}
+            <a
+              href={photoCredit.creditUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-slate-600 underline-offset-2 hover:underline"
+            >
+              {photoCredit.credit}
+            </a>
+          </p>
+        )}
 
         {/* Share row + horizontal rule introducing the body copy. */}
         <div className="mt-8 mb-2">
@@ -240,8 +353,27 @@ export default async function BlogPostPage({
 
         <hr className="my-8 border-slate-200" />
 
-        {/* Content */}
-        <BlogPostContent content={content} />
+        {/* Content — installer posts arrive as markdown; editorial
+            posts as HTML. The renderer branches on isMarkdown. */}
+        <BlogPostContent content={content} isMarkdown={isInstallerPost} />
+
+        {/* Installer booking CTA card — bottom of the body, before
+            the share row. Drives the "installer-bylined post → site
+            visit booked" conversion. */}
+        {installer && installerCapability && (
+          <InstallerPostCta
+            installerId={installer.id}
+            companyName={installer.company_name}
+            capability={installerCapability}
+            googleRating={googleFresh ? installer.google_rating : null}
+            googleReviewCount={
+              googleFresh ? installer.google_review_count : null
+            }
+            checkatradeScore={installer.checkatrade_score}
+            checkatradeReviewCount={installer.checkatrade_review_count}
+            websiteUrl={installer.website}
+          />
+        )}
 
         {/* Repeat the share row at the bottom — readers who finish
             the post are the ones most likely to share it. */}
@@ -251,6 +383,20 @@ export default async function BlogPostPage({
           </p>
           <SocialShare url={url} title={title} />
         </div>
+
+        {/* Related installers — pivot path for readers who don't
+            want to book the post author. Server component, queries
+            inline. */}
+        {installer && installerArea && installerCapability && (
+          <InstallerPostRelated
+            excludeInstallerId={installer.id}
+            areaLabel={installerArea.label}
+            directoryHref={directoryHref}
+            capability={installerCapability}
+            lat={installerArea.lat}
+            lng={installerArea.lng}
+          />
+        )}
       </article>
 
       {/* Related posts — 3 follow-up reads, same category preferred,
@@ -258,25 +404,29 @@ export default async function BlogPostPage({
           server-side as part of this page's render. */}
       <RelatedPosts currentSlug={slug} category={category} />
 
-      {/* CTA */}
-      <section className="border-t border-slate-200 bg-slate-50">
-        <div className="mx-auto max-w-3xl px-6 py-12 text-center">
-          <ShieldCheck className="size-10 mx-auto mb-4 text-coral" />
-          <h2 className="text-2xl font-bold text-slate-900">
-            Protect yourself today
-          </h2>
-          <p className="mt-2 text-slate-600">
-            Run a free check before your next payment.
-          </p>
-          <Button
-            className="mt-5 h-12 px-8 text-[15px] font-semibold rounded-lg bg-coral hover:bg-coral-dark text-white shadow-sm transition-all"
-            render={<Link href="/check" />}
-          >
-            Check my home — free
-            <ArrowRight className="size-5 ml-2" />
-          </Button>
-        </div>
-      </section>
+      {/* CTA — editorial posts only. Installer posts already carry
+          their own author-specific CTA card above, so a second
+          generic CTA muddies the message. */}
+      {!installer && (
+        <section className="border-t border-slate-200 bg-slate-50">
+          <div className="mx-auto max-w-3xl px-6 py-12 text-center">
+            <ShieldCheck className="size-10 mx-auto mb-4 text-coral" />
+            <h2 className="text-2xl font-bold text-slate-900">
+              Protect yourself today
+            </h2>
+            <p className="mt-2 text-slate-600">
+              Run a free check before your next payment.
+            </p>
+            <Button
+              className="mt-5 h-12 px-8 text-[15px] font-semibold rounded-lg bg-coral hover:bg-coral-dark text-white shadow-sm transition-all"
+              render={<Link href="/check" />}
+            >
+              Check my home — free
+              <ArrowRight className="size-5 ml-2" />
+            </Button>
+          </div>
+        </section>
+      )}
 
       {/* Footer */}
       <footer className="bg-white border-t border-slate-200 py-10">

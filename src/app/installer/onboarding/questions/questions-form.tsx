@@ -46,6 +46,11 @@ export function QuestionsAndDraftFlow({
   const [draftTitle, setDraftTitle] = useState<string>("");
   const [draftExcerpt, setDraftExcerpt] = useState<string>("");
   const [draftSlug, setDraftSlug] = useState<string>("");
+  // Claude returns this alongside the markdown — kept opaque on the
+  // client and posted verbatim to /publish, which resolves it to a
+  // real Unsplash URL. No UI for the user to override; the curated
+  // library mapping is editorial-managed in cover-image-library.ts.
+  const [coverImageTheme, setCoverImageTheme] = useState<string | null>(null);
   const [stage, setStage] = useState<Stage>(
     alreadyPublished ? "done" : initialDraft ? "reviewing" : "answering",
   );
@@ -73,6 +78,7 @@ export function QuestionsAndDraftFlow({
             slug: string;
             excerpt: string;
             markdown: string;
+            coverImageTheme?: string;
           }
         | { ok: false; error: string };
       if (!res.ok || !json.ok) {
@@ -82,6 +88,7 @@ export function QuestionsAndDraftFlow({
       setDraftTitle(json.title);
       setDraftExcerpt(json.excerpt);
       setDraftSlug(json.slug);
+      setCoverImageTheme(json.coverImageTheme ?? null);
       setStage("reviewing");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Drafting failed");
@@ -105,6 +112,7 @@ export function QuestionsAndDraftFlow({
             slug: string;
             excerpt: string;
             markdown: string;
+            coverImageTheme?: string;
           }
         | { ok: false; error: string };
       if (!res.ok || !json.ok) {
@@ -114,6 +122,7 @@ export function QuestionsAndDraftFlow({
       setDraftTitle(json.title);
       setDraftExcerpt(json.excerpt);
       setDraftSlug(json.slug);
+      setCoverImageTheme(json.coverImageTheme ?? null);
       setStage("reviewing");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Re-draft failed");
@@ -134,6 +143,7 @@ export function QuestionsAndDraftFlow({
           slug: draftSlug.trim(),
           excerpt: draftExcerpt.trim(),
           markdown: draft.trim(),
+          coverImageTheme,
         }),
       });
       const json = (await res.json()) as
