@@ -14,18 +14,21 @@ import { tierLabel, type OnboardingStep } from "@/lib/outreach/tier-preview";
 //   - every step is done (state.isComplete; outreach_recipients.state
 //     has flipped to 'completed' at this point).
 
-type StepDescriptor = {
+export type StepDescriptor = {
   step: Exclude<OnboardingStep, "signup">;
   credits: number;
   short: string;
 };
 
-export function OutreachOnboardingBanner({
-  state,
-}: {
-  state: OnboardingState;
-}) {
-  if (!state.tier || state.isComplete) return null;
+/**
+ * Pure helper exported for unit testing — given an OnboardingState,
+ * returns the ordered list of credit-bearing steps still pending.
+ * Empty array means the banner should not render (either user has
+ * no outreach context, every step is done, or no credit-bearing
+ * steps remain).
+ */
+export function computeRemainingSteps(state: OnboardingState): StepDescriptor[] {
+  if (!state.tier || state.isComplete) return [];
 
   const remaining: StepDescriptor[] = [];
   if (!state.steps.profile.completed && state.steps.profile.credits > 0) {
@@ -53,11 +56,20 @@ export function OutreachOnboardingBanner({
       short: "save a card for future top-ups",
     });
   }
+  return remaining;
+}
 
-  // No credit-bearing steps left (e.g. standard tier where all
-  // per-step credits are 0). Nothing to nudge — let the user move
-  // on without a banner.
-  if (remaining.length === 0) return null;
+export function OutreachOnboardingBanner({
+  state,
+}: {
+  state: OnboardingState;
+}) {
+  const remaining = computeRemainingSteps(state);
+
+  // Nothing to nudge — let the user move on without a banner.
+  // (Covers: no outreach context, all steps done, or standard tier
+  // where every per-step credit is 0.)
+  if (remaining.length === 0 || !state.tier) return null;
 
   const totalRemaining = remaining.reduce((s, r) => s + r.credits, 0);
 
@@ -92,7 +104,7 @@ export function OutreachOnboardingBanner({
   );
 }
 
-function describeRemaining(remaining: StepDescriptor[]): string {
+export function describeRemaining(remaining: StepDescriptor[]): string {
   const parts = remaining.map((r) => `${r.short} (+${r.credits})`);
   if (parts.length === 1) return `${capitalise(parts[0])}.`;
   if (parts.length === 2) return `${capitalise(parts[0])} and ${parts[1]}.`;
