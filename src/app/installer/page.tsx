@@ -31,6 +31,11 @@ import {
 import { loadInstallerDashboardMetrics } from "@/lib/installer/dashboard-metrics";
 import { formatGbp } from "@/lib/proposals/schema";
 import { OnboardingDismissButton } from "@/components/installer/onboarding-dismiss-button";
+import { OutreachOnboardingBanner } from "@/components/installer/outreach-onboarding-banner";
+import {
+  loadOnboardingState,
+  type OnboardingState,
+} from "@/lib/outreach/onboarding";
 
 // Installer portal landing — redesigned around deal-flow signal.
 //
@@ -73,6 +78,7 @@ export default async function InstallerHomePage() {
   let metrics: Awaited<
     ReturnType<typeof loadInstallerDashboardMetrics>
   > | null = null;
+  let outreachOnboarding: OnboardingState | null = null;
 
   if (user) {
     const admin = createAdminClient();
@@ -119,28 +125,36 @@ export default async function InstallerHomePage() {
     if (installerRes.data) {
       companyName = installerRes.data.company_name;
       const installerId = installerRes.data.id;
-      const [pendingRes, availabilityRes, preSurveyRes, proposalRes, dealMetrics] =
-        await Promise.all([
-          admin
-            .from("installer_leads")
-            .select("id", { count: "exact", head: true })
-            .eq("installer_id", installerId)
-            .in("status", ["new", "sent_to_installer"]),
-          admin
-            .from("installer_availability")
-            .select("id", { count: "exact", head: true })
-            .eq("installer_id", installerId),
-          admin
-            .from("installer_pre_survey_requests")
-            .select("id", { count: "exact", head: true })
-            .eq("installer_id", installerId),
-          admin
-            .from("installer_proposals")
-            .select("id", { count: "exact", head: true })
-            .eq("installer_id", installerId)
-            .not("sent_at", "is", null),
-          loadInstallerDashboardMetrics(admin, installerId),
-        ]);
+      const [
+        pendingRes,
+        availabilityRes,
+        preSurveyRes,
+        proposalRes,
+        dealMetrics,
+        onboardingState,
+      ] = await Promise.all([
+        admin
+          .from("installer_leads")
+          .select("id", { count: "exact", head: true })
+          .eq("installer_id", installerId)
+          .in("status", ["new", "sent_to_installer"]),
+        admin
+          .from("installer_availability")
+          .select("id", { count: "exact", head: true })
+          .eq("installer_id", installerId),
+        admin
+          .from("installer_pre_survey_requests")
+          .select("id", { count: "exact", head: true })
+          .eq("installer_id", installerId),
+        admin
+          .from("installer_proposals")
+          .select("id", { count: "exact", head: true })
+          .eq("installer_id", installerId)
+          .not("sent_at", "is", null),
+        loadInstallerDashboardMetrics(admin, installerId),
+        loadOnboardingState(admin, user.id, installerId),
+      ]);
+      outreachOnboarding = onboardingState;
       pendingLeads = pendingRes.count ?? 0;
       checklist = buildChecklist({
         hasAvailability: (availabilityRes.count ?? 0) > 0,
@@ -223,6 +237,10 @@ export default async function InstallerHomePage() {
             </div>
           </div>
         </Link>
+      )}
+
+      {outreachOnboarding && (
+        <OutreachOnboardingBanner state={outreachOnboarding} />
       )}
 
       {checklist && !checklist.isComplete && !onboardingDismissedAt && (
