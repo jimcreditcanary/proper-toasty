@@ -56,6 +56,7 @@ export default async function ReviewRequestPage({ params }: PageProps) {
   return (
     <PortalShell
       portalName="Admin"
+      backLink={{ href: "/admin", label: "Back to admin" }}
       pageTitle={data.company_name}
       pageSubtitle={`Submitted ${formatDate(data.created_at)}`}
     >

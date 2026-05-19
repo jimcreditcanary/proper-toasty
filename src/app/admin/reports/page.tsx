@@ -177,6 +177,7 @@ export default async function ReportsPage({ searchParams }: PageProps) {
   return (
     <PortalShell
       portalName="Admin"
+      backLink={{ href: "/admin", label: "Back to admin" }}
       pageTitle="Report history"
       pageSubtitle="Search every report by short ID, address, postcode, UPRN or user email."
     >

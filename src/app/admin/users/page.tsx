@@ -148,6 +148,7 @@ export default async function UsersPage({ searchParams }: PageProps) {
   return (
     <PortalShell
       portalName="Admin"
+      backLink={{ href: "/admin", label: "Back to admin" }}
       pageTitle="User management"
       pageSubtitle="Roles, blocking, credits — and a way into every user's reports."
     >

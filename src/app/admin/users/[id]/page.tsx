@@ -149,6 +149,7 @@ export default async function UserDetailPage({ params }: PageProps) {
   return (
     <PortalShell
       portalName="Admin"
+      backLink={{ href: "/admin", label: "Back to admin" }}
       pageTitle={user.email || "(no email)"}
       pageSubtitle={`${user.role.charAt(0).toUpperCase() + user.role.slice(1)} · ${user.credits} credit${user.credits === 1 ? "" : "s"}`}
     >

@@ -78,17 +78,20 @@ export default async function AdminHomePage() {
       href: "/admin/reports",
     },
     {
-      // Edits the per-unit cost rates that feed the P&L dashboard
-      // (Claude / Solar / Postcoder / emails / Stripe / Vercel /
-      // Supabase). Each rate persists in admin_settings under
-      // `cost_rate.<field>` and falls back to DEFAULT_COST_RATES
-      // when no row exists. Keep in sync with supplier invoices
-      // — drift on Anthropic + Google is real.
-      title: "Cost rates",
-      body: "Edit per-unit cost rates (Claude, Solar, Postcoder, emails, Stripe, hosting) that drive the P&L. Update when supplier pricing changes.",
+      // Two-section settings page: per-unit cost rates that feed the
+      // P&L dashboard (Claude / Solar / Postcoder / emails / Stripe /
+      // Vercel / Supabase) + sizing & savings inputs that drive the
+      // homeowner-facing /check report (tariffs, BUS grant amounts,
+      // solar £/kWp, heat-pump sizing rules of thumb). Each value
+      // persists in admin_settings under `cost_rate.*` or
+      // `sizing_input.*` and falls back to its hard-coded default
+      // (which still reads the legacy env var as the bottom of the
+      // fallback chain) when no row exists.
+      title: "Inputs",
+      body: "Cost rates that drive the P&L + sizing/savings inputs that drive the homeowner report. Update when supplier pricing or BUS grant amounts move.",
       icon: PoundSterling,
       status: "live",
-      href: "/admin/settings/cost-rates",
+      href: "/admin/settings/inputs",
     },
     {
       title: "Outreach engine",

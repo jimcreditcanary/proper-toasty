@@ -46,6 +46,7 @@ export default async function AdminBlogPage() {
   return (
     <PortalShell
       portalName="Admin"
+      backLink={{ href: "/admin", label: "Back to admin" }}
       pageTitle="Blog manager"
       pageSubtitle="Create, edit, and publish blog posts."
     >

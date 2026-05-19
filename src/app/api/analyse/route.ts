@@ -6,6 +6,8 @@ import { getFloodWarnings } from "@/lib/services/enrichment/flood";
 import { getListedBuildings } from "@/lib/services/enrichment/listed";
 import { getPlanningFlags } from "@/lib/services/enrichment/planning";
 import { buildEligibility } from "@/lib/services/eligibility";
+import { loadSizingInputs } from "@/lib/admin/sizing-inputs";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { AnalyseRequestSchema, type AnalyseResponse } from "@/lib/schemas/analyse";
 import { emptyFloorplanAnalysis } from "@/lib/schemas/floorplan";
 import type { BuildingInsightsResponse, RoofSegment } from "@/lib/schemas/solar";
@@ -57,9 +59,12 @@ export async function POST(req: Request) {
   const request = parsed.data;
   const { address, precomputedFloorplan } = request;
 
-  // Fan out solar, EPC, and the three enrichments immediately — none depend on
-  // each other, and the enrichments are free public APIs.
-  const [solar, epc, flood, listed, planning] = await Promise.all([
+  // Fan out solar, EPC, the three enrichments, and the sizing-input
+  // load immediately — none depend on each other. Sizing inputs feed
+  // the finance + heat-pump grant lines later; the DB read is cheap
+  // and runs alongside the external lookups so it adds no latency.
+  const adminForSizing = createAdminClient();
+  const [solar, epc, flood, listed, planning, sizing] = await Promise.all([
     getBuildingInsights(address.latitude, address.longitude).catch((err) => {
       console.warn("Solar failed during analyse:", err);
       return { coverage: false as const, reason: "Solar lookup failed." } satisfies BuildingInsightsResponse;
@@ -90,6 +95,7 @@ export async function POST(req: Request) {
       console.warn("Planning enrichment failed:", err);
       return null;
     }),
+    loadSizingInputs(adminForSizing),
   ]);
 
   // Claude needs EPC context; PVGIS needs Solar's best segment. Run in parallel.
@@ -149,6 +155,7 @@ export async function POST(req: Request) {
     epc,
     pvgisAnnualKwh: pvgis?.annualKwh ?? null,
     pvgisPeakKwp,
+    sizing,
   });
 
   const out: AnalyseResponse = {
