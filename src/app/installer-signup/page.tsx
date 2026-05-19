@@ -60,6 +60,15 @@ interface PageProps {
     /** HMAC-signed token from an outreach email. Resolves to a
      *  recipient row that determines the live tier offer. */
     outreach?: string;
+    /** Set by the no-slots installer email — UUID of the
+     *  homeowner_leads row the signup should land on after claim
+     *  completes. Threaded through claim-as-self + the signup
+     *  form's auth-callback redirect. */
+    lead?: string;
+    /** Origin tag — currently just "no-slots". Used purely for
+     *  analytics on the signup page; the redirect target carries
+     *  it forward to the claim page. */
+    source?: string;
     error?: "race_lost" | "email_mismatch" | "no_email" | string;
   }>;
 }
@@ -221,6 +230,15 @@ export default async function InstallerSignupPage({ searchParams }: PageProps) {
   const errorFlag = params.error ?? null;
   const outreachToken = params.outreach ?? null;
   const idNum = idRaw ? Number(idRaw) : null;
+  // When the no-slots installer email kicks the user here, `lead`
+  // holds the homeowner-leads UUID the post-claim landing should go
+  // to. UUID-shape only — anything else is dropped to avoid open
+  // redirect via the auth callback's `?next=`.
+  const noSlotsLeadId =
+    params.lead && /^[0-9a-f-]{36}$/i.test(params.lead) ? params.lead : null;
+  const postClaimRedirect = noSlotsLeadId
+    ? `/installer/leads/${noSlotsLeadId}/claim?source=no-slots`
+    : null;
 
   // Resolve the installer if we got an id. Bad ids fall back to
   // search mode rather than 404 — saves a click for users who hit
@@ -255,8 +273,13 @@ export default async function InstallerSignupPage({ searchParams }: PageProps) {
   // someone clicks "sign in" from the already-claimed view, signs
   // in correctly, and would otherwise loop back into the same
   // already-claimed page.
+  //
+  // When `postClaimRedirect` is set (no-slots installer email landed
+  // them here with a lead in tow) skip the dashboard and land them
+  // on the lead claim page instead — that's the whole reason they
+  // were emailed.
   if (prefill && user && prefill.ownerUserId === user.id) {
-    redirect("/installer");
+    redirect(postClaimRedirect ?? "/installer");
   }
 
   return (
@@ -319,6 +342,7 @@ export default async function InstallerSignupPage({ searchParams }: PageProps) {
               signedInEmail={signedInEmail}
               errorFlag={errorFlag}
               outreachToken={outreach?.token ?? null}
+              postClaimRedirect={postClaimRedirect}
             />
           ) : (
             <ClaimSearch />
@@ -360,6 +384,7 @@ function PrefillView({
   signedInEmail,
   errorFlag,
   outreachToken,
+  postClaimRedirect,
 }: {
   prefill: PrefillData;
   emailOverride: string | undefined;
@@ -369,6 +394,11 @@ function PrefillView({
    *  claim-as-self button so the post-auth side can call the
    *  outreach_claim_founder_offer RPC. */
   outreachToken: string | null;
+  /** Where to land the user once the claim completes. NULL = the
+   *  standard /installer dashboard. Currently set by the no-slots
+   *  installer email so the freshly-claimed installer lands on the
+   *  lead they were emailed about. */
+  postClaimRedirect: string | null;
 }) {
   const installerEmail = prefill.email?.toLowerCase().trim() ?? null;
   const userEmail = signedInEmail?.toLowerCase().trim() ?? null;
@@ -398,6 +428,7 @@ function PrefillView({
         installerName={prefill.companyName}
         signedInEmail={signedInEmail}
         outreachToken={outreachToken}
+        postClaimRedirect={postClaimRedirect}
       />
     );
   } else {
@@ -407,6 +438,7 @@ function PrefillView({
         installerName={prefill.companyName}
         defaultEmail={emailOverride ?? prefill.email ?? ""}
         outreachToken={outreachToken}
+        postClaimRedirect={postClaimRedirect}
       />
     );
   }
@@ -530,11 +562,13 @@ function UnauthenticatedClaimChoices({
   installerName,
   defaultEmail,
   outreachToken,
+  postClaimRedirect,
 }: {
   installerId: number;
   installerName: string;
   defaultEmail: string;
   outreachToken: string | null;
+  postClaimRedirect: string | null;
 }) {
   // Outreach claimants who sign in (rather than create an account)
   // come back to this exact page, so the redirect target preserves
@@ -579,6 +613,7 @@ function UnauthenticatedClaimChoices({
           installerName={installerName}
           defaultEmail={defaultEmail}
           outreachToken={outreachToken}
+          postClaimRedirect={postClaimRedirect}
         />
       </div>
     </div>

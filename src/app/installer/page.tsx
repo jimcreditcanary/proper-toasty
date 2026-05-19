@@ -15,6 +15,7 @@ import {
   FileText,
   Inbox,
   KeyRound,
+  Mail,
   PoundSterling,
   Send,
   Sparkles,
@@ -58,6 +59,67 @@ interface NavLink {
 
 export const dynamic = "force-dynamic";
 
+interface NoSlotsLeadCard {
+  outreachId: string;
+  leadId: string;
+  emailSentAt: string;
+  homeownerName: string | null;
+  postcode: string | null;
+  wantsHeatPump: boolean;
+  wantsSolar: boolean;
+  wantsBattery: boolean;
+}
+
+// Look up outreach rows the installer hasn't acted on yet, joined
+// with the homeowner_leads they reference. Two queries (no FK
+// relationship configured in PostgREST types) — cheap, capped at 20
+// rows for the dashboard.
+async function loadNoSlotsLeads(
+  admin: ReturnType<typeof createAdminClient>,
+  installerId: number,
+): Promise<NoSlotsLeadCard[]> {
+  const { data: outreach } = await admin
+    .from("installer_lead_outreach")
+    .select("id, lead_id, email_sent_at")
+    .eq("installer_id", installerId)
+    .is("contacted_at", null)
+    .order("email_sent_at", { ascending: false })
+    .limit(20);
+  if (!outreach || outreach.length === 0) return [];
+
+  const leadIds = outreach.map((o) => o.lead_id);
+  const { data: leads } = await admin
+    .from("homeowner_leads")
+    .select("id, name, postcode, analysis_snapshot")
+    .in("id", leadIds);
+  type LeadRow = {
+    id: string;
+    name: string | null;
+    postcode: string | null;
+    analysis_snapshot: unknown;
+  };
+  const byId = new Map<string, LeadRow>();
+  for (const l of (leads ?? []) as LeadRow[]) byId.set(l.id, l);
+
+  return outreach.map((o) => {
+    const lead = byId.get(o.lead_id);
+    const snap = (lead?.analysis_snapshot ?? {}) as Record<string, unknown>;
+    const sel = (snap.selection as Record<string, unknown> | undefined) ?? {};
+    const want = (k: string, k2: string) =>
+      Boolean(sel[k] ?? sel[k2] ?? false);
+    return {
+      outreachId: o.id,
+      leadId: o.lead_id,
+      emailSentAt: o.email_sent_at,
+      homeownerName: lead?.name ?? null,
+      postcode: lead?.postcode ?? null,
+      wantsHeatPump: want("hasHeatPump", "has_heat_pump"),
+      wantsSolar: want("hasSolar", "has_solar"),
+      wantsBattery: want("hasBattery", "has_battery"),
+    };
+  });
+}
+
 export default async function InstallerHomePage() {
   const supabase = await createClient();
   const {
@@ -73,6 +135,10 @@ export default async function InstallerHomePage() {
   let metrics: Awaited<
     ReturnType<typeof loadInstallerDashboardMetrics>
   > | null = null;
+  // "Missed because no slots — reachable now" — installer_lead_outreach
+  // rows where contacted_at is still NULL, joined to the homeowner lead
+  // for display. Migration 071.
+  let noSlotsLeads: NoSlotsLeadCard[] = [];
 
   if (user) {
     const admin = createAdminClient();
@@ -150,6 +216,7 @@ export default async function InstallerHomePage() {
         proposalSentCount: proposalRes.count ?? 0,
       });
       metrics = dealMetrics;
+      noSlotsLeads = await loadNoSlotsLeads(admin, installerId);
 
       // Sticky-hide the onboarding wizard: once the installer has
       // ticked every step at least ONCE, stamp dismissed_at so it
@@ -243,6 +310,15 @@ export default async function InstallerHomePage() {
       {/* ─── Deal-flow metrics ─────────────────────────────────── */}
       {companyName && metrics && (
         <DealFlowGrid metrics={metrics} pendingLeads={pendingLeads} />
+      )}
+
+      {/* ─── Missed because no slots — reachable now ────────────
+          Homeowners who tried to book the installer but found no
+          available slots in the next 28 days. The outreach email
+          went out; this section is the in-product reminder so the
+          lead doesn't sink to the bottom of inbox. ─────────────── */}
+      {companyName && noSlotsLeads.length > 0 && (
+        <NoSlotsLeadsSection leads={noSlotsLeads} />
       )}
 
       {/* ─── Quick nav strip ───────────────────────────────────── */}
@@ -585,3 +661,89 @@ function ChecklistRow({
   );
 }
 
+// ─── No-slots leads section ────────────────────────────────────────
+
+function NoSlotsLeadsSection({ leads }: { leads: NoSlotsLeadCard[] }) {
+  return (
+    <section className="mb-6 rounded-2xl border border-amber-200 bg-amber-50/30 p-5 sm:p-6">
+      <header className="flex items-start gap-3 mb-4">
+        <span className="shrink-0 inline-flex items-center justify-center w-10 h-10 rounded-xl bg-amber-100 text-amber-700">
+          <Mail className="w-5 h-5" />
+        </span>
+        <div>
+          <p className="text-[11px] font-bold uppercase tracking-wider text-amber-700">
+            Missed because no slots — reachable now
+          </p>
+          <h2 className="text-base sm:text-lg font-bold text-navy mt-0.5 leading-tight">
+            {leads.length === 1
+              ? "1 homeowner tried to book you but your diary was full"
+              : `${leads.length} homeowners tried to book you but your diary was full`}
+          </h2>
+          <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+            Reach out directly to keep the lead alive. We&rsquo;ve
+            already emailed you about each one — claiming here just
+            marks it as handled.
+          </p>
+        </div>
+      </header>
+      <ul className="space-y-2.5">
+        {leads.map((l) => (
+          <li
+            key={l.outreachId}
+            className="rounded-xl border border-amber-200 bg-white p-3 sm:p-4 flex items-center gap-3 flex-wrap"
+          >
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-navy">
+                {l.homeownerName ?? "Homeowner"}
+                {l.postcode && (
+                  <span className="text-slate-400 font-normal text-xs ml-2">
+                    · {l.postcode}
+                  </span>
+                )}
+              </p>
+              <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-2 flex-wrap">
+                <span className="inline-flex items-center gap-1">
+                  <Zap className="w-3 h-3" />
+                  {formatWants(l.wantsHeatPump, l.wantsSolar, l.wantsBattery)}
+                </span>
+                <span aria-hidden>·</span>
+                <span>Email sent {formatRelativeNoSlots(l.emailSentAt)}</span>
+              </p>
+            </div>
+            <Link
+              href={`/installer/leads/${l.leadId}/claim?source=no-slots`}
+              className="shrink-0 inline-flex items-center gap-1.5 h-9 px-3 rounded-full bg-coral hover:bg-coral-dark text-white font-semibold text-xs shadow-sm transition-colors"
+            >
+              Claim lead
+              <ArrowRight className="w-3 h-3" />
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function formatWants(hp: boolean, solar: boolean, battery: boolean): string {
+  const parts: string[] = [];
+  if (hp) parts.push("Heat pump");
+  if (solar) parts.push("Solar PV");
+  if (battery) parts.push("Battery");
+  if (parts.length === 0) return "Energy upgrades";
+  return parts.join(" + ");
+}
+
+function formatRelativeNoSlots(iso: string): string {
+  const ms = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(ms / (1000 * 60));
+  if (mins < 60) return `${Math.max(mins, 1)} min ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours} hour${hours === 1 ? "" : "s"} ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days} day${days === 1 ? "" : "s"} ago`;
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "numeric",
+    month: "short",
+    timeZone: "Europe/London",
+  }).format(new Date(iso));
+}

@@ -1203,6 +1203,31 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["installer_leads"]["Insert"]>;
         Relationships: [];
       };
+      // Migration 071 — "no slots" installer outreach + claim flow.
+      installer_lead_outreach: {
+        Row: {
+          id: string;
+          installer_id: number;
+          lead_id: string;
+          email_sent_at: string;
+          contacted_at: string | null;
+          contact_method: "email" | "phone" | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          installer_id: number;
+          lead_id: string;
+          email_sent_at?: string;
+          contacted_at?: string | null;
+          contact_method?: "email" | "phone" | null;
+          created_at?: string;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["installer_lead_outreach"]["Insert"]
+        >;
+        Relationships: [];
+      };
       report_tokens: {
         Row: {
           id: string;

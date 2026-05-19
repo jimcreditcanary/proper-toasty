@@ -11,6 +11,11 @@ interface Props {
   /** When present, the claim runs the outreach RPC after the
    *  standard bind — assigns tier + records the conversion. */
   outreachToken?: string | null;
+  /** Where to land the user once the claim API returns ok. NULL =
+   *  the existing /installer (or /installer/onboarding for outreach
+   *  claimants) defaults. Used by the no-slots signup link so the
+   *  freshly-claimed installer lands on the lead claim page. */
+  postClaimRedirect?: string | null;
 }
 
 interface ClaimResponse {
@@ -30,6 +35,7 @@ export function ClaimAsSelfButton({
   installerName,
   signedInEmail,
   outreachToken,
+  postClaimRedirect,
 }: Props) {
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
@@ -57,12 +63,15 @@ export function ClaimAsSelfButton({
         setSubmitting(false);
         return;
       }
-      // Hard-redirect — outreach claimants land on the four-step
-      // onboarding flow so they can earn the rest of their tier
-      // credits; self-claims go straight to the portal.
-      window.location.href = outreachToken
-        ? "/installer/onboarding"
-        : "/installer";
+      // Hard-redirect. Precedence:
+      //   1. postClaimRedirect (no-slots → lead claim page)
+      //   2. outreach claimants → /installer/onboarding (tier credits)
+      //   3. self-claims → /installer (dashboard)
+      window.location.href = postClaimRedirect
+        ? postClaimRedirect
+        : outreachToken
+          ? "/installer/onboarding"
+          : "/installer";
     } catch (e) {
       setError(e instanceof Error ? e.message : "Network error");
       setSubmitting(false);
