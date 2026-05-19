@@ -129,7 +129,7 @@ export async function POST(req: Request) {
   try {
     draft = await draftInstallerBlog({
       companyName: installer.company_name,
-      installerFirstName: bestEffortFirstName(installer.company_name),
+      installerFirstName: bestEffortFirstName(installer),
       region: regionDisplayName(region),
       techDisplay: techBucketDisplayName(bucket),
       yearsInBusiness: installer.years_in_business,
