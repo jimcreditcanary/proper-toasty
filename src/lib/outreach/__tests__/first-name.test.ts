@@ -165,6 +165,100 @@ describe("pickPrimaryDirector (CH officers payload)", () => {
     const picked = pickPrimaryDirector(FIXTURE);
     expect(parseOfficerFirstName(picked?.name)).toBe("alex");
   });
+
+  // Expanded role filter coverage — see PRINCIPAL_OFFICER_ROLES in
+  // first-name.ts. The earlier narrow filter rejected anything that
+  // wasn't exactly `director`, which excluded ~58% of installers
+  // (mostly LLPs).
+  it("accepts an active llp-member as a principal", () => {
+    const llp: OfficerLite[] = [
+      {
+        name: "DOE, Sam",
+        officer_role: "llp-member",
+        appointed_on: "2021-01-01",
+        resigned_on: null,
+      },
+    ];
+    expect(pickPrimaryDirector(llp)?.name).toBe("DOE, Sam");
+  });
+
+  it("accepts an active llp-designated-member", () => {
+    const llp: OfficerLite[] = [
+      {
+        name: "DOE, Pat",
+        officer_role: "llp-designated-member",
+        appointed_on: "2021-01-01",
+        resigned_on: null,
+      },
+    ];
+    expect(pickPrimaryDirector(llp)?.name).toBe("DOE, Pat");
+  });
+
+  it("accepts a corporate-director", () => {
+    const corp: OfficerLite[] = [
+      {
+        name: "HOLDCO, LTD",
+        officer_role: "corporate-director",
+        appointed_on: "2019-04-01",
+        resigned_on: null,
+      },
+    ];
+    expect(pickPrimaryDirector(corp)?.name).toBe("HOLDCO, LTD");
+  });
+
+  it("still excludes secretaries even when they're the only role", () => {
+    const onlySecretary: OfficerLite[] = [
+      {
+        name: "BAKER, Jane",
+        officer_role: "secretary",
+        appointed_on: "2018-06-01",
+        resigned_on: null,
+      },
+    ];
+    expect(pickPrimaryDirector(onlySecretary)).toBeNull();
+  });
+
+  it("still excludes nominee-directors (placeholder, not a principal)", () => {
+    const nominee: OfficerLite[] = [
+      {
+        name: "NOMINEE, Ltd",
+        officer_role: "nominee-director",
+        appointed_on: "2020-01-01",
+        resigned_on: null,
+      },
+    ];
+    expect(pickPrimaryDirector(nominee)).toBeNull();
+  });
+
+  it("picks the most-recently-appointed when role types mix", () => {
+    const mixed: OfficerLite[] = [
+      {
+        name: "OLDER, Alice",
+        officer_role: "director",
+        appointed_on: "2010-01-01",
+        resigned_on: null,
+      },
+      {
+        name: "NEWER, Bob",
+        officer_role: "llp-member",
+        appointed_on: "2024-06-15",
+        resigned_on: null,
+      },
+    ];
+    expect(pickPrimaryDirector(mixed)?.name).toBe("NEWER, Bob");
+  });
+
+  it("treats officer_role case-insensitively", () => {
+    const mixed: OfficerLite[] = [
+      {
+        name: "DOE, Cam",
+        officer_role: "LLP-Member",
+        appointed_on: "2021-01-01",
+        resigned_on: null,
+      },
+    ];
+    expect(pickPrimaryDirector(mixed)?.name).toBe("DOE, Cam");
+  });
 });
 
 describe("sanitiseFirstName", () => {

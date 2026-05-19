@@ -57,9 +57,19 @@ const LIMIT_FLAG = process.argv.indexOf("--limit");
 const LIMIT = LIMIT_FLAG > 0 ? Number(process.argv[LIMIT_FLAG + 1]) : 0;
 const BATCH = 100;
 
-// CH throttle. The CH limit is 600 reqs / 5 min = 2/sec — match the
-// existing scripts/enrich-installers-companies-house.ts pacing.
-const CH_THROTTLE_MS = 500;
+// CH throttle. CH's published limit is 600 reqs / 5 min (2/sec).
+// We deliberately under-use that budget — 1000ms gives 50% headroom
+// so concurrent calls from the live app's installer-signup form +
+// the existing scripts/enrich-installers-companies-house.ts don't
+// push us into 429 territory. Worst-case full pool runtime at this
+// pace: ~94 minutes for 5,634 installers (most resolve via email
+// and skip the CH call entirely, so practical runtime is much less).
+const CH_THROTTLE_MS = 1000;
+
+// 429 retry policy. CH occasionally returns rate-limited even
+// inside our self-imposed budget — back off and try a couple more
+// times before giving up on a row. Delays compound: 5s → 15s → 30s.
+const CH_RETRY_DELAYS_MS = [5_000, 15_000, 30_000];
 
 // Officers cache TTL (30 days). Officers move around slowly; refreshing
 // monthly is plenty.
@@ -109,38 +119,64 @@ async function fetchOfficers(
   if (cached) return { ok: true, data: cached, cached: true };
 
   const auth = Buffer.from(`${apiKey}:`).toString("base64");
-  let res: Response;
-  try {
-    res = await fetch(
-      `https://api.company-information.service.gov.uk/company/${encodeURIComponent(
-        cleaned,
-      )}/officers`,
-      {
+  const url = `https://api.company-information.service.gov.uk/company/${encodeURIComponent(
+    cleaned,
+  )}/officers`;
+
+  // Retry policy: on 429 we back off (5s → 15s → 30s) and try
+  // again, giving CH's rolling window room to refresh. On any
+  // other failure we return immediately — the caller catches
+  // these as skip reasons. Non-429 errors don't get better with
+  // a retry. Network errors get one cheap retry after 2s though
+  // — transient TCP/TLS hiccups are common at this volume.
+  let lastError = "unknown";
+  const maxAttempts = 1 + CH_RETRY_DELAYS_MS.length;
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    let res: Response;
+    try {
+      res = await fetch(url, {
         headers: {
           Authorization: `Basic ${auth}`,
           Accept: "application/json",
         },
-      },
-    );
-  } catch (e) {
-    return {
-      ok: false,
-      status: `network: ${e instanceof Error ? e.message : "unknown"}`,
-    };
+      });
+    } catch (e) {
+      lastError = `network: ${e instanceof Error ? e.message : "unknown"}`;
+      // One quick retry on transient network errors before giving up
+      if (attempt === 0) {
+        await sleep(2_000);
+        continue;
+      }
+      return { ok: false, status: lastError };
+    }
+    if (res.status === 404) return { ok: false, status: "not_found" };
+    if (res.status === 429) {
+      // Rate-limited. If we have a retry budget, back off and try again.
+      const delay = CH_RETRY_DELAYS_MS[attempt];
+      if (delay != null) {
+        console.warn(
+          `[ch] 429 on ${cleaned} — backing off ${delay}ms (attempt ${attempt + 1}/${maxAttempts})`,
+        );
+        await sleep(delay);
+        continue;
+      }
+      return { ok: false, status: "rate_limited" };
+    }
+    if (!res.ok) return { ok: false, status: `http_${res.status}` };
+    try {
+      const data = (await res.json()) as OfficersResponse;
+      await cacheSet("companies:officers", cleaned, data, OFFICERS_CACHE_TTL_S);
+      return { ok: true, data, cached: false };
+    } catch (e) {
+      return {
+        ok: false,
+        status: `parse: ${e instanceof Error ? e.message : "unknown"}`,
+      };
+    }
   }
-  if (res.status === 404) return { ok: false, status: "not_found" };
-  if (res.status === 429) return { ok: false, status: "rate_limited" };
-  if (!res.ok) return { ok: false, status: `http_${res.status}` };
-  try {
-    const data = (await res.json()) as OfficersResponse;
-    await cacheSet("companies:officers", cleaned, data, OFFICERS_CACHE_TTL_S);
-    return { ok: true, data, cached: false };
-  } catch (e) {
-    return {
-      ok: false,
-      status: `parse: ${e instanceof Error ? e.message : "unknown"}`,
-    };
-  }
+  // All attempts exhausted (only reachable via 429 path falling out
+  // of the loop after the last backoff). Caller treats as a skip.
+  return { ok: false, status: lastError === "unknown" ? "rate_limited" : lastError };
 }
 
 // ─── Claude LLM disambiguator ─────────────────────────────────────

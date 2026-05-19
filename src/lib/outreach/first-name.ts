@@ -154,20 +154,57 @@ export function parseOfficerFirstName(name: string | undefined | null): string |
   return cleaned.toLowerCase();
 }
 
-/** From a CH `/officers` payload, pick the active director whose
+/** Officer roles that represent decision-making principals at a UK
+ *  company. Per the Companies House public-data API, every active
+ *  company/LLP must have at least one of these on file — so a CH
+ *  response with no match here is the canary that our filter is
+ *  too narrow.
+ *
+ *  Included:
+ *    - director / corporate-director — Ltd company principals
+ *    - llp-member / llp-designated-member — LLP equivalents
+ *    - corporate-llp-member /
+ *      corporate-llp-designated-member — corporate LLP members
+ *
+ *  Deliberately excluded:
+ *    - secretary / corporate-secretary — administrative, not the
+ *      "who runs this" answer we want for outreach copy
+ *    - nominee-director / nominee-secretary — placeholders for
+ *      another entity; a real director should exist on the same
+ *      filing, so falling through to a nominee would hide a bug
+ *      in the upstream data rather than help with personalisation
+ *    - judicial-factor, receiver, etc. — administrative roles
+ *      that don't represent the business
+ */
+const PRINCIPAL_OFFICER_ROLES = new Set<string>([
+  "director",
+  "corporate-director",
+  "llp-member",
+  "llp-designated-member",
+  "corporate-llp-member",
+  "corporate-llp-designated-member",
+]);
+
+/** From a CH `/officers` payload, pick the active principal whose
  *  first name we use:
  *
- *    - filter officer_role === "director" AND resigned_on is null
+ *    - filter to PRINCIPAL_OFFICER_ROLES (above) AND resigned_on is null
  *    - sole survivor → return them
  *    - multiple → return the one with the latest appointed_on
  *    - none → null
+ *
+ *  Earlier (over-narrow) version only accepted `officer_role === "director"`,
+ *  which rejected every LLP filing and forced ~58% of installers to
+ *  fall through to NULL — caught in the first dry-run of the
+ *  enrichment script. PRINCIPAL_OFFICER_ROLES widens the net to the
+ *  canonical list of decision-making roles.
  */
 export function pickPrimaryDirector(officers: OfficerLite[] | undefined): OfficerLite | null {
   if (!officers || officers.length === 0) return null;
   const active = officers.filter(
     (o) =>
       typeof o.officer_role === "string" &&
-      o.officer_role.toLowerCase() === "director" &&
+      PRINCIPAL_OFFICER_ROLES.has(o.officer_role.toLowerCase()) &&
       !o.resigned_on,
   );
   if (active.length === 0) return null;
