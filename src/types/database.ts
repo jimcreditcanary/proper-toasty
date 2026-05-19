@@ -997,6 +997,9 @@ export interface Database {
             | "companies_house_director"
             | "manual"
             | null;
+          // Migration 075 — welcome-card dismissal lives on the
+          // installer row (replaces users.installer_onboarding_dismissed_at).
+          welcome_card_dismissed_at: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -1086,6 +1089,8 @@ export interface Database {
             | "companies_house_director"
             | "manual"
             | null;
+          // Migration 075 — welcome-card dismissal
+          welcome_card_dismissed_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
