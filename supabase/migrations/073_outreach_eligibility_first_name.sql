@@ -9,6 +9,12 @@
 -- subject "Quick question, James" beats the unnamed fallback
 -- "Quick question" while volumes are small. select-batch reads
 -- first_name from this view to do that ordering.
+--
+-- first_name is appended at the END of the projection. CREATE OR
+-- REPLACE VIEW only allows new columns to be added at the tail —
+-- inserting in the middle reads as a rename and Postgres refuses
+-- (42P16: "cannot change name of view column ..."). Column order
+-- doesn't matter to the consumer (named .select() in the route).
 
 create or replace view public.outreach_eligibility as
   select
@@ -16,10 +22,10 @@ create or replace view public.outreach_eligibility as
     i.email,
     i.company_name,
     i.postcode,
-    i.first_name,
     coalesce(i.checkatrade_score, i.google_rating, 0)
       * ln(coalesce(i.checkatrade_review_count, 0)
-           + coalesce(i.google_review_count, 0) + 1) as quality_score
+           + coalesce(i.google_review_count, 0) + 1) as quality_score,
+    i.first_name
   from public.installers i
  where i.email is not null
    and i.email <> ''
