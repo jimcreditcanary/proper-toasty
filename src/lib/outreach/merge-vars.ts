@@ -6,7 +6,7 @@
 // Variable contract (the Phase 6 templates can use any of these):
 //
 //   {{first_name}}              — enriched personal first name when
-//                                 we have one (see m071 +
+//                                 we have one (see m072 +
 //                                 scripts/outreach/enrich-installer-names.ts),
 //                                 otherwise null. Wrap usages in
 //                                 {{#first_name}}…{{/first_name}}
@@ -56,7 +56,7 @@ export interface MergeVarInput {
  *
  *  Prefers the enriched `installers.first_name` (populated by
  *  scripts/outreach/enrich-installer-names.ts via email local-part
- *  + Companies House director lookup; see migration 071).
+ *  + Companies House director lookup; see migration 072).
  *
  *  Falls back to extracting the first word of the company name —
  *  the same heuristic this function has always used. This often
