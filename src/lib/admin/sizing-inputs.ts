@@ -32,9 +32,13 @@ export interface SizingInputs {
   // ─── Self-consumption (0–1) ────────────────────────────────────
   // Share of solar generation the household uses directly rather
   // than exporting. 0.60 = 60% self-consumed. Higher = better
-  // economics. With-battery scenarios will land here when the
-  // engine grows the battery branch — not yet wired.
+  // economics.
+  // - no_battery: applies today via financeModel.
+  // - with_battery: surfaced now so finance can see the assumption,
+  //   but not yet consumed — the engine doesn't currently branch on
+  //   battery selection. UI hint flags this.
   self_consumption_rate_no_battery: number;
+  self_consumption_rate_with_battery: number;
 
   // ─── Solar install £ per kWp ───────────────────────────────────
   // UK domestic install benchmark, fully installed incl. scaffold.
@@ -55,10 +59,14 @@ export interface SizingInputs {
 
   // ─── BUS grant amounts (£) ─────────────────────────────────────
   // Ofgem-published BUS grant amounts. Bumped in 2024 to £7.5K
-  // for ASHP/GSHP and £5K for biomass; subject to periodic review.
-  // Only ASHP + biomass are wired today (heatPumpEligibility);
-  // A2A and GSHP land when the engine learns to differentiate.
+  // for ASHP/GSHP and £5K for biomass; A2A is £2.5K. Subject to
+  // periodic review.
+  // Today only ASHP + biomass feed the eligibility/report flow;
+  // A2A + GSHP are surfaced here for finance visibility but the
+  // engine doesn't branch on them yet. UI hint flags this.
   bus_ashp_grant_gbp: number;
+  bus_air_to_air_grant_gbp: number;
+  bus_gshp_grant_gbp: number;
   bus_biomass_grant_gbp: number;
 }
 
@@ -76,10 +84,16 @@ export const DEFAULT_SIZING_INPUTS: SizingInputs = {
     "SELF_CONSUMPTION_RATE_NO_BATTERY",
     0.6,
   ),
+  self_consumption_rate_with_battery: envNum(
+    "SELF_CONSUMPTION_RATE_WITH_BATTERY",
+    0.8,
+  ),
   solar_install_price_per_kwp_gbp: envNum("SOLAR_INSTALL_PRICE_PER_KWP_GBP", 1_100),
   heat_pump_demand_kwh_per_m2: envNum("HEAT_PUMP_DEMAND_KWH_PER_M2", 60),
   heat_pump_w_per_m2: envNum("HEAT_PUMP_W_PER_M2", 50),
   bus_ashp_grant_gbp: envNum("BUS_ASHP_GRANT_GBP", 7_500),
+  bus_air_to_air_grant_gbp: envNum("BUS_AIR_TO_AIR_GRANT_GBP", 2_500),
+  bus_gshp_grant_gbp: envNum("BUS_GSHP_GRANT_GBP", 7_500),
   bus_biomass_grant_gbp: envNum("BUS_BIOMASS_GRANT_GBP", 5_000),
 };
 
@@ -96,11 +110,14 @@ export function isValidSizingValue(
   if (!Number.isFinite(value)) return false;
   switch (field) {
     case "self_consumption_rate_no_battery":
+    case "self_consumption_rate_with_battery":
       // 0–1 inclusive. 0 = export everything; 1 = consume everything.
       return value >= 0 && value <= 1;
     case "energy_import_price_p_per_kwh":
     case "energy_export_price_p_per_kwh":
     case "bus_ashp_grant_gbp":
+    case "bus_air_to_air_grant_gbp":
+    case "bus_gshp_grant_gbp":
     case "bus_biomass_grant_gbp":
       // Non-negative currency. Zero grant is plausible if a scheme
       // is paused — let it through rather than block.
@@ -156,10 +173,13 @@ export const SIZING_INPUT_LABELS: Record<keyof SizingInputs, string> = {
   energy_import_price_p_per_kwh: "Electricity import price",
   energy_export_price_p_per_kwh: "Electricity export (SEG) price",
   self_consumption_rate_no_battery: "Solar self-consumption (no battery)",
+  self_consumption_rate_with_battery: "Solar self-consumption (with battery)",
   solar_install_price_per_kwp_gbp: "Solar install price",
   heat_pump_demand_kwh_per_m2: "Heat pump electricity demand",
   heat_pump_w_per_m2: "Heat pump peak heat-loss density",
   bus_ashp_grant_gbp: "BUS grant — air-source heat pump",
+  bus_air_to_air_grant_gbp: "BUS grant — air-to-air heat pump",
+  bus_gshp_grant_gbp: "BUS grant — ground-source heat pump",
   bus_biomass_grant_gbp: "BUS grant — biomass",
 };
 
@@ -171,6 +191,8 @@ export const SIZING_INPUT_HINTS: Record<keyof SizingInputs, string> = {
     "Pence per kWh received for exported solar (SEG tariff). Varies by supplier; 15p is a mid-market figure.",
   self_consumption_rate_no_battery:
     "Share of solar generation used directly (0–1). 0.60 = 60% consumed, 40% exported.",
+  self_consumption_rate_with_battery:
+    "Share consumed when a battery is present (0–1). NOT YET WIRED — the engine doesn't currently branch on battery selection; this value is surfaced for finance visibility only.",
   solar_install_price_per_kwp_gbp:
     "Pounds per kWp for a fully installed system (panels + inverter + scaffold). Drives the install-cost estimate on the report.",
   heat_pump_demand_kwh_per_m2:
@@ -179,6 +201,10 @@ export const SIZING_INPUT_HINTS: Record<keyof SizingInputs, string> = {
     "Watts per m² used for the planning-stage heat-loss estimate. 50 W/m² is the standard pre-survey rule of thumb.",
   bus_ashp_grant_gbp:
     "Pounds. Ofgem BUS grant for an air-source heat pump replacement.",
+  bus_air_to_air_grant_gbp:
+    "Pounds. Ofgem BUS grant for an air-to-air heat pump. NOT YET WIRED — eligibility engine doesn't differentiate A2A today; surfaced for finance visibility only.",
+  bus_gshp_grant_gbp:
+    "Pounds. Ofgem BUS grant for a ground-source heat pump. NOT YET WIRED — eligibility engine doesn't differentiate GSHP today; surfaced for finance visibility only.",
   bus_biomass_grant_gbp:
     "Pounds. Ofgem BUS grant for a biomass boiler replacement (rural + off-gas only).",
 };
@@ -188,10 +214,13 @@ export const SIZING_INPUT_UNITS: Record<keyof SizingInputs, string> = {
   energy_import_price_p_per_kwh: "p/kWh",
   energy_export_price_p_per_kwh: "p/kWh",
   self_consumption_rate_no_battery: "rate (0–1)",
+  self_consumption_rate_with_battery: "rate (0–1)",
   solar_install_price_per_kwp_gbp: "£/kWp",
   heat_pump_demand_kwh_per_m2: "kWh/m²/yr",
   heat_pump_w_per_m2: "W/m²",
   bus_ashp_grant_gbp: "£",
+  bus_air_to_air_grant_gbp: "£",
+  bus_gshp_grant_gbp: "£",
   bus_biomass_grant_gbp: "£",
 };
 
@@ -200,9 +229,12 @@ export const SIZING_INPUT_ORDER: (keyof SizingInputs)[] = [
   "energy_import_price_p_per_kwh",
   "energy_export_price_p_per_kwh",
   "self_consumption_rate_no_battery",
+  "self_consumption_rate_with_battery",
   "solar_install_price_per_kwp_gbp",
   "heat_pump_demand_kwh_per_m2",
   "heat_pump_w_per_m2",
   "bus_ashp_grant_gbp",
+  "bus_air_to_air_grant_gbp",
+  "bus_gshp_grant_gbp",
   "bus_biomass_grant_gbp",
 ];

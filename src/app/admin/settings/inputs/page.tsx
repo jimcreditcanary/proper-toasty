@@ -52,7 +52,7 @@ export default async function InputsPage() {
       portalName="Admin"
       pageTitle="Inputs"
       pageSubtitle="Cost rates (P&L) and sizing inputs (homeowner reports). Overrides persist to admin_settings; legacy env vars remain the last-resort fallback."
-      backLink={{ href: "/admin/performance", label: "Back to performance" }}
+      backLink={{ href: "/admin", label: "Back to admin" }}
     >
       <section className="space-y-3 mb-10">
         <header>

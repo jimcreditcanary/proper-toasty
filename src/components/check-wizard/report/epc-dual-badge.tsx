@@ -85,7 +85,15 @@ export function EpcRatingBar({
   const pot = (potentialBand?.toUpperCase().slice(0, 1) ?? null) as Band | null;
 
   return (
-    <div role="group" aria-label="Energy Performance Certificate ratings">
+    <div
+      role="group"
+      aria-label="Energy Performance Certificate ratings"
+      // h-full lets the chart fill the parent card so it lines up with
+      // the satellite image in the sibling card (grid items-stretch).
+      // Without this the band rows render at their fixed h-7 height,
+      // leaving a whitespace gap beneath G when the card stretches.
+      className="h-full flex flex-col"
+    >
       {/* Header row — Current / Potential column labels, aligned over
           the arrow track. Mirrors the certificate's column titles. */}
       <div className="flex items-center justify-end gap-2 text-xs font-medium text-slate-500 mb-2 pr-1">
@@ -93,7 +101,11 @@ export function EpcRatingBar({
         <span className="w-14 text-center">Potential</span>
       </div>
 
-      <div className="space-y-1">
+      {/* flex-1 + min-h on the band rows means each band evenly fills
+          whatever vertical space is available. Capped via a sensible
+          minimum so the chart still renders properly on standalone
+          mobile cards where the parent isn't stretched. */}
+      <div className="flex flex-col flex-1 gap-1">
         {BANDS.map((band) => (
           <BandRow
             key={band}
@@ -123,21 +135,25 @@ function BandRow({
   potentialRating: number | null;
 }) {
   const widthPct = `${Math.round(BAND_WIDTH[band] * 100)}%`;
+  // flex-1 makes the row share the parent's available height evenly
+  // across all 7 bands; min-h-7 preserves the original 28px floor on
+  // mobile / standalone use so the chart never collapses below
+  // readable size.
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-stretch gap-2 flex-1 min-h-7">
       {/* The coloured bar — flexes to its mapped width, letter on the
           right edge so the visual reads like a stepped pyramid. */}
       <div className="flex-1 flex">
         <div
-          className={`relative h-7 flex items-center justify-end pr-2 rounded-r-md ${BAND_COLOR[band]} ${BAND_TEXT[band]} font-bold text-sm`}
-          style={{ width: widthPct }}
+          className={`relative flex items-center justify-end pr-2 rounded-r-md ${BAND_COLOR[band]} ${BAND_TEXT[band]} font-bold text-sm w-[var(--epc-band-w)] h-full`}
+          style={{ ["--epc-band-w" as string]: widthPct }}
         >
           {band}
         </div>
       </div>
       {/* Arrow track — two fixed-width slots so the Current/Potential
           chips align across rows even when only one arrow lights up. */}
-      <div className="flex items-center gap-2 shrink-0">
+      <div className="flex items-stretch gap-2 shrink-0">
         <ArrowSlot band={band} rating={currentRating} active={isCurrent} />
         <ArrowSlot band={band} rating={potentialRating} active={isPotential} />
       </div>
@@ -155,12 +171,13 @@ function ArrowSlot({
   active: boolean;
 }) {
   if (!active) {
-    // Reserved empty slot keeps every row the same width.
-    return <div aria-hidden="true" className="w-14 h-7" />;
+    // Reserved empty slot keeps every row the same width. h-full
+    // because the parent BandRow is now flex-stretch.
+    return <div aria-hidden="true" className="w-14 h-full" />;
   }
   return (
     <div
-      className={`relative w-14 h-7 ${BAND_COLOR[band]} ${BAND_TEXT[band]} font-bold text-xs flex items-center justify-center rounded-r-md`}
+      className={`relative w-14 h-full ${BAND_COLOR[band]} ${BAND_TEXT[band]} font-bold text-xs flex items-center justify-center rounded-r-md`}
       title={`${rating ?? ""} ${band}`.trim()}
     >
       {/* Left-pointing notch — gives the chip the arrow shape that
@@ -183,7 +200,7 @@ function NotchOverlay({ bandClass }: { bandClass: string }) {
   return (
     <span
       aria-hidden="true"
-      className={`absolute -left-[7px] top-0 h-7 w-2 ${bandClass}`}
+      className={`absolute -left-[7px] top-0 h-full w-2 ${bandClass}`}
       style={{
         clipPath: "polygon(100% 0, 100% 100%, 0 50%)",
       }}

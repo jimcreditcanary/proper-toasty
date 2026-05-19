@@ -131,6 +131,7 @@ export default async function AiVisibilityDashboard() {
   return (
     <PortalShell
       portalName="Admin"
+      backLink={{ href: "/admin", label: "Back to admin" }}
       pageTitle="AI search visibility"
       pageSubtitle="Whether ChatGPT, Claude, Perplexity et al cite us when UK homeowners ask common heat-pump + solar questions."
     >

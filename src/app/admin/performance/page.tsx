@@ -84,6 +84,7 @@ export default async function PerformancePage({ searchParams }: PageProps) {
   return (
     <PortalShell
       portalName="Admin"
+      backLink={{ href: "/admin", label: "Back to admin" }}
       pageTitle="Performance"
       pageSubtitle={`${range.label} — volume, conversion, and approval health.`}
     >

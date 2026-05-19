@@ -75,6 +75,7 @@ export default async function InstallerRequestsPage({ searchParams }: PageProps)
   return (
     <PortalShell
       portalName="Admin"
+      backLink={{ href: "/admin", label: "Back to admin" }}
       pageTitle="Installer requests"
       pageSubtitle="MCS-certified installers asking to be added to the directory."
     >

@@ -103,6 +103,7 @@ export default async function ReportDrilldownPage({ params }: PageProps) {
   return (
     <PortalShell
       portalName="Admin"
+      backLink={{ href: "/admin", label: "Back to admin" }}
       pageTitle={`Report ${check.short_id}`}
       pageSubtitle={check.address_formatted ?? check.postcode ?? "(no address)"}
     >
