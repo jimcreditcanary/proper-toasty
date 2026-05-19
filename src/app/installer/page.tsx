@@ -225,7 +225,6 @@ export default async function InstallerHomePage() {
       checklist = buildChecklist({
         hasAvailability: (availabilityRes.count ?? 0) > 0,
         hasLogo: !!installerRes.data.logo_url,
-        creditBalance,
         preSurveyRequestCount: preSurveyRes.count ?? 0,
         proposalSentCount: proposalRes.count ?? 0,
       });
@@ -593,6 +592,12 @@ function OnboardingChecklist({
   checklist: ChecklistResult;
   companyName: string | null;
 }) {
+  // Only render rows for tasks the installer hasn't done yet — the
+  // crossed-out "completed" rows were visually noisy, especially for
+  // outreach-acquired installers who often arrive with several steps
+  // already auto-completed. The "+N done" pill below preserves the
+  // sense of progress without re-rendering the rows themselves.
+  const pendingItems = checklist.items.filter((it) => !it.done);
   return (
     <div className="rounded-2xl border border-coral/30 bg-coral-pale/40 p-5 sm:p-6 mb-6">
       <div className="flex items-start justify-between gap-3 flex-wrap mb-4">
@@ -613,12 +618,21 @@ function OnboardingChecklist({
           <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold bg-white border border-coral/20 text-coral-dark">
             {checklist.doneCount} of {checklist.totalCount} done
           </span>
+          {checklist.doneCount > 0 && (
+            <span
+              className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 border border-emerald-200 text-emerald-700"
+              title="Tasks you've already completed are hidden — this is the count."
+            >
+              + {checklist.doneCount} task
+              {checklist.doneCount === 1 ? "" : "s"} complete
+            </span>
+          )}
           <OnboardingDismissButton />
         </div>
       </div>
 
       <ul className="space-y-2">
-        {checklist.items.map((item) => (
+        {pendingItems.map((item) => (
           <li key={item.id}>
             <ChecklistRow item={item} />
           </li>
