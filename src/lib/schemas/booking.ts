@@ -13,6 +13,13 @@ import { z } from "zod";
 
 export const AvailabilityRequestSchema = z.object({
   installerId: z.number().int().positive(),
+  // Optional: homeowner-side lead id, passed in by the booking modal
+  // so the API route can fire the "no slots" side-channel email when
+  // the installer has zero bookable slots in the next 28 days.
+  // Optional because nothing else in the availability response
+  // depends on it — older clients that don't send it still get a
+  // correct slot list.
+  homeownerLeadId: z.string().uuid().nullable().optional(),
 });
 export type AvailabilityRequest = z.infer<typeof AvailabilityRequestSchema>;
 

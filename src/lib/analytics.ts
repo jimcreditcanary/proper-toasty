@@ -62,6 +62,28 @@ export interface EventMap {
     source: "ui" | "api";
   };
 
+  // "No slots" side-channel funnel — homeowner opened the booking
+  // modal for an installer with zero bookable slots in the next 28
+  // days. Three events stitch together send → click → contact:
+  //   1. _email_sent      — the API route emailed the installer
+  //   2. _email_clicked   — the installer hit the claim CTA
+  //   3. _lead_contacted  — the installer pressed "Reach out to
+  //                         homeowner" on the lead detail page
+  installer_no_slots_email_sent: {
+    installer_id: number;
+    /** True when the installer has user_id set (vs an unclaimed
+     *  directory row). Splits the funnel by template variant. */
+    is_registered: boolean;
+  };
+  installer_no_slots_email_clicked: {
+    installer_id: number;
+    is_registered: boolean;
+  };
+  installer_no_slots_lead_contacted: {
+    installer_id: number;
+    contact_method: "email" | "phone";
+  };
+
   // Homeowner lifecycle
   homeowner_check_completed: {
     /** Pre-survey-attributed completions vs organic */
