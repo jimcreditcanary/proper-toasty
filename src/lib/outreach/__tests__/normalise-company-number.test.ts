@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { normaliseCompanyNumber } from "../enrich-installer-names";
+import { normaliseCompanyNumber } from "../normalise-company-number";
 
 describe("normaliseCompanyNumber", () => {
   it("zero-pads a 7-digit E&W number to 8 chars", () => {
