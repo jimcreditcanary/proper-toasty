@@ -5,9 +5,13 @@
 //
 // Variable contract (the Phase 6 templates can use any of these):
 //
-//   {{first_name}}              — best guess; first word of company
-//                                 name. We don't collect a personal
-//                                 name at scrape time.
+//   {{first_name}}              — enriched personal first name when
+//                                 we have one (see m071 +
+//                                 scripts/outreach/enrich-installer-names.ts),
+//                                 otherwise null. Wrap usages in
+//                                 {{#first_name}}…{{/first_name}}
+//                                 so missing names drop cleanly via
+//                                 renderSubjectVars.
 //   {{company_name}}            — installers.company_name as-is
 //   {{town}}                    — best fallback chain: county →
 //                                 postcode area. We don't have a
@@ -48,14 +52,54 @@ export interface MergeVarInput {
   unsubscribeUrl: string;
 }
 
-/** Best-effort first name. We don't collect a personal name; first
- *  word of company name is the least-bad fallback. */
-export function bestEffortFirstName(companyName: string): string {
+/** Best-effort first name.
+ *
+ *  Prefers the enriched `installers.first_name` (populated by
+ *  scripts/outreach/enrich-installer-names.ts via email local-part
+ *  + Companies House director lookup; see migration 071).
+ *
+ *  Falls back to extracting the first word of the company name —
+ *  the same heuristic this function has always used. This often
+ *  produces awkward results ("Ealing" for "Ealing Solar Co.") but
+ *  the {{#first_name}}…{{/first_name}} conditional in
+ *  subject_variants protects subjects; body templates that want
+ *  protection should follow the same pattern.
+ *
+ *  Returns `null` (NOT the string "there") when even the company-
+ *  name extraction comes up empty — so the conditional can drop
+ *  personalisation cleanly.
+ *
+ *  Accepts either a full installer-ish object or, for backwards
+ *  compatibility, just the company name as a string.
+ */
+export function bestEffortFirstName(
+  installer:
+    | { first_name?: string | null; company_name: string }
+    | string
+    | null
+    | undefined,
+): string | null {
+  if (installer == null) return null;
+  // Legacy positional-string call signature.
+  if (typeof installer === "string") {
+    return companyNameFallback(installer);
+  }
+  if (installer.first_name && installer.first_name.trim()) {
+    return installer.first_name.trim();
+  }
+  return companyNameFallback(installer.company_name);
+}
+
+/** Strip UK company suffixes and take the first remaining word.
+ *  Returns null when nothing's left — the {{#first_name}}
+ *  conditional then drops the personalisation. */
+function companyNameFallback(companyName: string | null | undefined): string | null {
+  if (!companyName) return null;
   const first = companyName
     .replace(/\b(limited|ltd\.?|llp|plc|co\.?|company)\b/gi, "")
     .trim()
     .split(/\s+/)[0];
-  return first || "there";
+  return first || null;
 }
 
 /** Town fallback chain: county → postcode area → "your area". */
@@ -79,7 +123,10 @@ export function buildMergeVars(
   const bucket = primaryTechBucket(installer);
 
   return {
-    first_name: bestEffortFirstName(installer.company_name),
+    // `first_name` is intentionally nullable — the renderer drops
+    // the {{#first_name}}…{{/first_name}} conditional cleanly when
+    // null. Postmark TemplateModel accepts null values.
+    first_name: bestEffortFirstName(installer),
     company_name: installer.company_name,
     town: townFallback(installer),
     region: region ? regionDisplayName(region) : "your area",
