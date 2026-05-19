@@ -24,6 +24,7 @@ import {
   previewTier,
 } from "@/lib/outreach/tier-preview";
 import { buildMergeVars } from "@/lib/outreach/merge-vars";
+import { renderSubjectVars } from "@/lib/outreach/render-subject";
 import type { Database } from "@/types/database";
 
 export const runtime = "nodejs";
@@ -260,12 +261,22 @@ export async function GET(req: Request) {
       unsubscribeUrl,
     });
 
+    // Postmark only renders placeholders that exist in the template
+    // body — it does NOT recursively render placeholders that arrive
+    // INSIDE a substituted value. The Postmark template's subject is
+    // `{{subject}}` and the value we pass is e.g.
+    //   "Quick question, {{first_name}}"
+    // … which would emit literally with `{{first_name}}` visible to
+    // the recipient. Render the subject's own merge variables here
+    // so Postmark receives a fully-rendered string.
+    const renderedSubject = renderSubjectVars(subject, mergeVars);
+
     // ── Send ──
     const send = await sendOutreachEmail({
       to: installer.email,
       templateAlias,
       templateModel: mergeVars,
-      subject,
+      subject: renderedSubject,
       recipientId: r.id,
       campaignId: campaign.id,
       unsubscribeUrl,
