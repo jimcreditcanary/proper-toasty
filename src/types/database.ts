@@ -27,6 +27,10 @@ export interface Database {
             | null;
           auto_recharge_failed_at: string | null;
           auto_recharge_failure_reason: string | null;
+          // Migration 074 — installer auto-recharge rules
+          auto_recharge_enabled: boolean;
+          auto_recharge_threshold_credits: number | null;
+          stripe_default_payment_method_id: string | null;
           // Migration 049 — one-time installer starter-credit grant
           installer_starter_credits_granted_at: string | null;
           // Migration 056 — installer dismissed the onboarding card
@@ -50,6 +54,9 @@ export interface Database {
             | null;
           auto_recharge_failed_at?: string | null;
           auto_recharge_failure_reason?: string | null;
+          auto_recharge_enabled?: boolean;
+          auto_recharge_threshold_credits?: number | null;
+          stripe_default_payment_method_id?: string | null;
           installer_starter_credits_granted_at?: string | null;
           installer_onboarding_dismissed_at?: string | null;
           created_at?: string;
@@ -71,6 +78,9 @@ export interface Database {
             | null;
           auto_recharge_failed_at?: string | null;
           auto_recharge_failure_reason?: string | null;
+          auto_recharge_enabled?: boolean;
+          auto_recharge_threshold_credits?: number | null;
+          stripe_default_payment_method_id?: string | null;
           installer_starter_credits_granted_at?: string | null;
           installer_onboarding_dismissed_at?: string | null;
           created_at?: string;
