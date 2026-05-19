@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowRight, Sparkles } from "lucide-react";
 import type { OnboardingState } from "@/lib/outreach/onboarding";
 import { tierLabel, type OnboardingStep } from "@/lib/outreach/tier-preview";
+import { CREDIT_PACKS } from "@/lib/billing/credit-packs";
 
 // Dashboard banner that nudges outreach-acquired installers to
 // finish the remaining onboarding steps and claim the rest of
@@ -59,6 +60,26 @@ export function computeRemainingSteps(state: OnboardingState): StepDescriptor[] 
   return remaining;
 }
 
+/**
+ * Translate a credit count into a headline £ value, rounded to the
+ * nearest £10. We use the AVERAGE per-credit rate across all four
+ * packs in CREDIT_PACKS — the "midpoint" framing is the most honest
+ * thing to show in a nudge banner:
+ *   - using the cheapest rate (Volume pack) under-sells the value
+ *   - using the most expensive rate (Starter pack) over-sells it
+ *   - the average lands somewhere a typical installer will recognise
+ * If the credit-pack lineup changes, this number moves with it.
+ * Rounding to £10 keeps the headline from reading like fake-precise
+ * marketing copy (e.g. "£412.85").
+ */
+export function creditsToHeadlineGbp(credits: number): number {
+  const avgRate =
+    CREDIT_PACKS.reduce((sum, p) => sum + p.perCreditGbp, 0) /
+    CREDIT_PACKS.length;
+  const raw = credits * avgRate;
+  return Math.round(raw / 10) * 10;
+}
+
 export function OutreachOnboardingBanner({
   state,
 }: {
@@ -72,6 +93,7 @@ export function OutreachOnboardingBanner({
   if (remaining.length === 0 || !state.tier) return null;
 
   const totalRemaining = remaining.reduce((s, r) => s + r.credits, 0);
+  const headlineGbp = creditsToHeadlineGbp(totalRemaining);
 
   return (
     <section className="rounded-2xl border border-coral/40 bg-white shadow-sm p-5 sm:p-6 mb-6">
@@ -84,7 +106,8 @@ export function OutreachOnboardingBanner({
             {tierLabel(state.tier)} tier · +{totalRemaining} credits left
           </p>
           <h2 className="text-lg sm:text-xl font-bold text-navy leading-tight mt-1">
-            Earn +{totalRemaining} more credits
+            Earn +{totalRemaining} more credits, worth roughly £
+            {headlineGbp.toLocaleString("en-GB")}
           </h2>
           <p className="text-xs text-slate-600 mt-1.5 leading-relaxed">
             {describeRemaining(remaining)} Takes about 5 minutes.
