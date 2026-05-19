@@ -1922,6 +1922,7 @@ export interface Database {
           email: string;
           company_name: string;
           postcode: string | null;
+          first_name: string | null;
           quality_score: number;
         };
         Relationships: [];

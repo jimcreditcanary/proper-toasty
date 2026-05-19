@@ -321,6 +321,21 @@ If all green: `UPDATE outreach_campaigns SET daily_send_limit = 100;`
 
 If anything red: hold at 50/day, investigate, repeat at day 60.
 
+Also at day 30: revisit the 441 installers with `first_name IS NULL`
+(role-account email + no Companies House match — see PRs #77/#80/#81).
+They are still being sent to, but with the bare "Quick question"
+subject rather than "Quick question, James". Options for enrichment:
+- LinkedIn lookup against company_name (the principal contact is
+  usually the founder)
+- MCS directory scrape for the named principal contact
+- Hand-enrich the top-quality unnamed ones (sort by quality_score,
+  cherry-pick the top 50–100)
+
+`select-batch` deprioritises these rows, so they only start flowing
+once the named pool is exhausted within each (region, tech_bucket)
+cohort — the named cohort hits the wire first while we're still in
+warmup.
+
 ---
 
 ## When something goes wrong

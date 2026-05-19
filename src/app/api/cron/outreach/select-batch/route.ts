@@ -5,6 +5,9 @@
 //   - never blast >5 from the same postcode outcode in one day
 //   - peak-hour weighted distribution across the send window
 //   - quality-ordered selection (Bayesian rating × ln(reviews))
+//   - named installers (first_name not null) flow first, unnamed
+//     fill the tail (warmup heuristic — the personalised subject
+//     opens better than the bare "Quick question" fallback)
 //
 // Hard idempotent — running twice on the same day enqueues at most
 // `daily_send_limit` recipients (the UNIQUE constraint +
@@ -15,6 +18,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { mintClaimToken } from "@/lib/outreach/claim-token";
+import { pickBatch, type PickInput } from "@/lib/outreach/pick-batch";
 import {
   distributeSendTimes,
   isWeekdayInTimezone,
@@ -27,20 +31,7 @@ export const dynamic = "force-dynamic";
 
 type CampaignRow = Database["public"]["Tables"]["outreach_campaigns"]["Row"];
 
-interface EligibilityRow {
-  installer_id: number;
-  email: string;
-  company_name: string;
-  postcode: string | null;
-  quality_score: number;
-}
-
-/** "SW1A 1AA" → "SW1A"; null when postcode missing/malformed. */
-function outcode(postcode: string | null): string | null {
-  if (!postcode) return null;
-  const match = /^([A-Z]{1,2}\d[A-Z\d]?)/i.exec(postcode.trim());
-  return match ? match[1].toUpperCase() : null;
-}
+type EligibilityRow = PickInput;
 
 function requireCronAuth(req: Request): NextResponse | null {
   const expected = process.env.CRON_SECRET;
@@ -118,11 +109,14 @@ export async function GET(req: Request) {
   // ── 4. Pull eligibility ordered by quality, with headroom ──
   // Over-fetch ×4 so the geo-distribution filter has room to pick
   // a balanced set even when one outcode dominates the top quality
-  // rankings.
+  // rankings. We fetch named + unnamed together (one query) and let
+  // pickBatch partition by first_name; cheaper than two round-trips.
   const overFetch = remaining * 4;
   const { data: eligible, error: eligErr } = await admin
     .from("outreach_eligibility")
-    .select("installer_id, email, company_name, postcode, quality_score")
+    .select(
+      "installer_id, email, company_name, postcode, first_name, quality_score",
+    )
     .order("quality_score", { ascending: false })
     .limit(overFetch);
   if (eligErr) {
@@ -130,21 +124,11 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: eligErr.message }, { status: 500 });
   }
 
-  // ── 5. Geographic distribution: max 5 per outcode in the chosen
-  // set. Walk in quality order; drop installers from an outcode
-  // that's already hit 5. Stop when we have `remaining` picked.
-  const picked: EligibilityRow[] = [];
-  const outcodeCount = new Map<string, number>();
-  for (const row of (eligible ?? []) as unknown as EligibilityRow[]) {
-    if (picked.length >= remaining) break;
-    const oc = outcode(row.postcode);
-    if (oc) {
-      const c = outcodeCount.get(oc) ?? 0;
-      if (c >= 5) continue;
-      outcodeCount.set(oc, c + 1);
-    }
-    picked.push(row);
-  }
+  // ── 5. Pick the batch: named-first, with a per-outcode cap of 5.
+  const picked = pickBatch(
+    (eligible ?? []) as unknown as EligibilityRow[],
+    remaining,
+  );
 
   if (picked.length === 0) {
     return NextResponse.json({
