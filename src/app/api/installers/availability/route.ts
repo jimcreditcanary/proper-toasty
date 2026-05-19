@@ -9,6 +9,7 @@ import {
   type AvailabilityBlock,
   type ExistingMeeting,
 } from "@/lib/booking/slots";
+import { maybeFireNoSlotsOutreach } from "@/lib/booking/no-slots-outreach";
 
 // POST /api/installers/availability
 //
@@ -60,7 +61,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const { installerId } = parsed.data;
+  const { installerId, homeownerLeadId } = parsed.data;
   const admin = createAdminClient();
 
   // Fetch installer settings + availability + existing meetings in
@@ -133,6 +134,34 @@ export async function POST(req: Request) {
     travelBufferMin,
     minLeadMinutes: MIN_LEAD_MINUTES,
   });
+
+  // Side-channel: empty diary + identified homeowner-lead → email
+  // the installer about the warm lead they would otherwise miss.
+  // Idempotent (unique on installer_id + lead_id), fire-and-forget,
+  // never blocks the response. See src/lib/booking/no-slots-outreach.
+  if (slots.length === 0 && homeownerLeadId) {
+    const origin =
+      req.headers.get("origin") ??
+      (() => {
+        // Vercel sets x-forwarded-host + x-forwarded-proto; cobble
+        // together a URL when `origin` isn't sent (server-side fetch
+        // / older clients).
+        const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host");
+        const proto = req.headers.get("x-forwarded-proto") ?? "https";
+        return host ? `${proto}://${host}` : "https://propertoasty.com";
+      })();
+    // Don't await — keeps the booking-modal critical path snappy.
+    // Errors are logged inside the helper; nothing the caller can
+    // do about a side-channel failure anyway.
+    void maybeFireNoSlotsOutreach({
+      admin,
+      installerId,
+      homeownerLeadId,
+      origin,
+    }).catch((err) => {
+      console.warn("[availability] no-slots outreach threw", err);
+    });
+  }
 
   return NextResponse.json<AvailabilityResponse>({ ok: true, slots });
 }

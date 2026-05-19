@@ -29,6 +29,11 @@ interface Props {
    *  auth callback can call outreach_claim_founder_offer once the
    *  email is confirmed + the installer is bound. */
   outreachToken?: string | null;
+  /** Where to land the user once auth + claim completes. Threaded
+   *  through emailRedirectTo's `?next=` so the auth callback honours
+   *  it. UUID-validated upstream — safe to interpolate. NULL = the
+   *  standard role-based landing. */
+  postClaimRedirect?: string | null;
 }
 
 // Helper — case-insensitive trimmed compare for email-match.
@@ -45,6 +50,7 @@ export function ClaimSignupForm({
   installerName,
   defaultEmail,
   outreachToken,
+  postClaimRedirect,
 }: Props) {
   const router = useRouter();
   const supabase = createClient();
@@ -94,6 +100,14 @@ export function ClaimSignupForm({
       return;
     }
 
+    // Build the auth-callback URL. When the page was opened with a
+    // `lead` query param (no-slots flow) the callback's `?next=`
+    // honour-list redirects us to the lead claim page after the
+    // standard role-based bind completes.
+    const callbackUrl = postClaimRedirect
+      ? `${window.location.origin}/auth/callback?next=${encodeURIComponent(postClaimRedirect)}`
+      : `${window.location.origin}/auth/callback`;
+
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -106,7 +120,7 @@ export function ClaimSignupForm({
           claim_installer_id: installerId,
           ...(outreachToken ? { outreach_token: outreachToken } : {}),
         },
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        emailRedirectTo: callbackUrl,
       },
     });
 

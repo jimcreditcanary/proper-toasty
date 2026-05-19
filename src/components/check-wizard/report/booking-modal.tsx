@@ -96,7 +96,14 @@ export function BookingModal({
         const res = await fetch("/api/installers/availability", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ installerId: installer.id }),
+          body: JSON.stringify({
+            installerId: installer.id,
+            // Pass the homeowner lead so the API can fire the
+            // "no slots → email installer" side-channel idempotently
+            // when the diary's empty for the next 28 days. The route
+            // ignores it for the slot calculation itself.
+            homeownerLeadId: defaults.homeownerLeadId ?? null,
+          }),
         });
         const json = (await res.json()) as AvailabilityResponse;
         if (cancelled) return;
@@ -121,7 +128,7 @@ export function BookingModal({
     return () => {
       cancelled = true;
     };
-  }, [installer.id]);
+  }, [installer.id, defaults.homeownerLeadId]);
 
   // Group slots by day for the picker.
   const slotsByDay = useMemo(() => {

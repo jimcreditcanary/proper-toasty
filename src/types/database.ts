@@ -990,6 +990,13 @@ export interface Database {
           // Migration 039 — F2 installer claim binding
           user_id: string | null;
           claimed_at: string | null;
+          // Migration 071 — first-name enrichment for outreach
+          first_name: string | null;
+          first_name_source:
+            | "email_local_part"
+            | "companies_house_director"
+            | "manual"
+            | null;
           created_at: string;
           updated_at: string;
         };
@@ -1072,6 +1079,13 @@ export interface Database {
           // Migration 039 — F2 installer claim binding
           user_id?: string | null;
           claimed_at?: string | null;
+          // Migration 071 — first-name enrichment for outreach
+          first_name?: string | null;
+          first_name_source?:
+            | "email_local_part"
+            | "companies_house_director"
+            | "manual"
+            | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -1201,6 +1215,31 @@ export interface Database {
           updated_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["installer_leads"]["Insert"]>;
+        Relationships: [];
+      };
+      // Migration 071 — "no slots" installer outreach + claim flow.
+      installer_lead_outreach: {
+        Row: {
+          id: string;
+          installer_id: number;
+          lead_id: string;
+          email_sent_at: string;
+          contacted_at: string | null;
+          contact_method: "email" | "phone" | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          installer_id: number;
+          lead_id: string;
+          email_sent_at?: string;
+          contacted_at?: string | null;
+          contact_method?: "email" | "phone" | null;
+          created_at?: string;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["installer_lead_outreach"]["Insert"]
+        >;
         Relationships: [];
       };
       report_tokens: {
