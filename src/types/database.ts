@@ -1938,6 +1938,7 @@ export interface Database {
           company_name: string;
           postcode: string | null;
           quality_score: number;
+          first_name: string | null;
         };
         Relationships: [];
       };
