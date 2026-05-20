@@ -82,20 +82,37 @@ export async function GET(req: Request) {
     });
   }
 
-  // ── 3. Today's send count vs daily limit ──
+  // ── 3. Today's budget consumption vs daily limit ──
   // "Today" = midnight UTC for simplicity (the window-local "today"
   // straddles UTC midnight in winter, but the limit is a daily-rate
   // ceiling not a window-local accounting; rough UTC is fine).
   const startOfTodayUtc = new Date(now);
   startOfTodayUtc.setUTCHours(0, 0, 0, 0);
 
-  const { count: alreadyEnqueued } = await admin
+  // Count recipients that consume today's send budget. This is NOT
+  // "enrolled today" — that was the original bug: recipients
+  // hand-seeded the night before (created_at = yesterday) didn't
+  // count, so the cron topped up on top of them and the daily limit
+  // overshot (Day-1 launch: seeded 5 at 21:43, cron added more at
+  // 08:00, 7 went out against a limit of 5).
+  //
+  // A recipient consumes budget when it is:
+  //   - still pending send (state queued/scheduled) — it WILL be
+  //     sent by send-queue and counts against the cap regardless of
+  //     when it was enrolled, OR
+  //   - already sent today (last_sent_at >= midnight UTC).
+  //
+  // Terminal rows from prior days (unsubscribed/completed/bounced/
+  // failed) and rows sent on previous days don't count.
+  const { count: consumingBudget } = await admin
     .from("outreach_recipients")
     .select("id", { count: "exact", head: true })
     .eq("campaign_id", campaign.id)
-    .gte("created_at", startOfTodayUtc.toISOString());
+    .or(
+      `state.in.(queued,scheduled),last_sent_at.gte.${startOfTodayUtc.toISOString()}`,
+    );
 
-  const enqueuedSoFar = alreadyEnqueued ?? 0;
+  const enqueuedSoFar = consumingBudget ?? 0;
   const remaining = campaign.daily_send_limit - enqueuedSoFar;
   if (remaining <= 0) {
     return NextResponse.json({
