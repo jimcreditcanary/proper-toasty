@@ -24,6 +24,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { CampaignControls } from "./pause-button";
+import { DailyLimitEditor } from "./daily-limit-editor";
 import { SuppressionForm } from "./suppression-form";
 import {
   regionDisplayName,
@@ -211,9 +212,12 @@ function CampaignHeader({
               {statusIcon[campaign.status]}
               {campaign.status}
             </span>
-            <span className="text-[11px] text-slate-500">
-              {totalRecipients} recipients enrolled · daily limit{" "}
-              {campaign.daily_send_limit}
+            <span className="text-[11px] text-slate-500 inline-flex items-center gap-1">
+              {totalRecipients} recipients enrolled ·{" "}
+              <DailyLimitEditor
+                campaignId={campaign.id}
+                current={campaign.daily_send_limit}
+              />
             </span>
           </div>
           <h2 className="text-lg sm:text-xl font-bold text-navy leading-tight">
