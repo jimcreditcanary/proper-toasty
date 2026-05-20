@@ -4,24 +4,57 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { stripe } from "@/lib/stripe";
 import { findPack } from "@/lib/billing/credit-packs";
+import { DEFAULT_AUTO_RECHARGE_THRESHOLD } from "@/lib/billing/auto-recharge";
 
 // /api/installer/credits/auto-recharge
 //
-//   GET   — return the user's current settings + whether they have
-//           a saved card, so the UI can decide whether to offer the
-//           toggle vs. "make a manual purchase first".
+// GET — return the user's current settings + whether they have a
+//       saved card. Powers both the /installer/credits inline
+//       controls and the dedicated /installer/billing/auto-recharge
+//       settings page.
 //
-//   POST  — { packId } turns auto top-up on, { packId: null } turns
-//           it off. The user has to have a saved card on their
-//           Stripe Customer; we re-check at this layer so we don't
-//           accidentally enable for someone whose card was deleted.
+// POST — write settings. The body shape is:
+//
+//          { mode: "auto",
+//            packId,            // CREDIT_PACKS.id
+//            thresholdCredits } // positive integer
+//
+//          { mode: "manual" }   // save card, never auto-charge
+//
+//          { mode: "off" }      // disable; keeps the saved card
+//                               // and prior pack/threshold so
+//                               // re-enabling is one click
+//
+// Enabling auto mode requires a saved card on the Stripe Customer.
+// We re-check at this layer so we can't accidentally enable for
+// someone whose card got deleted.
 
 export const runtime = "nodejs";
 
+const PackIdSchema = z.enum(["starter", "growth", "scale", "volume"]);
+
+const PostSchema = z.discriminatedUnion("mode", [
+  z.object({
+    mode: z.literal("auto"),
+    packId: PackIdSchema,
+    thresholdCredits: z
+      .number()
+      .int()
+      .min(1, "Threshold must be a positive integer"),
+  }),
+  z.object({ mode: z.literal("manual") }),
+  z.object({ mode: z.literal("off") }),
+]);
+
 interface SettingsResponse {
   ok: boolean;
+  // Effective mode reflecting the persisted state.
+  mode?: "auto" | "manual" | "off";
   enabled?: boolean;
   packId?: "starter" | "growth" | "scale" | "volume" | null;
+  thresholdCredits?: number | null;
+  /** What the trigger will actually use (column value or default). */
+  effectiveThreshold?: number;
   hasSavedCard?: boolean;
   cardBrand?: string | null;
   cardLast4?: string | null;
@@ -29,12 +62,6 @@ interface SettingsResponse {
   failureReason?: string | null;
   error?: string;
 }
-
-const PostSchema = z.object({
-  packId: z
-    .enum(["starter", "growth", "scale", "volume"])
-    .nullable(),
-});
 
 export async function GET(): Promise<NextResponse<SettingsResponse>> {
   const supabase = await createClient();
@@ -52,17 +79,19 @@ export async function GET(): Promise<NextResponse<SettingsResponse>> {
   const { data: profile } = await admin
     .from("users")
     .select(
-      "stripe_customer_id, auto_recharge_pack_id, auto_recharge_failed_at, auto_recharge_failure_reason",
+      "stripe_customer_id, auto_recharge_enabled, auto_recharge_pack_id, auto_recharge_threshold_credits, auto_recharge_failed_at, auto_recharge_failure_reason",
     )
     .eq("id", user.id)
     .maybeSingle<{
       stripe_customer_id: string | null;
+      auto_recharge_enabled: boolean | null;
       auto_recharge_pack_id:
         | "starter"
         | "growth"
         | "scale"
         | "volume"
         | null;
+      auto_recharge_threshold_credits: number | null;
       auto_recharge_failed_at: string | null;
       auto_recharge_failure_reason: string | null;
     }>();
@@ -92,10 +121,22 @@ export async function GET(): Promise<NextResponse<SettingsResponse>> {
     }
   }
 
+  const enabled = !!profile?.auto_recharge_enabled;
+  const mode: "auto" | "manual" | "off" = enabled
+    ? "auto"
+    : hasSavedCard
+      ? "manual"
+      : "off";
+
   return NextResponse.json<SettingsResponse>({
     ok: true,
-    enabled: !!profile?.auto_recharge_pack_id,
+    mode,
+    enabled,
     packId: profile?.auto_recharge_pack_id ?? null,
+    thresholdCredits: profile?.auto_recharge_threshold_credits ?? null,
+    effectiveThreshold:
+      profile?.auto_recharge_threshold_credits ??
+      DEFAULT_AUTO_RECHARGE_THRESHOLD,
     hasSavedCard,
     cardBrand,
     cardLast4,
@@ -132,13 +173,11 @@ export async function POST(req: Request): Promise<NextResponse<SettingsResponse>
       { status: 400 },
     );
   }
-  const packId = parsed.data.packId;
-
+  const input = parsed.data;
   const admin = createAdminClient();
 
-  if (packId !== null) {
-    // Enabling — must have a Customer + saved card + valid pack.
-    const pack = findPack(packId);
+  if (input.mode === "auto") {
+    const pack = findPack(input.packId);
     if (!pack) {
       return NextResponse.json<SettingsResponse>(
         { ok: false, error: "Unknown pack" },
@@ -154,7 +193,7 @@ export async function POST(req: Request): Promise<NextResponse<SettingsResponse>
       return NextResponse.json<SettingsResponse>(
         {
           ok: false,
-          error: "Buy a pack manually first so we have a saved card to charge.",
+          error: "Save a card first — auto-recharge needs somewhere to charge.",
         },
         { status: 400 },
       );
@@ -169,7 +208,7 @@ export async function POST(req: Request): Promise<NextResponse<SettingsResponse>
         return NextResponse.json<SettingsResponse>(
           {
             ok: false,
-            error: "No card on file. Buy a pack manually first.",
+            error: "No card on file. Save a card first.",
           },
           { status: 400 },
         );
@@ -184,34 +223,70 @@ export async function POST(req: Request): Promise<NextResponse<SettingsResponse>
         { status: 500 },
       );
     }
+
+    const { error: updateErr } = await admin
+      .from("users")
+      .update({
+        auto_recharge_enabled: true,
+        auto_recharge_pack_id: input.packId,
+        auto_recharge_threshold_credits: input.thresholdCredits,
+        auto_recharge_failed_at: null,
+        auto_recharge_failure_reason: null,
+      })
+      .eq("id", user.id);
+    if (updateErr) {
+      console.error("[auto-recharge/settings] update failed", updateErr);
+      return NextResponse.json<SettingsResponse>(
+        { ok: false, error: "Couldn't save settings" },
+        { status: 500 },
+      );
+    }
+
+    console.log("[auto-recharge/settings] enabled", {
+      userId: user.id,
+      packId: input.packId,
+      thresholdCredits: input.thresholdCredits,
+    });
+
+    return NextResponse.json<SettingsResponse>({
+      ok: true,
+      mode: "auto",
+      enabled: true,
+      packId: input.packId,
+      thresholdCredits: input.thresholdCredits,
+      effectiveThreshold: input.thresholdCredits,
+    });
   }
 
-  // Update the row. Toggling on or off also clears the failure flag —
-  // this gives the user a way to dismiss a stale "failed" banner.
+  // mode = manual or off — both just disable auto-recharge.
+  // "manual" is a UX label meaning "I want a card saved but no auto
+  // charges"; the schema doesn't distinguish it from "off" because
+  // whether a card is saved is determined by the Stripe Customer
+  // and the SetupIntent flow, not this column.
   const { error: updateErr } = await admin
     .from("users")
     .update({
-      auto_recharge_pack_id: packId,
+      auto_recharge_enabled: false,
       auto_recharge_failed_at: null,
       auto_recharge_failure_reason: null,
     })
     .eq("id", user.id);
   if (updateErr) {
-    console.error("[auto-recharge/settings] update failed", updateErr);
+    console.error("[auto-recharge/settings] disable failed", updateErr);
     return NextResponse.json<SettingsResponse>(
       { ok: false, error: "Couldn't save settings" },
       { status: 500 },
     );
   }
 
-  console.log("[auto-recharge/settings] updated", {
+  console.log("[auto-recharge/settings] disabled", {
     userId: user.id,
-    packId,
+    requestedMode: input.mode,
   });
 
   return NextResponse.json<SettingsResponse>({
     ok: true,
-    enabled: packId !== null,
-    packId,
+    mode: input.mode,
+    enabled: false,
   });
 }
