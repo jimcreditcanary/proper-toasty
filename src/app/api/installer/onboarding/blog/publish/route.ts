@@ -12,6 +12,8 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { grantOnboardingStep } from "@/lib/outreach/onboarding";
+import { COVER_IMAGE_THEMES } from "@/lib/outreach/blog-draft";
+import { coverImageForTheme } from "@/lib/outreach/cover-image-library";
 
 type AdminClient = ReturnType<typeof createAdminClient>;
 
@@ -23,6 +25,10 @@ const RequestSchema = z.object({
   slug: z.string().min(3).max(80).regex(/^[a-z0-9-]+$/),
   excerpt: z.string().min(20).max(300),
   markdown: z.string().min(200).max(20000),
+  // Optional — when missing or off-enum, coverImageForTheme falls
+  // back to uk_home_exterior. Lets older drafts (saved before #4
+  // shipped) keep publishing without forcing a re-draft.
+  coverImageTheme: z.enum(COVER_IMAGE_THEMES).optional().nullable(),
 });
 
 export async function POST(req: Request) {
@@ -71,6 +77,12 @@ export async function POST(req: Request) {
   // collisions raise 23505 — catch + retry with a numeric suffix.
   const slug = await findFreeSlug(admin, parsed.data.slug);
 
+  // Resolve the cover image now (publish-time, not render-time) so
+  // OG cards + the post hero share one stable URL the moment the
+  // post lands. coverImageForTheme is defensive against null /
+  // unknown themes.
+  const cover = coverImageForTheme(parsed.data.coverImageTheme ?? null);
+
   // blog_posts isn't in the typed Database schema (admin-only
   // surface). Drop to untyped for the insert — matches the
   // existing pattern in /api/admin/blog/route.ts.
@@ -84,6 +96,7 @@ export async function POST(req: Request) {
       content: parsed.data.markdown,
       category: "Installer Voices",
       author: installer.company_name,
+      cover_image: cover.url,
       published: true,
       published_at: new Date().toISOString(),
       installer_id: installer.id,

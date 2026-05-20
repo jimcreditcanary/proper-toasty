@@ -6,7 +6,7 @@
 // back + edit later).
 //
 // Body: { answers: string[], force_redraft?: boolean }
-// Returns: { ok: true, title, slug, excerpt, markdown }
+// Returns: { ok: true, title, slug, excerpt, markdown, coverImageTheme }
 //
 // Stamps questions_completed_at + persists answers regardless of
 // drafting success — the questions step itself is "done" the
@@ -163,5 +163,6 @@ export async function POST(req: Request) {
     slug: draft.slug,
     excerpt: draft.excerpt,
     markdown: draft.markdown,
+    coverImageTheme: draft.coverImageTheme,
   });
 }
