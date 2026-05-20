@@ -81,12 +81,20 @@ export async function GET(req: Request): Promise<NextResponse> {
 
   // Idempotent — re-clicking the link with the same pack is fine.
   if (profile.auto_recharge_pack_id === packId) {
+    // Make sure the enabled flag is also true. Pre-migration-074
+    // rows might have a pack set but enabled=false until this
+    // first re-click flips it.
+    await admin
+      .from("users")
+      .update({ auto_recharge_enabled: true })
+      .eq("id", userId);
     return NextResponse.redirect(landing("ok", url.origin), 303);
   }
 
   const { error: updateErr } = await admin
     .from("users")
     .update({
+      auto_recharge_enabled: true,
       auto_recharge_pack_id: packId,
       auto_recharge_failed_at: null,
       auto_recharge_failure_reason: null,

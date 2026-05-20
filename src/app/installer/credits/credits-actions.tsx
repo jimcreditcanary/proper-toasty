@@ -32,6 +32,8 @@ import {
 interface SettingsState {
   enabled: boolean;
   packId: "starter" | "growth" | "scale" | "volume" | null;
+  thresholdCredits: number | null;
+  effectiveThreshold: number;
   hasSavedCard: boolean;
   cardBrand: string | null;
   cardLast4: string | null;
@@ -43,6 +45,8 @@ interface SettingsResponse {
   ok: boolean;
   enabled?: boolean;
   packId?: "starter" | "growth" | "scale" | "volume" | null;
+  thresholdCredits?: number | null;
+  effectiveThreshold?: number;
   hasSavedCard?: boolean;
   cardBrand?: string | null;
   cardLast4?: string | null;
@@ -75,6 +79,8 @@ export function CreditsActions({ balance, enableFlash }: Props) {
       setSettings({
         enabled: !!json.enabled,
         packId: json.packId ?? null,
+        thresholdCredits: json.thresholdCredits ?? null,
+        effectiveThreshold: json.effectiveThreshold ?? 10,
         hasSavedCard: !!json.hasSavedCard,
         cardBrand: json.cardBrand ?? null,
         cardLast4: json.cardLast4 ?? null,
@@ -268,9 +274,9 @@ function renderStatusLine(settings: SettingsState): string {
       ? CREDIT_PACKS.find((p) => p.id === settings.packId)
       : null;
     if (pack) {
-      return `Adds ${pack.credits} credits (${pack.label}) on ${cardLine} when you drop to 10 credits or below.`;
+      return `When your balance drops below ${settings.effectiveThreshold} credits, we'll charge ${cardLine} ${formatGbp(pack.pricePence)} for ${pack.credits} more (${pack.label}).`;
     }
-    return `Charges ${cardLine} when you hit 10 credits.`;
+    return `Charges ${cardLine} when you drop below ${settings.effectiveThreshold} credits.`;
   }
   return `Turn on to keep your balance topped up automatically with ${cardLine}.`;
 }
@@ -298,10 +304,21 @@ function AutoControls({
     setSaving(true);
     setError(null);
     try {
+      const body =
+        packId === null
+          ? { mode: "off" as const }
+          : {
+              mode: "auto" as const,
+              packId,
+              // Preserve the user's existing threshold; the inline
+              // widget doesn't expose threshold tuning — that lives
+              // on /installer/billing/auto-recharge.
+              thresholdCredits: settings.thresholdCredits ?? 10,
+            };
       const res = await fetch("/api/installer/credits/auto-recharge", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ packId }),
+        body: JSON.stringify(body),
       });
       const json = (await res.json()) as SettingsResponse;
       if (!json.ok) {
@@ -402,6 +419,15 @@ function AutoControls({
           time. Turn off any time.
         </p>
       )}
+
+      <p className="mt-3 text-[11px] text-slate-500 leading-relaxed">
+        <a
+          href="/installer/billing/auto-recharge"
+          className="text-coral hover:text-coral-dark underline"
+        >
+          Fine-tune threshold & manage card →
+        </a>
+      </p>
     </div>
   );
 }

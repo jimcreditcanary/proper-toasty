@@ -29,10 +29,16 @@ import type { Database } from "@/types/database";
 
 type AdminClient = SupabaseClient<Database>;
 
-// Threshold: balance ≤ this triggers the recharge. Hard-coded for
-// simplicity — F1 spec calls for 10. Bump to a column on users if
-// we ever want per-installer thresholds.
-export const AUTO_RECHARGE_THRESHOLD = 10;
+// Threshold: balance < this triggers the recharge. The default is
+// kept as a fallback for users whose
+// auto_recharge_threshold_credits column is NULL (migration 042
+// users predate the configurable threshold). UI default is 10.
+export const DEFAULT_AUTO_RECHARGE_THRESHOLD = 10;
+
+// Legacy export name — kept so existing imports compile. Prefer
+// reading the per-user threshold off users.auto_recharge_threshold_credits
+// (with this constant as the fallback) in new code.
+export const AUTO_RECHARGE_THRESHOLD = DEFAULT_AUTO_RECHARGE_THRESHOLD;
 
 interface MaybeRunArgs {
   admin: AdminClient;
@@ -42,10 +48,61 @@ interface MaybeRunArgs {
   balanceAfter: number;
 }
 
+// Pure-function threshold check. Exported so unit tests can pin
+// the rule down independently of all the Stripe wiring.
+//
+//   balance < threshold  → fire (matches Twilio/AWS auto-recharge
+//                          semantics: trigger ON crossing, not AT
+//                          the threshold).
+//
+// We intentionally use "<" rather than "<=" so a balance of exactly
+// 10 with a threshold of 10 does NOT trigger — installers who set
+// their threshold to 10 expect "drop below 10" (i.e. 9), not "hit
+// 10". The plain-English summary in the UI says "drops below X".
+export function shouldRunAutoRecharge(args: {
+  enabled: boolean;
+  balanceAfter: number;
+  threshold: number | null;
+}): boolean {
+  if (!args.enabled) return false;
+  const t = args.threshold ?? DEFAULT_AUTO_RECHARGE_THRESHOLD;
+  return args.balanceAfter < t;
+}
+
+// Pure-function builder for the Stripe PaymentIntent payload. Pulled
+// out so tests can assert on the exact wire shape without mocking
+// the whole Stripe SDK.
+export function buildAutoRechargePayload(args: {
+  customerId: string;
+  paymentMethodId: string;
+  pack: CreditPack;
+  userId: string;
+  installerId: number | null;
+  attemptId: string;
+}): Stripe.PaymentIntentCreateParams {
+  return {
+    amount: args.pack.pricePence,
+    currency: "gbp",
+    customer: args.customerId,
+    payment_method: args.paymentMethodId,
+    off_session: true,
+    confirm: true,
+    automatic_payment_methods: { enabled: true, allow_redirects: "never" },
+    metadata: {
+      purpose: "installer_credits_auto",
+      user_id: args.userId,
+      pack_id: args.pack.id,
+      pack_credits: String(args.pack.credits),
+      installer_id: args.installerId ? String(args.installerId) : "",
+      attempt_id: args.attemptId,
+    },
+    description: `Propertoasty auto top-up — ${args.pack.credits} credits (${args.pack.label})`,
+  };
+}
+
 // Fire-and-forget entry point. Safe to await or not.
 export async function maybeRunAutoRecharge(args: MaybeRunArgs): Promise<void> {
   try {
-    if (args.balanceAfter > AUTO_RECHARGE_THRESHOLD) return;
     await runAutoRecharge(args);
   } catch (e) {
     console.error(
@@ -66,27 +123,44 @@ async function runAutoRecharge({
   const { data: profile, error: profileErr } = await admin
     .from("users")
     .select(
-      "id, email, stripe_customer_id, auto_recharge_pack_id, auto_recharge_failed_at",
+      "id, email, stripe_customer_id, stripe_default_payment_method_id, auto_recharge_pack_id, auto_recharge_enabled, auto_recharge_threshold_credits, auto_recharge_failed_at",
     )
     .eq("id", userId)
     .maybeSingle<{
       id: string;
       email: string;
       stripe_customer_id: string | null;
+      stripe_default_payment_method_id: string | null;
       auto_recharge_pack_id:
         | "starter"
         | "growth"
         | "scale"
         | "volume"
         | null;
+      auto_recharge_enabled: boolean;
+      auto_recharge_threshold_credits: number | null;
       auto_recharge_failed_at: string | null;
     }>();
   if (profileErr || !profile) {
     console.warn("[auto-recharge] user lookup failed", profileErr?.message);
     return;
   }
+
+  // Threshold check (per-installer). Honours the migration 074
+  // configurable column with the 10-credit fallback. Encapsulated
+  // in shouldRunAutoRecharge so the rule is unit-testable.
+  if (
+    !shouldRunAutoRecharge({
+      enabled: profile.auto_recharge_enabled,
+      balanceAfter,
+      threshold: profile.auto_recharge_threshold_credits,
+    })
+  ) {
+    return;
+  }
+
   if (!profile.auto_recharge_pack_id) {
-    return; // Disabled — nothing to do.
+    return; // Enabled but no pack picked (should be impossible — UI gates it).
   }
   if (!profile.stripe_customer_id) {
     console.warn("[auto-recharge] enabled but no Customer", { userId });
@@ -116,12 +190,14 @@ async function runAutoRecharge({
     .eq("user_id", userId)
     .maybeSingle<{ id: number }>();
 
-  // Find a saved payment method on the Customer. We pick the
-  // default if set, otherwise the first card Stripe lists. If
-  // there's nothing on file we bail with a failure record so the
-  // banner shows up — usually means the original Checkout didn't
-  // save the card for some reason.
-  const paymentMethod = await pickDefaultPaymentMethod(profile.stripe_customer_id);
+  // Find a saved payment method on the Customer. Prefer the
+  // cached default on the user row (migration 074), otherwise ask
+  // Stripe. If there's nothing on file we bail with a failure
+  // record so the banner shows up — usually means the original
+  // Checkout / SetupIntent didn't save the card for some reason.
+  const paymentMethod = profile.stripe_default_payment_method_id
+    ? profile.stripe_default_payment_method_id
+    : await pickDefaultPaymentMethod(profile.stripe_customer_id);
   if (!paymentMethod) {
     console.warn("[auto-recharge] no saved card on Customer", {
       userId,
@@ -166,27 +242,20 @@ async function runAutoRecharge({
   }
   const attemptId = attemptRow.id;
 
-  // Fire the off-session PaymentIntent.
+  // Fire the off-session PaymentIntent. Payload built by the pure
+  // helper above so unit tests can pin the exact wire shape.
   let intent: Stripe.PaymentIntent;
   try {
-    intent = await stripe.paymentIntents.create({
-      amount: pack.pricePence,
-      currency: "gbp",
-      customer: profile.stripe_customer_id,
-      payment_method: paymentMethod,
-      off_session: true,
-      confirm: true,
-      automatic_payment_methods: { enabled: true, allow_redirects: "never" },
-      metadata: {
-        purpose: "installer_credits_auto",
-        user_id: userId,
-        pack_id: pack.id,
-        pack_credits: String(pack.credits),
-        installer_id: installer?.id ? String(installer.id) : "",
-        attempt_id: attemptId,
-      },
-      description: `Propertoasty auto top-up — ${pack.credits} credits (${pack.label})`,
-    });
+    intent = await stripe.paymentIntents.create(
+      buildAutoRechargePayload({
+        customerId: profile.stripe_customer_id,
+        paymentMethodId: paymentMethod,
+        pack,
+        userId,
+        installerId: installer?.id ?? null,
+        attemptId,
+      }),
+    );
   } catch (err) {
     // off_session=true throws StripeCardError when the card needs
     // 3DS or is declined. Pull the structured fields we care about.
@@ -338,13 +407,16 @@ async function markUserFailed(args: {
   userId: string;
   reason: string;
 }): Promise<void> {
-  // Stamp the failure flag + clear auto_recharge_pack_id so we
-  // don't keep retrying. User has to re-enable manually after
-  // fixing the underlying issue.
+  // Per spec F: on a declined / failed off-session charge, flip
+  // auto_recharge_enabled to false + record the reason. We keep
+  // auto_recharge_pack_id and auto_recharge_threshold_credits set
+  // so re-enabling from the settings page is one click rather
+  // than a full reconfigure. User has to fix the underlying card
+  // issue (replace card, top up bank, etc.) then re-enable.
   const { error } = await args.admin
     .from("users")
     .update({
-      auto_recharge_pack_id: null,
+      auto_recharge_enabled: false,
       auto_recharge_failed_at: new Date().toISOString(),
       auto_recharge_failure_reason: args.reason,
     })

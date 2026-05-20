@@ -1,17 +1,22 @@
 // Blog post body renderer.
 //
-// Stores HTML rather than markdown — the seed posts in
-// supabase/seeds/blog-launch.sql use real <p>, <h2>, <ul>, <table>
-// tags. Older content was authored as markdown and rendered through
-// ReactMarkdown, but mixing the two in one collection meant either
-// strict-markdown for everything (loses tables) or escaped tags for
-// HTML content (the bug we just fixed).
+// Two content sources land in this component:
 //
-// Settled on HTML-only via dangerouslySetInnerHTML. Source is the
-// admin-only blog_posts table — admin client writes only — so the
-// XSS surface is the same as the rest of the admin UI. If we ever
-// open this to user-generated content, swap in DOMPurify or
-// sanitize-html before the dangerouslySetInnerHTML call.
+//   1. Editorial posts (is_installer_profile = false) ship HTML in
+//      `content` — seed posts in supabase/seeds/blog-launch.sql use
+//      real <p>, <h2>, <ul>, <table> tags. Rendered via
+//      dangerouslySetInnerHTML; XSS surface is admin-only writes.
+//   2. Installer-bylined posts (is_installer_profile = true) come
+//      from the Claude blog-drafter in markdown. Rendered through
+//      react-markdown + remark-gfm so headings, lists, bold/italic,
+//      blockquotes, and links land with the proper-toasty prose
+//      styling.
+//
+// Both code paths share the same `prose` class list so the visual
+// output is consistent across the two source formats.
+
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 const PROSE_CLASSES = [
   "prose prose-slate prose-lg max-w-none",
@@ -33,7 +38,24 @@ const PROSE_CLASSES = [
   "prose-hr:my-12",
 ].join(" ");
 
-export function BlogPostContent({ content }: { content: string }) {
+interface BlogPostContentProps {
+  content: string;
+  /** True when the content is markdown (installer-bylined posts).
+   *  False / undefined renders the content as HTML (editorial posts). */
+  isMarkdown?: boolean;
+}
+
+export function BlogPostContent({
+  content,
+  isMarkdown,
+}: BlogPostContentProps) {
+  if (isMarkdown) {
+    return (
+      <div className={PROSE_CLASSES}>
+        <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+      </div>
+    );
+  }
   return (
     <div
       className={PROSE_CLASSES}

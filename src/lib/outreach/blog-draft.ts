@@ -34,6 +34,22 @@ export interface BlogDraftInput {
   questions: string[];
 }
 
+/** Curated cover-image themes. Claude picks one based on what the
+ *  post is actually about; the publish step maps the theme to a real
+ *  hero image. Keep the enum small and concrete — adding niches just
+ *  dilutes Claude's signal. */
+export const COVER_IMAGE_THEMES = [
+  "heat_pump_outdoor_unit",
+  "solar_panels_on_roof",
+  "battery_storage_indoor",
+  "uk_home_exterior",
+  "boiler_and_pipes",
+  "loft_insulation",
+  "engineer_at_work",
+  "energy_bill_paperwork",
+] as const;
+export type CoverImageTheme = (typeof COVER_IMAGE_THEMES)[number];
+
 export interface BlogDraftResult {
   /** Suggested post title (~70 chars). */
   title: string;
@@ -43,6 +59,10 @@ export interface BlogDraftResult {
   slug: string;
   /** Suggested 1-line excerpt for the blog index. */
   excerpt: string;
+  /** Recommended cover-image theme from COVER_IMAGE_THEMES. Falls
+   *  back to a sane default ("uk_home_exterior") when Claude returns
+   *  something off-enum or nothing at all. */
+  coverImageTheme: CoverImageTheme;
 }
 
 const MODEL = "claude-sonnet-4-5";
@@ -67,8 +87,11 @@ Output format — EXACTLY this JSON shape, no other text:
   "title": "post title — ~70 chars",
   "slug": "kebab-case-url-slug",
   "excerpt": "1-line summary for the blog index, ~140 chars",
-  "markdown": "the post body in markdown, with proper paragraph breaks"
-}`;
+  "markdown": "the post body in markdown, with proper paragraph breaks",
+  "cover_image_theme": "heat_pump_outdoor_unit | solar_panels_on_roof | battery_storage_indoor | uk_home_exterior | boiler_and_pipes | loft_insulation | engineer_at_work | energy_bill_paperwork"
+}
+
+Pick the cover_image_theme that best matches the post's dominant subject. If unsure, default to uk_home_exterior.`;
 
 function userPromptForDraft(input: BlogDraftInput): string {
   const lines: string[] = [];
@@ -159,11 +182,17 @@ export async function draftInstallerBlog(
     slug?: string;
     excerpt?: string;
     markdown: string;
+    cover_image_theme?: string;
   };
   const slug =
     obj.slug && /^[a-z0-9-]+$/.test(obj.slug)
       ? obj.slug
       : buildFallbackSlug(obj.title, input.companyName);
+  const coverImageTheme: CoverImageTheme = (
+    COVER_IMAGE_THEMES as readonly string[]
+  ).includes(obj.cover_image_theme ?? "")
+    ? (obj.cover_image_theme as CoverImageTheme)
+    : "uk_home_exterior";
   return {
     title: obj.title.trim(),
     slug,
@@ -171,6 +200,7 @@ export async function draftInstallerBlog(
       (obj.excerpt ?? "").trim().slice(0, 200) ||
       `${input.companyName} on ${input.techDisplay} in ${input.region}.`,
     markdown: obj.markdown.trim(),
+    coverImageTheme,
   };
 }
 
