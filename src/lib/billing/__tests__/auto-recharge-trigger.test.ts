@@ -366,7 +366,8 @@ describe("maybeRunAutoRecharge", () => {
 
     // Installer notified by email.
     expect(sendEmail).toHaveBeenCalledTimes(1);
-    const emailArgs = sendEmail.mock.calls[0][0] as { to: string };
+    const emailCalls = sendEmail.mock.calls as unknown as Array<[{ to: string }]>;
+    const emailArgs = emailCalls[0][0];
     expect(emailArgs.to).toBe("installer@example.com");
   });
 
