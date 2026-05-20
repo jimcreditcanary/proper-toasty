@@ -1,15 +1,23 @@
 "use client";
 
-// Tiny client island: the X button on the onboarding checklist that
-// permanently hides it. Lives next to the "N of 4 done" pill so it
-// reads as a deliberate close action, not an accidental tap target.
+// Client island: the "Dismiss" button on the welcome card that
+// permanently hides it. Lives in the card header next to the
+// progress pills so it reads as a deliberate close action, not
+// an accidental tap target.
 //
 // On click: POST /api/installer/onboarding/dismiss + router.refresh()
-// to repaint the page server-side. The checklist's parent reads
-// users.installer_onboarding_dismissed_at and conditionally renders.
+// to repaint the page server-side. The endpoint stamps
+// installers.welcome_card_dismissed_at; the dashboard's render
+// gate (shouldShowWelcomeCard) reads that column.
 //
-// We optimistic-hide by tracking pending state — the button vanishes
-// the instant the user clicks even if router.refresh() takes a beat.
+// History: was an X-only icon button. Re-styled with a visible
+// "Dismiss" label after user research showed people weren't
+// noticing the X — the affordance to close the WHOLE card needs
+// to be obvious enough that they'll find it without hunting.
+//
+// We optimistic-hide by tracking pending state — the button
+// vanishes the instant the user clicks even if router.refresh()
+// takes a beat.
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -44,11 +52,12 @@ export function OnboardingDismissButton() {
     <button
       type="button"
       onClick={() => void handleDismiss()}
-      title="Hide this welcome card"
-      aria-label="Hide welcome card"
-      className="inline-flex items-center justify-center w-7 h-7 rounded-full text-slate-400 hover:text-slate-700 hover:bg-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral"
+      title="Hide this welcome card. You won't see it again unless we add a new onboarding task."
+      aria-label="Dismiss welcome card"
+      className="inline-flex items-center gap-1 px-2.5 h-7 rounded-full text-[11px] font-semibold text-slate-500 hover:text-slate-700 hover:bg-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral"
     >
-      <X className="w-3.5 h-3.5" />
+      <X className="w-3 h-3" />
+      Dismiss
     </button>
   );
 }

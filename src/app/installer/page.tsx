@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import {
   buildChecklist,
+  shouldShowWelcomeCard,
   type ChecklistResult,
 } from "@/lib/installer-onboarding/checklist";
 import { loadInstallerDashboardMetrics } from "@/lib/installer/dashboard-metrics";
@@ -136,7 +137,9 @@ export default async function InstallerHomePage() {
   let companyName: string | null = null;
   let checklist: ChecklistResult | null = null;
   let creditBalance = 0;
-  let onboardingDismissedAt: string | null = null;
+  // welcome_card_dismissed_at on the installer row — replaces the
+  // old users.installer_onboarding_dismissed_at. See migration 075.
+  let welcomeCardDismissedAt: string | null = null;
   let metrics: Awaited<
     ReturnType<typeof loadInstallerDashboardMetrics>
   > | null = null;
@@ -160,23 +163,23 @@ export default async function InstallerHomePage() {
       admin
         .from("users")
         .select(
-          "auto_recharge_failed_at, auto_recharge_failure_reason, credits, installer_onboarding_dismissed_at",
+          "auto_recharge_failed_at, auto_recharge_failure_reason, credits",
         )
         .eq("id", user.id)
         .maybeSingle<{
           auto_recharge_failed_at: string | null;
           auto_recharge_failure_reason: string | null;
           credits: number;
-          installer_onboarding_dismissed_at: string | null;
         }>(),
       admin
         .from("installers")
-        .select("id, company_name, logo_url")
+        .select("id, company_name, logo_url, welcome_card_dismissed_at")
         .eq("user_id", user.id)
         .maybeSingle<{
           id: number;
           company_name: string;
           logo_url: string | null;
+          welcome_card_dismissed_at: string | null;
         }>(),
     ]);
 
@@ -185,8 +188,8 @@ export default async function InstallerHomePage() {
         profileRes.data.auto_recharge_failure_reason ?? "Card declined";
     }
     creditBalance = profileRes.data?.credits ?? 0;
-    onboardingDismissedAt =
-      profileRes.data?.installer_onboarding_dismissed_at ?? null;
+    welcomeCardDismissedAt =
+      installerRes.data?.welcome_card_dismissed_at ?? null;
 
     if (installerRes.data) {
       companyName = installerRes.data.company_name;
@@ -231,26 +234,26 @@ export default async function InstallerHomePage() {
       metrics = dealMetrics;
       noSlotsLeads = await loadNoSlotsLeads(admin, installerId);
 
-      // Sticky-hide the onboarding wizard: once the installer has
-      // ticked every step at least ONCE, stamp dismissed_at so it
-      // stays hidden permanently. Symptom this fixes: a customer
+      // Sticky-hide the welcome card: once the installer has ticked
+      // every step at least ONCE, stamp welcome_card_dismissed_at so
+      // it stays hidden permanently. Symptom this fixes: a customer
       // declining a quote flipped 'Send your first quote' back to
       // unticked because the ticked-state was derived live from
       // current counts, and the wizard re-appeared after the user
       // had already moved on. Once dismissed_at is set, the
-      // dashboard never re-shows the wizard regardless of whether
-      // downstream counts dip back below their thresholds.
-      if (checklist.isComplete && !onboardingDismissedAt) {
+      // dashboard only re-shows the card if a NEW task ships after
+      // the dismissal (see shouldShowWelcomeCard).
+      if (checklist.isComplete && !welcomeCardDismissedAt) {
         const stampedAt = new Date().toISOString();
         const { error: stampErr } = await admin
-          .from("users")
-          .update({ installer_onboarding_dismissed_at: stampedAt })
-          .eq("id", user.id)
-          .is("installer_onboarding_dismissed_at", null);
+          .from("installers")
+          .update({ welcome_card_dismissed_at: stampedAt })
+          .eq("id", installerId)
+          .is("welcome_card_dismissed_at", null);
         if (!stampErr) {
-          onboardingDismissedAt = stampedAt;
+          welcomeCardDismissedAt = stampedAt;
         } else {
-          console.warn("[installer] auto-dismiss onboarding failed", stampErr);
+          console.warn("[installer] auto-dismiss welcome card failed", stampErr);
         }
       }
     }
@@ -309,7 +312,7 @@ export default async function InstallerHomePage() {
         <OutreachOnboardingBanner state={outreachOnboarding} />
       )}
 
-      {checklist && !checklist.isComplete && !onboardingDismissedAt && (
+      {checklist && shouldShowWelcomeCard(checklist, welcomeCardDismissedAt) && (
         <OnboardingChecklist checklist={checklist} companyName={companyName} />
       )}
 
@@ -579,11 +582,16 @@ function QuickNav({ links }: { links: NavLink[] }) {
 // ─── Onboarding checklist ──────────────────────────────────────────
 //
 // Renders above everything else when the installer hasn't yet
-// completed the four core steps. Highlights one current step at a
-// time so first-time visitors aren't presented with four equal
-// CTAs and end up doing none of them. Hides automatically once
-// every step is done — and the installer can also dismiss it
-// manually via the X (writes installer_onboarding_dismissed_at).
+// completed the four core tasks. Each task's CTA is always
+// clickable — the installer can pick any order they like. The
+// "current" (first not-done) task gets a ring as the recommended
+// next move; that's visual emphasis only, not a gate.
+//
+// Hides automatically once every task is done — and the installer
+// can also dismiss it manually via the Dismiss button (writes
+// installers.welcome_card_dismissed_at). If we ship a NEW task
+// later, the dashboard re-shows the card by comparing each task's
+// taskAddedAt constant against the dismissal timestamp.
 
 function OnboardingChecklist({
   checklist,
@@ -647,6 +655,21 @@ function ChecklistRow({
 }: {
   item: ChecklistResult["items"][number];
 }) {
+  // Visual treatment:
+  //   - done: muted, line-through, no CTA (already complete)
+  //   - current (first not-done): coral ring + filled circle as
+  //     visual "recommended next"
+  //   - other not-done: plain card, still has its CTA
+  //
+  // Crucially, every not-done row renders its CTA — the installer
+  // can pick any task in any order. The previous version only
+  // surfaced the current task's CTA, which forced linear ordering
+  // and frustrated installers who wanted to jump ahead. The "current"
+  // ring is now visual emphasis only, not a gate.
+  //
+  // The non-current CTA is styled less prominently than the current
+  // one (outlined vs filled coral) so the recommended next step still
+  // visually wins without being the only thing clickable.
   return (
     <div
       className={`rounded-xl border p-3 sm:p-4 flex items-start gap-3 ${
@@ -679,11 +702,20 @@ function ChecklistRow({
             {item.body}
           </p>
         )}
+        {!item.done && item.dependencyHint && (
+          <p className="text-[11px] text-amber-800 mt-1.5 leading-relaxed">
+            Heads up: {item.dependencyHint}
+          </p>
+        )}
       </div>
-      {!item.done && item.current && (
+      {!item.done && (
         <Link
           href={item.ctaHref}
-          className="shrink-0 inline-flex items-center gap-1.5 h-9 px-3 rounded-full bg-coral hover:bg-coral-dark text-white font-semibold text-xs shadow-sm transition-colors self-center"
+          className={`shrink-0 inline-flex items-center gap-1.5 h-9 px-3 rounded-full font-semibold text-xs transition-colors self-center ${
+            item.current
+              ? "bg-coral hover:bg-coral-dark text-white shadow-sm"
+              : "bg-white hover:bg-coral-pale border border-coral/40 text-coral-dark"
+          }`}
         >
           {item.ctaLabel}
           <ArrowRight className="w-3 h-3" />
