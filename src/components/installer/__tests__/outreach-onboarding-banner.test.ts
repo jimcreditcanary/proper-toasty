@@ -15,6 +15,7 @@
 import { describe, expect, it } from "vitest";
 import {
   computeRemainingSteps,
+  creditsToHeadlineGbp,
   describeRemaining,
 } from "../outreach-onboarding-banner";
 import type { OnboardingState } from "@/lib/outreach/onboarding";
@@ -162,6 +163,31 @@ describe("computeRemainingSteps — blog pending but questions submitted", () =>
       }),
     );
     expect(r.map((s) => s.step)).toEqual(["questions"]);
+  });
+});
+
+describe("creditsToHeadlineGbp — £ headline framing", () => {
+  // Average per-credit rate across the four CREDIT_PACKS is
+  // (3.17 + 1.95 + 1.58 + 1.00) / 4 = £1.925 / credit.
+  // Each expectation below multiplies and rounds to the nearest £10
+  // so the banner reads as a clean headline (no fake-precise pence).
+  it("3 steps remaining (270 credits) → ~£520", () => {
+    // 270 * 1.925 = 519.75 → £520
+    expect(creditsToHeadlineGbp(270)).toBe(520);
+  });
+
+  it("2 steps remaining (210 credits) → ~£400", () => {
+    // 210 * 1.925 = 404.25 → £400
+    expect(creditsToHeadlineGbp(210)).toBe(400);
+  });
+
+  it("1 step remaining (90 credits, card only) → ~£170", () => {
+    // 90 * 1.925 = 173.25 → £170
+    expect(creditsToHeadlineGbp(90)).toBe(170);
+  });
+
+  it("rounds 0 credits to £0", () => {
+    expect(creditsToHeadlineGbp(0)).toBe(0);
   });
 });
 

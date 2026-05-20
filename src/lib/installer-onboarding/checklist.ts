@@ -1,24 +1,28 @@
 // Onboarding checklist for the /installer landing page.
 //
-// Pure function — takes the four signals we can compute server-
-// side and returns a structured "do these things next" list. The
-// portal renders the panel above the feature tiles when the
-// checklist isn't complete; once everything's ticked it hides
-// itself.
+// Pure function — takes the signals we can compute server-side and
+// returns a structured "do these things next" list. The portal
+// renders the panel above the feature tiles when the checklist
+// isn't complete; once everything's ticked it hides itself.
 //
 // Steps are deliberately in dependency order:
 //   1. Set availability — without this, you can't take leads
 //   2. Upload your logo — directory listings look generic without one
-//   3. Buy credit pack — without these, you can't accept leads or
-//      send pre-survey requests
-//   4. Send your first pre-survey — proves the end-to-end flow
+//   3. Send your first pre-survey — proves the end-to-end flow
 //      and gets the installer their first lead in the inbox
-//   5. (optional) Accepted lead → quote sent — milestone marker;
+//   4. (optional) Accepted lead → quote sent — milestone marker;
 //      hides once a quote has been sent
 //
 // The checklist surfaces "current step" so the UI can highlight
 // just one CTA. After all required steps are done the checklist
 // disappears entirely on the next render.
+//
+// Note: "Top up your credit balance" used to live here but was
+// removed — every installer gets +30 free starter credits at
+// signup (outreach via tier grant, self-claim via m066), and the
+// outreach onboarding flow already prompts them to save a card
+// for future auto-top-ups. Surfacing "top up" as an onboarding
+// task on top of that was redundant noise.
 
 export interface ChecklistInputs {
   /** True when the installer has at least one availability block. */
@@ -27,8 +31,6 @@ export interface ChecklistInputs {
    *  use this for the avatar slot; without one, the card falls back
    *  to grey initials and looks under-baked. */
   hasLogo: boolean;
-  /** Current credit balance — > 0 unlocks lead acceptance + sends. */
-  creditBalance: number;
   /** Total pre-survey requests they've ever sent (any status). */
   preSurveyRequestCount: number;
   /** Quotes sent (any status). */
@@ -39,7 +41,6 @@ export interface ChecklistItem {
   id:
     | "availability"
     | "logo"
-    | "credits"
     | "first_pre_survey"
     | "first_quote";
   title: string;
@@ -82,15 +83,6 @@ export function buildChecklist(input: ChecklistInputs): ChecklistResult {
       ctaLabel: "Upload logo",
       ctaHref: "/installer/profile",
       done: input.hasLogo,
-    },
-    {
-      id: "credits",
-      title: "Top up your credit balance",
-      body:
-        "We've credited you 30 free starter credits — enough for ~30 pre-survey sends or 6 lead accepts. Top up here when you're ready to scale.",
-      ctaLabel: "View credits",
-      ctaHref: "/installer/credits",
-      done: input.creditBalance > 0,
     },
     {
       id: "first_pre_survey",
