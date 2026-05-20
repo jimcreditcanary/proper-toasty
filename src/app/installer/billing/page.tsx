@@ -27,6 +27,7 @@ import {
   PoundSterling,
   Receipt,
   RefreshCw,
+  Zap,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -83,6 +84,9 @@ export default async function BillingPage() {
       pageSubtitle={`Consolidated spend + VAT receipts. Last ${BILLING_WINDOW_MONTHS} months below.`}
       backLink={{ href: "/installer", label: "Back to installer portal" }}
     >
+      {/* Auto top-up entry point */}
+      <AutoRechargeShortcut />
+
       {/* YTD summary */}
       <YearToDateSummary ytd={data.ytd} />
 
@@ -95,6 +99,35 @@ export default async function BillingPage() {
       {/* CSV export */}
       <ExportCard hasData={data.purchases.length > 0 || data.totals.usage.totalCreditsUsed > 0} />
     </PortalShell>
+  );
+}
+
+// ─── Auto top-up shortcut ──────────────────────────────────────────
+
+function AutoRechargeShortcut() {
+  return (
+    <Link
+      href="/installer/billing/auto-recharge"
+      className="block rounded-2xl border border-slate-200 bg-white hover:border-coral/40 hover:shadow-sm transition-all p-4 mb-5 group"
+    >
+      <div className="flex items-start gap-3">
+        <span className="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-coral-pale text-coral-dark shrink-0">
+          <Zap className="w-4 h-4" />
+        </span>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold text-navy group-hover:text-coral-dark transition-colors">
+            Auto top-up rules
+          </p>
+          <p className="text-xs text-slate-500 leading-relaxed mt-0.5">
+            Pick when (and if) your card gets charged automatically.
+            Threshold, pack, on/off — all here.
+          </p>
+        </div>
+        <span className="text-coral text-xs font-semibold self-center pr-1">
+          Manage →
+        </span>
+      </div>
+    </Link>
   );
 }
 

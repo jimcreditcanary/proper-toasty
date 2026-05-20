@@ -23,16 +23,18 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type Stripe from "stripe";
 import { stripe } from "@/lib/stripe";
 import { findPack, type CreditPack } from "@/lib/billing/credit-packs";
+import { AUTO_RECHARGE_DEFAULT_THRESHOLD } from "@/lib/billing/auto-recharge-config";
 import { sendEmail } from "@/lib/email/client";
 import { buildAutoRechargeFailedEmail } from "@/lib/email/templates/installer-auto-recharge-failed";
 import type { Database } from "@/types/database";
 
 type AdminClient = SupabaseClient<Database>;
 
-// Threshold: balance ≤ this triggers the recharge. Hard-coded for
-// simplicity — F1 spec calls for 10. Bump to a column on users if
-// we ever want per-installer thresholds.
-export const AUTO_RECHARGE_THRESHOLD = 10;
+// Outer gate to avoid a DB roundtrip on every credit debit. Set
+// well above the largest threshold the UI offers (50) so we never
+// short-circuit a legitimate recharge. Bump if the dropdown
+// allows larger thresholds.
+const AUTO_RECHARGE_MAX_THRESHOLD = 100;
 
 interface MaybeRunArgs {
   admin: AdminClient;
@@ -45,7 +47,10 @@ interface MaybeRunArgs {
 // Fire-and-forget entry point. Safe to await or not.
 export async function maybeRunAutoRecharge(args: MaybeRunArgs): Promise<void> {
   try {
-    if (args.balanceAfter > AUTO_RECHARGE_THRESHOLD) return;
+    // Cheap pre-filter: skip the DB lookup entirely when balance is
+    // clearly above any reasonable threshold. The precise per-user
+    // threshold check happens inside runAutoRecharge.
+    if (args.balanceAfter > AUTO_RECHARGE_MAX_THRESHOLD) return;
     await runAutoRecharge(args);
   } catch (e) {
     console.error(
@@ -66,7 +71,7 @@ async function runAutoRecharge({
   const { data: profile, error: profileErr } = await admin
     .from("users")
     .select(
-      "id, email, stripe_customer_id, auto_recharge_pack_id, auto_recharge_failed_at",
+      "id, email, stripe_customer_id, auto_recharge_pack_id, auto_recharge_threshold_credits, auto_recharge_failed_at",
     )
     .eq("id", userId)
     .maybeSingle<{
@@ -79,6 +84,7 @@ async function runAutoRecharge({
         | "scale"
         | "volume"
         | null;
+      auto_recharge_threshold_credits: number | null;
       auto_recharge_failed_at: string | null;
     }>();
   if (profileErr || !profile) {
@@ -87,6 +93,12 @@ async function runAutoRecharge({
   }
   if (!profile.auto_recharge_pack_id) {
     return; // Disabled — nothing to do.
+  }
+  // Precise threshold check now we know the per-user setting.
+  const threshold =
+    profile.auto_recharge_threshold_credits ?? AUTO_RECHARGE_DEFAULT_THRESHOLD;
+  if (balanceAfter > threshold) {
+    return;
   }
   if (!profile.stripe_customer_id) {
     console.warn("[auto-recharge] enabled but no Customer", { userId });

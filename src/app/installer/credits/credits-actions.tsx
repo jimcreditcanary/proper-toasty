@@ -32,6 +32,7 @@ import {
 interface SettingsState {
   enabled: boolean;
   packId: "starter" | "growth" | "scale" | "volume" | null;
+  thresholdCredits: number;
   hasSavedCard: boolean;
   cardBrand: string | null;
   cardLast4: string | null;
@@ -43,6 +44,8 @@ interface SettingsResponse {
   ok: boolean;
   enabled?: boolean;
   packId?: "starter" | "growth" | "scale" | "volume" | null;
+  thresholdCredits?: number | null;
+  effectiveThresholdCredits?: number;
   hasSavedCard?: boolean;
   cardBrand?: string | null;
   cardLast4?: string | null;
@@ -75,6 +78,7 @@ export function CreditsActions({ balance, enableFlash }: Props) {
       setSettings({
         enabled: !!json.enabled,
         packId: json.packId ?? null,
+        thresholdCredits: json.effectiveThresholdCredits ?? 10,
         hasSavedCard: !!json.hasSavedCard,
         cardBrand: json.cardBrand ?? null,
         cardLast4: json.cardLast4 ?? null,
@@ -268,9 +272,9 @@ function renderStatusLine(settings: SettingsState): string {
       ? CREDIT_PACKS.find((p) => p.id === settings.packId)
       : null;
     if (pack) {
-      return `Adds ${pack.credits} credits (${pack.label}) on ${cardLine} when you drop to 10 credits or below.`;
+      return `Adds ${pack.credits} credits (${pack.label}) on ${cardLine} when you drop below ${settings.thresholdCredits} credits.`;
     }
-    return `Charges ${cardLine} when you hit 10 credits.`;
+    return `Charges ${cardLine} when you drop below ${settings.thresholdCredits} credits.`;
   }
   return `Turn on to keep your balance topped up automatically with ${cardLine}.`;
 }
@@ -350,7 +354,7 @@ function AutoControls({
       </div>
       <p className="text-[11px] text-slate-500 leading-relaxed mb-3">
         {settings.enabled
-          ? "We'll auto-buy when your balance drops to 10 credits or below."
+          ? `We'll auto-buy when your balance drops below ${settings.thresholdCredits} credits.`
           : "Pick a pack below, then flick the switch on."}
       </p>
 
@@ -402,6 +406,15 @@ function AutoControls({
           time. Turn off any time.
         </p>
       )}
+      <p className="mt-2 text-[11px] text-slate-500">
+        <a
+          href="/installer/billing/auto-recharge"
+          className="text-coral hover:text-coral-dark font-semibold"
+        >
+          More settings →
+        </a>{" "}
+        (threshold, history, replace card)
+      </p>
     </div>
   );
 }
