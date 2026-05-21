@@ -33,14 +33,23 @@ import {
 
 export const revalidate = 300;
 
+/** An aggregate can be `indexed=true` purely on EPC sample size while
+ *  carrying no centroid (lat/lng null) — the installer-directory page
+ *  needs coordinates to rank installers by distance and 404s without
+ *  them. Gate installer URLs on this so the sitemap never advertises a
+ *  page that resolves to notFound(). */
+function hasCoords(r: { lat: number | null; lng: number | null }): boolean {
+  return r.lat != null && r.lng != null;
+}
+
 async function loadTownEntries(): Promise<SitemapUrlEntry[]> {
   try {
     const admin = createAdminClient();
     const rows = await loadIndexedTownAggregates(admin);
     const entries: SitemapUrlEntry[] = [];
     for (const r of rows) {
-      // Each town gets four pages — heat-pump guide + solar guide
-      // (the deep technology pages) AND heat-pump-installers +
+      // Each town gets up to four pages — heat-pump guide + solar
+      // guide (the deep technology pages) AND heat-pump-installers +
       // solar-panel-installers (the focused directory pages).
       entries.push({
         loc: `${SITE_URL}/heat-pumps/${r.scope_key}`,
@@ -54,18 +63,24 @@ async function loadTownEntries(): Promise<SitemapUrlEntry[]> {
         changefreq: "monthly",
         priority: 0.6,
       });
-      entries.push({
-        loc: `${SITE_URL}/heat-pump-installers/${r.scope_key}`,
-        lastmod: r.refreshed_at,
-        changefreq: "weekly",
-        priority: 0.65,
-      });
-      entries.push({
-        loc: `${SITE_URL}/solar-panel-installers/${r.scope_key}`,
-        lastmod: r.refreshed_at,
-        changefreq: "weekly",
-        priority: 0.65,
-      });
+      // Installer-directory pages need a centroid to rank installers
+      // by distance — the page 404s (resolveArea → null) when lat/lng
+      // is absent. Only advertise them when we have coordinates, else
+      // the sitemap feeds Google URLs that 404 (GSC "Not found (404)").
+      if (hasCoords(r)) {
+        entries.push({
+          loc: `${SITE_URL}/heat-pump-installers/${r.scope_key}`,
+          lastmod: r.refreshed_at,
+          changefreq: "weekly",
+          priority: 0.65,
+        });
+        entries.push({
+          loc: `${SITE_URL}/solar-panel-installers/${r.scope_key}`,
+          lastmod: r.refreshed_at,
+          changefreq: "weekly",
+          priority: 0.65,
+        });
+      }
     }
     // Archetype pages — curated, always indexed. Same /heat-pumps/<slug>
     // namespace, dispatched by the route handler.
@@ -102,18 +117,20 @@ async function loadTownEntries(): Promise<SitemapUrlEntry[]> {
         changefreq: "monthly",
         priority: 0.55,
       });
-      entries.push({
-        loc: `${SITE_URL}/heat-pump-installers/${r.scope_key}`,
-        lastmod: r.refreshed_at,
-        changefreq: "weekly",
-        priority: 0.6,
-      });
-      entries.push({
-        loc: `${SITE_URL}/solar-panel-installers/${r.scope_key}`,
-        lastmod: r.refreshed_at,
-        changefreq: "weekly",
-        priority: 0.6,
-      });
+      if (hasCoords(r)) {
+        entries.push({
+          loc: `${SITE_URL}/heat-pump-installers/${r.scope_key}`,
+          lastmod: r.refreshed_at,
+          changefreq: "weekly",
+          priority: 0.6,
+        });
+        entries.push({
+          loc: `${SITE_URL}/solar-panel-installers/${r.scope_key}`,
+          lastmod: r.refreshed_at,
+          changefreq: "weekly",
+          priority: 0.6,
+        });
+      }
     }
 
     // Postcode-district pages — most granular geographic surface.
@@ -133,18 +150,20 @@ async function loadTownEntries(): Promise<SitemapUrlEntry[]> {
         changefreq: "monthly",
         priority: 0.5,
       });
-      entries.push({
-        loc: `${SITE_URL}/heat-pump-installers/${r.scope_key}`,
-        lastmod: r.refreshed_at,
-        changefreq: "weekly",
-        priority: 0.55,
-      });
-      entries.push({
-        loc: `${SITE_URL}/solar-panel-installers/${r.scope_key}`,
-        lastmod: r.refreshed_at,
-        changefreq: "weekly",
-        priority: 0.55,
-      });
+      if (hasCoords(r)) {
+        entries.push({
+          loc: `${SITE_URL}/heat-pump-installers/${r.scope_key}`,
+          lastmod: r.refreshed_at,
+          changefreq: "weekly",
+          priority: 0.55,
+        });
+        entries.push({
+          loc: `${SITE_URL}/solar-panel-installers/${r.scope_key}`,
+          lastmod: r.refreshed_at,
+          changefreq: "weekly",
+          priority: 0.55,
+        });
+      }
     }
     return entries;
   } catch (err) {

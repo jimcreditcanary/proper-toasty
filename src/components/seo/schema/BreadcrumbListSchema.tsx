@@ -8,15 +8,32 @@
 
 import * as React from "react";
 import { JsonLd } from "./JsonLd";
+import { ORG_PROFILE } from "@/lib/seo/org-profile";
 
 export interface BreadcrumbItem {
   /** Display name, e.g. "Guides". */
   name: string;
-  /** Absolute URL. Omit on the final crumb (current page) per
-   *  Google's BreadcrumbList spec — the page itself doesn't need to
-   *  link to itself. The component handles the omission when
-   *  `url` is undefined. */
+  /** URL for the crumb. May be passed as a site-relative path
+   *  ("/heat-pumps") or an absolute URL — the component resolves
+   *  relative paths to absolute against ORG_PROFILE.url before
+   *  emitting, because schema.org's `item` field requires an absolute
+   *  URL (Google flags relative values as "Invalid URL in field
+   *  'id'"). Omit on the final crumb (current page) per Google's
+   *  BreadcrumbList spec — the page doesn't link to itself. */
   url?: string;
+}
+
+/** Resolve a crumb URL to an absolute URL. Site-relative paths are
+ *  joined onto the canonical origin; already-absolute URLs pass
+ *  through untouched; undefined stays undefined (final crumb). */
+function toAbsoluteUrl(url: string | undefined): string | undefined {
+  if (!url) return undefined;
+  if (/^https?:\/\//i.test(url)) return url;
+  const origin = ORG_PROFILE.url.replace(/\/+$/, "");
+  const path = url.startsWith("/") ? url : `/${url}`;
+  // "/" resolves to the bare origin (no trailing slash) to match the
+  // canonical homepage URL.
+  return path === "/" ? origin : `${origin}${path}`;
 }
 
 export interface BreadcrumbListSchemaProps {
@@ -37,8 +54,9 @@ export function BreadcrumbListSchema({
       name: item.name,
       // `item` is the URL field per the spec (legacy naming —
       // BreadcrumbList predates schema.org's preference for `url`).
-      // Drop on the last crumb if no URL provided.
-      item: item.url,
+      // Must be absolute; resolve relative paths. Drops on the last
+      // crumb when no URL provided (JsonLd strips undefined keys).
+      item: toAbsoluteUrl(item.url),
     })),
   };
 
