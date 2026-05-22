@@ -35,19 +35,25 @@ export const STEP_ORDER: CheckStep[] = [
  *                  Same steps as "all" but the report hides the
  *                  Solar + Savings tabs so the user reads only
  *                  the heat-pump verdict.
+ *   - "boiler"   → /check/boiler, "new boiler or heat pump?" variant.
+ *                  Skips the floorplan (it's a cost-decision tool, not
+ *                  a siting survey) and the report leads with the
+ *                  Boiler-vs-heat-pump finance comparison tab.
  *
  * Persisted in wizard state so back/forward + page reload keep
  * the variant.
  */
-export type WizardFocus = "all" | "solar" | "heatpump";
+export type WizardFocus = "all" | "solar" | "heatpump" | "boiler";
 
 /** Per-focus step order. Solar drops the floorplan step because the
  *  solar API + satellite imagery don't depend on it; the floorplan
  *  upload would just be friction for a user who came in on the solar
- *  marketing page. Heat-pump variant keeps every step — the floor-
- *  plan IS the heat-pump survey input. */
+ *  marketing page. The boiler-vs-heat-pump variant drops it for the
+ *  same reason — the comparison keys off EPC property type + floor
+ *  area + the BUS gate, not a floorplan. Heat-pump variant keeps every
+ *  step — the floorplan IS the heat-pump survey input. */
 export function stepOrderForFocus(focus: WizardFocus): CheckStep[] {
-  if (focus === "solar") {
+  if (focus === "solar" || focus === "boiler") {
     return STEP_ORDER.filter((s) => s !== "floorplan");
   }
   return STEP_ORDER;

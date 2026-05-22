@@ -30,10 +30,10 @@ const VISIBLE_STEPS_ALL: CheckStep[] = [
   "report",
 ];
 
-// Solar variant skips the floorplan step (mirrors stepOrderForFocus
-// in types.ts) — keep the bar count honest so "Step 4 of 5" doesn't
-// stretch into a non-existent floorplan slot.
-const VISIBLE_STEPS_SOLAR: CheckStep[] = VISIBLE_STEPS_ALL.filter(
+// Solar + boiler variants skip the floorplan step (mirrors
+// stepOrderForFocus in types.ts) — keep the bar count honest so
+// "Step 4 of 5" doesn't stretch into a non-existent floorplan slot.
+const VISIBLE_STEPS_NO_FLOORPLAN: CheckStep[] = VISIBLE_STEPS_ALL.filter(
   (s) => s !== "floorplan",
 );
 
@@ -47,7 +47,9 @@ function FocusLabel() {
       ? "Solar check"
       : state.focus === "heatpump"
         ? "Heat pump check"
-        : "Heat pump & solar check";
+        : state.focus === "boiler"
+          ? "Boiler vs heat pump"
+          : "Heat pump & solar check";
   return (
     <span className="hidden md:inline text-[11px] font-medium uppercase tracking-wider text-[var(--muted-brand)] shrink-0">
       {label}
@@ -60,7 +62,9 @@ function HeaderProgress() {
   // Treat `lead_capture` as part of `analysis` for progress purposes.
   const effectiveStep: CheckStep = step === "lead_capture" ? "analysis" : step;
   const visibleSteps =
-    state.focus === "solar" ? VISIBLE_STEPS_SOLAR : VISIBLE_STEPS_ALL;
+    state.focus === "solar" || state.focus === "boiler"
+      ? VISIBLE_STEPS_NO_FLOORPLAN
+      : VISIBLE_STEPS_ALL;
   const currentIdx = visibleSteps.indexOf(effectiveStep);
   return (
     <div className="flex items-center gap-1" aria-label={`Step ${currentIdx + 1} of ${visibleSteps.length}`}>

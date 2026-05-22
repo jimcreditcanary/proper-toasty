@@ -19,12 +19,14 @@
 
 import { Battery, Flame, Sun, type LucideIcon } from "lucide-react";
 import type { AnalyseResponse } from "@/lib/schemas/analyse";
+import type { WizardFocus } from "../types";
 
 interface Props {
   analysis: AnalyseResponse;
-  /** Three-variant filter. solar hides the heat-pump row; heatpump
-   *  hides solar + battery. 'all' or undefined shows every pill. */
-  focus?: "all" | "solar" | "heatpump";
+  /** Focus-variant filter. solar hides the heat-pump row; heatpump +
+   *  boiler hide solar + battery (the boiler comparison is heat-pump
+   *  vs gas, so solar is off-topic). 'all'/undefined shows every pill. */
+  focus?: WizardFocus;
 }
 
 type Tone = "green" | "amber" | "slate";
@@ -94,7 +96,10 @@ export function EligibilityChecklist({ analysis, focus = "all" }: Props) {
   // not what they came for); heatpump hides solar + battery.
   const visibleItems = items.filter((item) => {
     if (focus === "solar" && item.id === "heatpump") return false;
-    if (focus === "heatpump" && (item.id === "solar" || item.id === "battery"))
+    if (
+      (focus === "heatpump" || focus === "boiler") &&
+      (item.id === "solar" || item.id === "battery")
+    )
       return false;
     return true;
   });

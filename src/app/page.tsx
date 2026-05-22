@@ -4,6 +4,7 @@ import { MarketingHeader } from "@/components/marketing-header";
 import { LandingFooter } from "@/components/landing-footer";
 import {
   ArrowRight,
+  ArrowRightLeft,
   Flame,
   Gauge,
   Leaf,
@@ -156,7 +157,7 @@ export default function Home() {
             Fewer questions, a report scoped to the bit you care about,
             and the same installer-ready output at the end.
           </p>
-          <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-3xl mx-auto">
+          <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4 max-w-5xl mx-auto">
             <FocusCard
               href="/heatpump"
               icon={<Flame className="w-5 h-5" />}
@@ -172,6 +173,14 @@ export default function Home() {
               title="Just solar?"
               body="Roof potential from satellite, annual kWh and battery payback — no floorplan upload needed."
               cta="Check for solar"
+            />
+            <FocusCard
+              href="/replace-my-boiler"
+              icon={<ArrowRightLeft className="w-5 h-5" />}
+              eyebrow="Boiler vs heat pump"
+              title="Replacing your boiler?"
+              body="Compare the all-in cost of a new gas boiler vs a heat pump with the £7,500 grant — both with monthly finance."
+              cta="Compare the cost"
             />
           </div>
         </div>

@@ -22,6 +22,7 @@ import { useMemo, useRef, useState, type ReactNode } from "react";
 import {
   ArrowLeft,
   ArrowRight,
+  ArrowRightLeft,
   CalendarCheck2,
   CalendarDays,
   Flame,
@@ -32,12 +33,14 @@ import {
 } from "lucide-react";
 import { ShareReportModal } from "./share-modal";
 import { useCheckWizard } from "../context";
+import type { WizardFocus } from "../types";
 import type { AnalyseResponse } from "@/lib/schemas/analyse";
 import type { FloorplanAnalysis } from "@/lib/schemas/floorplan";
 import { OverviewTab } from "./tabs/overview-tab";
 import { SavingsTab } from "./tabs/savings-tab";
 import { HeatPumpTab } from "./tabs/heat-pump-tab";
 import { SolarTab } from "./tabs/solar-tab";
+import { BoilerTab } from "./tabs/boiler-tab";
 import { BookVisitTab } from "./tabs/book-visit-tab";
 import { EligibilityChecklist } from "./eligibility-checklist";
 
@@ -46,6 +49,7 @@ export type ReportTabKey =
   | "savings"
   | "heatpump"
   | "solar"
+  | "boiler"
   | "book";
 
 interface TabDef {
@@ -59,6 +63,7 @@ const TABS: TabDef[] = [
   { key: "savings", label: "Savings", icon: <PoundSterling className="w-5 h-5" /> },
   { key: "heatpump", label: "Heat pump", icon: <Flame className="w-5 h-5" /> },
   { key: "solar", label: "Solar & battery", icon: <Sun className="w-5 h-5" /> },
+  { key: "boiler", label: "Boiler vs heat pump", icon: <ArrowRightLeft className="w-5 h-5" /> },
   { key: "book", label: "Book a site visit", icon: <CalendarDays className="w-5 h-5" /> },
 ];
 
@@ -101,7 +106,11 @@ type EffectiveAudience = "homeowner" | "presurvey" | "installer";
 
 export function ReportShell({ audience = "homeowner" }: ReportShellProps = {}) {
   const { state, reset, back, goTo } = useCheckWizard();
-  const [tab, setTab] = useState<ReportTabKey>("overview");
+  // Boiler flow opens straight on the comparison — it's the whole
+  // reason that variant exists. Everything else opens on Overview.
+  const [tab, setTab] = useState<ReportTabKey>(
+    (state.focus ?? "all") === "boiler" ? "boiler" : "overview",
+  );
   const [shareOpen, setShareOpen] = useState(false);
 
   // "presurvey" mode covers two entry paths:
@@ -157,8 +166,20 @@ export function ReportShell({ audience = "homeowner" }: ReportShellProps = {}) {
   //   all      → no extra filtering
   const focus = state.focus ?? "all";
   const focusFilter = (t: TabDef): boolean => {
+    // The boiler-vs-heat-pump comparison tab only belongs on the
+    // boiler flow; everywhere else it's noise.
+    if (t.key === "boiler") return focus === "boiler";
     if (focus === "solar" && t.key === "heatpump") return false;
     if (focus === "heatpump" && t.key === "solar") return false;
+    // Boiler flow: lead with the comparison. Drop Solar, Savings, and
+    // the standalone Heat-pump tab (the comparison covers HP suitability
+    // via the BUS gate) so the user reads one clear decision surface.
+    if (
+      focus === "boiler" &&
+      (t.key === "solar" || t.key === "savings" || t.key === "heatpump")
+    ) {
+      return false;
+    }
     return true;
   };
 
@@ -186,6 +207,7 @@ export function ReportShell({ audience = "homeowner" }: ReportShellProps = {}) {
     savings: null,
     heatpump: null,
     solar: null,
+    boiler: null,
     book: null,
   });
 
@@ -418,6 +440,7 @@ export function ReportShell({ audience = "homeowner" }: ReportShellProps = {}) {
             gasTariff={state.gasTariff}
           />
         )}
+        {tab === "boiler" && <BoilerTab analysis={a} />}
         {tab === "book" && !isInstaller && (
           <BookVisitTab
             analysis={a}
@@ -430,8 +453,10 @@ export function ReportShell({ audience = "homeowner" }: ReportShellProps = {}) {
               // query to match the variant. Without this, a
               // /check/heatpump user would see Solar + Battery
               // chips and the API would over-match installers
-              // who only do solar.
-              focus === "heatpump"
+              // who only do solar. Boiler-vs-heat-pump matches
+              // heat-pump installers (the user's choosing between a
+              // boiler and a heat pump — solar isn't in scope).
+              focus === "heatpump" || focus === "boiler"
                 ? { ...selection, hasSolar: false, hasBattery: false }
                 : focus === "solar"
                   ? { ...selection, hasHeatPump: false }
@@ -514,7 +539,7 @@ export function ReportShell({ audience = "homeowner" }: ReportShellProps = {}) {
 
 function buildHeadline(
   a: AnalyseResponse,
-  focus: "all" | "solar" | "heatpump" = "all",
+  focus: WizardFocus = "all",
 ): string {
   const hp = a.eligibility.heatPump;
   const solar = a.eligibility.solar;
@@ -523,6 +548,18 @@ function buildHeadline(
     solar.rating === "Excellent" || solar.rating === "Good"
       ? `${kwp ? `a ${kwp} kWp ` : ""}solar array`
       : null;
+
+  // Boiler-vs-heat-pump variant: frame the decision, not a single
+  // technology verdict.
+  if (focus === "boiler") {
+    if (hp.verdict === "eligible") {
+      return "New boiler or heat pump? Here's how the costs stack up for your home.";
+    }
+    if (hp.verdict === "conditional") {
+      return "New boiler or heat pump? A heat pump's possible here — here's the cost comparison.";
+    }
+    return "Here's the cost of a new boiler — and why a heat pump isn't a straightforward swap yet.";
+  }
 
   // Heat-pump-only variant: only talk about heat pumps. The Solar
   // tab is hidden + we didn't even fetch the solar API.
