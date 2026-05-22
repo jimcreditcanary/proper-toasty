@@ -9,6 +9,7 @@ import {
   buildBoilerVsHeatPump,
   financeQuote,
   annualRunningCost,
+  annualEnergyBillDelta,
   totalCostOfOwnership,
   BOILER_COST_TABLE,
   BOILER_NATIONAL_FALLBACK,
@@ -370,6 +371,25 @@ describe("annualRunningCost", () => {
     const rc = annualRunningCost({ epc: epcFound({}) });
     expect(rc.floorAreaEstimated).toBe(true);
     expect(rc.floorAreaM2).toBe(RUNNING_COST.fallbackFloorAreaM2);
+  });
+});
+
+// ─── annualEnergyBillDelta ───────────────────────────────────────────
+
+describe("annualEnergyBillDelta", () => {
+  it("is negative (heat pump dearer) on a standard tariff", () => {
+    const rc = annualRunningCost({ epc: epcFound({ totalFloorAreaM2: 100 }) });
+    const delta = annualEnergyBillDelta(rc);
+    expect(delta).toBe(rc.boilerAnnualGBP - rc.heatPumpAnnualGBP);
+    expect(delta).toBeLessThan(0);
+  });
+
+  it("is positive (heat pump saves) on a heat-pump tariff", () => {
+    const rc = annualRunningCost({
+      epc: epcFound({ totalFloorAreaM2: 100 }),
+      electricityTariff: tariff({ unitRatePencePerKWh: 13 }),
+    });
+    expect(annualEnergyBillDelta(rc)).toBeGreaterThan(0);
   });
 });
 

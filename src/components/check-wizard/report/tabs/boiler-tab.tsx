@@ -34,6 +34,7 @@ import type { FuelTariff } from "@/lib/schemas/bill";
 import {
   buildBoilerVsHeatPump,
   annualRunningCost,
+  annualEnergyBillDelta,
   totalCostOfOwnership,
   financeQuote,
   HEATING_FINANCE,
@@ -132,7 +133,10 @@ export function BoilerTab({
 
   const upfrontDiff =
     hpNet != null ? hpNet - boiler.installedCostGBP : null;
-  const hpRunsCheaper = rc.heatPumpAnnualGBP < rc.boilerAnnualGBP;
+  // Positive → heat pump saves £/yr on energy; negative → costs more.
+  const energyDelta = annualEnergyBillDelta(rc);
+  const hpRunsCheaper = energyDelta > 0;
+  const lifetimeEnergyDelta = energyDelta * years;
 
   return (
     <div className="space-y-6">
@@ -257,6 +261,32 @@ export function BoilerTab({
             sub="electricity only — no gas standing charge"
             tone="coral"
           />
+        </div>
+
+        {/* The headline number: energy saving (or extra), sign-aware. */}
+        <div
+          className={`mt-4 rounded-xl border p-4 text-center ${
+            hpRunsCheaper
+              ? "border-emerald-300 bg-emerald-50"
+              : "border-amber-200 bg-amber-50"
+          }`}
+        >
+          {hpRunsCheaper ? (
+            <p className="text-sm text-emerald-900">
+              On this tariff a heat pump would{" "}
+              <span className="font-bold">
+                save about {fmtGbp(energyDelta)}/yr
+              </span>{" "}
+              on your energy bills vs a gas boiler.
+            </p>
+          ) : (
+            <p className="text-sm text-amber-900">
+              On this tariff a heat pump would cost about{" "}
+              <span className="font-bold">{fmtGbp(-energyDelta)}/yr more</span>{" "}
+              to run than a gas boiler — switch to a heat-pump tariff to flip
+              that.
+            </p>
+          )}
         </div>
 
         <div className="mt-4 flex items-start gap-2 rounded-xl border border-slate-200 bg-slate-50/60 p-4 text-sm text-slate-600">
@@ -395,7 +425,30 @@ export function BoilerTab({
           </table>
         </div>
 
-        <p className="mt-4 text-xs text-slate-500 leading-relaxed">
+        <p className="mt-4 text-sm text-slate-700 leading-relaxed">
+          {lifetimeEnergyDelta >= 0 ? (
+            <>
+              Over {years} years, the heat pump&rsquo;s energy bills work out
+              about{" "}
+              <span className="font-semibold text-emerald-700">
+                {fmtGbp(lifetimeEnergyDelta)} lower
+              </span>{" "}
+              than gas on this tariff — that&rsquo;s what offsets the higher
+              fitting cost.
+            </>
+          ) : (
+            <>
+              Over {years} years, the heat pump&rsquo;s energy bills are about{" "}
+              <span className="font-semibold text-amber-700">
+                {fmtGbp(-lifetimeEnergyDelta)} higher
+              </span>{" "}
+              than gas on this tariff — a heat-pump tariff is what closes the
+              gap.
+            </>
+          )}
+        </p>
+
+        <p className="mt-3 text-xs text-slate-500 leading-relaxed">
           Totals = the install (or total repayable on finance) plus {years}{" "}
           years of heating energy at today&rsquo;s prices (no inflation
           modelled). Assumes a SCOP of {rc.assumptions.scop} for the heat pump

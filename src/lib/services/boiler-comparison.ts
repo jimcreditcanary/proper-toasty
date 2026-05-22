@@ -425,6 +425,19 @@ export function annualRunningCost(input: {
 }
 
 /**
+ * Annual energy-bill difference between the two systems.
+ *   positive → the heat pump is CHEAPER to run by this much per year
+ *   negative → the heat pump is DEARER to run by this much per year
+ *
+ * Honest by construction: at a standard electricity tariff this lands
+ * near zero or negative; a heat-pump tariff pushes it positive. The UI
+ * shows the sign rather than assuming a saving.
+ */
+export function annualEnergyBillDelta(rc: RunningCost): number {
+  return rc.boilerAnnualGBP - rc.heatPumpAnnualGBP;
+}
+
+/**
  * Total cost of ownership over `years`: the day-one outlay (a cash
  * install price OR a financed total-repayable) plus the running energy
  * bill for each year. Flat real energy prices — no inflation curve
