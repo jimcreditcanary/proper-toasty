@@ -8,12 +8,16 @@ import {
   hasOutstandingInsulationRec,
   buildBoilerVsHeatPump,
   financeQuote,
+  annualRunningCost,
+  totalCostOfOwnership,
   BOILER_COST_TABLE,
   BOILER_NATIONAL_FALLBACK,
   BOILER_COMPLEXITY_UPLIFT_GBP,
   HEAT_PUMP_GROSS_COST_RANGE_GBP,
   HEATING_FINANCE,
+  RUNNING_COST,
 } from "../boiler-comparison";
+import type { FuelTariff } from "@/lib/schemas/bill";
 
 // ─── Test fixtures ───────────────────────────────────────────────────
 
@@ -296,5 +300,90 @@ describe("financeQuote", () => {
     expect(financeQuote(HEATING_FINANCE.minLoanGBP, 0, 12).financeable).toBe(
       true,
     );
+  });
+});
+
+// ─── annualRunningCost ───────────────────────────────────────────────
+
+function tariff(overrides: Partial<FuelTariff>): FuelTariff {
+  return {
+    provider: null,
+    tariffName: null,
+    productType: null,
+    paymentMethod: null,
+    unitRatePencePerKWh: null,
+    standingChargePencePerDay: null,
+    priceGuaranteedUntil: null,
+    earlyExitFee: null,
+    estimatedAnnualUsageKWh: null,
+    source: "manual_estimate",
+    usageBand: null,
+    timeOfUseTariff: null,
+    exportRatePencePerKWh: null,
+    ...overrides,
+  };
+}
+
+describe("annualRunningCost", () => {
+  it("models heating energy for both systems from EPC floor area", () => {
+    const rc = annualRunningCost({
+      epc: epcFound({ builtForm: "Semi-Detached", totalFloorAreaM2: 100 }),
+    });
+    expect(rc.floorAreaM2).toBe(100);
+    expect(rc.floorAreaEstimated).toBe(false);
+    // 100 m² × 60 kWh/m² = 6000 kWh HP electricity.
+    // thermal = 6000 × 2.8 = 16,800 kWh; gas = 16800 / 0.9 = 18,667 kWh.
+    // boiler = 18667 × 7p + 30p×365 = £1306.7 + £109.5 ≈ £1416.
+    // heat pump = 6000 × 27p = £1620.
+    expect(rc.boilerAnnualGBP).toBeGreaterThan(1300);
+    expect(rc.boilerAnnualGBP).toBeLessThan(1500);
+    expect(rc.heatPumpAnnualGBP).toBe(1620);
+    // The honest truth: on a STANDARD tariff the heat pump is not
+    // automatically cheaper to run than gas.
+    expect(rc.heatPumpAnnualGBP).toBeGreaterThan(rc.boilerAnnualGBP);
+  });
+
+  it("a heat-pump tariff flips the running cost in the heat pump's favour", () => {
+    const rc = annualRunningCost({
+      epc: epcFound({ totalFloorAreaM2: 100 }),
+      // Cosy-style off-peak-weighted effective rate.
+      electricityTariff: tariff({ unitRatePencePerKWh: 13 }),
+    });
+    // 6000 × 13p = £780 — well under the ~£1,400 gas figure.
+    expect(rc.heatPumpAnnualGBP).toBe(780);
+    expect(rc.heatPumpAnnualGBP).toBeLessThan(rc.boilerAnnualGBP);
+  });
+
+  it("prefers the user's gas tariff over the default", () => {
+    const rc = annualRunningCost({
+      epc: epcFound({ totalFloorAreaM2: 100 }),
+      gasTariff: tariff({
+        unitRatePencePerKWh: 6,
+        standingChargePencePerDay: 28,
+      }),
+    });
+    expect(rc.assumptions.gasUnitPencePerKwh).toBe(6);
+    expect(rc.assumptions.gasStandingPencePerDay).toBe(28);
+  });
+
+  it("falls back to the national floor area when the EPC has none", () => {
+    const rc = annualRunningCost({ epc: epcFound({}) });
+    expect(rc.floorAreaEstimated).toBe(true);
+    expect(rc.floorAreaM2).toBe(RUNNING_COST.fallbackFloorAreaM2);
+  });
+});
+
+// ─── totalCostOfOwnership ────────────────────────────────────────────
+
+describe("totalCostOfOwnership", () => {
+  it("sums day-one outlay + N years of energy", () => {
+    // £2,800 boiler + 10 × £1,400 energy = £16,800.
+    expect(
+      totalCostOfOwnership({
+        upfrontGBP: 2800,
+        annualEnergyGBP: 1400,
+        years: 10,
+      }),
+    ).toBe(16800);
   });
 });

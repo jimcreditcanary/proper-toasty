@@ -440,7 +440,13 @@ export function ReportShell({ audience = "homeowner" }: ReportShellProps = {}) {
             gasTariff={state.gasTariff}
           />
         )}
-        {tab === "boiler" && <BoilerTab analysis={a} />}
+        {tab === "boiler" && (
+          <BoilerTab
+            analysis={a}
+            electricityTariff={state.electricityTariff}
+            gasTariff={state.gasTariff}
+          />
+        )}
         {tab === "book" && !isInstaller && (
           <BookVisitTab
             analysis={a}

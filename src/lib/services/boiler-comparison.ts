@@ -19,6 +19,11 @@
 
 import type { EpcByAddressResponse } from "@/lib/schemas/epc";
 import type { Eligibility } from "@/lib/schemas/eligibility";
+import type { FuelTariff } from "@/lib/schemas/bill";
+import {
+  DEFAULT_SIZING_INPUTS,
+  type SizingInputs,
+} from "@/lib/admin/sizing-inputs";
 import { monthlyLoanPayment } from "@/lib/savings/calc";
 
 // ─── 1. Gas boiler cost lookup (installed, like-for-like) ────────────
@@ -309,6 +314,128 @@ export interface FinanceQuote {
   totalInterestGBP: number;
   /** False when principal is below the market minimum loan. */
   financeable: boolean;
+}
+
+// ─── 5. Running costs (energy bills) ─────────────────────────────────
+//
+// An install-cost comparison alone is misleading — the whole point of a
+// heat pump is the ongoing bill. We model the HEATING energy cost of
+// each system (space heating + hot water); appliance/lighting
+// electricity is identical either way, so it's excluded.
+//
+// IMPORTANT HONESTY NOTE: at standard tariffs (~27p/kWh electricity vs
+// ~7p/kWh gas) a heat pump's running cost is roughly LEVEL with gas, not
+// dramatically cheaper — the SCOP (~2.8) offsets most, but not all, of
+// the electricity premium. The big savings come from a heat-pump tariff
+// (Cosy / overnight rates). We model the standard-tariff case and flag
+// the tariff lever in the UI. Never imply guaranteed savings.
+//
+// Model (mirrors the fuel-switch model sketched in savings/calc.ts):
+//   heat-pump heating electricity = floor area × demand-per-m² (SCOP
+//     ~2.8 already baked into that per-m² figure)
+//   thermal heat demand           = HP electricity × SCOP
+//   gas input                     = thermal ÷ boiler efficiency
+//   boiler heating cost  = gas kWh × gas unit price + gas standing charge
+//   heat-pump heating cost = HP electricity × electricity unit price
+//     (gas is disconnected on full electrification, so the boiler side
+//      carries the gas standing charge the heat-pump side avoids)
+
+export const RUNNING_COST = {
+  /** Seasonal coefficient of performance — units of heat per unit of
+   *  electricity. Matches the SCOP baked into the eligibility engine's
+   *  demand-per-m² figure. */
+  scop: 2.8,
+  /** Modern condensing gas boiler seasonal efficiency. */
+  boilerEfficiency: 0.9,
+  /** Tariff fallbacks (Ofgem price-cap ballpark, 2026) when the user
+   *  hasn't given us a bill. Electricity also falls back to the admin
+   *  sizing input before this. p/kWh + p/day. */
+  defaultGasUnitPencePerKwh: 7,
+  defaultGasStandingPencePerDay: 30,
+  /** National-average floor area used only when the EPC carries none —
+   *  the result is flagged `floorAreaEstimated`. */
+  fallbackFloorAreaM2: 90,
+} as const;
+
+export interface RunningCost {
+  floorAreaM2: number;
+  /** True when we fell back to the national-average floor area. */
+  floorAreaEstimated: boolean;
+  /** Annual heating + hot water energy cost on a gas boiler (£/yr). */
+  boilerAnnualGBP: number;
+  /** Annual heating + hot water energy cost on a heat pump (£/yr). */
+  heatPumpAnnualGBP: number;
+  /** Assumptions used, surfaced for the "how we worked this out" line. */
+  assumptions: {
+    elecUnitPencePerKwh: number;
+    gasUnitPencePerKwh: number;
+    gasStandingPencePerDay: number;
+    scop: number;
+    boilerEfficiency: number;
+  };
+}
+
+export function annualRunningCost(input: {
+  epc: EpcByAddressResponse;
+  electricityTariff?: FuelTariff | null;
+  gasTariff?: FuelTariff | null;
+  sizing?: SizingInputs;
+}): RunningCost {
+  const sizing = input.sizing ?? DEFAULT_SIZING_INPUTS;
+
+  const epcArea = input.epc.found ? input.epc.certificate.totalFloorAreaM2 : null;
+  const floorAreaEstimated = epcArea == null || epcArea <= 0;
+  const floorAreaM2 = floorAreaEstimated ? RUNNING_COST.fallbackFloorAreaM2 : epcArea;
+
+  // Tariff resolution: user's bill → admin sizing default (elec only)
+  // → hard fallback.
+  const elecUnitPence =
+    input.electricityTariff?.unitRatePencePerKWh ??
+    sizing.energy_import_price_p_per_kwh;
+  const gasUnitPence =
+    input.gasTariff?.unitRatePencePerKWh ??
+    RUNNING_COST.defaultGasUnitPencePerKwh;
+  const gasStandingPence =
+    input.gasTariff?.standingChargePencePerDay ??
+    RUNNING_COST.defaultGasStandingPencePerDay;
+
+  // Heat-pump heating electricity (demand-per-m² already ≈ SCOP-adjusted).
+  const heatPumpElecKwh = floorAreaM2 * sizing.heat_pump_demand_kwh_per_m2;
+  const thermalKwh = heatPumpElecKwh * RUNNING_COST.scop;
+  const gasKwh = thermalKwh / RUNNING_COST.boilerEfficiency;
+
+  const boilerAnnualGBP = Math.round(
+    (gasKwh * gasUnitPence) / 100 + (gasStandingPence * 365) / 100,
+  );
+  const heatPumpAnnualGBP = Math.round((heatPumpElecKwh * elecUnitPence) / 100);
+
+  return {
+    floorAreaM2,
+    floorAreaEstimated,
+    boilerAnnualGBP,
+    heatPumpAnnualGBP,
+    assumptions: {
+      elecUnitPencePerKwh: elecUnitPence,
+      gasUnitPencePerKwh: gasUnitPence,
+      gasStandingPencePerDay: gasStandingPence,
+      scop: RUNNING_COST.scop,
+      boilerEfficiency: RUNNING_COST.boilerEfficiency,
+    },
+  };
+}
+
+/**
+ * Total cost of ownership over `years`: the day-one outlay (a cash
+ * install price OR a financed total-repayable) plus the running energy
+ * bill for each year. Flat real energy prices — no inflation curve
+ * (kept deliberately simple; disclosed in the UI).
+ */
+export function totalCostOfOwnership(input: {
+  upfrontGBP: number;
+  annualEnergyGBP: number;
+  years: number;
+}): number {
+  return Math.round(input.upfrontGBP + input.annualEnergyGBP * input.years);
 }
 
 /**
