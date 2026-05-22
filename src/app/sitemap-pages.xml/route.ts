@@ -50,6 +50,14 @@ export async function GET(): Promise<Response> {
       changefreq: "monthly",
       priority: 0.9,
     },
+    // "New boiler or heat pump?" focused-check landing. High intent —
+    // targets the boiler-replacement decision moment.
+    {
+      loc: `${SITE_URL}/replace-my-boiler`,
+      lastmod: now,
+      changefreq: "monthly",
+      priority: 0.9,
+    },
     // Programmatic-town index landings — entry point for town
     // browsing + ranks for the head terms ("heat pumps UK",
     // "solar panels UK"). The per-town pages are listed in
