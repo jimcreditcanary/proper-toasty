@@ -1,9 +1,16 @@
-// /sitemap.xml — master sitemap INDEX pointing to four sub-sitemaps:
+// /sitemap.xml — master sitemap INDEX pointing to the sub-sitemaps:
 //
 //   /sitemap-pages.xml    static marketing + landing
 //   /sitemap-guides.xml   blog posts + future /guides
 //   /sitemap-towns.xml    programmatic town pages (Phase 2)
-//   /sitemap-data.xml     research / data assets (Phase 4)
+//   /sitemap-data.xml     research / data assets (Phase 4) — NOT yet
+//                         listed below: it's still an empty <urlset>,
+//                         and Bing rejects an empty sitemap referenced
+//                         in an index ("Invalid sitemap — Unable to
+//                         fetch urls from the sitemap"), failing the
+//                         whole scan. Re-add the entry once it emits
+//                         real <url> rows. Google tolerates the empty
+//                         child; Bing does not.
 //
 // This file is what robots.txt advertises and what we submit to
 // Google Search Console + Bing Webmaster Tools. Crawlers fetch it,
@@ -38,7 +45,9 @@ export async function GET(): Promise<Response> {
     { loc: `${SITE_URL}/sitemap-pages.xml`, lastmod: now },
     { loc: `${SITE_URL}/sitemap-guides.xml`, lastmod: now },
     { loc: `${SITE_URL}/sitemap-towns.xml`, lastmod: now },
-    { loc: `${SITE_URL}/sitemap-data.xml`, lastmod: now },
+    // sitemap-data.xml deliberately omitted while it's an empty
+    // <urlset> — see the file header. Re-add when Phase 4 data assets
+    // populate it.
   ];
   return xmlResponse(buildSitemapIndexXml(entries));
 }
