@@ -104,6 +104,11 @@ export interface CheckWizardState {
   tenure: Tenure | null;
   currentHeatingFuel: HeatingFuel | null; // future: pre-fill from EPC main fuel
   priorHeatPumpFunding: YesNoUnsure | null; // Ofgem BUS: no double funding
+  // Whether the household pays for boiler care / cover (a service plan).
+  // Only asked on the boiler flow when a partner config wants it; when
+  // "yes" the partner's monthly cover cost is added to the boiler's
+  // running cost (an ongoing gas-boiler cost a heat pump avoids).
+  hasBoilerCare: YesNoUnsure | null;
   // Whether the user wants to finance the works. Drives which calculator
   // scenario is shown by default on the report (Yes / Not sure → Finance
   // scenario expanded; No → Pay-up-front scenario expanded). Both scenarios
@@ -141,6 +146,13 @@ export interface CheckWizardState {
   // Three-variant entry point — see WizardFocus comment above.
   // Default "all" keeps backwards-compat with the homepage flow.
   focus: WizardFocus;
+
+  // Brand-partnership id (e.g. "octopus") when the user arrived via a
+  // co-branded landing. Resolved to a PartnerConfig via getPartner()
+  // in src/lib/services/boiler-comparison.ts — kept as a string here so
+  // the foundational types module doesn't depend on the services layer.
+  // null = the neutral (un-partnered) boiler flow.
+  partner: string | null;
 
   // Step 5 — analysis output (stitched)
   analysis: AnalyseResponse | null;
@@ -195,9 +207,11 @@ export const INITIAL_STATE: CheckWizardState = {
   country: null,
   interests: ["heat_pump", "solar_battery"],
   focus: "all",
+  partner: null,
   tenure: null,
   currentHeatingFuel: null,
   priorHeatPumpFunding: null,
+  hasBoilerCare: null,
   financingPreference: null,
   electricityTariff: null,
   gasTariff: null,

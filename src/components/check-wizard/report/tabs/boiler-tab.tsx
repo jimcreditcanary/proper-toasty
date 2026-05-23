@@ -38,6 +38,7 @@ import {
   totalCostOfOwnership,
   financeQuote,
   HEATING_FINANCE,
+  type PartnerConfig,
 } from "@/lib/services/boiler-comparison";
 import { SectionCard, FactRow, IssueList, fmtGbp } from "../shared";
 
@@ -48,18 +49,26 @@ export function BoilerTab({
   analysis,
   electricityTariff,
   gasTariff,
+  partner = null,
+  hasBoilerCare = false,
 }: {
   analysis: AnalyseResponse;
   electricityTariff: FuelTariff | null;
   gasTariff: FuelTariff | null;
+  /** Active brand partner (e.g. Octopus) — overrides heat-pump price,
+   *  finance, the heat-pump tariff + energy inflation. */
+  partner?: PartnerConfig | null;
+  /** Whether the user said they pay for boiler cover (partner flows). */
+  hasBoilerCare?: boolean;
 }) {
   const cmp = useMemo(
     () =>
       buildBoilerVsHeatPump({
         epc: analysis.epc,
         eligibility: analysis.eligibility,
+        partner,
       }),
-    [analysis],
+    [analysis, partner],
   );
   const rc = useMemo(
     () =>
@@ -67,13 +76,19 @@ export function BoilerTab({
         epc: analysis.epc,
         electricityTariff,
         gasTariff,
+        heatPumpElecPenceOverride: partner?.heatPumpElecPencePerKwh,
+        boilerCareAnnualGBP:
+          partner && hasBoilerCare ? partner.boilerCareMonthlyGBP * 12 : 0,
       }),
-    [analysis, electricityTariff, gasTariff],
+    [analysis, electricityTariff, gasTariff, partner, hasBoilerCare],
   );
 
   const { boiler, heatPump } = cmp;
 
   // ── Controls ──
+  // Partner flows carry a fixed finance offer (e.g. Octopus 0% / 10yr)
+  // with no product/term picker. Energy inflation also comes from the
+  // partner (gas rising faster than electricity); neutral flow is flat.
   const [product, setProduct] = useState<FinanceProduct>("spread");
   const [termMonths, setTermMonths] = useState<number>(
     HEATING_FINANCE.defaultTermMonths,
@@ -84,26 +99,35 @@ export function BoilerTab({
     product === "zero"
       ? HEATING_FINANCE.zeroAprTermsMonths
       : HEATING_FINANCE.spreadTermsMonths;
-  const effectiveTerm = (termOptions as readonly number[]).includes(termMonths)
+  const pickedTerm = (termOptions as readonly number[]).includes(termMonths)
     ? termMonths
     : termOptions[0];
-  const apr =
-    product === "zero" ? HEATING_FINANCE.zeroAprPct : HEATING_FINANCE.spreadAprPct;
+  const effectiveTerm = partner ? partner.financeTermMonths : pickedTerm;
+  const apr = partner
+    ? partner.financeAprPct
+    : product === "zero"
+      ? HEATING_FINANCE.zeroAprPct
+      : HEATING_FINANCE.spreadAprPct;
+  const gasInflation = partner?.gasInflationPctPerYear ?? 0;
+  const elecInflation = partner?.elecInflationPctPerYear ?? 0;
 
   const boilerQuote = financeQuote(boiler.installedCostGBP, apr, effectiveTerm);
   const hpNet = heatPump.netMidpointGBP;
   const hpQuote = hpNet != null ? financeQuote(hpNet, apr, effectiveTerm) : null;
 
-  // ── Totals over `years` ──
+  // ── Totals over `years` ── (gas inflates faster than electricity on
+  // a partner page; both flat on the neutral flow)
   const boilerUpfrontTco = totalCostOfOwnership({
     upfrontGBP: boiler.installedCostGBP,
     annualEnergyGBP: rc.boilerAnnualGBP,
     years,
+    energyInflationPctPerYear: gasInflation,
   });
   const boilerFinanceTco = totalCostOfOwnership({
     upfrontGBP: boilerQuote.totalRepayableGBP,
     annualEnergyGBP: rc.boilerAnnualGBP,
     years,
+    energyInflationPctPerYear: gasInflation,
   });
   const hpUpfrontTco =
     hpNet != null
@@ -111,6 +135,7 @@ export function BoilerTab({
           upfrontGBP: hpNet,
           annualEnergyGBP: rc.heatPumpAnnualGBP,
           years,
+          energyInflationPctPerYear: elecInflation,
         })
       : null;
   const hpFinanceTco =
@@ -119,6 +144,7 @@ export function BoilerTab({
           upfrontGBP: hpQuote.totalRepayableGBP,
           annualEnergyGBP: rc.heatPumpAnnualGBP,
           years,
+          energyInflationPctPerYear: elecInflation,
         })
       : null;
 
@@ -147,8 +173,25 @@ export function BoilerTab({
   const hpRunsCheaper = energyDelta > 0;
   const lifetimeEnergyDelta = energyDelta * years;
 
+  // Partner-aware labels.
+  const hpName = partner ? `${partner.name} heat pump` : "Air source heat pump";
+  const hpInstalledLabel = partner ? "Installed" : "Installed (MCS avg)";
+
   return (
     <div className="space-y-6">
+      {partner && (
+        <div className="rounded-2xl border border-coral/30 bg-coral-pale/30 px-5 py-3.5 flex items-center gap-2.5">
+          <Zap className="w-4 h-4 text-coral shrink-0" />
+          <p className="text-sm text-navy">
+            <span className="font-semibold">
+              In partnership with {partner.name}.
+            </span>{" "}
+            The heat-pump price, the {partner.name} Cosy tariff and 0% finance
+            over {partner.financeTermMonths / 12} years below are{" "}
+            {partner.name}&rsquo;s.
+          </p>
+        </div>
+      )}
       {/* ── 1. Upfront cost ── */}
       <SectionCard
         icon={<ArrowRightLeft className="w-5 h-5" />}
@@ -176,7 +219,7 @@ export function BoilerTab({
           <CostColumn
             tone="coral"
             icon={<Zap className="w-5 h-5" />}
-            heading="Air source heat pump"
+            heading={hpName}
             headlineLabel={hpNet != null ? "After the grant" : "Before grant"}
             headline={
               hpNet != null
@@ -187,10 +230,13 @@ export function BoilerTab({
             }
             rows={[
               {
-                label: "Installed (MCS avg)",
-                value: `${fmtGbp(heatPump.grossRangeGBP[0])}–${fmtGbp(
-                  heatPump.grossRangeGBP[1],
-                )}`,
+                label: hpInstalledLabel,
+                value:
+                  heatPump.grossRangeGBP[0] === heatPump.grossRangeGBP[1]
+                    ? fmtGbp(heatPump.grossRangeGBP[0])
+                    : `${fmtGbp(heatPump.grossRangeGBP[0])}–${fmtGbp(
+                        heatPump.grossRangeGBP[1],
+                      )}`,
               },
               {
                 label: "Boiler Upgrade Scheme",
@@ -199,7 +245,10 @@ export function BoilerTab({
                   : "Not eligible",
                 tone: heatPump.busEligible ? "green" : undefined,
               },
-              { label: "Installer", value: "MCS-certified" },
+              {
+                label: "Installer",
+                value: partner ? `${partner.name} (MCS)` : "MCS-certified",
+              },
             ]}
           />
         </div>
@@ -254,20 +303,32 @@ export function BoilerTab({
       <SectionCard
         icon={<PoundSterling className="w-5 h-5" />}
         title="What it costs to run, each year"
-        subtitle={`Heating + hot water energy. At ${rc.assumptions.elecUnitPencePerKwh}p/kWh electricity and ${rc.assumptions.gasUnitPencePerKwh}p/kWh gas. Your appliances + lighting cost the same either way, so they're left out.`}
+        subtitle={
+          partner
+            ? `Heating + hot water energy. The heat pump runs on the ${partner.name} Cosy tariff (${rc.assumptions.elecUnitPencePerKwh}p/kWh), the boiler on gas at ${rc.assumptions.gasUnitPencePerKwh}p/kWh. Appliances + lighting cost the same either way, so they're left out.`
+            : `Heating + hot water energy. At ${rc.assumptions.elecUnitPencePerKwh}p/kWh electricity and ${rc.assumptions.gasUnitPencePerKwh}p/kWh gas. Your appliances + lighting cost the same either way, so they're left out.`
+        }
       >
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <RunningStat
             icon={<Flame className="w-5 h-5" />}
             heading="New gas boiler"
             value={fmtGbp(rc.boilerAnnualGBP)}
-            sub="gas for heating + hot water, incl. standing charge"
+            sub={
+              partner && hasBoilerCare
+                ? "gas + boiler cover, incl. standing charge"
+                : "gas for heating + hot water, incl. standing charge"
+            }
           />
           <RunningStat
             icon={<Zap className="w-5 h-5" />}
-            heading="Heat pump"
+            heading={partner ? `${partner.name} heat pump` : "Heat pump"}
             value={fmtGbp(rc.heatPumpAnnualGBP)}
-            sub="electricity only — no gas standing charge"
+            sub={
+              partner
+                ? `electricity on ${partner.name} Cosy — no gas standing charge`
+                : "electricity only — no gas standing charge"
+            }
             tone="coral"
           />
         </div>
@@ -351,34 +412,46 @@ export function BoilerTab({
           </div>
         </div>
 
-        {/* Finance controls (drive the "On finance" column) */}
+        {/* Finance controls (drive the "On finance" column). Partner
+            flows carry a fixed offer, so we state it rather than offer
+            a product/term picker. */}
         <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50/50 p-4">
           <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">
             If you spread it on finance
           </p>
-          <div className="flex flex-wrap gap-2">
-            <ToggleButton
-              active={product === "zero"}
-              onClick={() => setProduct("zero")}
-              label="0% APR"
-              sub="up to 2 yrs"
-            />
-            <ToggleButton
-              active={product === "spread"}
-              onClick={() => setProduct("spread")}
-              label={`${HEATING_FINANCE.spreadAprPct}% APR`}
-              sub="up to 10 yrs"
-            />
-            <span className="mx-1 self-center text-slate-300">|</span>
-            {termOptions.map((t) => (
+          {partner ? (
+            <p className="text-sm text-navy">
+              <span className="font-semibold">
+                {partner.financeAprPct}% APR over{" "}
+                {partner.financeTermMonths / 12} years
+              </span>{" "}
+              with {partner.name} — subject to status.
+            </p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
               <ToggleButton
-                key={t}
-                active={effectiveTerm === t}
-                onClick={() => setTermMonths(t)}
-                label={`${t} mo`}
+                active={product === "zero"}
+                onClick={() => setProduct("zero")}
+                label="0% APR"
+                sub="up to 2 yrs"
               />
-            ))}
-          </div>
+              <ToggleButton
+                active={product === "spread"}
+                onClick={() => setProduct("spread")}
+                label={`${HEATING_FINANCE.spreadAprPct}% APR`}
+                sub="up to 10 yrs"
+              />
+              <span className="mx-1 self-center text-slate-300">|</span>
+              {termOptions.map((t) => (
+                <ToggleButton
+                  key={t}
+                  active={effectiveTerm === t}
+                  onClick={() => setTermMonths(t)}
+                  label={`${t} mo`}
+                />
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Monthly cost — side by side */}
@@ -396,7 +469,8 @@ export function BoilerTab({
                 </th>
                 <th className="pb-3 px-3">
                   <span className="inline-flex items-center gap-1.5 font-semibold text-navy">
-                    <Zap className="w-4 h-4 text-coral" /> Heat pump
+                    <Zap className="w-4 h-4 text-coral" />{" "}
+                    {partner ? partner.name : "Heat pump"}
                   </span>
                 </th>
               </tr>
@@ -451,7 +525,7 @@ export function BoilerTab({
             />
             <HorizonTotal
               icon={<Zap className="w-4 h-4" />}
-              label="Heat pump"
+              label={partner ? partner.name : "Heat pump"}
               total={hpFinanceTco}
               lowest={hpFinanceTco != null && hpFinanceTco === lowerFinanceTco}
             />
@@ -489,12 +563,20 @@ export function BoilerTab({
 
         <p className="mt-3 text-xs text-slate-500 leading-relaxed">
           Totals = the install (or total repayable on finance) plus {years}{" "}
-          years of heating energy at today&rsquo;s prices (no inflation
-          modelled). Assumes a SCOP of {rc.assumptions.scop} for the heat pump
-          and a {Math.round(rc.assumptions.boilerEfficiency * 100)}%-efficient
-          gas boiler. Finance is brokered through FCA-regulated lenders, subject
-          to status; minimum loan {fmtGbp(HEATING_FINANCE.minLoanGBP)}. A
-          pre-survey indication — not a quote or a credit offer.
+          years of heating energy.{" "}
+          {partner ? (
+            <>
+              Energy prices are projected forward at {gasInflation}%/yr for gas
+              and {elecInflation}%/yr for electricity.
+            </>
+          ) : (
+            <>At today&rsquo;s prices (no inflation modelled).</>
+          )}{" "}
+          Assumes a SCOP of {rc.assumptions.scop} for the heat pump and a{" "}
+          {Math.round(rc.assumptions.boilerEfficiency * 100)}%-efficient gas
+          boiler. Finance subject to status; minimum loan{" "}
+          {fmtGbp(HEATING_FINANCE.minLoanGBP)}. A pre-survey indication — not a
+          quote or a credit offer.
         </p>
       </SectionCard>
     </div>
