@@ -23,6 +23,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Award,
+  BadgeCheck,
   Battery,
   Calendar,
   CalendarCheck2,
@@ -232,9 +233,22 @@ export function BookVisitTab({
   const techPhrase = describeTech(wantsHeatPump, wantsSolar, wantsBattery);
 
   // Brand-partner flow: the partner installs the heat pump, so a grid
-  // of competing installers is off-message. Hand off to the partner.
+  // of competing installers is off-message. Book a real site visit
+  // directly against the partner's installer record (e.g. Octopus,
+  // installer 9864) using the same availability + lead flow as a
+  // pre-survey, pinned to that installer.
   if (partner) {
-    return <PartnerBookingCard partner={partner} />;
+    return (
+      <div className="space-y-6">
+        <CreditPreApprovalCard partnerName={partner.name} />
+        <PreSurveyBookingCard
+          installerName={partner.name}
+          installerIdOverride={partner.installerId}
+          techPhrase={techPhrase}
+          selection={selection}
+        />
+      </div>
+    );
   }
 
   // Pre-survey audience: the homeowner is already engaged with a
@@ -418,50 +432,6 @@ export function BookVisitTab({
         />
       )}
     </div>
-  );
-}
-
-// ─── Partner booking card ────────────────────────────────────────────────────
-// Shown on a brand-partner flow (e.g. Octopus) instead of the
-// nearby-installers marketplace — the partner does the install, so we
-// hand off to them rather than surfacing competitors.
-
-function PartnerBookingCard({ partner }: { partner: PartnerConfig }) {
-  return (
-    <SectionCard
-      icon={<CalendarDays className="w-5 h-5" />}
-      title={`Book a free home survey with ${partner.name}`}
-      subtitle={`${partner.name} install the heat pump, at the price + finance shown here. The next step is a no-obligation home survey to confirm your exact figures.`}
-    >
-      <ul className="space-y-2.5 mb-5">
-        {[
-          "Free, no-obligation home survey",
-          "MCS-certified install — eligible for the £7,500 grant",
-          `The price, Cosy tariff + 0% finance you've just seen`,
-        ].map((t) => (
-          <li
-            key={t}
-            className="flex items-start gap-2.5 text-sm text-slate-700 leading-relaxed"
-          >
-            <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0 text-emerald-500" />
-            <span>{t}</span>
-          </li>
-        ))}
-      </ul>
-      <a
-        href={partner.bookingUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="inline-flex items-center justify-center gap-2 h-11 px-6 rounded-full bg-coral hover:bg-coral-dark text-white font-semibold text-sm shadow-sm transition-colors"
-      >
-        Book with {partner.name}
-        <ExternalLink className="w-4 h-4" />
-      </a>
-      <p className="mt-3 text-xs text-slate-500 leading-relaxed">
-        Opens {partner.name}&rsquo;s site in a new tab. A pre-survey indication
-        — your final price + survey are confirmed by {partner.name}.
-      </p>
-    </SectionCard>
   );
 }
 
@@ -785,17 +755,169 @@ function FilterPill({
 // The submit branches on whether state.preSurveyToken + preSurveyRequestId
 // are both set. Same UI, same outcome (meeting booked + parent shell
 // hides the Book tab + shows the meeting banner).
+// ─── Credit pre-approval (simulation) ────────────────────────────────────────
+// An illustrative pre-approval shown before booking on a partner flow.
+// IMPORTANT: this is a SIMULATION, not a real credit check or decision —
+// the copy says so plainly. It always returns "pre-approved", and the
+// outcome never gates the site-visit booking below (no negative path).
+// Collects time-at-address (+ a previous address if under 12 months)
+// and date of birth, purely to make the demo feel real.
+
+function CreditPreApprovalCard({ partnerName }: { partnerName: string }) {
+  const [livedHere, setLivedHere] = useState<"lt12" | "gte12" | null>(null);
+  const [previousAddress, setPreviousAddress] = useState("");
+  const [dob, setDob] = useState("");
+  const [approved, setApproved] = useState(false);
+
+  const needsPrevious = livedHere === "lt12";
+  const ready =
+    livedHere !== null &&
+    dob.trim() !== "" &&
+    (!needsPrevious || previousAddress.trim() !== "");
+
+  if (approved) {
+    return (
+      <SectionCard
+        icon={<BadgeCheck className="w-5 h-5 text-emerald-700" />}
+        title="You're pre-approved"
+        subtitle="Illustrative result only — see the note below."
+      >
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3.5">
+          <p className="text-sm font-semibold text-emerald-900">
+            Good news — based on what you entered, you&rsquo;d likely be
+            pre-approved for {partnerName} finance.
+          </p>
+          <p className="mt-1 text-sm text-emerald-800">
+            Go ahead and book your site visit below — the installer confirms
+            everything on the day.
+          </p>
+        </div>
+        <p className="mt-3 text-xs text-slate-500 leading-relaxed">
+          This is a <strong>simulation for illustration only</strong> — not a
+          real credit check, search or decision, and nothing was submitted to a
+          lender. Whatever it shows, it never affects your ability to book a
+          site visit.
+        </p>
+      </SectionCard>
+    );
+  }
+
+  return (
+    <SectionCard
+      icon={<ShieldCheck className="w-5 h-5" />}
+      title="Get pre-approved for finance (optional)"
+      subtitle="A quick illustration of whether you'd qualify for finance — before you book. Takes 20 seconds."
+    >
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (ready) setApproved(true);
+        }}
+        className="space-y-5"
+      >
+        <div>
+          <p className="text-sm font-medium text-slate-700 mb-2">
+            How long have you lived at this address?
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setLivedHere("gte12")}
+              aria-pressed={livedHere === "gte12"}
+              className={`rounded-xl border px-4 py-2.5 text-sm font-semibold transition-colors ${
+                livedHere === "gte12"
+                  ? "border-coral bg-coral text-white"
+                  : "border-slate-200 bg-white text-slate-700 hover:border-coral/40"
+              }`}
+            >
+              12 months or more
+            </button>
+            <button
+              type="button"
+              onClick={() => setLivedHere("lt12")}
+              aria-pressed={livedHere === "lt12"}
+              className={`rounded-xl border px-4 py-2.5 text-sm font-semibold transition-colors ${
+                livedHere === "lt12"
+                  ? "border-coral bg-coral text-white"
+                  : "border-slate-200 bg-white text-slate-700 hover:border-coral/40"
+              }`}
+            >
+              Less than 12 months
+            </button>
+          </div>
+        </div>
+
+        {needsPrevious && (
+          <div>
+            <label
+              htmlFor="prev-address"
+              className="block text-sm font-medium text-slate-700 mb-1.5"
+            >
+              Previous address
+            </label>
+            <input
+              id="prev-address"
+              type="text"
+              value={previousAddress}
+              onChange={(e) => setPreviousAddress(e.target.value)}
+              placeholder="House number, street, postcode"
+              className="w-full h-11 rounded-lg border border-slate-200 bg-white px-3 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-coral focus-visible:border-coral"
+            />
+          </div>
+        )}
+
+        <div>
+          <label
+            htmlFor="dob"
+            className="block text-sm font-medium text-slate-700 mb-1.5"
+          >
+            Date of birth
+          </label>
+          <input
+            id="dob"
+            type="date"
+            value={dob}
+            onChange={(e) => setDob(e.target.value)}
+            className="w-full sm:w-56 h-11 rounded-lg border border-slate-200 bg-white px-3 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-coral focus-visible:border-coral"
+          />
+        </div>
+
+        <button
+          type="submit"
+          disabled={!ready}
+          className="inline-flex items-center justify-center gap-2 h-11 px-6 rounded-full bg-coral hover:bg-coral-dark text-white font-semibold text-sm shadow-sm transition-colors disabled:bg-slate-300 disabled:cursor-not-allowed"
+        >
+          Check pre-approval
+        </button>
+
+        <p className="text-xs text-slate-500 leading-relaxed">
+          This is a <strong>simulation for illustration only</strong> — not a
+          real credit check, search or decision, and nothing is submitted to a
+          lender. It won&rsquo;t affect your credit score, and it never affects
+          your ability to book a site visit.
+        </p>
+      </form>
+    </SectionCard>
+  );
+}
+
 function PreSurveyBookingCard({
   installerName,
   techPhrase,
   selection,
+  installerIdOverride,
 }: {
   installerName: string;
   techPhrase: string;
   selection: { hasHeatPump: boolean; hasSolar: boolean; hasBattery: boolean };
+  /** Pin the booking to a specific installer regardless of the
+   *  pre-survey state — used by brand-partner flows (e.g. Octopus,
+   *  installer 9864) to book a real site visit via the same
+   *  availability + customer-initiated lead path. */
+  installerIdOverride?: number;
 }) {
   const { state, update } = useCheckWizard();
-  const installerId = state.preSurveyInstallerId;
+  const installerId = installerIdOverride ?? state.preSurveyInstallerId;
   const homeownerToken = state.preSurveyToken;
   const requestId = state.preSurveyRequestId;
 
