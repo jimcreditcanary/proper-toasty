@@ -191,7 +191,7 @@ export function Step5Analysis() {
         )}
         {stage === "idle" && (
           <p className="text-sm text-slate-500">
-            {state.focus === "solar"
+            {state.focus === "solar" || state.focus === "boiler"
               ? "We need an address + a couple of quick questions to run. Use the Back button to fill those in."
               : "We need an address, the quick questions, and your floorplan to run. Use the Back button to fill those in."}
           </p>

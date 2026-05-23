@@ -8,11 +8,13 @@ import { useCallback, useEffect, useId, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
+  ArrowRightLeft,
   Check,
   FileText,
   Flame,
   Loader2,
   Mail,
+  PoundSterling,
   Shield,
   Sparkles,
   Sun,
@@ -229,26 +231,48 @@ export function Step5bLeadCapture() {
 
           {/* What's in your report */}
           <div className="mt-8 space-y-4">
-            <BenefitRow
-              icon={<Flame className="w-4 h-4" />}
-              title="Heat pump eligibility + BUS grant"
-              body="Your BUS grant value, sizing estimate, and the questions an installer will ask."
-            />
-            <BenefitRow
-              icon={<Sun className="w-4 h-4" />}
-              title="Solar & battery suitability"
-              body="Roof orientation, annual production estimate, and payback window."
-            />
-            <BenefitRow
-              icon={<Sparkles className="w-4 h-4" />}
-              title="Live savings calculator"
-              body="A clear breakdown of what you&rsquo;d save per year — including export earnings if you go solar."
-            />
-            <BenefitRow
-              icon={<FileText className="w-4 h-4" />}
-              title="Annotated floorplan"
-              body="Your drawing with heat pump + cylinder placements marked to scale for your installer."
-            />
+            {state.focus === "boiler" ? (
+              <>
+                <BenefitRow
+                  icon={<ArrowRightLeft className="w-4 h-4" />}
+                  title="New boiler vs heat pump — the cost"
+                  body="The all-in installed price of each, side by side, with the £7,500 grant netted off where you qualify."
+                />
+                <BenefitRow
+                  icon={<PoundSterling className="w-4 h-4" />}
+                  title="What each costs to run"
+                  body="Your annual heating bill on gas vs a heat pump — and the yearly difference between them."
+                />
+                <BenefitRow
+                  icon={<Sparkles className="w-4 h-4" />}
+                  title="Monthly + total over time"
+                  body="Finance and energy side by side, per month and across 5, 10 or 15 years."
+                />
+              </>
+            ) : (
+              <>
+                <BenefitRow
+                  icon={<Flame className="w-4 h-4" />}
+                  title="Heat pump eligibility + BUS grant"
+                  body="Your BUS grant value, sizing estimate, and the questions an installer will ask."
+                />
+                <BenefitRow
+                  icon={<Sun className="w-4 h-4" />}
+                  title="Solar & battery suitability"
+                  body="Roof orientation, annual production estimate, and payback window."
+                />
+                <BenefitRow
+                  icon={<Sparkles className="w-4 h-4" />}
+                  title="Live savings calculator"
+                  body="A clear breakdown of what you&rsquo;d save per year — including export earnings if you go solar."
+                />
+                <BenefitRow
+                  icon={<FileText className="w-4 h-4" />}
+                  title="Annotated floorplan"
+                  body="Your drawing with heat pump + cylinder placements marked to scale for your installer."
+                />
+              </>
+            )}
           </div>
 
           {/* Trust signals */}
