@@ -2,8 +2,10 @@
 
 import { useEffect } from "react";
 import Link from "next/link";
+import { RotateCcw, Play } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { CheckWizardProvider, useCheckWizard } from "./context";
+import { getPartner } from "@/lib/services/boiler-comparison";
 import { STEP_ORDER, type CheckStep, type CheckWizardState } from "./types";
 import { Step1Address } from "./step-1-address";
 import { Step2Preview } from "./step-2-preview";
@@ -171,7 +173,70 @@ export function CheckWizard({ initialState }: CheckWizardProps = {}) {
       <main id="wizard-main" tabIndex={-1} className="flex-1 bg-gradient-to-b from-cream-deep to-cream">
         <StepWrapper />
       </main>
+      <ResumeJourneyModal />
     </CheckWizardProvider>
+  );
+}
+
+// Shown when a prior journey was restored from localStorage on the
+// plain /check entry — lets the user resume it or wipe the cache and
+// start fresh. Fixes the "I clicked a fresh check but landed back in my
+// old Octopus journey" confusion: /check rehydrates the last session's
+// focus/partner, so without this prompt a stale journey silently
+// hijacks the new one.
+function ResumeJourneyModal() {
+  const { restoredFromCache, dismissResume, reset, state } = useCheckWizard();
+  if (!restoredFromCache) return null;
+
+  const partner = getPartner(state.partner);
+  const label = partner
+    ? `your ${partner.name} check`
+    : state.focus === "boiler"
+      ? "your boiler vs heat pump check"
+      : state.focus === "solar"
+        ? "your solar check"
+        : state.focus === "heatpump"
+          ? "your heat pump check"
+          : "a check you started";
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="resume-title"
+      className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-navy/40 backdrop-blur-sm"
+    >
+      <div className="w-full max-w-md rounded-2xl bg-white shadow-xl border border-[var(--border)] p-6 sm:p-7">
+        <h2
+          id="resume-title"
+          className="text-xl font-bold text-navy"
+        >
+          Pick up where you left off?
+        </h2>
+        <p className="mt-2 text-sm text-slate-600 leading-relaxed">
+          We found {label} saved on this device. You can carry on with it,
+          or clear it and start a brand-new check.
+        </p>
+        <div className="mt-6 flex flex-col gap-2.5">
+          <button
+            type="button"
+            onClick={dismissResume}
+            className="inline-flex items-center justify-center gap-2 h-11 px-5 rounded-full bg-coral hover:bg-coral-dark text-white font-semibold text-sm transition-colors"
+          >
+            <Play className="w-4 h-4" />
+            Continue my check
+          </button>
+          <button
+            type="button"
+            onClick={reset}
+            className="inline-flex items-center justify-center gap-2 h-11 px-5 rounded-full border border-slate-300 text-slate-700 hover:bg-slate-50 font-semibold text-sm transition-colors"
+          >
+            <RotateCcw className="w-4 h-4" />
+            Start a new check
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 

@@ -43,6 +43,14 @@ interface CheckWizardContextValue {
   goTo: (step: CheckStep) => void;
   next: () => void;
   back: () => void;
+  /** True when this load restored a prior, in-progress/completed journey
+   *  from localStorage (only happens on the plain /check entry — focus
+   *  variants wipe the cache). The wizard shell uses this to offer a
+   *  "resume or start fresh" choice so a stale partner/focus journey
+   *  doesn't silently hijack a fresh /check. */
+  restoredFromCache: boolean;
+  /** Dismiss the resume prompt, keeping the restored journey. */
+  dismissResume: () => void;
 }
 
 const CheckWizardContext = createContext<CheckWizardContextValue | null>(null);
@@ -69,6 +77,7 @@ export function CheckWizardProvider({
   );
   const [step, setStep] = useState<CheckStep>(initialStep ?? "address");
   const [hydrated, setHydrated] = useState(false);
+  const [restoredFromCache, setRestoredFromCache] = useState(false);
 
   // Hydration effect — bridges SSR (no localStorage available) and
   // the client's persisted wizard state. We deliberately setState
@@ -137,6 +146,19 @@ export function CheckWizardProvider({
           if (validSteps.includes(parsed.step)) {
             setStep(parsed.step);
           }
+          // Flag a restored journey worth offering to resume — they got
+          // past the first step or already picked an address (and/or the
+          // session carries a non-default focus/partner). Mid-"address"
+          // sessions with nothing entered aren't worth a prompt.
+          const ps = parsed.state as Partial<CheckWizardState> | undefined;
+          const meaningful =
+            parsed.step !== "address" ||
+            !!ps?.address ||
+            (ps?.focus && ps.focus !== "all") ||
+            !!ps?.partner;
+          if (meaningful) {
+            setRestoredFromCache(true);
+          }
         } else {
           localStorage.removeItem(STORAGE_KEY);
         }
@@ -187,8 +209,11 @@ export function CheckWizardProvider({
   const reset = useCallback(() => {
     dispatch({ type: "RESET" });
     setStep("address");
+    setRestoredFromCache(false);
     if (typeof window !== "undefined") localStorage.removeItem(STORAGE_KEY);
   }, []);
+
+  const dismissResume = useCallback(() => setRestoredFromCache(false), []);
 
   const goTo = useCallback((s: CheckStep) => setStep(s), []);
 
@@ -212,8 +237,28 @@ export function CheckWizardProvider({
   }, [step, order]);
 
   const value = useMemo(
-    () => ({ state, step, update, reset, goTo, next, back }),
-    [state, step, update, reset, goTo, next, back]
+    () => ({
+      state,
+      step,
+      update,
+      reset,
+      goTo,
+      next,
+      back,
+      restoredFromCache,
+      dismissResume,
+    }),
+    [
+      state,
+      step,
+      update,
+      reset,
+      goTo,
+      next,
+      back,
+      restoredFromCache,
+      dismissResume,
+    ]
   );
 
   return <CheckWizardContext.Provider value={value}>{children}</CheckWizardContext.Provider>;
