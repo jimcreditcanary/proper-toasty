@@ -44,6 +44,10 @@ import { SectionCard, FactRow, IssueList, fmtGbp } from "../shared";
 
 type FinanceProduct = "zero" | "spread";
 const YEAR_OPTIONS = [5, 10, 15] as const;
+// Term choices offered on a partner page (months). APR is a free slider
+// 0%–9.9% there rather than the neutral flow's 0%-vs-spread toggle.
+const PARTNER_TERM_OPTIONS = [24, 60, 120] as const;
+const PARTNER_APR_MAX = 9.9;
 
 export function BoilerTab({
   analysis,
@@ -70,6 +74,11 @@ export function BoilerTab({
       }),
     [analysis, partner],
   );
+  // Boiler-care overage — only the gas boiler carries it; a heat pump
+  // doesn't need an annual gas service / cover plan. Broken out so the
+  // running-cost panel can show it as its own line.
+  const boilerCareAnnual =
+    partner && hasBoilerCare ? partner.boilerCareMonthlyGBP * 12 : 0;
   const rc = useMemo(
     () =>
       annualRunningCost({
@@ -77,21 +86,28 @@ export function BoilerTab({
         electricityTariff,
         gasTariff,
         heatPumpElecPenceOverride: partner?.heatPumpElecPencePerKwh,
-        boilerCareAnnualGBP:
-          partner && hasBoilerCare ? partner.boilerCareMonthlyGBP * 12 : 0,
+        boilerCareAnnualGBP: boilerCareAnnual,
       }),
-    [analysis, electricityTariff, gasTariff, partner, hasBoilerCare],
+    [analysis, electricityTariff, gasTariff, partner, boilerCareAnnual],
   );
+  // Gas-only portion of the boiler running cost (total minus cover).
+  const boilerGasOnly = rc.boilerAnnualGBP - boilerCareAnnual;
 
   const { boiler, heatPump } = cmp;
 
   // ── Controls ──
-  // Partner flows carry a fixed finance offer (e.g. Octopus 0% / 10yr)
-  // with no product/term picker. Energy inflation also comes from the
-  // partner (gas rising faster than electricity); neutral flow is flat.
+  // Neutral flow: a 0%-vs-spread product toggle + term buttons.
+  // Partner flow: an APR slider (0%–9.9%, starting at the partner's
+  // headline rate) + term buttons — both drive the table + totals.
   const [product, setProduct] = useState<FinanceProduct>("spread");
   const [termMonths, setTermMonths] = useState<number>(
     HEATING_FINANCE.defaultTermMonths,
+  );
+  const [partnerAprPct, setPartnerAprPct] = useState<number>(
+    partner?.financeAprPct ?? 0,
+  );
+  const [partnerTermMonths, setPartnerTermMonths] = useState<number>(
+    partner?.financeTermMonths ?? 120,
   );
   const [years, setYears] = useState<number>(10);
 
@@ -102,9 +118,9 @@ export function BoilerTab({
   const pickedTerm = (termOptions as readonly number[]).includes(termMonths)
     ? termMonths
     : termOptions[0];
-  const effectiveTerm = partner ? partner.financeTermMonths : pickedTerm;
+  const effectiveTerm = partner ? partnerTermMonths : pickedTerm;
   const apr = partner
-    ? partner.financeAprPct
+    ? partnerAprPct
     : product === "zero"
       ? HEATING_FINANCE.zeroAprPct
       : HEATING_FINANCE.spreadAprPct;
@@ -315,8 +331,10 @@ export function BoilerTab({
             heading="New gas boiler"
             value={fmtGbp(rc.boilerAnnualGBP)}
             sub={
-              partner && hasBoilerCare
-                ? "gas + boiler cover, incl. standing charge"
+              boilerCareAnnual > 0
+                ? `${fmtGbp(boilerGasOnly)} gas (incl. standing charge) + ${fmtGbp(
+                    boilerCareAnnual,
+                  )} boiler cover`
                 : "gas for heating + hot water, incl. standing charge"
             }
           />
@@ -326,12 +344,28 @@ export function BoilerTab({
             value={fmtGbp(rc.heatPumpAnnualGBP)}
             sub={
               partner
-                ? `electricity on ${partner.name} Cosy — no gas standing charge`
+                ? boilerCareAnnual > 0
+                  ? `electricity on Cosy — no gas standing charge, no boiler cover`
+                  : `electricity on Cosy — no gas standing charge`
                 : "electricity only — no gas standing charge"
             }
             tone="coral"
           />
         </div>
+
+        {/* Make the boiler-care overage explicit — where it's added and
+            that the heat pump avoids it. */}
+        {boilerCareAnnual > 0 && (
+          <div className="mt-4 flex items-start gap-2 rounded-xl border border-slate-200 bg-slate-50/60 p-4 text-sm text-slate-600">
+            <Info className="w-4 h-4 mt-0.5 shrink-0 text-coral" />
+            <p className="leading-relaxed">
+              You told us you pay <strong>{fmtGbp(boilerCareAnnual)}/yr</strong>{" "}
+              for boiler cover. That sits on the{" "}
+              <strong>gas-boiler</strong> side only — a heat pump has no annual
+              gas service, so there&rsquo;s no cover cost to carry.
+            </p>
+          </div>
+        )}
 
         {/* The headline number: energy saving (or extra), sign-aware. */}
         <div
@@ -361,24 +395,24 @@ export function BoilerTab({
 
         <div className="mt-4 flex items-start gap-2 rounded-xl border border-slate-200 bg-slate-50/60 p-4 text-sm text-slate-600">
           <Info className="w-4 h-4 mt-0.5 shrink-0 text-coral" />
-          <p className="leading-relaxed">
-            {hpRunsCheaper ? (
-              <>
-                On the tariff we&rsquo;ve assumed, the heat pump already runs
-                cheaper than gas.
-              </>
-            ) : (
-              <>
-                On a <strong>standard</strong> electricity tariff a heat pump can
-                cost about the same — or a little more — to run than gas, because
-                electricity is dearer per unit.
-              </>
-            )}{" "}
-            The real saving comes from a <strong>heat-pump tariff</strong> (Octopus
-            Cosy, an overnight rate, etc.), which can cut the heat pump&rsquo;s
-            running cost well below gas. An installer will model your actual
-            tariff.
-          </p>
+          {partner ? (
+            <p className="leading-relaxed">
+              Your heat pump is modelled on the{" "}
+              <strong>{partner.name} Cosy tariff</strong>, where cheap off-peak
+              windows bring its running cost below a gas boiler&rsquo;s. Your
+              real figure depends on how much heating shifts into those windows
+              — {partner.name} will confirm it on a home survey.
+            </p>
+          ) : (
+            <p className="leading-relaxed">
+              On a <strong>standard</strong> electricity tariff a heat pump can
+              cost about the same — or a little more — to run than gas, because
+              electricity is dearer per unit. The real saving comes from a{" "}
+              <strong>heat-pump tariff</strong> (Octopus Cosy, an overnight
+              rate, etc.), which can cut the running cost well below gas. An
+              installer will model your actual tariff.
+            </p>
+          )}
         </div>
         {rc.floorAreaEstimated && (
           <p className="mt-2 text-xs text-slate-500">
@@ -420,13 +454,58 @@ export function BoilerTab({
             If you spread it on finance
           </p>
           {partner ? (
-            <p className="text-sm text-navy">
-              <span className="font-semibold">
-                {partner.financeAprPct}% APR over{" "}
-                {partner.financeTermMonths / 12} years
-              </span>{" "}
-              with {partner.name} — subject to status.
-            </p>
+            <div className="space-y-4">
+              {/* APR slider 0%–9.9% */}
+              <div>
+                <div className="flex items-baseline justify-between mb-1.5">
+                  <label
+                    htmlFor="partner-apr"
+                    className="text-sm font-medium text-slate-600"
+                  >
+                    Interest rate (APR)
+                  </label>
+                  <span className="text-sm font-bold text-navy tabular-nums">
+                    {apr.toFixed(1)}%
+                    {apr === 0 && (
+                      <span className="ml-1.5 text-[11px] font-semibold uppercase tracking-wider text-emerald-700">
+                        {partner.name} offer
+                      </span>
+                    )}
+                  </span>
+                </div>
+                <input
+                  id="partner-apr"
+                  type="range"
+                  min={0}
+                  max={PARTNER_APR_MAX}
+                  step={0.1}
+                  value={partnerAprPct}
+                  onChange={(e) => setPartnerAprPct(Number(e.target.value))}
+                  className="w-full accent-coral"
+                />
+                <div className="flex justify-between text-[11px] text-slate-400 mt-0.5">
+                  <span>0%</span>
+                  <span>{PARTNER_APR_MAX}%</span>
+                </div>
+              </div>
+              {/* Term */}
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">
+                  Over
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {PARTNER_TERM_OPTIONS.map((t) => (
+                    <ToggleButton
+                      key={t}
+                      active={effectiveTerm === t}
+                      onClick={() => setPartnerTermMonths(t)}
+                      label={`${t / 12} yrs`}
+                      sub={`${t} mo`}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
           ) : (
             <div className="flex flex-wrap gap-2">
               <ToggleButton

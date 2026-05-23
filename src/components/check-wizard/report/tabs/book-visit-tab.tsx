@@ -53,6 +53,7 @@ import {
 } from "@/lib/schemas/booking";
 import { useCheckWizard } from "../../context";
 import type { ReportSelection } from "../report-shell";
+import type { PartnerConfig } from "@/lib/services/boiler-comparison";
 import { SectionCard } from "../shared";
 import { BookingModal } from "../booking-modal";
 
@@ -72,6 +73,10 @@ interface Props {
    */
   audience?: "homeowner" | "presurvey" | "installer";
   preSurveyInstallerName?: string | null;
+  /** Active brand partner — the partner handles the install, so we
+   *  replace the nearby-installers marketplace with a single hand-off
+   *  to them rather than surfacing competitors. */
+  partner?: PartnerConfig | null;
 }
 
 const PAGE_SIZE = 10;
@@ -84,6 +89,7 @@ export function BookVisitTab({
   selection,
   audience = "homeowner",
   preSurveyInstallerName,
+  partner = null,
 }: Props) {
   const { state } = useCheckWizard();
   const [page, setPage] = useState(1);
@@ -113,6 +119,9 @@ export function BookVisitTab({
   }, [filterKey]);
 
   useEffect(() => {
+    // Partner flow hands off to the partner — never queries the
+    // installer marketplace.
+    if (partner) return;
     let cancelled = false;
     async function load() {
       setLoading(true);
@@ -155,7 +164,7 @@ export function BookVisitTab({
     return () => {
       cancelled = true;
     };
-  }, [latitude, longitude, wantsHeatPump, wantsSolar, wantsBattery, page, state.leadId, bookingsVersion]);
+  }, [latitude, longitude, wantsHeatPump, wantsSolar, wantsBattery, page, state.leadId, bookingsVersion, partner]);
 
   // Fire Checkatrade refresh for the visible tiles (90-day cache lives
   // server-side; this just kicks the cron-by-render).
@@ -221,6 +230,12 @@ export function BookVisitTab({
   }, [data]);
 
   const techPhrase = describeTech(wantsHeatPump, wantsSolar, wantsBattery);
+
+  // Brand-partner flow: the partner installs the heat pump, so a grid
+  // of competing installers is off-message. Hand off to the partner.
+  if (partner) {
+    return <PartnerBookingCard partner={partner} />;
+  }
 
   // Pre-survey audience: the homeowner is already engaged with a
   // specific installer, so swapping in a generic "find an installer"
@@ -403,6 +418,50 @@ export function BookVisitTab({
         />
       )}
     </div>
+  );
+}
+
+// ─── Partner booking card ────────────────────────────────────────────────────
+// Shown on a brand-partner flow (e.g. Octopus) instead of the
+// nearby-installers marketplace — the partner does the install, so we
+// hand off to them rather than surfacing competitors.
+
+function PartnerBookingCard({ partner }: { partner: PartnerConfig }) {
+  return (
+    <SectionCard
+      icon={<CalendarDays className="w-5 h-5" />}
+      title={`Book a free home survey with ${partner.name}`}
+      subtitle={`${partner.name} install the heat pump, at the price + finance shown here. The next step is a no-obligation home survey to confirm your exact figures.`}
+    >
+      <ul className="space-y-2.5 mb-5">
+        {[
+          "Free, no-obligation home survey",
+          "MCS-certified install — eligible for the £7,500 grant",
+          `The price, Cosy tariff + 0% finance you've just seen`,
+        ].map((t) => (
+          <li
+            key={t}
+            className="flex items-start gap-2.5 text-sm text-slate-700 leading-relaxed"
+          >
+            <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0 text-emerald-500" />
+            <span>{t}</span>
+          </li>
+        ))}
+      </ul>
+      <a
+        href={partner.bookingUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex items-center justify-center gap-2 h-11 px-6 rounded-full bg-coral hover:bg-coral-dark text-white font-semibold text-sm shadow-sm transition-colors"
+      >
+        Book with {partner.name}
+        <ExternalLink className="w-4 h-4" />
+      </a>
+      <p className="mt-3 text-xs text-slate-500 leading-relaxed">
+        Opens {partner.name}&rsquo;s site in a new tab. A pre-survey indication
+        — your final price + survey are confirmed by {partner.name}.
+      </p>
+    </SectionCard>
   );
 }
 
