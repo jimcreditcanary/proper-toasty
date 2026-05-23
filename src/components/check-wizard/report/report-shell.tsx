@@ -171,19 +171,14 @@ export function ReportShell({ audience = "homeowner" }: ReportShellProps = {}) {
     if (t.key === "boiler") return focus === "boiler";
     if (focus === "solar" && t.key === "heatpump") return false;
     if (focus === "heatpump" && t.key === "solar") return false;
-    // Boiler flow: it's a focused gas-boiler-vs-heat-pump cost tool, so
-    // strip everything that mentions solar/battery or duplicates the
-    // comparison. Keep only the comparison itself + Book a visit. The
-    // Overview tab carries solar/battery myth cards + "panel/battery"
-    // copy with no focus gating, so it's dropped here rather than
-    // threaded — the comparison tab already covers the property + BUS
-    // verdict, and the header eligibility strip gives the context.
+    // Boiler flow: focused gas-boiler-vs-heat-pump cost tool. Keep the
+    // Overview (EPC + property data — now focus-aware so it carries no
+    // solar/battery references) + the comparison + Book. Drop Solar,
+    // Savings, and the standalone Heat-pump tab (the comparison covers
+    // HP suitability via the BUS gate).
     if (
       focus === "boiler" &&
-      (t.key === "solar" ||
-        t.key === "savings" ||
-        t.key === "heatpump" ||
-        t.key === "overview")
+      (t.key === "solar" || t.key === "savings" || t.key === "heatpump")
     ) {
       return false;
     }
@@ -396,6 +391,7 @@ export function ReportShell({ audience = "homeowner" }: ReportShellProps = {}) {
             onJumpTab={setTab}
             audience={effectiveAudience}
             preSurveyInstallerName={state.preSurveyInstallerName}
+            focus={focus}
           />
         )}
         {tab === "savings" && !isInstaller && (

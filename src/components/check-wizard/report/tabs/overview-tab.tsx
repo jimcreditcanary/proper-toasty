@@ -29,7 +29,7 @@ import {
 } from "lucide-react";
 import type { AnalyseResponse } from "@/lib/schemas/analyse";
 import type { FuelTariff } from "@/lib/schemas/bill";
-import type { YesNoUnsure } from "../../types";
+import type { YesNoUnsure, WizardFocus } from "../../types";
 import type { ReportSelection, ReportTabKey } from "../report-shell";
 import { SectionCard } from "../shared";
 import { EpcRatingBar } from "../epc-dual-badge";
@@ -55,6 +55,10 @@ interface Props {
   audience?: "homeowner" | "presurvey" | "installer";
   /** Set when audience === "presurvey". Drives the prep-card copy. */
   preSurveyInstallerName?: string | null;
+  /** Focus variant. The boiler flow strips solar/battery references
+   *  from the checklist + myths (the rest of the card — EPC property
+   *  data — is identical across flows). */
+  focus?: WizardFocus;
 }
 
 export function OverviewTab({
@@ -63,6 +67,7 @@ export function OverviewTab({
   satelliteUrl,
   audience = "homeowner",
   preSurveyInstallerName,
+  focus = "all",
 }: Props) {
   // Both homeowner-facing audiences see the installer checklist + the
   // common-myths card; just the copy of the checklist is contextualised
@@ -81,10 +86,11 @@ export function OverviewTab({
         <InstallerChecklist
           audience={audience}
           preSurveyInstallerName={preSurveyInstallerName}
+          focus={focus}
         />
       )}
 
-      {showHomeownerCards && <CommonMyths />}
+      {showHomeownerCards && <CommonMyths focus={focus} />}
     </div>
   );
 }
@@ -377,12 +383,20 @@ function Chip({
 function InstallerChecklist({
   audience,
   preSurveyInstallerName,
+  focus = "all",
 }: {
   audience: "homeowner" | "presurvey" | "installer";
   preSurveyInstallerName?: string | null;
+  focus?: WizardFocus;
 }) {
   const isPreSurvey = audience === "presurvey";
   const installerLabel = preSurveyInstallerName ?? "your installer";
+  // Boiler flow never mentions solar/battery — keep the "what kit"
+  // prompt to the heat pump itself.
+  const kitDetail =
+    focus === "boiler"
+      ? "Heat-pump model + serial. “A 5kW heat pump” isn’t enough."
+      : "Heat-pump model + serial, panel make + wattage, battery chemistry. “A 5kW heat pump” isn’t enough.";
 
   const shareItems = isPreSurvey
     ? [
@@ -435,8 +449,7 @@ function InstallerChecklist({
         </>,
         <>
           <strong className="text-navy">What kit will you specify?</strong>{" "}
-          Heat-pump model + serial, panel make + wattage, battery chemistry.
-          &ldquo;A 5kW heat pump&rdquo; isn&rsquo;t enough.
+          {kitDetail}
         </>,
         <>
           <strong className="text-navy">What&rsquo;s the warranty?</strong> At
@@ -462,8 +475,7 @@ function InstallerChecklist({
         </>,
         <>
           <strong className="text-navy">What kit will you specify?</strong>{" "}
-          Heat-pump model + serial, panel make + wattage, battery chemistry.
-          &ldquo;A 5kW heat pump&rdquo; isn&rsquo;t enough.
+          {kitDetail}
         </>,
         <>
           <strong className="text-navy">What&rsquo;s the warranty?</strong> At
@@ -558,25 +570,54 @@ function ChecklistSection({
 // which meant the icons drifted out of alignment with their text on
 // any wrap.
 
-function CommonMyths() {
+function CommonMyths({ focus = "all" }: { focus?: WizardFocus }) {
+  // Boiler flow swaps the solar + battery myths for boiler-vs-heat-pump
+  // ones so the card never references solar.
+  const myths =
+    focus === "boiler"
+      ? [
+          {
+            myth: "Heat pumps don't work in cold weather.",
+            truth:
+              "Modern air-source units run efficiently down to −15°C. The Nordic countries run on them.",
+          },
+          {
+            myth: "A heat pump always slashes your bills.",
+            truth:
+              "On a standard tariff it runs roughly level with gas — the savings come from a heat-pump tariff like Octopus Cosy. We show you both.",
+          },
+          {
+            myth: "Heat pumps cost a fortune compared with a boiler.",
+            truth:
+              "After the £7,500 grant, the net cost is in new-boiler-plus territory for many homes — and you can spread it on finance.",
+          },
+        ]
+      : [
+          {
+            myth: "Heat pumps don't work in cold weather.",
+            truth:
+              "Modern air-source units run efficiently down to −15°C. The Nordic countries run on them.",
+          },
+          {
+            myth: "You need a south-facing roof for solar.",
+            truth:
+              "East and west work fine — you just generate at different times of day. South is best, but it's not the only game in town.",
+          },
+          {
+            myth: "Batteries pay for themselves in a few years.",
+            truth:
+              "Battery payback is 8–12 years for most homes. They make sense for resilience, time-of-use tariffs, and EV charging — less so as a pure savings play.",
+          },
+        ];
   return (
     <SectionCard
       title="Common myths, busted"
       subtitle="What you've probably heard versus what's actually true."
     >
       <div className="space-y-4">
-        <Myth
-          myth="Heat pumps don't work in cold weather."
-          truth="Modern air-source units run efficiently down to −15°C. The Nordic countries run on them."
-        />
-        <Myth
-          myth="You need a south-facing roof for solar."
-          truth="East and west work fine — you just generate at different times of day. South is best, but it's not the only game in town."
-        />
-        <Myth
-          myth="Batteries pay for themselves in a few years."
-          truth="Battery payback is 8–12 years for most homes. They make sense for resilience, time-of-use tariffs, and EV charging — less so as a pure savings play."
-        />
+        {myths.map((m) => (
+          <Myth key={m.myth} myth={m.myth} truth={m.truth} />
+        ))}
       </div>
     </SectionCard>
   );
