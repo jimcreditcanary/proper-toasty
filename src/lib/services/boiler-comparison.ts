@@ -230,6 +230,10 @@ export interface PartnerConfig {
    *  user says they pay for it — an ongoing gas-boiler cost a heat pump
    *  on the partner's plan avoids. */
   boilerCareMonthlyGBP: number;
+  /** Where the "book a home survey" CTA sends the user — the partner
+   *  handles the install, so the boiler flow's installer marketplace is
+   *  replaced by a single hand-off to the partner. */
+  bookingUrl: string;
 }
 
 export const OCTOPUS_PARTNER: PartnerConfig = {
@@ -243,6 +247,7 @@ export const OCTOPUS_PARTNER: PartnerConfig = {
   gasInflationPctPerYear: 7,
   elecInflationPctPerYear: 2,
   boilerCareMonthlyGBP: 20,
+  bookingUrl: "https://octopus.energy/heat-pump-explore/",
 };
 
 export const PARTNERS: Record<PartnerId, PartnerConfig> = {

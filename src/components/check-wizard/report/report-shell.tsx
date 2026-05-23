@@ -476,6 +476,7 @@ export function ReportShell({ audience = "homeowner" }: ReportShellProps = {}) {
             }
             audience={effectiveAudience}
             preSurveyInstallerName={state.preSurveyInstallerName}
+            partner={getPartner(state.partner)}
           />
         )}
 
