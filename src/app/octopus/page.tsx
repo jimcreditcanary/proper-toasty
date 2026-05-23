@@ -22,9 +22,15 @@ import {
   Calculator,
   Percent,
   Zap,
+  Gauge,
+  Leaf,
+  Clock,
+  Star,
 } from "lucide-react";
 
-const HERO_IMAGE = "/hero-heatpump.jpg";
+// Octopus-supplied heat-pump shot (their press image, resized to a
+// web JPG + served from /public so it stays on our origin).
+const HERO_IMAGE = "/octopus-heat-pump.jpg";
 
 export const metadata = {
   title: "New boiler or an Octopus heat pump? — Propertoasty",
@@ -49,7 +55,7 @@ export default function OctopusLanding() {
             <h1 className="mt-6 text-5xl sm:text-6xl text-navy leading-[1.05]">
               New boiler?
               <br />
-              Or an Octopus heat pump?
+              Or a heat pump?
             </h1>
 
             <p className="mt-6 text-lg text-[var(--muted-brand)] leading-relaxed max-w-lg">
@@ -93,7 +99,7 @@ export default function OctopusLanding() {
             <div className="relative aspect-[8/7] rounded-3xl overflow-hidden shadow-xl ring-1 ring-[var(--border)]">
               <Image
                 src={HERO_IMAGE}
-                alt="An air-source heat pump outdoor unit installed beside a UK brick wall"
+                alt="An Octopus Energy air source heat pump installed outside a home"
                 fill
                 priority
                 quality={80}
@@ -116,6 +122,63 @@ export default function OctopusLanding() {
               />
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* Trust / ratings band — real Octopus heat-pump proof points
+          (figures: Octopus Energy, Nesta 2023, BRE testing, MCS DB). */}
+      <section className="bg-white border-b border-[var(--border)]">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 py-12">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-8">
+            <div className="inline-flex items-center gap-2">
+              <span className="inline-flex gap-0.5 text-coral" aria-hidden>
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <Star key={i} className="w-4 h-4 fill-current" />
+                ))}
+              </span>
+              <p className="text-sm font-semibold text-navy">
+                Owners rate their heat pumps highly
+              </p>
+            </div>
+            <p className="text-sm text-[var(--muted-brand)]">
+              In a 2023 Nesta survey, heat-pump owners reported being highly
+              satisfied — most wouldn&rsquo;t go back to gas.
+            </p>
+          </div>
+
+          <ul className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatTile
+              icon={<Gauge className="w-5 h-5" />}
+              value="3.6 SCOP"
+              label="Typical efficiency"
+              sub="3–4 units of heat per unit of electricity"
+            />
+            <StatTile
+              icon={<PoundSterling className="w-5 h-5" />}
+              value="£219"
+              label="Avg saved last year*"
+              sub="Cosy heat-pump customers on the Cosy Octopus tariff"
+            />
+            <StatTile
+              icon={<Leaf className="w-5 h-5" />}
+              value="~85%"
+              label="Less carbon than gas"
+              sub="Lower emissions than a gas boiler"
+            />
+            <StatTile
+              icon={<Clock className="w-5 h-5" />}
+              value="15–20 yrs"
+              label="Typical lifespan"
+              sub="UK government research; ~20 years on average"
+            />
+          </ul>
+
+          <p className="mt-6 text-xs text-[var(--muted-brand)] leading-relaxed">
+            Figures from Octopus Energy, Nesta (May 2023), BRE independent
+            testing and the MCS database. *Average saving for Octopus Cosy
+            heat-pump customers on the Cosy Octopus tariff last year. Your own
+            figures depend on your home, tariff and usage.
+          </p>
         </div>
       </section>
 
@@ -222,6 +285,31 @@ export default function OctopusLanding() {
 
       <LandingFooter />
     </div>
+  );
+}
+
+function StatTile({
+  icon,
+  value,
+  label,
+  sub,
+}: {
+  icon: React.ReactNode;
+  value: string;
+  label: string;
+  sub: string;
+}) {
+  return (
+    <li className="rounded-2xl border border-[var(--border)] bg-cream/40 p-5">
+      <span className="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-coral-pale text-coral">
+        {icon}
+      </span>
+      <p className="mt-3 text-2xl font-bold text-navy">{value}</p>
+      <p className="text-sm font-semibold text-navy">{label}</p>
+      <p className="mt-1 text-xs text-[var(--muted-brand)] leading-snug">
+        {sub}
+      </p>
+    </li>
   );
 }
 
