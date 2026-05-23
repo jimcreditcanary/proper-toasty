@@ -40,7 +40,9 @@ export const metadata = {
 
 export default function OctopusLanding() {
   return (
-    <div className="bg-cream">
+    // theme-octopus scopes the Octopus brand-colour takeover to this
+    // page (see globals.css). Illustrative co-brand only.
+    <div className="theme-octopus bg-cream">
       <MarketingHeader />
 
       {/* Hero */}

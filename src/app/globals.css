@@ -274,3 +274,55 @@ h1, h2, h3 {
     font-size: 13px !important;
   }
 }
+
+/* ── Octopus Energy brand takeover (scoped) ──────────────────────────
+   Illustrative co-brand for the /octopus journey only. Applied via a
+   `.theme-octopus` wrapper on the /octopus landing + the /check/octopus
+   wizard. Overrides BOTH token layers — the @theme `--color-*` vars
+   (used by Tailwind utilities like bg-coral / text-navy) AND the :root
+   `--*` vars (used by `var(--…)` arbitrary values) — so the whole
+   subtree re-themes to an Octopus-style purple + pink palette without
+   touching any component classNames. Illustrative hexes, not official
+   brand assets. */
+.theme-octopus {
+  /* Tailwind utility tokens (@theme) */
+  --color-coral: #2a0a6e;        /* primary → deep Octopus purple */
+  --color-coral-light: #3d1f96;
+  --color-coral-dark: #1a0048;
+  --color-coral-pale: #ece6fb;   /* pale lilac surface */
+  --color-navy: #1c0a4d;         /* headings / dark text → purple */
+  --color-navy-mid: #2e1c63;
+  --color-navy-card: #2e1c63;
+  --color-cream: #f8f5ff;        /* light bg → faint lilac */
+  --color-cream-deep: #efe9fb;
+  --color-off-white: #f8f5ff;
+  --color-terracotta: #ff5ea0;   /* warm accent → Octopus pink */
+  --color-terracotta-pale: #ffe1ee;
+  --color-sage: #7fd8c4;         /* secondary accent → mint */
+  --color-brand-muted: #6b6385;
+  --color-brand-muted-light: #9b94ad;
+  --primary: #2a0a6e;
+  --color-primary: #2a0a6e;
+  --ring: #2a0a6e;
+  --color-ring: #2a0a6e;
+  --accent: #ece6fb;
+  --color-accent: #ece6fb;
+
+  /* Plain :root tokens (var(--…) arbitrary values) */
+  --coral: #2a0a6e;
+  --coral-light: #3d1f96;
+  --coral-dark: #1a0048;
+  --coral-pale: #ece6fb;
+  --navy: #1c0a4d;
+  --navy-mid: #2e1c63;
+  --navy-card: #2e1c63;
+  --cream: #f8f5ff;
+  --cream-deep: #efe9fb;
+  --off-white: #f8f5ff;
+  --terracotta: #ff5ea0;
+  --sage: #7fd8c4;
+  --muted-brand: #6b6385;
+  --muted-light: #9b94ad;
+  --border: #e6ddf5;
+  --input: #e6ddf5;
+}

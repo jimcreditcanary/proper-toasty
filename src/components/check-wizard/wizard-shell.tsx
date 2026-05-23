@@ -152,28 +152,38 @@ interface CheckWizardProps {
 }
 
 export function CheckWizard({ initialState }: CheckWizardProps = {}) {
+  // Brand-partner journeys (e.g. Octopus, /check/octopus) get an
+  // illustrative colour takeover scoped via `theme-octopus` (globals.css).
+  const partner = getPartner(initialState?.partner);
   return (
     <CheckWizardProvider initialState={initialState}>
-      <PageTitleSync />
-      {/* (Skip-to-main-content link removed — its focus position
-          drifted inconsistently across pages, causing more confusion
-          than it solved. Users with assistive tech can still navigate
-          past the sticky header via landmarks: <header> + <main>.) */}
-      <header className="bg-cream/80 backdrop-blur-md border-b border-[var(--border)] sticky top-0 z-50">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
-          <Link href="/" className="flex items-center shrink-0">
-            <Logo size="sm" variant="light" />
-          </Link>
-          <div className="flex-1 flex items-center justify-center min-w-0">
-            <HeaderProgress />
+      <div className={partner ? "theme-octopus" : undefined}>
+        <PageTitleSync />
+        {/* (Skip-to-main-content link removed — its focus position
+            drifted inconsistently across pages, causing more confusion
+            than it solved. Users with assistive tech can still navigate
+            past the sticky header via landmarks: <header> + <main>.) */}
+        <header className="bg-cream/80 backdrop-blur-md border-b border-[var(--border)] sticky top-0 z-50">
+          <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+            <Link href="/" className="flex items-center gap-2 shrink-0">
+              <Logo size="sm" variant="light" />
+              {partner && (
+                <span className="hidden sm:inline text-[11px] font-medium text-[var(--muted-brand)] whitespace-nowrap">
+                  &times; {partner.name}
+                </span>
+              )}
+            </Link>
+            <div className="flex-1 flex items-center justify-center min-w-0">
+              <HeaderProgress />
+            </div>
+            <FocusLabel />
           </div>
-          <FocusLabel />
-        </div>
-      </header>
-      <main id="wizard-main" tabIndex={-1} className="flex-1 bg-gradient-to-b from-cream-deep to-cream">
-        <StepWrapper />
-      </main>
-      <ResumeJourneyModal />
+        </header>
+        <main id="wizard-main" tabIndex={-1} className="flex-1 bg-gradient-to-b from-cream-deep to-cream">
+          <StepWrapper />
+        </main>
+        <ResumeJourneyModal />
+      </div>
     </CheckWizardProvider>
   );
 }
