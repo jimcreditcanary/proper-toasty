@@ -131,18 +131,24 @@ export function BoilerTab({
   const hpNet = heatPump.netMidpointGBP;
   const hpQuote = hpNet != null ? financeQuote(hpNet, apr, effectiveTerm) : null;
 
-  // ── Totals over `years` ── (gas inflates faster than electricity on
-  // a partner page; both flat on the neutral flow)
+  // Horizon for the totals. On the partner flow the term + horizon are
+  // one combined control (term left, rate right), so the total runs
+  // over the chosen term. The neutral flow keeps a separate years
+  // toggle.
+  const horizonYears = partner ? effectiveTerm / 12 : years;
+
+  // ── Totals over the horizon ── (gas inflates faster than electricity
+  // on a partner page; both flat on the neutral flow)
   const boilerUpfrontTco = totalCostOfOwnership({
     upfrontGBP: boiler.installedCostGBP,
     annualEnergyGBP: rc.boilerAnnualGBP,
-    years,
+    years: horizonYears,
     energyInflationPctPerYear: gasInflation,
   });
   const boilerFinanceTco = totalCostOfOwnership({
     upfrontGBP: boilerQuote.totalRepayableGBP,
     annualEnergyGBP: rc.boilerAnnualGBP,
-    years,
+    years: horizonYears,
     energyInflationPctPerYear: gasInflation,
   });
   const hpUpfrontTco =
@@ -150,7 +156,7 @@ export function BoilerTab({
       ? totalCostOfOwnership({
           upfrontGBP: hpNet,
           annualEnergyGBP: rc.heatPumpAnnualGBP,
-          years,
+          years: horizonYears,
           energyInflationPctPerYear: elecInflation,
         })
       : null;
@@ -159,16 +165,19 @@ export function BoilerTab({
       ? totalCostOfOwnership({
           upfrontGBP: hpQuote.totalRepayableGBP,
           annualEnergyGBP: rc.heatPumpAnnualGBP,
-          years,
+          years: horizonYears,
           energyInflationPctPerYear: elecInflation,
         })
       : null;
 
   // ── Monthly figures (the side-by-side table) ──
   // Finance £/mo applies during the term; energy £/mo runs forever.
+  // Boiler cover (when paid) is its own table row, so the boiler energy
+  // line is gas-only.
   const boilerMoFinance = boilerQuote.monthlyGBP;
-  const boilerMoEnergy = rc.boilerAnnualGBP / 12;
-  const boilerMoTotal = boilerMoFinance + boilerMoEnergy;
+  const boilerMoEnergy = boilerGasOnly / 12;
+  const boilerMoCover = boilerCareAnnual / 12;
+  const boilerMoTotal = boilerMoFinance + boilerMoEnergy + boilerMoCover;
   const hpMoFinance = hpQuote?.monthlyGBP ?? null;
   const hpMoEnergy = rc.heatPumpAnnualGBP / 12;
   const hpMoTotal = hpMoFinance != null ? hpMoFinance + hpMoEnergy : null;
@@ -187,7 +196,7 @@ export function BoilerTab({
   // Positive → heat pump saves £/yr on energy; negative → costs more.
   const energyDelta = annualEnergyBillDelta(rc);
   const hpRunsCheaper = energyDelta > 0;
-  const lifetimeEnergyDelta = energyDelta * years;
+  const lifetimeEnergyDelta = energyDelta * horizonYears;
 
   // Partner-aware labels.
   const hpName = partner ? `${partner.name} heat pump` : "Air source heat pump";
@@ -353,19 +362,6 @@ export function BoilerTab({
           />
         </div>
 
-        {/* Make the boiler-care overage explicit — where it's added and
-            that the heat pump avoids it. */}
-        {boilerCareAnnual > 0 && (
-          <div className="mt-4 flex items-start gap-2 rounded-xl border border-slate-200 bg-slate-50/60 p-4 text-sm text-slate-600">
-            <Info className="w-4 h-4 mt-0.5 shrink-0 text-coral" />
-            <p className="leading-relaxed">
-              You told us you pay <strong>{fmtGbp(boilerCareAnnual)}/yr</strong>{" "}
-              for boiler cover. That sits on the{" "}
-              <strong>gas-boiler</strong> side only — a heat pump has no annual
-              gas service, so there&rsquo;s no cover cost to carry.
-            </p>
-          </div>
-        )}
 
         {/* The headline number: energy saving (or extra), sign-aware. */}
         <div
@@ -429,38 +425,57 @@ export function BoilerTab({
         title="The bottom line"
         subtitle="Fit + running costs added up over time. Pick a horizon, and choose whether you'd pay upfront or spread it on finance."
       >
-        {/* Years */}
-        <div className="flex flex-wrap items-center gap-3">
-          <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-            Over
-          </p>
-          <div className="flex gap-2">
-            {YEAR_OPTIONS.map((y) => (
-              <ToggleButton
-                key={y}
-                active={years === y}
-                onClick={() => setYears(y)}
-                label={`${y} yrs`}
-              />
-            ))}
+        {/* Horizon — neutral flow only. On a partner flow the horizon
+            is the finance term (one combined control below). */}
+        {!partner && (
+          <div className="flex flex-wrap items-center gap-3">
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+              Over
+            </p>
+            <div className="flex gap-2">
+              {YEAR_OPTIONS.map((y) => (
+                <ToggleButton
+                  key={y}
+                  active={years === y}
+                  onClick={() => setYears(y)}
+                  label={`${y} yrs`}
+                />
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* Finance controls (drive the "On finance" column). Partner
-            flows carry a fixed offer, so we state it rather than offer
-            a product/term picker. */}
+        {/* Finance controls (drive the "On finance" column). */}
         <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50/50 p-4">
-          <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3">
             If you spread it on finance
           </p>
           {partner ? (
-            <div className="space-y-4">
-              {/* APR slider 0%–9.9% */}
+            // One combined control: term on the left, rate on the right.
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 items-start">
+              {/* Term (left) */}
               <div>
-                <div className="flex items-baseline justify-between mb-1.5">
+                <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">
+                  Term
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {PARTNER_TERM_OPTIONS.map((t) => (
+                    <ToggleButton
+                      key={t}
+                      active={effectiveTerm === t}
+                      onClick={() => setPartnerTermMonths(t)}
+                      label={`${t / 12} yrs`}
+                      sub={`${t} mo`}
+                    />
+                  ))}
+                </div>
+              </div>
+              {/* Rate (right) — APR slider 0%–9.9% */}
+              <div>
+                <div className="flex items-baseline justify-between mb-2">
                   <label
                     htmlFor="partner-apr"
-                    className="text-sm font-medium text-slate-600"
+                    className="text-xs font-semibold uppercase tracking-wider text-slate-500"
                   >
                     Interest rate (APR)
                   </label>
@@ -486,23 +501,6 @@ export function BoilerTab({
                 <div className="flex justify-between text-[11px] text-slate-400 mt-0.5">
                   <span>0%</span>
                   <span>{PARTNER_APR_MAX}%</span>
-                </div>
-              </div>
-              {/* Term */}
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">
-                  Over
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {PARTNER_TERM_OPTIONS.map((t) => (
-                    <ToggleButton
-                      key={t}
-                      active={effectiveTerm === t}
-                      onClick={() => setPartnerTermMonths(t)}
-                      label={`${t / 12} yrs`}
-                      sub={`${t} mo`}
-                    />
-                  ))}
                 </div>
               </div>
             </div>
@@ -569,6 +567,13 @@ export function BoilerTab({
                 boiler={`${fmtGbp(Math.round(boilerMoEnergy))}/mo`}
                 heatPump={`${fmtGbp(Math.round(hpMoEnergy))}/mo`}
               />
+              {boilerCareAnnual > 0 && (
+                <MonthlyRow
+                  label="Boiler cover"
+                  boiler={`${fmtGbp(Math.round(boilerMoCover))}/mo`}
+                  heatPump="Not needed"
+                />
+              )}
               <MonthlyRow
                 label="Total per month"
                 emphasis
@@ -593,7 +598,7 @@ export function BoilerTab({
         {/* Horizon total */}
         <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50/50 p-4">
           <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">
-            Total over {years} years (finance + energy)
+            Total over {horizonYears} years (finance + energy)
           </p>
           <div className="grid grid-cols-2 gap-3">
             <HorizonTotal
@@ -610,7 +615,7 @@ export function BoilerTab({
             />
           </div>
           <p className="mt-3 text-xs text-slate-500">
-            Prefer to pay upfront? Over {years} years that&rsquo;s{" "}
+            Prefer to pay upfront? Over {horizonYears} years that&rsquo;s{" "}
             {fmtGbp(boilerUpfrontTco)} (boiler)
             {hpUpfrontTco != null ? ` vs ${fmtGbp(hpUpfrontTco)} (heat pump)` : ""}
             .
@@ -620,7 +625,7 @@ export function BoilerTab({
         <p className="mt-4 text-sm text-slate-700 leading-relaxed">
           {lifetimeEnergyDelta >= 0 ? (
             <>
-              Over {years} years, the heat pump&rsquo;s energy bills work out
+              Over {horizonYears} years, the heat pump&rsquo;s energy bills work out
               about{" "}
               <span className="font-semibold text-emerald-700">
                 {fmtGbp(lifetimeEnergyDelta)} lower
@@ -630,7 +635,7 @@ export function BoilerTab({
             </>
           ) : (
             <>
-              Over {years} years, the heat pump&rsquo;s energy bills are about{" "}
+              Over {horizonYears} years, the heat pump&rsquo;s energy bills are about{" "}
               <span className="font-semibold text-amber-700">
                 {fmtGbp(-lifetimeEnergyDelta)} higher
               </span>{" "}
@@ -641,7 +646,7 @@ export function BoilerTab({
         </p>
 
         <p className="mt-3 text-xs text-slate-500 leading-relaxed">
-          Totals = the install (or total repayable on finance) plus {years}{" "}
+          Totals = the install (or total repayable on finance) plus {horizonYears}{" "}
           years of heating energy.{" "}
           {partner ? (
             <>
