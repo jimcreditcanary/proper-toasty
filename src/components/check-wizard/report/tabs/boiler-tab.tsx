@@ -44,9 +44,10 @@ import { SectionCard, FactRow, IssueList, fmtGbp } from "../shared";
 
 type FinanceProduct = "zero" | "spread";
 const YEAR_OPTIONS = [5, 10, 15] as const;
-// Term choices offered on a partner page (months). APR is a free slider
-// 0%–9.9% there rather than the neutral flow's 0%-vs-spread toggle.
-const PARTNER_TERM_OPTIONS = [24, 60, 120] as const;
+// Term choices offered on a partner page (months) — 3 / 5 / 10 / 15
+// years. APR is a free slider 0%–9.9% there rather than the neutral
+// flow's 0%-vs-spread toggle.
+const PARTNER_TERM_OPTIONS = [36, 60, 120, 180] as const;
 const PARTNER_APR_MAX = 9.9;
 
 export function BoilerTab({
