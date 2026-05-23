@@ -122,14 +122,23 @@ export function BoilerTab({
         })
       : null;
 
-  // Cheapest of whatever we can compute — for the highlight.
-  const allTotals = [
-    boilerUpfrontTco,
-    boilerFinanceTco,
-    hpUpfrontTco,
-    hpFinanceTco,
-  ].filter((n): n is number => n != null);
-  const lowest = allTotals.length ? Math.min(...allTotals) : null;
+  // ── Monthly figures (the side-by-side table) ──
+  // Finance £/mo applies during the term; energy £/mo runs forever.
+  const boilerMoFinance = boilerQuote.monthlyGBP;
+  const boilerMoEnergy = rc.boilerAnnualGBP / 12;
+  const boilerMoTotal = boilerMoFinance + boilerMoEnergy;
+  const hpMoFinance = hpQuote?.monthlyGBP ?? null;
+  const hpMoEnergy = rc.heatPumpAnnualGBP / 12;
+  const hpMoTotal = hpMoFinance != null ? hpMoFinance + hpMoEnergy : null;
+
+  // Cheaper monthly total (during the finance term) — for highlight.
+  const lowerMonthly =
+    hpMoTotal != null ? Math.min(boilerMoTotal, hpMoTotal) : boilerMoTotal;
+  // Cheaper financed total over the horizon.
+  const lowerFinanceTco =
+    hpFinanceTco != null
+      ? Math.min(boilerFinanceTco, hpFinanceTco)
+      : boilerFinanceTco;
 
   const upfrontDiff =
     hpNet != null ? hpNet - boiler.installedCostGBP : null;
@@ -372,57 +381,87 @@ export function BoilerTab({
           </div>
         </div>
 
-        {/* 2×2 total grid */}
+        {/* Monthly cost — side by side */}
         <div className="mt-5 overflow-x-auto">
-          <table className="w-full min-w-[34rem] border-separate border-spacing-0 text-sm">
+          <table className="w-full min-w-[30rem] text-sm">
             <thead>
-              <tr>
-                <th className="text-left text-xs font-semibold uppercase tracking-wider text-slate-500 pb-2 pr-3" />
-                <th className="text-left text-xs font-semibold uppercase tracking-wider text-slate-500 pb-2 px-3">
-                  Pay upfront
+              <tr className="text-left">
+                <th className="pb-3 pr-3 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                  Per month
                 </th>
-                <th className="text-left text-xs font-semibold uppercase tracking-wider text-slate-500 pb-2 px-3">
-                  On finance
+                <th className="pb-3 px-3">
+                  <span className="inline-flex items-center gap-1.5 font-semibold text-navy">
+                    <Flame className="w-4 h-4 text-coral" /> New gas boiler
+                  </span>
+                </th>
+                <th className="pb-3 px-3">
+                  <span className="inline-flex items-center gap-1.5 font-semibold text-navy">
+                    <Zap className="w-4 h-4 text-coral" /> Heat pump
+                  </span>
                 </th>
               </tr>
             </thead>
             <tbody>
-              <TcoRow
-                heading="New gas boiler"
-                icon={<Flame className="w-4 h-4" />}
-                upfrontTotal={boilerUpfrontTco}
-                financeTotal={boilerFinanceTco}
-                upfrontSub={`${fmtGbp(boiler.installedCostGBP)} fit + ${fmtGbp(
-                  rc.boilerAnnualGBP,
-                )}/yr`}
-                financeSub={`${fmtGbp(
-                  Math.round(boilerQuote.monthlyGBP),
-                )}/mo + ${fmtGbp(rc.boilerAnnualGBP)}/yr`}
-                lowest={lowest}
-              />
-              <TcoRow
-                heading="Heat pump"
-                icon={<Zap className="w-4 h-4" />}
-                upfrontTotal={hpUpfrontTco}
-                financeTotal={hpFinanceTco}
-                upfrontSub={
-                  hpNet != null
-                    ? `${fmtGbp(hpNet)} fit + ${fmtGbp(
-                        rc.heatPumpAnnualGBP,
-                      )}/yr`
-                    : "grant path unconfirmed"
-                }
-                financeSub={
-                  hpQuote != null
-                    ? `${fmtGbp(
-                        Math.round(hpQuote.monthlyGBP),
-                      )}/mo + ${fmtGbp(rc.heatPumpAnnualGBP)}/yr`
+              <MonthlyRow
+                label={`Finance (${effectiveTerm} mo @ ${apr}%)`}
+                boiler={`${fmtGbp(Math.round(boilerMoFinance))}/mo`}
+                heatPump={
+                  hpMoFinance != null
+                    ? `${fmtGbp(Math.round(hpMoFinance))}/mo`
                     : "—"
                 }
-                lowest={lowest}
+              />
+              <MonthlyRow
+                label="Energy (heating + hot water)"
+                boiler={`${fmtGbp(Math.round(boilerMoEnergy))}/mo`}
+                heatPump={`${fmtGbp(Math.round(hpMoEnergy))}/mo`}
+              />
+              <MonthlyRow
+                label="Total per month"
+                emphasis
+                boiler={`${fmtGbp(Math.round(boilerMoTotal))}/mo`}
+                boilerLowest={
+                  hpMoTotal != null && boilerMoTotal === lowerMonthly
+                }
+                heatPump={
+                  hpMoTotal != null ? `${fmtGbp(Math.round(hpMoTotal))}/mo` : "—"
+                }
+                heatPumpLowest={hpMoTotal != null && hpMoTotal === lowerMonthly}
               />
             </tbody>
           </table>
+        </div>
+        <p className="mt-2 text-xs text-slate-500 leading-relaxed">
+          The finance line runs for the {effectiveTerm}-month term, then stops —
+          after that it&rsquo;s just the energy line. Energy shown at
+          today&rsquo;s prices.
+        </p>
+
+        {/* Horizon total */}
+        <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50/50 p-4">
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">
+            Total over {years} years (finance + energy)
+          </p>
+          <div className="grid grid-cols-2 gap-3">
+            <HorizonTotal
+              icon={<Flame className="w-4 h-4" />}
+              label="New gas boiler"
+              total={boilerFinanceTco}
+              lowest={boilerFinanceTco === lowerFinanceTco}
+            />
+            <HorizonTotal
+              icon={<Zap className="w-4 h-4" />}
+              label="Heat pump"
+              total={hpFinanceTco}
+              lowest={hpFinanceTco != null && hpFinanceTco === lowerFinanceTco}
+            />
+          </div>
+          <p className="mt-3 text-xs text-slate-500">
+            Prefer to pay upfront? Over {years} years that&rsquo;s{" "}
+            {fmtGbp(boilerUpfrontTco)} (boiler)
+            {hpUpfrontTco != null ? ` vs ${fmtGbp(hpUpfrontTco)} (heat pump)` : ""}
+            .
+          </p>
         </div>
 
         <p className="mt-4 text-sm text-slate-700 leading-relaxed">
@@ -548,73 +587,97 @@ function RunningStat({
   );
 }
 
-function TcoRow({
-  heading,
-  icon,
-  upfrontTotal,
-  financeTotal,
-  upfrontSub,
-  financeSub,
-  lowest,
+function MonthlyRow({
+  label,
+  boiler,
+  heatPump,
+  emphasis = false,
+  boilerLowest = false,
+  heatPumpLowest = false,
 }: {
-  heading: string;
-  icon: React.ReactNode;
-  upfrontTotal: number | null;
-  financeTotal: number | null;
-  upfrontSub: string;
-  financeSub: string;
-  lowest: number | null;
+  label: string;
+  boiler: string;
+  heatPump: string;
+  emphasis?: boolean;
+  boilerLowest?: boolean;
+  heatPumpLowest?: boolean;
 }) {
+  const base = emphasis
+    ? "border-t-2 border-slate-200 pt-3"
+    : "border-t border-slate-100";
+  const cellWeight = emphasis ? "text-base font-bold" : "text-sm";
   return (
     <tr>
-      <td className="py-2 pr-3 align-top">
-        <div className="flex items-center gap-2 font-semibold text-navy">
-          <span className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-coral-pale text-coral">
-            {icon}
-          </span>
-          {heading}
-        </div>
+      <td className={`py-2 pr-3 align-top ${base}`}>
+        <span
+          className={`${
+            emphasis ? "font-semibold text-navy" : "text-slate-500"
+          }`}
+        >
+          {label}
+        </span>
       </td>
-      <TcoCell total={upfrontTotal} sub={upfrontSub} lowest={lowest} />
-      <TcoCell total={financeTotal} sub={financeSub} lowest={lowest} />
+      <td className={`py-2 px-3 align-top ${base}`}>
+        <span
+          className={`${cellWeight} ${
+            boilerLowest ? "text-emerald-700" : "text-navy"
+          }`}
+        >
+          {boiler}
+          {boilerLowest && (
+            <span className="ml-1.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-700">
+              cheaper
+            </span>
+          )}
+        </span>
+      </td>
+      <td className={`py-2 px-3 align-top ${base}`}>
+        <span
+          className={`${cellWeight} ${
+            heatPumpLowest ? "text-emerald-700" : "text-navy"
+          }`}
+        >
+          {heatPump}
+          {heatPumpLowest && (
+            <span className="ml-1.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-700">
+              cheaper
+            </span>
+          )}
+        </span>
+      </td>
     </tr>
   );
 }
 
-function TcoCell({
+function HorizonTotal({
+  icon,
+  label,
   total,
-  sub,
   lowest,
 }: {
+  icon: React.ReactNode;
+  label: string;
   total: number | null;
-  sub: string;
-  lowest: number | null;
+  lowest: boolean;
 }) {
-  const isLowest = total != null && lowest != null && total === lowest;
   return (
-    <td className="py-2 px-3 align-top">
-      <div
-        className={`rounded-xl border p-3 ${
-          isLowest
-            ? "border-emerald-300 bg-emerald-50"
-            : "border-slate-200 bg-white"
+    <div
+      className={`rounded-xl border p-3 ${
+        lowest ? "border-emerald-300 bg-emerald-50" : "border-slate-200 bg-white"
+      }`}
+    >
+      <div className="flex items-center gap-1.5 text-xs font-medium text-slate-500">
+        <span className="text-coral">{icon}</span>
+        {label}
+      </div>
+      <p
+        className={`mt-1 text-xl font-bold ${
+          lowest ? "text-emerald-700" : "text-navy"
         }`}
       >
-        <p
-          className={`text-xl font-bold ${
-            isLowest ? "text-emerald-700" : "text-navy"
-          }`}
-        >
-          {total != null ? fmtGbp(total) : "—"}
-        </p>
-        <p className="mt-0.5 text-[11px] text-slate-500 leading-snug">{sub}</p>
-        {isLowest && (
-          <p className="mt-1 text-[10px] font-semibold uppercase tracking-wider text-emerald-700">
-            Lowest total
-          </p>
-        )}
-      </div>
-    </td>
+        {total != null ? fmtGbp(total) : "—"}
+      </p>
+    </div>
   );
 }
 
