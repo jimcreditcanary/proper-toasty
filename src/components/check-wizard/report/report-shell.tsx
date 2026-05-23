@@ -36,6 +36,7 @@ import { useCheckWizard } from "../context";
 import type { WizardFocus } from "../types";
 import type { AnalyseResponse } from "@/lib/schemas/analyse";
 import type { FloorplanAnalysis } from "@/lib/schemas/floorplan";
+import { getPartner } from "@/lib/services/boiler-comparison";
 import { OverviewTab } from "./tabs/overview-tab";
 import { SavingsTab } from "./tabs/savings-tab";
 import { HeatPumpTab } from "./tabs/heat-pump-tab";
@@ -448,6 +449,8 @@ export function ReportShell({ audience = "homeowner" }: ReportShellProps = {}) {
             analysis={a}
             electricityTariff={state.electricityTariff}
             gasTariff={state.gasTariff}
+            partner={getPartner(state.partner)}
+            hasBoilerCare={state.hasBoilerCare === "yes"}
           />
         )}
         {tab === "book" && !isInstaller && (

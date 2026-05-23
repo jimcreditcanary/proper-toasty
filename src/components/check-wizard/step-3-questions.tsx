@@ -7,10 +7,12 @@ import {
   Home as HomeIcon,
   Receipt,
   Banknote,
+  ShieldCheck,
 } from "lucide-react";
 import { useCheckWizard } from "./context";
 import type { HeatingFuel, Tenure, YesNoUnsure } from "./types";
 import { EnergyDetailsCard, isFuelTariffComplete } from "./energy-details";
+import { getPartner } from "@/lib/services/boiler-comparison";
 
 const TENURE_OPTIONS: Array<{ value: Tenure; title: string; body: string }> = [
   { value: "owner", title: "I own and live here", body: "Owner-occupier." },
@@ -54,6 +56,10 @@ export function Step3Questions() {
   // Boiler variant compares a new gas boiler vs a heat pump — no
   // solar / battery / floorplan / satellite anywhere in this flow.
   const isBoilerFocus = state.focus === "boiler";
+  // Brand-partner boiler flows (e.g. Octopus) ask whether the household
+  // pays for boiler care, so we can add that overage to the gas side.
+  const partner = getPartner(state.partner);
+  const asksBoilerCare = isBoilerFocus && partner != null;
 
   const ready = useMemo(() => {
     if (!state.tenure || !state.currentHeatingFuel) return false;
@@ -61,6 +67,9 @@ export function Step3Questions() {
     // surfaces the heat-pump verdict (all + heatpump). Solar
     // variant skips because it's only relevant for the BUS grant.
     if (!isSolarFocus && !state.priorHeatPumpFunding) return false;
+    // Boiler-care answer required on partner boiler flows (it feeds the
+    // running-cost overage).
+    if (asksBoilerCare && !state.hasBoilerCare) return false;
     // Financing preference drives which scenario the report defaults to.
     if (!state.financingPreference) return false;
     // Energy details: electricity always required; gas required when fuel is gas.
@@ -74,8 +83,10 @@ export function Step3Questions() {
     state.financingPreference,
     state.electricityTariff,
     state.gasTariff,
+    state.hasBoilerCare,
     gasRequired,
     isSolarFocus,
+    asksBoilerCare,
   ]);
 
   // Personalise the heading when the customer arrived via an
@@ -153,6 +164,24 @@ export function Step3Questions() {
               options={YNU_OPTIONS}
               value={state.priorHeatPumpFunding}
               onChange={(v) => update({ priorHeatPumpFunding: v })}
+              columns={3}
+            />
+          </Question>
+        )}
+
+        {/* Boiler-care overage — partner boiler flows only. A heat
+            pump on the partner's plan avoids an ongoing gas-boiler
+            cover cost, so we add it to the boiler side when they pay it. */}
+        {asksBoilerCare && (
+          <Question
+            icon={<ShieldCheck className="w-4 h-4" />}
+            title="Do you pay for boiler cover or a service plan?"
+            sub="Things like British Gas HomeCare or a monthly boiler-care plan. A heat pump doesn't need an annual gas service, so we'll factor that saving in."
+          >
+            <Tiles
+              options={YNU_OPTIONS}
+              value={state.hasBoilerCare}
+              onChange={(v) => update({ hasBoilerCare: v })}
               columns={3}
             />
           </Question>

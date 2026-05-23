@@ -200,6 +200,60 @@ export function lookupBoilerCost(epc: EpcByAddressResponse): BoilerCostResult {
 
 export const HEAT_PUMP_GROSS_COST_RANGE_GBP: [number, number] = [12000, 16000];
 
+// ─── Brand partnership configs ───────────────────────────────────────
+//
+// A partner (e.g. Octopus Energy) co-brands the boiler-vs-heat-pump
+// flow and supplies its own commercials: its own (lower) heat-pump
+// price, its own finance terms, the tariff it puts the home on after
+// install, and how it models energy-price inflation. The boiler flow
+// reads these overrides when a partner is active; otherwise the
+// neutral defaults above apply.
+
+export type PartnerId = "octopus";
+
+export interface PartnerConfig {
+  id: PartnerId;
+  name: string;
+  /** Partner's own installed heat-pump price (gross, before grant). */
+  heatPumpGrossRangeGBP: [number, number];
+  /** Fixed finance offer — APR + term in months (no product/term
+   *  picker on a partner page; the offer is the offer). */
+  financeAprPct: number;
+  financeTermMonths: number;
+  /** Effective electricity rate the heat pump runs at on the partner's
+   *  heat-pump tariff (p/kWh) — overrides the user's standard tariff. */
+  heatPumpElecPencePerKwh: number;
+  /** Annual energy-price inflation applied to the total-cost view. */
+  gasInflationPctPerYear: number;
+  elecInflationPctPerYear: number;
+  /** Monthly boiler-care / cover cost added to the boiler side when the
+   *  user says they pay for it — an ongoing gas-boiler cost a heat pump
+   *  on the partner's plan avoids. */
+  boilerCareMonthlyGBP: number;
+}
+
+export const OCTOPUS_PARTNER: PartnerConfig = {
+  id: "octopus",
+  name: "Octopus Energy",
+  // ~£10.5k installed → £3,000 net after the £7,500 grant.
+  heatPumpGrossRangeGBP: [10500, 10500],
+  financeAprPct: 0,
+  financeTermMonths: 120, // 0% over 10 years
+  heatPumpElecPencePerKwh: 15, // Cosy effective rate
+  gasInflationPctPerYear: 7,
+  elecInflationPctPerYear: 2,
+  boilerCareMonthlyGBP: 20,
+};
+
+export const PARTNERS: Record<PartnerId, PartnerConfig> = {
+  octopus: OCTOPUS_PARTNER,
+};
+
+export function getPartner(id: string | null | undefined): PartnerConfig | null {
+  if (!id) return null;
+  return id in PARTNERS ? PARTNERS[id as PartnerId] : null;
+}
+
 export interface HeatPumpCostResult {
   verdict: Eligibility["heatPump"]["verdict"];
   grossRangeGBP: [number, number];
@@ -234,8 +288,9 @@ export function hasOutstandingInsulationRec(
 export function buildHeatPumpCost(
   epc: EpcByAddressResponse,
   heatPump: Eligibility["heatPump"],
+  grossRangeOverride?: [number, number],
 ): HeatPumpCostResult {
-  const grossRangeGBP = HEAT_PUMP_GROSS_COST_RANGE_GBP;
+  const grossRangeGBP = grossRangeOverride ?? HEAT_PUMP_GROSS_COST_RANGE_GBP;
   const grossMidpointGBP = Math.round((grossRangeGBP[0] + grossRangeGBP[1]) / 2);
   const grantGBP = heatPump.estimatedGrantGBP;
   const busEligible = heatPump.verdict !== "blocked";
@@ -275,10 +330,17 @@ export interface BoilerVsHeatPump {
 export function buildBoilerVsHeatPump(input: {
   epc: EpcByAddressResponse;
   eligibility: Eligibility;
+  /** When a brand partner is active, use its heat-pump price instead
+   *  of the neutral MCS-average band. */
+  partner?: PartnerConfig | null;
 }): BoilerVsHeatPump {
   return {
     boiler: lookupBoilerCost(input.epc),
-    heatPump: buildHeatPumpCost(input.epc, input.eligibility.heatPump),
+    heatPump: buildHeatPumpCost(
+      input.epc,
+      input.eligibility.heatPump,
+      input.partner?.heatPumpGrossRangeGBP,
+    ),
   };
 }
 
@@ -380,6 +442,13 @@ export function annualRunningCost(input: {
   electricityTariff?: FuelTariff | null;
   gasTariff?: FuelTariff | null;
   sizing?: SizingInputs;
+  /** Override the heat-pump electricity rate (p/kWh) — set to a
+   *  partner's heat-pump tariff (e.g. Octopus Cosy) so the heat pump
+   *  isn't penalised by the standard import rate. */
+  heatPumpElecPenceOverride?: number;
+  /** Added to the boiler side only — an ongoing boiler-care / cover
+   *  cost (£/yr) the user told us they pay, which a heat pump avoids. */
+  boilerCareAnnualGBP?: number;
 }): RunningCost {
   const sizing = input.sizing ?? DEFAULT_SIZING_INPUTS;
 
@@ -387,9 +456,10 @@ export function annualRunningCost(input: {
   const floorAreaEstimated = epcArea == null || epcArea <= 0;
   const floorAreaM2 = floorAreaEstimated ? RUNNING_COST.fallbackFloorAreaM2 : epcArea;
 
-  // Tariff resolution: user's bill → admin sizing default (elec only)
-  // → hard fallback.
+  // Tariff resolution for the heat pump: partner heat-pump tariff →
+  // user's bill → admin sizing default → hard fallback.
   const elecUnitPence =
+    input.heatPumpElecPenceOverride ??
     input.electricityTariff?.unitRatePencePerKWh ??
     sizing.energy_import_price_p_per_kwh;
   const gasUnitPence =
@@ -404,8 +474,11 @@ export function annualRunningCost(input: {
   const thermalKwh = heatPumpElecKwh * RUNNING_COST.scop;
   const gasKwh = thermalKwh / RUNNING_COST.boilerEfficiency;
 
+  const boilerCareAnnualGBP = input.boilerCareAnnualGBP ?? 0;
   const boilerAnnualGBP = Math.round(
-    (gasKwh * gasUnitPence) / 100 + (gasStandingPence * 365) / 100,
+    (gasKwh * gasUnitPence) / 100 +
+      (gasStandingPence * 365) / 100 +
+      boilerCareAnnualGBP,
   );
   const heatPumpAnnualGBP = Math.round((heatPumpElecKwh * elecUnitPence) / 100);
 
@@ -440,15 +513,25 @@ export function annualEnergyBillDelta(rc: RunningCost): number {
 /**
  * Total cost of ownership over `years`: the day-one outlay (a cash
  * install price OR a financed total-repayable) plus the running energy
- * bill for each year. Flat real energy prices — no inflation curve
- * (kept deliberately simple; disclosed in the UI).
+ * bill for each year.
+ *
+ * `energyInflationPctPerYear` compounds the annual energy cost year on
+ * year (year 0 at today's price, year 1 at +infl, …). Defaults to 0 —
+ * the neutral boiler page keeps flat real prices; a partner page can
+ * model gas rising faster than electricity.
  */
 export function totalCostOfOwnership(input: {
   upfrontGBP: number;
   annualEnergyGBP: number;
   years: number;
+  energyInflationPctPerYear?: number;
 }): number {
-  return Math.round(input.upfrontGBP + input.annualEnergyGBP * input.years);
+  const infl = (input.energyInflationPctPerYear ?? 0) / 100;
+  let energyTotal = 0;
+  for (let y = 0; y < input.years; y++) {
+    energyTotal += input.annualEnergyGBP * Math.pow(1 + infl, y);
+  }
+  return Math.round(input.upfrontGBP + energyTotal);
 }
 
 /**
