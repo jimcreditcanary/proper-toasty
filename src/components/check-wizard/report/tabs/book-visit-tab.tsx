@@ -312,6 +312,7 @@ export function BookVisitTab({
                       key={i.id}
                       installer={i}
                       onBook={() => setBookingFor(i)}
+                      hideSolar={!wantsSolar}
                       compact
                     />
                   ))}
@@ -338,6 +339,7 @@ export function BookVisitTab({
                   key={i.id}
                   installer={i}
                   onBook={() => setBookingFor(i)}
+                  hideSolar={!wantsSolar}
                 />
               ))}
             </div>
@@ -410,10 +412,15 @@ function InstallerTile({
   installer,
   onBook,
   compact,
+  hideSolar = false,
 }: {
   installer: InstallerCard;
   onBook: () => void;
   compact?: boolean;
+  /** Suppress the Solar PV + Battery capability chips — set on the
+   *  heat-pump-only + boiler flows so the focused experience never
+   *  references solar, even via an installer's other capabilities. */
+  hideSolar?: boolean;
 }) {
   const capChips: { icon: React.ReactNode; label: string }[] = [];
   if (installer.capHeatPump)
@@ -421,9 +428,9 @@ function InstallerTile({
       icon: <Flame className="w-3 h-3" />,
       label: installer.busRegistered ? "Heat pump · BUS" : "Heat pump",
     });
-  if (installer.capSolarPv)
+  if (installer.capSolarPv && !hideSolar)
     capChips.push({ icon: <Sun className="w-3 h-3" />, label: "Solar PV" });
-  if (installer.capBatteryStorage)
+  if (installer.capBatteryStorage && !hideSolar)
     capChips.push({
       icon: <Battery className="w-3 h-3" />,
       label: "Battery",

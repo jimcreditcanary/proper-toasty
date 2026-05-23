@@ -51,6 +51,9 @@ export function Step3Questions() {
   // Solar variant skips the BUS-grant prior-funding question — it's
   // not relevant when the report doesn't cover heat pumps.
   const isSolarFocus = state.focus === "solar";
+  // Boiler variant compares a new gas boiler vs a heat pump — no
+  // solar / battery / floorplan / satellite anywhere in this flow.
+  const isBoilerFocus = state.focus === "boiler";
 
   const ready = useMemo(() => {
     if (!state.tenure || !state.currentHeatingFuel) return false;
@@ -88,15 +91,35 @@ export function Step3Questions() {
         <h1 className="text-3xl sm:text-4xl text-navy">
           {firstName ? `${firstName}, a few quick questions` : "A few quick questions"}
         </h1>
-        <p className="mt-3 text-slate-600">
-          Takes about 30 seconds. Your report will cover{" "}
-          <span className="font-semibold text-navy">heat pump, solar and battery</span>{" "}
-          as a combined recommendation — you can switch any of them on or off when
-          you see the results.
-        </p>
-        <p className="mt-2 text-sm text-slate-500">
-          We&rsquo;ll read the rest off your EPC, your floorplan, and satellite data.
-        </p>
+        {isBoilerFocus ? (
+          <>
+            <p className="mt-3 text-slate-600">
+              Takes about 30 seconds. Your report will compare the cost of a{" "}
+              <span className="font-semibold text-navy">
+                new gas boiler with a heat pump
+              </span>{" "}
+              for your home — upfront, monthly and over time.
+            </p>
+            <p className="mt-2 text-sm text-slate-500">
+              We&rsquo;ll read the rest off your EPC.
+            </p>
+          </>
+        ) : (
+          <>
+            <p className="mt-3 text-slate-600">
+              Takes about 30 seconds. Your report will cover{" "}
+              <span className="font-semibold text-navy">
+                heat pump, solar and battery
+              </span>{" "}
+              as a combined recommendation — you can switch any of them on or
+              off when you see the results.
+            </p>
+            <p className="mt-2 text-sm text-slate-500">
+              We&rsquo;ll read the rest off your EPC, your floorplan, and
+              satellite data.
+            </p>
+          </>
+        )}
       </div>
 
       <div className="space-y-6">

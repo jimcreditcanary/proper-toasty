@@ -31,11 +31,11 @@ export function Step2Preview() {
   const [solar, setSolar] = useState<Loadable<BuildingInsightsResponse>>(initial);
   const [epc, setEpc] = useState<Loadable<EpcByAddressResponse>>(initial);
 
-  // Skip the Solar API call entirely on the heat-pump variant —
-  // the solar card isn't rendered there, so spending the Google
-  // Solar API request is wasted spend. Solar variant + 'all'
+  // Skip the Solar API call entirely on the heat-pump + boiler
+  // variants — the solar card isn't rendered there, so spending the
+  // Google Solar API request is wasted spend. Solar variant + 'all'
   // still fire the call because both surfaces consume it.
-  const skipSolar = state.focus === "heatpump";
+  const skipSolar = state.focus === "heatpump" || state.focus === "boiler";
 
   useEffect(() => {
     if (!address) return;
