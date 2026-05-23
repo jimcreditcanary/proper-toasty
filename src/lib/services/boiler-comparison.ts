@@ -234,6 +234,10 @@ export interface PartnerConfig {
    *  handles the install, so the boiler flow's installer marketplace is
    *  replaced by a single hand-off to the partner. */
   bookingUrl: string;
+  /** The partner's installer id in `public.installers`. The boiler
+   *  flow's Book tab books a real site visit against this installer
+   *  (availability + lead) rather than linking out. */
+  installerId: number;
 }
 
 export const OCTOPUS_PARTNER: PartnerConfig = {
@@ -248,6 +252,7 @@ export const OCTOPUS_PARTNER: PartnerConfig = {
   elecInflationPctPerYear: 2,
   boilerCareMonthlyGBP: 20,
   bookingUrl: "https://octopus.energy/heat-pump-explore/",
+  installerId: 9864, // "Octopus Energy Services Limited"
 };
 
 export const PARTNERS: Record<PartnerId, PartnerConfig> = {
