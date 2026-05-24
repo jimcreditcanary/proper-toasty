@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { pingIndexNow } from "@/lib/seo/indexnow";
+import { ORG_PROFILE } from "@/lib/seo/org-profile";
+
+/** Absolute URL of a published post — for IndexNow submission. */
+function blogUrl(slug: string): string {
+  return `${ORG_PROFILE.url.replace(/\/+$/, "")}/blog/${slug}`;
+}
 
 function blogTable(admin: ReturnType<typeof createAdminClient>) {
   // The blog_posts table isn't in the generated Database type
@@ -63,6 +70,11 @@ export async function POST(request: NextRequest) {
         { error: error.message },
         { status: 400 }
       );
+    }
+
+    // Push the new post to IndexNow (Bing et al.) the moment it's live.
+    if (body.published && body.slug) {
+      void pingIndexNow([blogUrl(body.slug)]);
     }
 
     return NextResponse.json({ ok: true });
@@ -131,6 +143,11 @@ export async function PUT(request: NextRequest) {
         { error: error.message },
         { status: 400 }
       );
+    }
+
+    // Re-submit to IndexNow on any published edit (new or updated).
+    if (body.published && body.slug) {
+      void pingIndexNow([blogUrl(body.slug)]);
     }
 
     return NextResponse.json({ ok: true });

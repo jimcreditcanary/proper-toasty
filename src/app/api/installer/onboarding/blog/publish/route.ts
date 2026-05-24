@@ -14,6 +14,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { grantOnboardingStep } from "@/lib/outreach/onboarding";
 import { COVER_IMAGE_THEMES } from "@/lib/outreach/blog-draft";
 import { coverImageForTheme } from "@/lib/outreach/cover-image-library";
+import { pingIndexNow } from "@/lib/seo/indexnow";
+import { ORG_PROFILE } from "@/lib/seo/org-profile";
 
 type AdminClient = ReturnType<typeof createAdminClient>;
 
@@ -109,6 +111,9 @@ export async function POST(req: Request) {
       { status: 500 },
     );
   }
+
+  // Push the freshly-published post to IndexNow (Bing et al.).
+  void pingIndexNow([`${ORG_PROFILE.url.replace(/\/+$/, "")}/blog/${slug}`]);
 
   // Grant credits + stamp milestone.
   const grant = await grantOnboardingStep(admin, {
