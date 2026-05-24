@@ -124,7 +124,17 @@ export default function robots(): MetadataRoute.Robots {
         disallow: SHARED_DISALLOW,
       })),
     ],
-    sitemap: `${SITE_URL}/sitemap.xml`,
+    // List the index AND each child sitemap. Crawlers read every
+    // `Sitemap:` line in robots.txt, so naming the children directly
+    // (not just the index) is belt-and-braces discovery — if an engine
+    // is slow to recurse into the index, it still finds pages / guides /
+    // towns from here. Engines de-dupe, so listing both is harmless.
+    sitemap: [
+      `${SITE_URL}/sitemap.xml`,
+      `${SITE_URL}/sitemap-pages.xml`,
+      `${SITE_URL}/sitemap-guides.xml`,
+      `${SITE_URL}/sitemap-towns.xml`,
+    ],
     host: SITE_URL,
   };
 }

@@ -44,11 +44,18 @@ import { SectionCard, FactRow, IssueList, fmtGbp } from "../shared";
 
 type FinanceProduct = "zero" | "spread";
 const YEAR_OPTIONS = [5, 10, 15] as const;
-// Term choices offered on a partner page (months) — 3 / 5 / 10 / 15
-// years. APR is a free slider 0%–9.9% there rather than the neutral
-// flow's 0%-vs-spread toggle.
+// Partner heat-pump finance: term choices 3 / 5 / 10 / 15 years, and an
+// APR slider that starts at a typical market rate and tracks down to 0%
+// (the partner's offer).
 const PARTNER_TERM_OPTIONS = [36, 60, 120, 180] as const;
 const PARTNER_APR_MAX = 9.9;
+const PARTNER_HP_APR_DEFAULT = 4.9;
+// Partner boiler finance: a fixed, realistic representative rate (a
+// boiler wouldn't get the heat-pump deal). Editable after "I've got a
+// quote". Term choices 3 / 5 / 10 years.
+const BOILER_FINANCE_DEFAULT_APR = 9.9;
+const BOILER_FINANCE_DEFAULT_TERM = 60;
+const BOILER_TERM_OPTIONS = [36, 60, 120] as const;
 
 export function BoilerTab({
   analysis,
@@ -97,20 +104,37 @@ export function BoilerTab({
   const { boiler, heatPump } = cmp;
 
   // ── Controls ──
-  // Neutral flow: a 0%-vs-spread product toggle + term buttons.
-  // Partner flow: an APR slider (0%–9.9%, starting at the partner's
-  // headline rate) + term buttons — both drive the table + totals.
+  // Neutral flow: one 0%-vs-spread product toggle + term, applied to
+  // both systems. Partner flow: the two systems finance on DIFFERENT
+  // terms — a boiler wouldn't get the partner's heat-pump deal — so we
+  // model them separately:
+  //   • Heat pump: an APR slider that starts at a typical market rate
+  //     and tracks down to 0% (the partner's offer).
+  //   • Boiler: a fixed, realistic boiler-finance rate; editable (rate
+  //     / term / amount) only after "I've got a quote".
   const [product, setProduct] = useState<FinanceProduct>("spread");
   const [termMonths, setTermMonths] = useState<number>(
     HEATING_FINANCE.defaultTermMonths,
   );
-  const [partnerAprPct, setPartnerAprPct] = useState<number>(
-    partner?.financeAprPct ?? 0,
+  const [years, setYears] = useState<number>(10);
+  // Partner: heat-pump finance.
+  const [hpAprPct, setHpAprPct] = useState<number>(
+    partner ? PARTNER_HP_APR_DEFAULT : 0,
   );
-  const [partnerTermMonths, setPartnerTermMonths] = useState<number>(
+  const [hpTermMonths, setHpTermMonths] = useState<number>(
     partner?.financeTermMonths ?? 120,
   );
-  const [years, setYears] = useState<number>(10);
+  // Partner: boiler finance (fixed unless they've got a quote).
+  const [gotQuote, setGotQuote] = useState(false);
+  const [boilerAprPct, setBoilerAprPct] = useState<number>(
+    BOILER_FINANCE_DEFAULT_APR,
+  );
+  const [boilerTermMonths, setBoilerTermMonths] = useState<number>(
+    BOILER_FINANCE_DEFAULT_TERM,
+  );
+  const [boilerValueOverride, setBoilerValueOverride] = useState<number | null>(
+    null,
+  );
 
   const termOptions =
     product === "zero"
@@ -119,24 +143,30 @@ export function BoilerTab({
   const pickedTerm = (termOptions as readonly number[]).includes(termMonths)
     ? termMonths
     : termOptions[0];
-  const effectiveTerm = partner ? partnerTermMonths : pickedTerm;
-  const apr = partner
-    ? partnerAprPct
-    : product === "zero"
+  const neutralApr =
+    product === "zero"
       ? HEATING_FINANCE.zeroAprPct
       : HEATING_FINANCE.spreadAprPct;
   const gasInflation = partner?.gasInflationPctPerYear ?? 0;
   const elecInflation = partner?.elecInflationPctPerYear ?? 0;
 
-  const boilerQuote = financeQuote(boiler.installedCostGBP, apr, effectiveTerm);
   const hpNet = heatPump.netMidpointGBP;
-  const hpQuote = hpNet != null ? financeQuote(hpNet, apr, effectiveTerm) : null;
 
-  // Horizon for the totals. On the partner flow the term + horizon are
-  // one combined control (term left, rate right), so the total runs
-  // over the chosen term. The neutral flow keeps a separate years
+  // Per-system finance inputs — split on the partner flow, shared on the
+  // neutral flow.
+  const boilerValue = boilerValueOverride ?? boiler.installedCostGBP;
+  const boilerApr = partner ? boilerAprPct : neutralApr;
+  const boilerTerm = partner ? boilerTermMonths : pickedTerm;
+  const hpApr = partner ? hpAprPct : neutralApr;
+  const hpTerm = partner ? hpTermMonths : pickedTerm;
+
+  const boilerQuote = financeQuote(boilerValue, boilerApr, boilerTerm);
+  const hpQuote = hpNet != null ? financeQuote(hpNet, hpApr, hpTerm) : null;
+
+  // Horizon for the totals. On the partner flow it follows the heat-pump
+  // term (the Octopus deal); the neutral flow keeps a separate years
   // toggle.
-  const horizonYears = partner ? effectiveTerm / 12 : years;
+  const horizonYears = partner ? hpTerm / 12 : years;
 
   // ── Totals over the horizon ── (gas inflates faster than electricity
   // on a partner page; both flat on the neutral flow)
@@ -452,37 +482,134 @@ export function BoilerTab({
             If you spread it on finance
           </p>
           {partner ? (
-            // One combined control: term on the left, rate on the right.
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 items-start">
-              {/* Term (left) */}
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">
-                  Term
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {PARTNER_TERM_OPTIONS.map((t) => (
-                    <ToggleButton
-                      key={t}
-                      active={effectiveTerm === t}
-                      onClick={() => setPartnerTermMonths(t)}
-                      label={`${t / 12} yrs`}
-                      sub={`${t} mo`}
-                    />
-                  ))}
+            // Two separate configs: a boiler won't get the partner's
+            // heat-pump deal, so each system finances on its own terms.
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+              {/* New gas boiler — fixed unless they've got a quote */}
+              <div className="rounded-xl border border-slate-200 bg-white p-4">
+                <div className="flex items-center gap-2 mb-2.5">
+                  <Flame className="w-4 h-4 text-coral" />
+                  <p className="text-sm font-semibold text-navy">
+                    New gas boiler
+                  </p>
                 </div>
+                {!gotQuote ? (
+                  <>
+                    <p className="text-sm text-slate-600 leading-relaxed">
+                      Typical boiler finance{" "}
+                      <span className="font-semibold text-navy">
+                        {boilerAprPct}% APR
+                      </span>{" "}
+                      over {boilerTermMonths / 12} years — a boiler won&rsquo;t
+                      qualify for the {partner.name} 0% deal.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setGotQuote(true)}
+                      className="mt-2.5 text-sm font-semibold text-coral hover:text-coral-dark underline underline-offset-2"
+                    >
+                      I&rsquo;ve got a quote — edit
+                    </button>
+                  </>
+                ) : (
+                  <div className="space-y-3.5">
+                    <div>
+                      <div className="flex items-baseline justify-between mb-1">
+                        <label
+                          htmlFor="boiler-apr"
+                          className="text-xs font-semibold uppercase tracking-wider text-slate-500"
+                        >
+                          Rate (APR)
+                        </label>
+                        <span className="text-sm font-bold text-navy tabular-nums">
+                          {boilerAprPct.toFixed(1)}%
+                        </span>
+                      </div>
+                      <input
+                        id="boiler-apr"
+                        type="range"
+                        min={0}
+                        max={PARTNER_APR_MAX}
+                        step={0.1}
+                        value={boilerAprPct}
+                        onChange={(e) =>
+                          setBoilerAprPct(Number(e.target.value))
+                        }
+                        className="w-full accent-coral"
+                      />
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">
+                        Term
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {BOILER_TERM_OPTIONS.map((t) => (
+                          <ToggleButton
+                            key={t}
+                            active={boilerTermMonths === t}
+                            onClick={() => setBoilerTermMonths(t)}
+                            label={`${t / 12} yrs`}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <label
+                        htmlFor="boiler-value"
+                        className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5"
+                      >
+                        Amount financed
+                      </label>
+                      <div className="relative w-36">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">
+                          £
+                        </span>
+                        <input
+                          id="boiler-value"
+                          type="number"
+                          min={0}
+                          value={boilerValue}
+                          onChange={(e) =>
+                            setBoilerValueOverride(Number(e.target.value) || 0)
+                          }
+                          className="w-full h-10 pl-6 pr-3 rounded-lg border border-slate-200 bg-white text-sm tabular-nums focus:outline-none focus:ring-1 focus:ring-coral"
+                        />
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setGotQuote(false);
+                        setBoilerAprPct(BOILER_FINANCE_DEFAULT_APR);
+                        setBoilerTermMonths(BOILER_FINANCE_DEFAULT_TERM);
+                        setBoilerValueOverride(null);
+                      }}
+                      className="text-xs text-slate-500 hover:text-slate-700 underline"
+                    >
+                      Use typical figures instead
+                    </button>
+                  </div>
+                )}
               </div>
-              {/* Rate (right) — APR slider 0%–9.9% */}
-              <div>
+
+              {/* Heat pump — the partner calculator (slider tracks to 0%) */}
+              <div className="rounded-xl border border-slate-200 bg-white p-4">
+                <div className="flex items-center gap-2 mb-2.5">
+                  <Zap className="w-4 h-4 text-coral" />
+                  <p className="text-sm font-semibold text-navy">
+                    {partner.name} heat pump
+                  </p>
+                </div>
                 <div className="flex items-baseline justify-between mb-2">
                   <label
-                    htmlFor="partner-apr"
+                    htmlFor="hp-apr"
                     className="text-xs font-semibold uppercase tracking-wider text-slate-500"
                   >
                     Interest rate (APR)
                   </label>
                   <span className="text-sm font-bold text-navy tabular-nums">
-                    {apr.toFixed(1)}%
-                    {apr === 0 && (
+                    {hpApr.toFixed(1)}%
+                    {hpApr === 0 && (
                       <span className="ml-1.5 text-[11px] font-semibold uppercase tracking-wider text-emerald-700">
                         {partner.name} offer
                       </span>
@@ -490,18 +617,33 @@ export function BoilerTab({
                   </span>
                 </div>
                 <input
-                  id="partner-apr"
+                  id="hp-apr"
                   type="range"
                   min={0}
                   max={PARTNER_APR_MAX}
                   step={0.1}
-                  value={partnerAprPct}
-                  onChange={(e) => setPartnerAprPct(Number(e.target.value))}
+                  value={hpAprPct}
+                  onChange={(e) => setHpAprPct(Number(e.target.value))}
                   className="w-full accent-coral"
                 />
                 <div className="flex justify-between text-[11px] text-slate-400 mt-0.5">
-                  <span>0%</span>
+                  <span>0% ({partner.name})</span>
                   <span>{PARTNER_APR_MAX}%</span>
+                </div>
+                <div className="mt-3">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">
+                    Term
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {PARTNER_TERM_OPTIONS.map((t) => (
+                      <ToggleButton
+                        key={t}
+                        active={hpTermMonths === t}
+                        onClick={() => setHpTermMonths(t)}
+                        label={`${t / 12} yrs`}
+                      />
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
@@ -523,7 +665,7 @@ export function BoilerTab({
               {termOptions.map((t) => (
                 <ToggleButton
                   key={t}
-                  active={effectiveTerm === t}
+                  active={pickedTerm === t}
                   onClick={() => setTermMonths(t)}
                   label={`${t} mo`}
                 />
@@ -555,11 +697,19 @@ export function BoilerTab({
             </thead>
             <tbody>
               <MonthlyRow
-                label={`Finance (${effectiveTerm} mo @ ${apr}%)`}
-                boiler={`${fmtGbp(Math.round(boilerMoFinance))}/mo`}
+                label={
+                  partner
+                    ? "Finance"
+                    : `Finance (${pickedTerm} mo @ ${neutralApr}%)`
+                }
+                boiler={
+                  `${fmtGbp(Math.round(boilerMoFinance))}/mo` +
+                  (partner ? ` · ${boilerApr}% / ${boilerTerm / 12}yr` : "")
+                }
                 heatPump={
                   hpMoFinance != null
-                    ? `${fmtGbp(Math.round(hpMoFinance))}/mo`
+                    ? `${fmtGbp(Math.round(hpMoFinance))}/mo` +
+                      (partner ? ` · ${hpApr}% / ${hpTerm / 12}yr` : "")
                     : "—"
                 }
               />
@@ -591,9 +741,11 @@ export function BoilerTab({
           </table>
         </div>
         <p className="mt-2 text-xs text-slate-500 leading-relaxed">
-          The finance line runs for the {effectiveTerm}-month term, then stops —
-          after that it&rsquo;s just the energy line. Energy shown at
-          today&rsquo;s prices.
+          Each finance line runs for that system&rsquo;s term, then stops —
+          after that it&rsquo;s just the energy line.{" "}
+          {partner
+            ? "The boiler and heat pump finance on their own rates + terms."
+            : "Energy shown at today’s prices."}
         </p>
 
         {/* Horizon total */}
