@@ -433,15 +433,24 @@ export interface RunningCost {
   floorAreaM2: number;
   /** True when we fell back to the national-average floor area. */
   floorAreaEstimated: boolean;
-  /** Annual heating + hot water energy cost on a gas boiler (£/yr). */
+  /** Annual heating + hot water energy cost on a gas boiler (£/yr),
+   *  including the gas standing charge + any boiler-care overage. */
   boilerAnnualGBP: number;
   /** Annual heating + hot water energy cost on a heat pump (£/yr). */
   heatPumpAnnualGBP: number;
+  /** Intermediate energy figures, exposed so the UI can show a
+   *  transparent "how the numbers add up" breakdown. */
+  heatPumpElecKwh: number;
+  thermalDemandKwh: number;
+  gasKwh: number;
+  gasStandingAnnualGBP: number;
+  boilerCareAnnualGBP: number;
   /** Assumptions used, surfaced for the "how we worked this out" line. */
   assumptions: {
     elecUnitPencePerKwh: number;
     gasUnitPencePerKwh: number;
     gasStandingPencePerDay: number;
+    demandKwhPerM2: number;
     scop: number;
     boilerEfficiency: number;
   };
@@ -485,6 +494,7 @@ export function annualRunningCost(input: {
   const gasKwh = thermalKwh / RUNNING_COST.boilerEfficiency;
 
   const boilerCareAnnualGBP = input.boilerCareAnnualGBP ?? 0;
+  const gasStandingAnnualGBP = Math.round((gasStandingPence * 365) / 100);
   const boilerAnnualGBP = Math.round(
     (gasKwh * gasUnitPence) / 100 +
       (gasStandingPence * 365) / 100 +
@@ -497,10 +507,16 @@ export function annualRunningCost(input: {
     floorAreaEstimated,
     boilerAnnualGBP,
     heatPumpAnnualGBP,
+    heatPumpElecKwh: Math.round(heatPumpElecKwh),
+    thermalDemandKwh: Math.round(thermalKwh),
+    gasKwh: Math.round(gasKwh),
+    gasStandingAnnualGBP,
+    boilerCareAnnualGBP,
     assumptions: {
       elecUnitPencePerKwh: elecUnitPence,
       gasUnitPencePerKwh: gasUnitPence,
       gasStandingPencePerDay: gasStandingPence,
+      demandKwhPerM2: sizing.heat_pump_demand_kwh_per_m2,
       scop: RUNNING_COST.scop,
       boilerEfficiency: RUNNING_COST.boilerEfficiency,
     },
