@@ -140,8 +140,12 @@ function PageTitleSync() {
 // where they need to (e.g. step-1-address has a narrow input column);
 // see each step's own root <div> max-w-* for that.
 function StepWrapper() {
+  // my-auto vertically centres short steps (e.g. the postcode step) in
+  // the remaining viewport height; tall steps (the report) push the
+  // margins to 0 and flow/scroll from the top. Fills the dead space
+  // below short steps without clipping long ones.
   return (
-    <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+    <div className="mx-auto my-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
       <CurrentStep />
     </div>
   );
@@ -157,7 +161,11 @@ export function CheckWizard({ initialState }: CheckWizardProps = {}) {
   const partner = getPartner(initialState?.partner);
   return (
     <CheckWizardProvider initialState={initialState}>
-      <div className={partner ? "theme-octopus" : undefined}>
+      <div
+        className={`flex min-h-[100dvh] flex-col${
+          partner ? " theme-octopus" : ""
+        }`}
+      >
         <PageTitleSync />
         {/* (Skip-to-main-content link removed — its focus position
             drifted inconsistently across pages, causing more confusion
@@ -179,7 +187,11 @@ export function CheckWizard({ initialState }: CheckWizardProps = {}) {
             <FocusLabel />
           </div>
         </header>
-        <main id="wizard-main" tabIndex={-1} className="flex-1 bg-gradient-to-b from-cream-deep to-cream">
+        <main
+          id="wizard-main"
+          tabIndex={-1}
+          className="flex-1 flex flex-col bg-gradient-to-b from-cream-deep to-cream"
+        >
           <StepWrapper />
         </main>
         <ResumeJourneyModal />
