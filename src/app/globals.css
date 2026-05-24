@@ -53,26 +53,30 @@
   /* Extended brand colours — warm, approachable palette (Spruce / Snugg inspired).
      Legacy names (coral/navy) kept intact to avoid churning every className; values
      remapped to forest green + warm charcoal. New semantic vars for cream + terracotta. */
-  --color-coral: #2C5E4A;        /* primary forest green */
-  --color-coral-light: #3F7D63;
-  --color-coral-dark: #1F4734;
-  --color-coral-pale: #E8F0EA;   /* very pale sage surface */
-  --color-navy: #2A2922;         /* warm charcoal text */
-  --color-navy-mid: #3B3A31;
-  --color-navy-card: #4A4939;
-  --color-yellow: #E8B647;       /* softened amber */
-  --color-off-white: #FAF7F2;    /* warm cream */
-  --color-cream: #FAF7F2;
-  --color-cream-deep: #F4EDE4;
-  --color-terracotta: #D9813C;   /* warm accent */
-  --color-terracotta-pale: #F9E7D6;
-  --color-sage: #A8BCA1;
+  /* Brand colour utilities reference the :root vars (below) instead of
+     inlining literals, so a scoped wrapper (e.g. `.theme-octopus`) can
+     re-theme every bg-coral / text-navy / bg-cream utility at runtime.
+     `@theme inline` keeps the `var(--…)` reference inside each utility. */
+  --color-coral: var(--coral);
+  --color-coral-light: var(--coral-light);
+  --color-coral-dark: var(--coral-dark);
+  --color-coral-pale: var(--coral-pale);
+  --color-navy: var(--navy);
+  --color-navy-mid: var(--navy-mid);
+  --color-navy-card: var(--navy-card);
+  --color-yellow: var(--yellow);
+  --color-off-white: var(--off-white);
+  --color-cream: var(--cream);
+  --color-cream-deep: var(--cream-deep);
+  --color-terracotta: var(--terracotta);
+  --color-terracotta-pale: var(--terracotta-pale);
+  --color-sage: var(--sage);
   --color-pass: #2C5E4A;
   --color-pass-green: #2C5E4A;
   --color-warn: #D9813C;
   --color-fail: #C4533E;
-  --color-brand-muted: #6B7266;
-  --color-brand-muted-light: #9AA096;
+  --color-brand-muted: var(--muted-brand);
+  --color-brand-muted-light: var(--muted-light);
   --color-slate-50: #F8FAFC;
   --color-slate-100: #F1F5F9;
   --color-slate-200: #E2E8F0;
@@ -95,6 +99,7 @@
   --cream:        #FAF7F2;
   --cream-deep:   #F4EDE4;
   --terracotta:   #D9813C;
+  --terracotta-pale: #F9E7D6;
   --sage:         #A8BCA1;
   --status-pass:  #2C5E4A;
   --status-warn:  #D9813C;
@@ -285,44 +290,28 @@ h1, h2, h3 {
    touching any component classNames. Illustrative hexes, not official
    brand assets. */
 .theme-octopus {
-  /* Tailwind utility tokens (@theme) */
-  --color-coral: #2a0a6e;        /* primary → deep Octopus purple */
-  --color-coral-light: #3d1f96;
-  --color-coral-dark: #1a0048;
-  --color-coral-pale: #ece6fb;   /* pale lilac surface */
-  --color-navy: #1c0a4d;         /* headings / dark text → purple */
-  --color-navy-mid: #2e1c63;
-  --color-navy-card: #2e1c63;
-  --color-cream: #f8f5ff;        /* light bg → faint lilac */
-  --color-cream-deep: #efe9fb;
-  --color-off-white: #f8f5ff;
-  --color-terracotta: #ff5ea0;   /* warm accent → Octopus pink */
-  --color-terracotta-pale: #ffe1ee;
-  --color-sage: #7fd8c4;         /* secondary accent → mint */
-  --color-brand-muted: #6b6385;
-  --color-brand-muted-light: #9b94ad;
-  --primary: #2a0a6e;
-  --color-primary: #2a0a6e;
-  --ring: #2a0a6e;
-  --color-ring: #2a0a6e;
-  --accent: #ece6fb;
-  --color-accent: #ece6fb;
-
-  /* Plain :root tokens (var(--…) arbitrary values) */
-  --coral: #2a0a6e;
+  /* The brand utilities (bg-coral / text-navy / bg-cream …) now resolve
+     via var(--coral) etc. (see @theme above), so overriding these :root
+     vars re-themes the whole subtree. Illustrative purple + pink. */
+  --coral: #2a0a6e;        /* primary → deep Octopus purple */
   --coral-light: #3d1f96;
   --coral-dark: #1a0048;
-  --coral-pale: #ece6fb;
-  --navy: #1c0a4d;
+  --coral-pale: #ece6fb;   /* pale lilac surface */
+  --navy: #1c0a4d;         /* headings / dark text → purple */
   --navy-mid: #2e1c63;
   --navy-card: #2e1c63;
-  --cream: #f8f5ff;
+  --cream: #f8f5ff;        /* light bg → faint lilac */
   --cream-deep: #efe9fb;
   --off-white: #f8f5ff;
-  --terracotta: #ff5ea0;
-  --sage: #7fd8c4;
+  --terracotta: #ff5ea0;   /* warm accent → Octopus pink */
+  --terracotta-pale: #ffe1ee;
+  --sage: #7fd8c4;         /* secondary accent → mint */
   --muted-brand: #6b6385;
   --muted-light: #9b94ad;
   --border: #e6ddf5;
   --input: #e6ddf5;
+  /* shadcn semantic tokens (referenced via var() in @theme) */
+  --primary: #2a0a6e;
+  --ring: #2a0a6e;
+  --accent: #ece6fb;
 }

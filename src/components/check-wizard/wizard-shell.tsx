@@ -140,12 +140,12 @@ function PageTitleSync() {
 // where they need to (e.g. step-1-address has a narrow input column);
 // see each step's own root <div> max-w-* for that.
 function StepWrapper() {
-  // my-auto vertically centres short steps (e.g. the postcode step) in
-  // the remaining viewport height; tall steps (the report) push the
-  // margins to 0 and flow/scroll from the top. Fills the dead space
-  // below short steps without clipping long ones.
+  // Content pinned to the top with generous padding (~100px on desktop)
+  // rather than vertically centred. The wrapper + main still fill the
+  // viewport (flex column) so the background extends fully — no white
+  // dead-zone below short steps.
   return (
-    <div className="mx-auto my-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+    <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 pt-12 sm:pt-[100px] pb-16">
       <CurrentStep />
     </div>
   );
@@ -173,13 +173,8 @@ export function CheckWizard({ initialState }: CheckWizardProps = {}) {
             past the sticky header via landmarks: <header> + <main>.) */}
         <header className="bg-cream/80 backdrop-blur-md border-b border-[var(--border)] sticky top-0 z-50">
           <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
-            <Link href="/" className="flex items-center gap-2 shrink-0">
+            <Link href="/" className="flex items-center shrink-0">
               <Logo size="sm" variant="light" />
-              {partner && (
-                <span className="hidden sm:inline text-[11px] font-medium text-[var(--muted-brand)] whitespace-nowrap">
-                  &times; {partner.name}
-                </span>
-              )}
             </Link>
             <div className="flex-1 flex items-center justify-center min-w-0">
               <HeaderProgress />
