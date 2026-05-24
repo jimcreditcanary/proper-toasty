@@ -374,6 +374,23 @@ describe("annualRunningCost", () => {
     expect(rc.floorAreaEstimated).toBe(true);
     expect(rc.floorAreaM2).toBe(RUNNING_COST.fallbackFloorAreaM2);
   });
+
+  it("exposes a consistent kWh chain for the Assumptions breakdown", () => {
+    const rc = annualRunningCost({ epc: epcFound({ totalFloorAreaM2: 100 }) });
+    // 100 m² × 60 kWh/m² = 6,000 kWh HP electricity.
+    expect(rc.heatPumpElecKwh).toBe(6000);
+    // × SCOP 2.8 = 16,800 kWh thermal.
+    expect(rc.thermalDemandKwh).toBe(16800);
+    // ÷ 0.9 boiler efficiency = 18,667 kWh gas.
+    expect(rc.gasKwh).toBe(18667);
+    // 30p/day × 365 ≈ £110 standing.
+    expect(rc.gasStandingAnnualGBP).toBe(110);
+    // HP bill = elec kWh × unit rate.
+    expect(rc.heatPumpAnnualGBP).toBe(
+      Math.round((rc.heatPumpElecKwh * rc.assumptions.elecUnitPencePerKwh) / 100),
+    );
+    expect(rc.assumptions.demandKwhPerM2).toBeGreaterThan(0);
+  });
 });
 
 // ─── annualEnergyBillDelta ───────────────────────────────────────────

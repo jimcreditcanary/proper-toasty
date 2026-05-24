@@ -393,6 +393,7 @@ export function ReportShell({ audience = "homeowner" }: ReportShellProps = {}) {
             audience={effectiveAudience}
             preSurveyInstallerName={state.preSurveyInstallerName}
             focus={focus}
+            partnerName={getPartner(state.partner)?.name ?? null}
           />
         )}
         {tab === "savings" && !isInstaller && (

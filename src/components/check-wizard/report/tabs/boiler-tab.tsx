@@ -23,6 +23,7 @@
 import { useMemo, useState } from "react";
 import {
   ArrowRightLeft,
+  ChevronDown,
   Flame,
   Info,
   PoundSterling,
@@ -500,13 +501,12 @@ export function BoilerTab({
                       <span className="font-semibold text-navy">
                         {boilerAprPct}% APR
                       </span>{" "}
-                      over {boilerTermMonths / 12} years — a boiler won&rsquo;t
-                      qualify for the {partner.name} 0% deal.
+                      over {boilerTermMonths / 12} years.
                     </p>
                     <button
                       type="button"
                       onClick={() => setGotQuote(true)}
-                      className="mt-2.5 text-sm font-semibold text-coral hover:text-coral-dark underline underline-offset-2"
+                      className="mt-3 inline-flex items-center justify-center h-9 px-4 rounded-full border border-coral text-coral hover:bg-coral-pale font-semibold text-sm transition-colors"
                     >
                       I&rsquo;ve got a quote — edit
                     </button>
@@ -816,6 +816,195 @@ export function BoilerTab({
           quote or a credit offer.
         </p>
       </SectionCard>
+
+      {/* ── Assumptions (collapsible) — full, traceable breakdown ── */}
+      <details className="group rounded-2xl border border-slate-200 bg-white">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-2 p-5 [&::-webkit-details-marker]:hidden">
+          <span className="inline-flex items-center gap-2 font-semibold text-navy">
+            <Info className="w-5 h-5 text-coral" />
+            Assumptions — how these numbers are worked out
+          </span>
+          <ChevronDown className="w-4 h-4 shrink-0 text-slate-400 transition-transform group-open:rotate-180" />
+        </summary>
+        <div className="space-y-5 px-5 pb-5">
+          <p className="text-xs text-slate-500 leading-relaxed">
+            Every figure comes from your EPC plus the constants below. Indicative
+            — a home survey confirms the detail.
+          </p>
+
+          <AssumptionGroup title="Your property">
+            <AssumptionRow
+              k="Floor area"
+              v={`${Math.round(rc.floorAreaM2)} m²${
+                rc.floorAreaEstimated
+                  ? " — national-average estimate (no EPC area found)"
+                  : " — from your EPC"
+              }`}
+            />
+          </AssumptionGroup>
+
+          <AssumptionGroup title="Annual energy — built step by step">
+            <AssumptionRow
+              k="Heat-pump electricity"
+              v={`${Math.round(rc.floorAreaM2)} m² × ${rc.assumptions.demandKwhPerM2} kWh/m² = ${rc.heatPumpElecKwh.toLocaleString()} kWh/yr`}
+            />
+            <AssumptionRow
+              k="Heat demand (thermal)"
+              v={`${rc.heatPumpElecKwh.toLocaleString()} kWh × ${rc.assumptions.scop} SCOP = ${rc.thermalDemandKwh.toLocaleString()} kWh/yr`}
+            />
+            <AssumptionRow
+              k="Gas burned by the boiler"
+              v={`${rc.thermalDemandKwh.toLocaleString()} kWh ÷ ${Math.round(
+                rc.assumptions.boilerEfficiency * 100,
+              )}% efficiency = ${rc.gasKwh.toLocaleString()} kWh/yr`}
+            />
+            <AssumptionRow
+              strong
+              k="Gas boiler bill / yr"
+              v={`${fmtGbp(
+                rc.boilerAnnualGBP -
+                  rc.gasStandingAnnualGBP -
+                  rc.boilerCareAnnualGBP,
+              )} gas (${rc.gasKwh.toLocaleString()} kWh × ${rc.assumptions.gasUnitPencePerKwh}p) + ${fmtGbp(
+                rc.gasStandingAnnualGBP,
+              )} standing${
+                rc.boilerCareAnnualGBP > 0
+                  ? ` + ${fmtGbp(rc.boilerCareAnnualGBP)} cover`
+                  : ""
+              } = ${fmtGbp(rc.boilerAnnualGBP)}`}
+            />
+            <AssumptionRow
+              strong
+              k="Heat-pump bill / yr"
+              v={`${rc.heatPumpElecKwh.toLocaleString()} kWh × ${rc.assumptions.elecUnitPencePerKwh}p${
+                partner ? ` (${partner.name} Cosy)` : ""
+              } = ${fmtGbp(rc.heatPumpAnnualGBP)}`}
+            />
+          </AssumptionGroup>
+
+          <AssumptionGroup title="Upfront cost">
+            <AssumptionRow
+              k="New gas boiler"
+              v={`${fmtGbp(boiler.installedCostGBP)} (${boiler.label})`}
+            />
+            <AssumptionRow
+              k="Heat pump"
+              v={
+                hpNet != null
+                  ? `${fmtGbp(heatPump.grossMidpointGBP)} − ${fmtGbp(
+                      heatPump.grantGBP,
+                    )} BUS grant = ${fmtGbp(hpNet)} net`
+                  : `${fmtGbp(heatPump.grossRangeGBP[0])}–${fmtGbp(
+                      heatPump.grossRangeGBP[1],
+                    )} (grant path unconfirmed)`
+              }
+            />
+          </AssumptionGroup>
+
+          <AssumptionGroup title="Finance">
+            <AssumptionRow
+              k="New gas boiler"
+              v={`${fmtGbp(boilerValue)} at ${boilerApr}% over ${
+                boilerTerm / 12
+              } yr → ${fmtGbp(
+                Math.round(boilerQuote.monthlyGBP),
+              )}/mo · ${fmtGbp(boilerQuote.totalRepayableGBP)} repayable`}
+            />
+            {hpQuote != null && hpNet != null && (
+              <AssumptionRow
+                k="Heat pump"
+                v={`${fmtGbp(hpNet)} at ${hpApr}% over ${
+                  hpTerm / 12
+                } yr → ${fmtGbp(Math.round(hpQuote.monthlyGBP))}/mo · ${fmtGbp(
+                  hpQuote.totalRepayableGBP,
+                )} repayable`}
+              />
+            )}
+          </AssumptionGroup>
+
+          <AssumptionGroup
+            title={`Total over ${horizonYears} years (on finance)`}
+          >
+            <AssumptionRow
+              strong
+              k="New gas boiler"
+              v={`${fmtGbp(
+                boilerQuote.totalRepayableGBP,
+              )} finance + ${horizonYears} yrs energy${
+                partner ? ` (gas +${gasInflation}%/yr)` : ""
+              } = ${fmtGbp(boilerFinanceTco)}`}
+            />
+            {hpFinanceTco != null && (
+              <AssumptionRow
+                strong
+                k="Heat pump"
+                v={`${fmtGbp(
+                  hpQuote!.totalRepayableGBP,
+                )} finance + ${horizonYears} yrs energy${
+                  partner ? ` (elec +${elecInflation}%/yr)` : ""
+                } = ${fmtGbp(hpFinanceTco)}`}
+              />
+            )}
+          </AssumptionGroup>
+
+          <p className="border-t border-slate-100 pt-4 text-xs text-slate-500 leading-relaxed">
+            Constants: SCOP {rc.assumptions.scop}, boiler efficiency{" "}
+            {Math.round(rc.assumptions.boilerEfficiency * 100)}%, heat demand{" "}
+            {rc.assumptions.demandKwhPerM2} kWh/m²/yr, BUS grant{" "}
+            {fmtGbp(heatPump.grantGBP)}, electricity{" "}
+            {rc.assumptions.elecUnitPencePerKwh}p/kWh, gas{" "}
+            {rc.assumptions.gasUnitPencePerKwh}p/kWh.{" "}
+            {partner
+              ? `Energy projected up — gas +${gasInflation}%/yr, electricity +${elecInflation}%/yr.`
+              : "Energy at today's prices (no inflation)."}{" "}
+            Sources: your EPC, Energy Saving Trust + MCS Register averages
+            {partner ? `, ${partner.name}` : ""}. A pre-survey indication, not a
+            quote.
+          </p>
+        </div>
+      </details>
+    </div>
+  );
+}
+
+function AssumptionGroup({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <p className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
+        {title}
+      </p>
+      <dl className="space-y-1.5">{children}</dl>
+    </div>
+  );
+}
+
+function AssumptionRow({
+  k,
+  v,
+  strong,
+}: {
+  k: string;
+  v: string;
+  strong?: boolean;
+}) {
+  return (
+    <div className="flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:gap-3">
+      <dt className="shrink-0 text-xs font-medium text-slate-500 sm:w-44">
+        {k}
+      </dt>
+      <dd
+        className={`text-sm tabular-nums ${
+          strong ? "font-semibold text-navy" : "text-slate-700"
+        }`}
+      >
+        {v}
+      </dd>
     </div>
   );
 }

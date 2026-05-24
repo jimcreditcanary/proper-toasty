@@ -59,6 +59,10 @@ interface Props {
    *  from the checklist + myths (the rest of the card — EPC property
    *  data — is identical across flows). */
   focus?: WizardFocus;
+  /** Brand partner name (e.g. "Octopus Energy"). When set, the overview
+   *  leads with a partner-flavoured "why a heat pump?" card instead of
+   *  the generic myths. */
+  partnerName?: string | null;
 }
 
 export function OverviewTab({
@@ -68,6 +72,7 @@ export function OverviewTab({
   audience = "homeowner",
   preSurveyInstallerName,
   focus = "all",
+  partnerName = null,
 }: Props) {
   // Both homeowner-facing audiences see the installer checklist + the
   // common-myths card; just the copy of the checklist is contextualised
@@ -82,6 +87,10 @@ export function OverviewTab({
         enrichments={analysis.enrichments}
       />
 
+      {showHomeownerCards && partnerName && (
+        <PartnerHeatPumpFacts partnerName={partnerName} />
+      )}
+
       {showHomeownerCards && (
         <InstallerChecklist
           audience={audience}
@@ -90,8 +99,67 @@ export function OverviewTab({
         />
       )}
 
-      {showHomeownerCards && <CommonMyths focus={focus} />}
+      {showHomeownerCards && !partnerName && <CommonMyths focus={focus} />}
     </div>
+  );
+}
+
+// ─── Partner "why a heat pump?" facts ──────────────────────────────────
+// Shown on a brand-partner overview (e.g. Octopus). Copy + figures drawn
+// from octopus.energy/heat-pump-explore — efficiency, Cosy savings,
+// lifespan, carbon, satisfaction. Pre-survey indication, not a guarantee.
+
+function PartnerHeatPumpFacts({ partnerName }: { partnerName: string }) {
+  const facts = [
+    {
+      head: "Smarter, cleaner, cosier heating",
+      body: "A heat pump doesn't burn fuel — it moves existing heat into your home, giving a steady, consistent flow of warmth rather than blasts of heat.",
+    },
+    {
+      head: "~4× more efficient than a gas boiler",
+      body: "Around 3–4 kWh of heat for every 1 kWh of electricity it uses (a typical SCOP of 3–4).",
+    },
+    {
+      head: `Cheaper to run on the ${partnerName} Cosy tariff`,
+      body: `Cosy heat-pump customers on the ${partnerName} Cosy tariff saved an average of £219 last year versus a gas boiler.`,
+    },
+    {
+      head: "~85% less carbon",
+      body: "A heat pump cuts your heating's operational carbon emissions by around 85% compared with gas.",
+    },
+    {
+      head: "Lasts longer",
+      body: "Typically 15–20 years, versus 10–15 for a gas boiler.",
+    },
+    {
+      head: "Well-liked by owners",
+      body: "In a 2023 Nesta survey, heat-pump owners reported being highly satisfied — reliable, consistent heating and hot water.",
+    },
+  ];
+  return (
+    <SectionCard
+      title="Why a heat pump?"
+      subtitle={`What ${partnerName} customers tell us, and the figures behind them.`}
+      icon={<Flame className="w-5 h-5" />}
+    >
+      <ul className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {facts.map((f) => (
+          <li key={f.head} className="flex items-start gap-2.5">
+            <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0 text-emerald-500" />
+            <div>
+              <p className="text-sm font-semibold text-navy">{f.head}</p>
+              <p className="mt-0.5 text-sm text-slate-600 leading-relaxed">
+                {f.body}
+              </p>
+            </div>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-4 text-xs text-slate-500 leading-relaxed">
+        Figures from {partnerName} + Nesta (2023). Your own savings depend on
+        your home, tariff and usage — a survey confirms the detail.
+      </p>
+    </SectionCard>
   );
 }
 
