@@ -90,6 +90,13 @@ const nextConfig: NextConfig = {
   // beforeFiles runs before filesystem routing, so these rewrites
   // resolve BEFORE Next tries to serve the actual file path.
   async rewrites() {
+    // IndexNow verifies ownership by fetching https://host/<key>.txt.
+    // Serve it from the key endpoint via a rewrite built from the env
+    // var (only when set — dev/preview without the key just skips it).
+    const indexNowKey = process.env.INDEX_NOW_KEY;
+    const indexNowRewrite = indexNowKey
+      ? [{ source: `/${indexNowKey}.txt`, destination: "/api/indexnow-key" }]
+      : [];
     return {
       beforeFiles: [
         { source: "/:path*/favicon.ico", destination: "/favicon.ico" },
@@ -98,6 +105,7 @@ const nextConfig: NextConfig = {
           source: "/:path*/apple-touch-icon.png",
           destination: "/apple-touch-icon.png",
         },
+        ...indexNowRewrite,
       ],
       afterFiles: [],
       fallback: [],
