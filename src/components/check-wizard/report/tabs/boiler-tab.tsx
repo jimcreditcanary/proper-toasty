@@ -234,11 +234,27 @@ export function BoilerTab({
   const hpName = partner ? `${partner.name} heat pump` : "Air source heat pump";
   const hpInstalledLabel = partner ? "Installed" : "Installed (MCS avg)";
 
+  // Heat-pump glyph. In a brand-partner journey (e.g. Octopus) the bolt
+  // becomes the octopus emoji 🐙; everywhere else it stays the lightning
+  // bolt with its original classes (so non-partner reports are unchanged).
+  const hpIcon = (zapClass: string, emojiSize: string) =>
+    partner ? (
+      <span
+        className={`${emojiSize} leading-none shrink-0`}
+        role="img"
+        aria-label="Heat pump"
+      >
+        🐙
+      </span>
+    ) : (
+      <Zap className={zapClass} />
+    );
+
   return (
     <div className="space-y-6">
       {partner && (
         <div className="rounded-2xl border border-coral/30 bg-coral-pale/30 px-5 py-3.5 flex items-center gap-2.5">
-          <Zap className="w-4 h-4 text-coral shrink-0" />
+          {hpIcon("w-4 h-4 text-coral shrink-0", "text-base")}
           <p className="text-sm text-navy">
             <span className="font-semibold">
               In partnership with {partner.name}.
@@ -275,7 +291,7 @@ export function BoilerTab({
           />
           <CostColumn
             tone="coral"
-            icon={<Zap className="w-5 h-5" />}
+            icon={hpIcon("w-5 h-5", "text-xl")}
             heading={hpName}
             headlineLabel={hpNet != null ? "After the grant" : "Before grant"}
             headline={
@@ -380,7 +396,7 @@ export function BoilerTab({
             }
           />
           <RunningStat
-            icon={<Zap className="w-5 h-5" />}
+            icon={hpIcon("w-5 h-5", "text-xl")}
             heading={partner ? `${partner.name} heat pump` : "Heat pump"}
             value={fmtGbp(rc.heatPumpAnnualGBP)}
             sub={
@@ -595,7 +611,7 @@ export function BoilerTab({
               {/* Heat pump — the partner calculator (slider tracks to 0%) */}
               <div className="rounded-xl border border-slate-200 bg-white p-4">
                 <div className="flex items-center gap-2 mb-2.5">
-                  <Zap className="w-4 h-4 text-coral" />
+                  {hpIcon("w-4 h-4 text-coral", "text-base")}
                   <p className="text-sm font-semibold text-navy">
                     {partner.name} heat pump
                   </p>
@@ -689,7 +705,7 @@ export function BoilerTab({
                 </th>
                 <th className="pb-3 px-3">
                   <span className="inline-flex items-center gap-1.5 font-semibold text-navy">
-                    <Zap className="w-4 h-4 text-coral" />{" "}
+                    {hpIcon("w-4 h-4 text-coral", "text-base")}{" "}
                     {partner ? partner.name : "Heat pump"}
                   </span>
                 </th>
@@ -761,7 +777,7 @@ export function BoilerTab({
               lowest={boilerFinanceTco === lowerFinanceTco}
             />
             <HorizonTotal
-              icon={<Zap className="w-4 h-4" />}
+              icon={hpIcon("w-4 h-4", "text-base")}
               label={partner ? partner.name : "Heat pump"}
               total={hpFinanceTco}
               lowest={hpFinanceTco != null && hpFinanceTco === lowerFinanceTco}

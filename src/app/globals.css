@@ -405,3 +405,20 @@ h1, h2, h3 {
 
 /* form-field placeholders */
 .theme-octopus .placeholder\:text-slate-400::placeholder { color: #8d7eb3; }
+
+/* "cheaper" / savings highlights. Emerald-700 (#047857) is unreadable on
+   the deep-purple canvas, so lift green text to a bright mint and recolour
+   the emerald pill surfaces to a dark green-tinted card. Solid emerald
+   buttons (bg-emerald-600/700, white text) already read fine — left as is. */
+.theme-octopus .text-emerald-500,
+.theme-octopus .text-emerald-600,
+.theme-octopus .text-emerald-700,
+.theme-octopus .text-emerald-800,
+.theme-octopus .text-emerald-900 { color: #5ce0c6; }
+.theme-octopus .bg-emerald-50,
+.theme-octopus .bg-emerald-50\/50,
+.theme-octopus .bg-emerald-50\/60 { background-color: #123a2e; }
+.theme-octopus .bg-emerald-100 { background-color: #16442f; }
+.theme-octopus .border-emerald-100,
+.theme-octopus .border-emerald-200,
+.theme-octopus .border-emerald-300 { border-color: #2f6b54; }
