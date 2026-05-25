@@ -540,6 +540,10 @@ export function ReportShell({ audience = "homeowner" }: ReportShellProps = {}) {
               floorplanAnalysis: state.floorplanAnalysis,
               electricityTariff: state.electricityTariff,
               gasTariff: state.gasTariff,
+              // Carry the journey so the shared /r/[token] report
+              // renders the same focus + brand partner.
+              focus: state.focus,
+              partner: state.partner,
             },
           }}
           onClose={() => setShareOpen(false)}

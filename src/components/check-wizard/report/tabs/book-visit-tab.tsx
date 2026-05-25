@@ -425,6 +425,8 @@ export function BookVisitTab({
               floorplanAnalysis: state.floorplanAnalysis,
               electricityTariff: state.electricityTariff,
               gasTariff: state.gasTariff,
+              focus: state.focus,
+              partner: state.partner,
             },
           }}
           onClose={() => setBookingFor(null)}
@@ -1067,6 +1069,8 @@ function PreSurveyBookingCard({
             floorplanAnalysis: state.floorplanAnalysis,
             electricityTariff: state.electricityTariff,
             gasTariff: state.gasTariff,
+            focus: state.focus,
+            partner: state.partner,
           },
           meeting: {
             scheduledAtUtc: selectedSlot.startUtc,
