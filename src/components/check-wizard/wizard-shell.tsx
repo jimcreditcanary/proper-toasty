@@ -144,8 +144,17 @@ function StepWrapper() {
   // rather than vertically centred. The wrapper + main still fill the
   // viewport (flex column) so the background extends fully — no white
   // dead-zone below short steps.
+  //
+  // The report is the exception: it's a long, content-dense page that
+  // shouldn't open with a tall empty band above the headline, so it
+  // gets a much tighter top inset.
+  const { step } = useCheckWizard();
+  const topPad =
+    step === "report" ? "pt-6 sm:pt-10" : "pt-12 sm:pt-[100px]";
   return (
-    <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 pt-12 sm:pt-[100px] pb-16">
+    <div
+      className={`mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 ${topPad} pb-16`}
+    >
       <CurrentStep />
     </div>
   );
