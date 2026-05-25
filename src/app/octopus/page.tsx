@@ -129,7 +129,7 @@ export default function OctopusLanding() {
 
       {/* Trust / ratings band — real Octopus heat-pump proof points
           (figures: Octopus Energy, Nesta 2023, BRE testing, MCS DB). */}
-      <section className="bg-white border-b border-[var(--border)]">
+      <section className="bg-cream-deep border-b border-[var(--border)]">
         <div className="mx-auto max-w-6xl px-4 sm:px-6 py-12">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-8">
             <div className="inline-flex items-center gap-2">
@@ -271,7 +271,7 @@ export default function OctopusLanding() {
             </p>
             <Link
               href="/check/octopus"
-              className="mt-8 inline-flex items-center gap-2 h-12 px-7 rounded-full bg-cream text-coral-dark hover:bg-cream-deep font-semibold transition-colors"
+              className="mt-8 inline-flex items-center gap-2 h-12 px-7 rounded-full bg-[#ffffff] text-[#e0007f] hover:bg-[#f3eefc] font-semibold transition-colors"
             >
               Compare the cost
               <ArrowRight className="w-4 h-4" />
@@ -302,7 +302,7 @@ function StatTile({
   sub: string;
 }) {
   return (
-    <li className="rounded-2xl border border-[var(--border)] bg-cream/40 p-5">
+    <li className="rounded-2xl border border-[var(--border)] bg-white p-5">
       <span className="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-coral-pale text-coral">
         {icon}
       </span>
