@@ -83,7 +83,7 @@ export function LandingFooter() {
   const year = new Date().getFullYear();
   return (
     <footer className="border-t border-[var(--border)] bg-cream-deep">
-      <div className="mx-auto max-w-6xl px-4 sm:px-6 py-10 grid grid-cols-2 lg:grid-cols-5 gap-8">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6 py-10 grid grid-cols-2 lg:grid-cols-[40fr_repeat(4,15fr)] gap-8">
         <div className="col-span-2 lg:col-span-1">
           <Logo size="sm" variant="light" showTagline />
           <p className="mt-4 text-xs text-[var(--muted-brand)] leading-relaxed max-w-xs">
