@@ -50,7 +50,9 @@ export default function OctopusLanding() {
         <div className="mx-auto max-w-6xl px-4 sm:px-6 pt-12 pb-20 sm:pt-20 sm:pb-24 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           <div>
             <div className="inline-flex items-center gap-2 rounded-full bg-white border border-[var(--border)] px-3 py-1 text-xs text-[var(--muted-brand)] shadow-sm">
-              <Zap className="w-3.5 h-3.5 text-coral" />
+              <span role="img" aria-label="Octopus" className="text-sm leading-none">
+                🐙
+              </span>
               In partnership with Octopus Energy
             </div>
 
