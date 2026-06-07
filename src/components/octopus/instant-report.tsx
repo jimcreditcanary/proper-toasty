@@ -111,15 +111,13 @@ export function OctopusInstantReport({ report }: { report: OctopusDemoReport }) 
               tone="boring"
               label="New gas boiler"
               monthly={boilerMonthlyLabel}
-              sub={`£${report.boilerEnergyMonthlyGBP} gas + £${report.boilerServiceMonthlyGBP} service`}
+              sub={`£${report.boilerFinanceMonthlyGBP} finance + £${report.boilerGasMonthlyGBP} gas + £${report.boilerCoverMonthlyGBP} cover`}
             />
             <MonthlyTile
               tone="primary"
               label="Octopus heat pump"
               monthly={hpMonthlyLabel}
-              sub={`£${report.hpLoanMonthlyGBP.toFixed(
-                2,
-              )} loan & service + £${report.hpElecMonthlyGBP} electricity`}
+              sub={`£${report.hpFinanceMonthlyGBP} finance (${report.hpFinanceAprPct}% / ${report.hpFinanceTermYears}yr) + £${report.hpElecMonthlyGBP} electricity`}
             />
           </div>
         </section>

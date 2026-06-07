@@ -7,28 +7,40 @@
 // illustrative property (2 Curtels Close, Worsley, M28 2JR) instead
 // of one entered by the visitor.
 //
-// What we keep from the engine:
-//   - EPC fetch by postcode + address  → real floor area + heating fuel
-//   - annualRunningCost(...)           → real gas-boiler £/yr for this home
-//                                        (energy + standing charge), and
-//                                        the heat-pump electricity cost
-//                                        on the Octopus Cosy tariff
+// To match what the wizard's BoilerTab produces for the same
+// property, we reproduce its exact compute pipeline here:
 //
-// What we frame in marketing terms:
-//   - The £49.99/mo headline is the Octopus subscription offer (kit +
-//     service + callouts) — that's a contractual price, not an engine
-//     output. The honest comparison is offer vs. engine-derived gas
-//     boiler cost, plus a typical boiler service plan layered in.
+//   1. EPC fetch                              — getEpc(...)
+//   2. Admin sizing inputs                     — loadSizingInputs(...)
+//                                                (so demand_kwh_per_m2,
+//                                                grant amounts, etc.
+//                                                match the wizard)
+//   3. Heat-pump eligibility (BUS rules)      — heatPumpEligibility(...)
+//   4. Boiler-vs-heat-pump cost ranges        — buildBoilerVsHeatPump(...)
+//   5. Annual running cost on the Cosy tariff — annualRunningCost(...)
+//   6. Finance amortization on BOTH sides     — financeQuote(...)
+//
+//   Boiler monthly  = boiler finance + gas-only running + boiler cover
+//   Heat pump monthly = HP finance + HP electricity
+//
+//   Same breakdown the wizard's BoilerTab renders, no marketing
+//   constants in the spine of the calc.
 //
 // EPC lookups are cached for 30 days inside getEpc, so /check/octopus
 // is cheap to render after the first hit.
 
 import "server-only";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { loadSizingInputs } from "@/lib/admin/sizing-inputs";
 import { getEpc } from "@/lib/services/epc";
 import {
   annualRunningCost,
+  buildBoilerVsHeatPump,
+  financeQuote,
   OCTOPUS_PARTNER,
 } from "@/lib/services/boiler-comparison";
+import { heatPumpEligibility } from "@/lib/services/eligibility";
+import type { Eligibility } from "@/lib/schemas/eligibility";
 
 // Illustrative demo property — every /check/octopus visit reads
 // against this address (no per-visitor address entry).
@@ -40,18 +52,15 @@ export const DEMO_PROPERTY = {
   longitude: -2.3877,
 };
 
-// Octopus's £49.99/mo bundle: a 10-year finance repayment on the
-// equipment, with servicing + callouts rolled in. Critically it does
-// NOT cover the electricity to run the heat pump — the household still
-// pays for that, on the Octopus Cosy heat-pump tariff.
-const OCTOPUS_LOAN_MONTHLY_GBP = 49.99;
-
-// Typical UK gas-boiler service plan (£20/mo, including annual
-// service + breakdown cover). Added to the boiler side so the
-// comparison is bundle-vs-bundle rather than bundle-vs-naked-fuel.
-const AVG_BOILER_SERVICE_PLAN_ANNUAL_GBP = 240;
+// New-boiler finance baseline — same defaults the wizard's BoilerTab
+// uses (BOILER_FINANCE_DEFAULT_APR / BOILER_FINANCE_DEFAULT_TERM in
+// boiler-tab.tsx). The wizard lets the user override via "I've got a
+// quote"; here we use the baseline.
+const BOILER_FINANCE_APR_PCT = 9.9;
+const BOILER_FINANCE_TERM_MONTHS = 60;
 
 export interface OctopusDemoReport {
+  // EPC context
   /** EPC-derived floor area, or the engine's fallback when not found. */
   floorAreaM2: number;
   /** True when we had to fall back (EPC missing) — surfaced in copy. */
@@ -59,57 +68,112 @@ export interface OctopusDemoReport {
   /** Was the EPC certificate found for the demo property? */
   epcFound: boolean;
 
-  /** Heat-pump all-in monthly: Octopus loan/service bundle + the
-   *  electricity to run the pump on the Cosy tariff. */
+  // Headline totals
+  /** Heat-pump all-in monthly = HP finance + HP electricity (Cosy). */
   hpMonthlyGBP: number;
-  /** Gas-boiler all-in monthly: engine-derived energy + standing
-   *  charge + a typical service plan. Differs per property. */
+  /** Gas-boiler all-in monthly = boiler finance + gas + boiler cover. */
   boilerMonthlyGBP: number;
-
-  /** Boiler minus heat-pump monthly. Always non-negative. */
+  /** Boiler − heat-pump monthly. Always non-negative. */
   monthlySavingGBP: number;
   /** monthlySavingGBP × 12. */
   annualSavingGBP: number;
 
-  // Honest breakdown — the UI shows these side by side under each
-  // bundled total so the visitor can see what's in the number.
-  /** Octopus £49.99/mo equipment loan + service + callouts. */
-  hpLoanMonthlyGBP: number;
-  /** Engine-derived monthly electricity to run the heat pump. */
+  // Breakdown — same rows the wizard's BoilerTab shows in its table.
+  hpFinanceMonthlyGBP: number;
   hpElecMonthlyGBP: number;
-  /** Engine-derived gas energy + standing charge monthly. */
-  boilerEnergyMonthlyGBP: number;
-  /** Boiler service plan monthly (£20 fixed assumption). */
-  boilerServiceMonthlyGBP: number;
+  boilerFinanceMonthlyGBP: number;
+  boilerGasMonthlyGBP: number;
+  boilerCoverMonthlyGBP: number;
+
+  // Engine context, surfaced as small-print in the report
+  hpFinanceAprPct: number;
+  hpFinanceTermYears: number;
+  boilerFinanceAprPct: number;
+  boilerFinanceTermYears: number;
 }
 
 export async function computeOctopusDemoReport(): Promise<OctopusDemoReport> {
-  // 30-day cached, so after the first hit this is a memory read.
-  const epc = await getEpc({
-    postcode: DEMO_PROPERTY.postcode,
-    addressLine1: DEMO_PROPERTY.addressLine1,
-    addressFull: DEMO_PROPERTY.formattedAddress,
+  // Step 1+2 — EPC and admin sizing, in parallel. Admin sizing
+  // overrides the in-code defaults (demand_kwh_per_m2 etc.) so the
+  // engine output matches the wizard exactly.
+  const admin = createAdminClient();
+  const [epc, sizing] = await Promise.all([
+    getEpc({
+      postcode: DEMO_PROPERTY.postcode,
+      addressLine1: DEMO_PROPERTY.addressLine1,
+      addressFull: DEMO_PROPERTY.formattedAddress,
+    }),
+    loadSizingInputs(admin),
+  ]);
+
+  // Step 3 — heat-pump eligibility. Illustrative homeowner profile:
+  // owner-occupier in England on mains gas, no prior heat-pump grant.
+  // buildBoilerVsHeatPump only reads `eligibility.heatPump`, so the
+  // other Eligibility branches are mocked below.
+  const heatPump = heatPumpEligibility({
+    country: "England",
+    tenure: "owner",
+    interests: ["heat_pump"],
+    currentHeatingFuel: "gas",
+    priorHeatPumpFunding: "no",
+    epc,
+    floorAreaM2: epc.found ? epc.certificate.totalFloorAreaM2 : null,
+    sizing,
   });
 
-  // Engine running cost. Heat-pump electricity is forced onto the
-  // Octopus Cosy heat-pump tariff (cheap shoulder window pricing) so
-  // the heat pump isn't penalised by the standard import rate. Gas
-  // numbers fall through to the engine defaults.
+  // Step 4 — boiler-vs-heat-pump cost ranges with Octopus's heat-pump
+  // pricing. boilerCost comes from EPC-classified home type;
+  // heatPumpCost uses the partner's gross range and the BUS grant.
+  const eligibility = {
+    heatPump,
+    solar: { suitable: false, blockers: [], warnings: [] },
+    householdElectricityBaselineKWh: 0,
+  } as unknown as Eligibility;
+  const cmp = buildBoilerVsHeatPump({
+    epc,
+    eligibility,
+    partner: OCTOPUS_PARTNER,
+  });
+
+  // Step 5 — annual running cost. Boiler cover is layered on the
+  // boiler side only (a heat pump doesn't need a gas-cover plan).
+  const boilerCareAnnual = OCTOPUS_PARTNER.boilerCareMonthlyGBP * 12;
   const rc = annualRunningCost({
     epc,
     heatPumpElecPenceOverride: OCTOPUS_PARTNER.heatPumpElecPencePerKwh,
+    boilerCareAnnualGBP: boilerCareAnnual,
+    sizing,
   });
 
-  const hpElecMonthlyGBP = Math.round(rc.heatPumpAnnualGBP / 12);
-  const hpMonthlyGBP = Math.round(OCTOPUS_LOAN_MONTHLY_GBP + hpElecMonthlyGBP);
-
-  const boilerEnergyMonthlyGBP = Math.round(rc.boilerAnnualGBP / 12);
-  const boilerServiceMonthlyGBP = Math.round(
-    AVG_BOILER_SERVICE_PLAN_ANNUAL_GBP / 12,
+  // Step 6 — finance, both sides. Boiler at a typical 9.9% over 5y;
+  // heat pump on the partner's offer (Octopus = 0% over 10y).
+  const boilerFinance = financeQuote(
+    cmp.boiler.installedCostGBP,
+    BOILER_FINANCE_APR_PCT,
+    BOILER_FINANCE_TERM_MONTHS,
   );
-  const boilerMonthlyGBP = boilerEnergyMonthlyGBP + boilerServiceMonthlyGBP;
+  const hpNet =
+    cmp.heatPump.netMidpointGBP ?? cmp.heatPump.grossMidpointGBP;
+  const hpFinance = financeQuote(
+    hpNet,
+    OCTOPUS_PARTNER.financeAprPct,
+    OCTOPUS_PARTNER.financeTermMonths,
+  );
+
+  // Compose — match the wizard's BoilerTab breakdown row for row.
+  const boilerGasOnlyAnnualGBP = rc.boilerAnnualGBP - boilerCareAnnual;
+  const boilerFinanceMonthlyGBP = Math.round(boilerFinance.monthlyGBP);
+  const boilerGasMonthlyGBP = Math.round(boilerGasOnlyAnnualGBP / 12);
+  const boilerCoverMonthlyGBP = Math.round(boilerCareAnnual / 12);
+  const boilerMonthlyGBP =
+    boilerFinanceMonthlyGBP + boilerGasMonthlyGBP + boilerCoverMonthlyGBP;
+
+  const hpFinanceMonthlyGBP = Math.round(hpFinance.monthlyGBP);
+  const hpElecMonthlyGBP = Math.round(rc.heatPumpAnnualGBP / 12);
+  const hpMonthlyGBP = hpFinanceMonthlyGBP + hpElecMonthlyGBP;
 
   const monthlySavingGBP = Math.max(0, boilerMonthlyGBP - hpMonthlyGBP);
+  const annualSavingGBP = monthlySavingGBP * 12;
 
   return {
     floorAreaM2: rc.floorAreaM2,
@@ -118,10 +182,15 @@ export async function computeOctopusDemoReport(): Promise<OctopusDemoReport> {
     hpMonthlyGBP,
     boilerMonthlyGBP,
     monthlySavingGBP,
-    annualSavingGBP: monthlySavingGBP * 12,
-    hpLoanMonthlyGBP: OCTOPUS_LOAN_MONTHLY_GBP,
+    annualSavingGBP,
+    hpFinanceMonthlyGBP,
     hpElecMonthlyGBP,
-    boilerEnergyMonthlyGBP,
-    boilerServiceMonthlyGBP,
+    boilerFinanceMonthlyGBP,
+    boilerGasMonthlyGBP,
+    boilerCoverMonthlyGBP,
+    hpFinanceAprPct: OCTOPUS_PARTNER.financeAprPct,
+    hpFinanceTermYears: Math.round(OCTOPUS_PARTNER.financeTermMonths / 12),
+    boilerFinanceAprPct: BOILER_FINANCE_APR_PCT,
+    boilerFinanceTermYears: Math.round(BOILER_FINANCE_TERM_MONTHS / 12),
   };
 }
