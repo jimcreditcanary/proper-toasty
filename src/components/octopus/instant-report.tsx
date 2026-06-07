@@ -20,16 +20,13 @@ import Link from "next/link";
 import { ArrowLeft, ArrowRight, Check, MapPin } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { LandingFooter } from "@/components/landing-footer";
+import type { OctopusDemoReport } from "@/lib/octopus/demo-report";
 
 const DEMO_ADDRESS = {
   line1: "2 Curtels Close",
   line2: "Worsley, Manchester",
   postcode: "M28 2JR",
 };
-const MONTHLY_HP_GBP = 49.99;
-const MONTHLY_BOILER_GBP = 110;
-const MONTHLY_SAVING_GBP = MONTHLY_BOILER_GBP - Math.round(MONTHLY_HP_GBP);
-const ANNUAL_SAVING_GBP = MONTHLY_SAVING_GBP * 12;
 
 const INCLUDED: string[] = [
   "£500 cashback on signup",
@@ -42,7 +39,12 @@ const INCLUDED: string[] = [
   "Free software updates, for life",
 ];
 
-export function OctopusInstantReport() {
+export function OctopusInstantReport({ report }: { report: OctopusDemoReport }) {
+  // Format the monthly numbers — keep the decimal on the Octopus side
+  // (it's a contractual £49.99 offer price) and round the boiler side
+  // to a clean integer (engine output of energy + service plan).
+  const hpMonthlyLabel = `£${report.hpMonthlyGBP.toFixed(2)}`;
+  const boilerMonthlyLabel = `£${report.boilerMonthlyGBP}`;
   return (
     // theme-octopus + bg-cream scope the dark Octopus takeover to
     // this page. Minimum-height flex column so the footer pins to
@@ -69,20 +71,36 @@ export function OctopusInstantReport() {
         <section className="mx-auto max-w-3xl px-4 sm:px-6 pt-8 pb-10 text-center">
           <p className="eyebrow">Your monthly heating cost</p>
           <p className="mt-4 text-7xl sm:text-9xl font-bold text-navy leading-none tracking-tight">
-            £{MONTHLY_HP_GBP}
+            {hpMonthlyLabel}
           </p>
           <p className="mt-3 text-base text-[var(--muted-brand)]">per month</p>
 
           <p className="mt-10 text-2xl sm:text-3xl text-navy leading-tight max-w-xl mx-auto">
             That&rsquo;s{" "}
             <span className="text-coral font-bold">
-              £{MONTHLY_SAVING_GBP}/mo less
+              £{report.monthlySavingGBP}/mo less
             </span>{" "}
             than a new gas boiler — about{" "}
             <span className="text-navy font-bold">
-              £{ANNUAL_SAVING_GBP.toLocaleString()} a year
+              £{report.annualSavingGBP.toLocaleString()} a year
             </span>{" "}
             back in your pocket.
+          </p>
+
+          {/* Transparency line — boiler number is engine-derived from
+              this home's EPC, not a marketing constant. */}
+          <p className="mt-6 text-xs text-[var(--muted-brand)] max-w-md mx-auto">
+            Based on this home&rsquo;s{" "}
+            {report.epcFound ? (
+              <>
+                EPC: <span className="font-semibold text-navy">{report.floorAreaM2} m²</span>
+              </>
+            ) : (
+              <>
+                size estimate: <span className="font-semibold text-navy">~{report.floorAreaM2} m²</span> (EPC unavailable)
+              </>
+            )}
+            , Octopus Cosy heat-pump tariff vs typical gas + service plan.
           </p>
         </section>
 
@@ -92,14 +110,18 @@ export function OctopusInstantReport() {
             <MonthlyTile
               tone="boring"
               label="New gas boiler"
-              monthly={`£${MONTHLY_BOILER_GBP}`}
-              sub="fuel + standing charge + service plan"
+              monthly={boilerMonthlyLabel}
+              sub={`£${Math.round(
+                report.boilerAnnualEnergyGBP / 12,
+              )}/mo gas + £${Math.round(
+                report.boilerServicePlanAnnualGBP / 12,
+              )}/mo service plan`}
             />
             <MonthlyTile
               tone="primary"
               label="Octopus heat pump"
-              monthly={`£${MONTHLY_HP_GBP}`}
-              sub="everything in, even servicing"
+              monthly={hpMonthlyLabel}
+              sub="servicing & callouts included"
             />
           </div>
         </section>
