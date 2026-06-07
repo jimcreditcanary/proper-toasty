@@ -40,10 +40,8 @@ const INCLUDED: string[] = [
 ];
 
 export function OctopusInstantReport({ report }: { report: OctopusDemoReport }) {
-  // Format the monthly numbers — keep the decimal on the Octopus side
-  // (it's a contractual £49.99 offer price) and round the boiler side
-  // to a clean integer (engine output of energy + service plan).
-  const hpMonthlyLabel = `£${report.hpMonthlyGBP.toFixed(2)}`;
+  // All-in monthly totals — clean integers (energy + loan/service).
+  const hpMonthlyLabel = `£${report.hpMonthlyGBP}`;
   const boilerMonthlyLabel = `£${report.boilerMonthlyGBP}`;
   return (
     // theme-octopus + bg-cream scope the dark Octopus takeover to
@@ -87,8 +85,9 @@ export function OctopusInstantReport({ report }: { report: OctopusDemoReport }) 
             back in your pocket.
           </p>
 
-          {/* Transparency line — boiler number is engine-derived from
-              this home's EPC, not a marketing constant. */}
+          {/* Transparency line — boiler energy + heat-pump electricity
+              are engine-derived from this home's EPC, not marketing
+              constants. */}
           <p className="mt-6 text-xs text-[var(--muted-brand)] max-w-md mx-auto">
             Based on this home&rsquo;s{" "}
             {report.epcFound ? (
@@ -100,7 +99,8 @@ export function OctopusInstantReport({ report }: { report: OctopusDemoReport }) 
                 size estimate: <span className="font-semibold text-navy">~{report.floorAreaM2} m²</span> (EPC unavailable)
               </>
             )}
-            , Octopus Cosy heat-pump tariff vs typical gas + service plan.
+            . Heat pump runs on the Octopus Cosy tariff; boiler on
+            standard gas defaults.
           </p>
         </section>
 
@@ -111,17 +111,15 @@ export function OctopusInstantReport({ report }: { report: OctopusDemoReport }) 
               tone="boring"
               label="New gas boiler"
               monthly={boilerMonthlyLabel}
-              sub={`£${Math.round(
-                report.boilerAnnualEnergyGBP / 12,
-              )}/mo gas + £${Math.round(
-                report.boilerServicePlanAnnualGBP / 12,
-              )}/mo service plan`}
+              sub={`£${report.boilerEnergyMonthlyGBP} gas + £${report.boilerServiceMonthlyGBP} service`}
             />
             <MonthlyTile
               tone="primary"
               label="Octopus heat pump"
               monthly={hpMonthlyLabel}
-              sub="servicing & callouts included"
+              sub={`£${report.hpLoanMonthlyGBP.toFixed(
+                2,
+              )} loan & service + £${report.hpElecMonthlyGBP} electricity`}
             />
           </div>
         </section>
