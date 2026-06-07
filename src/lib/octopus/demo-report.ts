@@ -40,14 +40,15 @@ export const DEMO_PROPERTY = {
   longitude: -2.3877,
 };
 
-// Octopus's marketed all-in subscription (per their bullet sheet):
-// equipment + servicing + callouts. Does NOT cover the electricity
-// to run the heat pump — that sits on the Cosy tariff.
-const OCTOPUS_OFFER_MONTHLY_GBP = 49.99;
+// Octopus's £49.99/mo bundle: a 10-year finance repayment on the
+// equipment, with servicing + callouts rolled in. Critically it does
+// NOT cover the electricity to run the heat pump — the household still
+// pays for that, on the Octopus Cosy heat-pump tariff.
+const OCTOPUS_LOAN_MONTHLY_GBP = 49.99;
 
 // Typical UK gas-boiler service plan (£20/mo, including annual
 // service + breakdown cover). Added to the boiler side so the
-// comparison is offer-vs-offer rather than offer-vs-naked-fuel.
+// comparison is bundle-vs-bundle rather than bundle-vs-naked-fuel.
 const AVG_BOILER_SERVICE_PLAN_ANNUAL_GBP = 240;
 
 export interface OctopusDemoReport {
@@ -58,7 +59,8 @@ export interface OctopusDemoReport {
   /** Was the EPC certificate found for the demo property? */
   epcFound: boolean;
 
-  /** Octopus all-in monthly headline. Fixed offer price (not engine). */
+  /** Heat-pump all-in monthly: Octopus loan/service bundle + the
+   *  electricity to run the pump on the Cosy tariff. */
   hpMonthlyGBP: number;
   /** Gas-boiler all-in monthly: engine-derived energy + standing
    *  charge + a typical service plan. Differs per property. */
@@ -69,12 +71,16 @@ export interface OctopusDemoReport {
   /** monthlySavingGBP × 12. */
   annualSavingGBP: number;
 
-  // Honest intermediates — used by the UI for a small transparency
-  // line so it's visible that the boiler number is data-derived,
-  // not marketing.
-  hpAnnualElecGBP: number;
-  boilerAnnualEnergyGBP: number;
-  boilerServicePlanAnnualGBP: number;
+  // Honest breakdown — the UI shows these side by side under each
+  // bundled total so the visitor can see what's in the number.
+  /** Octopus £49.99/mo equipment loan + service + callouts. */
+  hpLoanMonthlyGBP: number;
+  /** Engine-derived monthly electricity to run the heat pump. */
+  hpElecMonthlyGBP: number;
+  /** Engine-derived gas energy + standing charge monthly. */
+  boilerEnergyMonthlyGBP: number;
+  /** Boiler service plan monthly (£20 fixed assumption). */
+  boilerServiceMonthlyGBP: number;
 }
 
 export async function computeOctopusDemoReport(): Promise<OctopusDemoReport> {
@@ -94,22 +100,28 @@ export async function computeOctopusDemoReport(): Promise<OctopusDemoReport> {
     heatPumpElecPenceOverride: OCTOPUS_PARTNER.heatPumpElecPencePerKwh,
   });
 
-  const boilerMonthlyGBP = Math.round(
-    rc.boilerAnnualGBP / 12 + AVG_BOILER_SERVICE_PLAN_ANNUAL_GBP / 12,
+  const hpElecMonthlyGBP = Math.round(rc.heatPumpAnnualGBP / 12);
+  const hpMonthlyGBP = Math.round(OCTOPUS_LOAN_MONTHLY_GBP + hpElecMonthlyGBP);
+
+  const boilerEnergyMonthlyGBP = Math.round(rc.boilerAnnualGBP / 12);
+  const boilerServiceMonthlyGBP = Math.round(
+    AVG_BOILER_SERVICE_PLAN_ANNUAL_GBP / 12,
   );
-  const hpMonthlyGBP = Math.round(OCTOPUS_OFFER_MONTHLY_GBP);
+  const boilerMonthlyGBP = boilerEnergyMonthlyGBP + boilerServiceMonthlyGBP;
+
   const monthlySavingGBP = Math.max(0, boilerMonthlyGBP - hpMonthlyGBP);
 
   return {
     floorAreaM2: rc.floorAreaM2,
     floorAreaEstimated: rc.floorAreaEstimated,
     epcFound: epc.found,
-    hpMonthlyGBP: OCTOPUS_OFFER_MONTHLY_GBP, // keep the decimal in the headline
+    hpMonthlyGBP,
     boilerMonthlyGBP,
     monthlySavingGBP,
     annualSavingGBP: monthlySavingGBP * 12,
-    hpAnnualElecGBP: rc.heatPumpAnnualGBP,
-    boilerAnnualEnergyGBP: rc.boilerAnnualGBP,
-    boilerServicePlanAnnualGBP: AVG_BOILER_SERVICE_PLAN_ANNUAL_GBP,
+    hpLoanMonthlyGBP: OCTOPUS_LOAN_MONTHLY_GBP,
+    hpElecMonthlyGBP,
+    boilerEnergyMonthlyGBP,
+    boilerServiceMonthlyGBP,
   };
 }
