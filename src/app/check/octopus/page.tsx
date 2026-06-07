@@ -1,38 +1,26 @@
-// /check/octopus — Octopus Energy co-branded boiler-vs-heat-pump flow.
+// /check/octopus — Octopus Energy "instant report" screen.
 //
-// Same wizard as /check/boiler (focus="boiler" → skips floorplan, lands
-// on the comparison), plus partner="octopus", which makes the
-// comparison use Octopus's commercials:
-//   - Octopus's own heat-pump price (~£10.5k → £3k net after grant)
-//   - the household put on the Octopus Cosy tariff post-install
-//   - 0% finance over 10 years
-//   - a more aggressive gas-vs-electricity price projection
-//   - a "do you pay for boiler cover?" question, whose cost is added
-//     to the gas-boiler side as an overage a heat pump avoids
+// Was a multi-step wizard (focus="boiler", partner="octopus") routed
+// through CheckWizard. Now bypasses every step — visitor came from
+// the /octopus landing, the property is hard-coded (illustrative),
+// and we show the simplified savings story straight away. The Order
+// Now CTA lives at /check/octopus/order (Tesla-style booking flow).
 //
-// Reached from the /octopus partner landing page.
+// See src/components/octopus/instant-report.tsx for the layout.
 
 import { notFound } from "next/navigation";
-import { CheckWizard } from "@/components/check-wizard/wizard-shell";
+import { OctopusInstantReport } from "@/components/octopus/instant-report";
 import { isFeatureEnabled } from "@/lib/feature-flags";
 
 export const metadata = {
-  title: "New boiler or an Octopus heat pump? — Propertoasty",
+  title: "Your Octopus heat pump — £49.99 a month · Propertoasty",
   description:
-    "Compare a new gas boiler against an Octopus Energy heat pump — Octopus pricing, the Cosy tariff, 0% finance over 10 years, and your costs over time.",
+    "Your monthly cost side by side with a new gas boiler. Everything in — service, callouts, 10-year warranty, £500 cashback.",
 };
 
 export const dynamic = "force-dynamic";
 
 export default function CheckOctopusPage() {
   if (!isFeatureEnabled("propertoasty_check")) notFound();
-  return (
-    <CheckWizard
-      initialState={{
-        focus: "boiler",
-        partner: "octopus",
-        interests: ["heat_pump"],
-      }}
-    />
-  );
+  return <OctopusInstantReport />;
 }
