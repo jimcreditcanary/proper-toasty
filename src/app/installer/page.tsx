@@ -341,14 +341,58 @@ export default async function InstallerHomePage() {
         <NoSlotsLeadsSection leads={noSlotsLeads} />
       )}
 
-      {/* ─── Quick nav strip ───────────────────────────────────── */}
-      {companyName && <QuickNav links={navLinks} />}
+      {/* ─── Unclaimed / admin notice ─────────────────────────────
+          When the logged-in user has no installer row bound to their
+          auth id (a fresh installer between signup and claim, or an
+          admin browsing the portal for support), the deal-flow tiles
+          above have nothing to show. Without this card the body was
+          empty and the page read as blank. */}
+      {!companyName && <UnboundAccountCard />}
 
-      {/* If they don't have a bound installer profile yet (between
-          signup and claim), the rest of the page is empty — nothing
-          to show until claim completes. The onboarding wizard above
-          will already be prompting them to finish. */}
+      {/* ─── Quick nav strip ─────────────────────────────────────
+          Ungated so admins and unclaimed installers still have a way
+          into every sub-page. */}
+      <QuickNav links={navLinks} />
     </PortalShell>
+  );
+}
+
+// ─── Unbound-account notice ────────────────────────────────────────
+//
+// Shown when there's no installers row keyed to auth.users.id. Same
+// card serves two audiences:
+//   - a fresh installer who signed up but hasn't finished claiming
+//     their directory profile
+//   - an admin browsing /installer for support / QA (no installer row
+//     of their own, but role='admin' passes the layout gate)
+
+function UnboundAccountCard() {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
+      <div className="flex items-start gap-3">
+        <span className="shrink-0 inline-flex items-center justify-center w-10 h-10 rounded-xl bg-slate-100 text-slate-700">
+          <AlertCircle className="w-5 h-5" />
+        </span>
+        <div className="flex-1 text-sm">
+          <p className="font-semibold text-slate-900">
+            No installer profile is bound to this account
+          </p>
+          <p className="mt-1 text-slate-600 leading-relaxed">
+            Deal-flow tiles fill in once your installer directory
+            profile is linked to your login. Admins can jump to
+            support surfaces below; installers should finish onboarding
+            from{" "}
+            <Link
+              href="/installer-signup"
+              className="font-medium text-coral-dark hover:underline"
+            >
+              installer signup
+            </Link>
+            .
+          </p>
+        </div>
+      </div>
+    </div>
   );
 }
 
