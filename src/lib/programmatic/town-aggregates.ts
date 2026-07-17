@@ -373,6 +373,43 @@ export async function loadIndexedPostcodeDistrictAggregates(
   return data as TownAggregateRow[];
 }
 
+export interface SiblingPostcodeDistrict {
+  scope_key: string;
+  display_name: string;
+}
+
+/**
+ * Fetch indexed postcode-district aggregates sharing the same area
+ * code as `currentSlug`. E.g. for `pc-dn22` returns other DN outcodes
+ * (`pc-dn10`, `pc-dn11`, `pc-dn21`, …). Used on the town page for
+ * internal linking — hub-and-spoke authority flow across the cluster.
+ *
+ * Alphabetical order, capped at `limit`. `currentSlug` is excluded.
+ * Returns [] when the slug doesn't match the `pc-<letters><digits>`
+ * shape or the aggregate has no siblings.
+ */
+export async function loadSiblingPostcodeDistricts(
+  admin: AdminClient,
+  currentSlug: string,
+  limit: number = 8,
+): Promise<SiblingPostcodeDistrict[]> {
+  const areaMatch = currentSlug.match(/^pc-([a-z]+)\d/i);
+  if (!areaMatch) return [];
+  const area = areaMatch[1].toLowerCase();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (admin as any)
+    .from("epc_area_aggregates")
+    .select("scope_key, display_name")
+    .eq("scope", "postcode_district")
+    .ilike("scope_key", `pc-${area}%`)
+    .neq("scope_key", currentSlug)
+    .eq("indexed", true)
+    .order("scope_key", { ascending: true })
+    .limit(limit);
+  if (error || !data) return [];
+  return data as SiblingPostcodeDistrict[];
+}
+
 /**
  * Derive a stable LA slug from a council name. Lowercase, replace
  * non-alphanumerics with hyphens, collapse runs, trim hyphens.

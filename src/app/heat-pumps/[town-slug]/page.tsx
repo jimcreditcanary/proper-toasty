@@ -32,9 +32,11 @@ import {
   loadTownAggregate,
   loadLAAggregate,
   loadPostcodeDistrictAggregate,
+  loadSiblingPostcodeDistricts,
   ALL_BANDS,
   type TownAggregateRow,
   type EnergyBand,
+  type SiblingPostcodeDistrict,
 } from "@/lib/programmatic/town-aggregates";
 import { AEOPage, ComparisonTable } from "@/components/seo";
 import { DEFAULT_AUTHOR_SLUG } from "@/lib/seo/authors";
@@ -261,7 +263,17 @@ export default async function HeatPumpsTownPage({ params }: PageProps) {
         }
       }
     }
-    return <TownPageWithData town={fakeTown} row={row} isPCD />;
+    // Siblings from the same area code (e.g. DN22 → DN10, DN11, …).
+    // Hub-and-spoke internal linking across the postcode cluster.
+    const siblings = await loadSiblingPostcodeDistricts(admin, slug, 8);
+    return (
+      <TownPageWithData
+        town={fakeTown}
+        row={row}
+        isPCD
+        siblings={siblings}
+      />
+    );
   }
 
   // Town branch — needs DB lookup.
@@ -380,6 +392,7 @@ function TownPageWithData({
   row,
   isLA = false,
   isPCD = false,
+  siblings = [],
 }: {
   town: PilotTown;
   row: TownAggregateRow;
@@ -388,6 +401,9 @@ function TownPageWithData({
   isLA?: boolean;
   /** True when rendering a postcode-district aggregate. */
   isPCD?: boolean;
+  /** Same-area-code postcode-district siblings, for internal linking.
+   *  Populated on the pc-* branch only; empty on la-* / pilot-town. */
+  siblings?: SiblingPostcodeDistrict[];
 }) {
   const data = row.data;
   const url = `https://www.propertoasty.com/heat-pumps/${town.slug}`;
@@ -791,6 +807,32 @@ function TownPageWithData({
         % of the local sample, which compares to the E&W average of
         around 22%.
       </p>
+
+      {/* ─── Same-area postcode-district siblings ─────────────────
+          Pc-* only. Fetched from epc_area_aggregates by area-code
+          prefix match ("DN22" → other "DN*" outcodes). Cluster-
+          internal linking so PageRank flows across the postcode
+          area and Google finds the sibling pages faster. */}
+      {isPCD && siblings.length > 0 && (
+        <>
+          <h3>
+            Related postcode areas near {town.name}
+          </h3>
+          <p>
+            Same postcode area, useful if your property sits on a
+            district boundary or you want to compare the wider area:
+          </p>
+          <ul>
+            {siblings.map((s) => (
+              <li key={s.scope_key}>
+                <a href={`/heat-pumps/${s.scope_key}`}>
+                  Heat pumps in {s.display_name}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
 
       {nearby.length > 0 && (
         <>
