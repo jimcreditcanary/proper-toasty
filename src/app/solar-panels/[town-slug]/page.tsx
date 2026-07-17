@@ -29,6 +29,7 @@ import {
 import { AEOPage, ComparisonTable } from "@/components/seo";
 import { DEFAULT_AUTHOR_SLUG } from "@/lib/seo/authors";
 import { InstallerListSection } from "@/components/installer/installer-list-section";
+import { fetchOutcodeCentroid } from "@/lib/programmatic/outcode-centroid";
 
 export const revalidate = 3600;
 
@@ -102,33 +103,6 @@ function buildSolarDescription(
   samplePretty: string,
 ): string {
   return `Solar in ${primaryLabel}: install cost, typical payback, Smart Export Guarantee rates, and MCS installers. EPC data from ${samplePretty} local homes. Free 5-min check.`;
-}
-
-/** Look up the centroid of a UK outward code (e.g. "DN22") via
- *  Postcodes.io. Cached 30 days at the Next fetch layer. Returns
- *  null on any failure so the page still renders without an
- *  installer block. Twin of the same helper on the heat-pump route. */
-async function fetchOutcodeCentroid(
-  outcode: string,
-): Promise<{ lat: number; lng: number } | null> {
-  try {
-    const res = await fetch(
-      `https://api.postcodes.io/outcodes/${encodeURIComponent(outcode.toUpperCase())}`,
-      { next: { revalidate: 60 * 60 * 24 * 30 } },
-    );
-    if (!res.ok) return null;
-    const j = (await res.json()) as {
-      result?: { latitude?: number; longitude?: number } | null;
-    };
-    const lat = j.result?.latitude;
-    const lng = j.result?.longitude;
-    if (typeof lat === "number" && typeof lng === "number") {
-      return { lat, lng };
-    }
-    return null;
-  } catch {
-    return null;
-  }
 }
 
 export async function generateMetadata({
