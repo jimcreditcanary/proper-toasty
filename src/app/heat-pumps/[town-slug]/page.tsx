@@ -107,6 +107,38 @@ interface PageProps {
   params: Promise<{ "town-slug": string }>;
 }
 
+/**
+ * Turn an aggregate's `display_name` into a natural, town-name-front-
+ * loaded label for the H1 / meta / OG title. For postcode-district
+ * pages this flips "DN22 (Retford)" → "Retford (DN22)"; the town name
+ * is the higher-volume search term and belongs first. Non-pc pages
+ * are already in the right shape and pass through unchanged.
+ */
+function formatPrimaryLabel(displayName: string, isPCD: boolean): string {
+  if (isPCD) {
+    const m = displayName.match(/^([A-Z0-9]+)\s*\(([^)]+)\)$/i);
+    if (m) return `${m[2]} (${m[1].toUpperCase()})`;
+  }
+  return displayName;
+}
+
+/** Shared H1 / meta title template. Front-loaded with the target
+ *  keywords ("Heat Pumps in [place]") and the commercial nouns
+ *  ("Cost, Grants & Installers"), capped comfortably under Google's
+ *  ~60-char SERP truncation. */
+function buildTownTitle(primaryLabel: string): string {
+  return `Heat Pumps in ${primaryLabel}: Cost, Grants & Installers 2026`;
+}
+
+/** Shared meta description. Front-loaded, ends with an action nudge.
+ *  Sits inside ~155 chars in the worst case (pc-* with a long town). */
+function buildTownDescription(
+  primaryLabel: string,
+  samplePretty: string,
+): string {
+  return `Heat pumps in ${primaryLabel}: real monthly cost, £7,500 BUS grant, MCS installers, EPC data from ${samplePretty} local homes. Free 5-min pre-survey.`;
+}
+
 export async function generateMetadata({
   params,
 }: PageProps): Promise<Metadata> {
@@ -142,8 +174,10 @@ export async function generateMetadata({
       return { robots: { index: false, follow: false } };
     }
     const url = `https://www.propertoasty.com/heat-pumps/${slug}`;
-    const title = `Heat pumps across ${row.display_name}: 2026 grant + cost guide`;
-    const description = `Air-source heat pump suitability across the ${row.display_name} local authority area, with BUS grant breakdown and EPC band data from ${row.sample_size.toLocaleString("en-GB")} local properties.`;
+    const primaryLabel = formatPrimaryLabel(row.display_name, false);
+    const samplePretty = row.sample_size.toLocaleString("en-GB");
+    const title = buildTownTitle(primaryLabel);
+    const description = buildTownDescription(primaryLabel, samplePretty);
     return {
       title,
       description,
@@ -168,8 +202,10 @@ export async function generateMetadata({
       return { robots: { index: false, follow: false } };
     }
     const url = `https://www.propertoasty.com/heat-pumps/${slug}`;
-    const title = `Heat pumps in ${row.display_name}: 2026 grant + cost guide`;
-    const description = `Air-source heat pump suitability across the ${row.display_name} postcode area, with BUS grant breakdown and EPC band data from ${row.sample_size.toLocaleString("en-GB")} local properties.`;
+    const primaryLabel = formatPrimaryLabel(row.display_name, true);
+    const samplePretty = row.sample_size.toLocaleString("en-GB");
+    const title = buildTownTitle(primaryLabel);
+    const description = buildTownDescription(primaryLabel, samplePretty);
     return {
       title,
       description,
@@ -202,8 +238,10 @@ export async function generateMetadata({
   }
 
   const url = `https://www.propertoasty.com/heat-pumps/${slug}`;
-  const title = `Heat pumps in ${town.name}: 2026 grant + cost guide`;
-  const description = `Air-source heat pump suitability in ${town.name}, with BUS grant breakdown, install cost ranges, and EPC band data from ${row.sample_size.toLocaleString("en-GB")} local properties.`;
+  const primaryLabel = formatPrimaryLabel(town.name, false);
+  const samplePretty = row.sample_size.toLocaleString("en-GB");
+  const title = buildTownTitle(primaryLabel);
+  const description = buildTownDescription(primaryLabel, samplePretty);
   return {
     title,
     description,
@@ -407,7 +445,6 @@ function TownPageWithData({
 }) {
   const data = row.data;
   const url = `https://www.propertoasty.com/heat-pumps/${town.slug}`;
-  const inOrAcross = isLA || isPCD ? "across" : "in";
   const areaLabel = isLA
     ? `${town.name} (local authority area)`
     : isPCD
@@ -478,8 +515,11 @@ function TownPageWithData({
 
   return (
     <AEOPage
-      headline={`Heat pumps ${inOrAcross} ${areaLabel}: 2026 grant + cost guide`}
-      description={`Air-source heat pump suitability ${inOrAcross} ${areaLabel}, with BUS grant breakdown, install cost ranges, and EPC band data from ${samplePretty} local properties.`}
+      headline={buildTownTitle(formatPrimaryLabel(town.name, isPCD))}
+      description={buildTownDescription(
+        formatPrimaryLabel(town.name, isPCD),
+        samplePretty,
+      )}
       url={url}
       image="/hero-heatpump.jpg"
       datePublished="2026-05-11"
