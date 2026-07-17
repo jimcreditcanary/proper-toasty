@@ -27,6 +27,7 @@ import {
   getArchetypeBySlug,
   allArchetypeSlugs,
 } from "@/lib/programmatic/archetypes";
+import { buildTownCostExample } from "@/lib/programmatic/town-cost-example";
 import {
   loadTownAggregate,
   loadLAAggregate,
@@ -437,6 +438,13 @@ function TownPageWithData({
     data.mains_gas_pct ?? null,
   );
 
+  // ── Cost example ────────────────────────────────────────────────
+  // Real £/mo comparison for the aggregate's median archetype +
+  // floor area, via the same engine the wizard/report uses. Null
+  // when the aggregate lacks the two data points we need — the
+  // section is skipped rather than rendering fabricated figures.
+  const costExample = buildTownCostExample(data);
+
   // ── Nearby towns for internal linking ───────────────────────────
   const nearby = getNearbyTowns(town.slug, 3);
 
@@ -679,6 +687,86 @@ function TownPageWithData({
         range, and a list of MCS-certified installers covering{" "}
         {town.name}.
       </p>
+
+      {/* ─── Cost example ───────────────────────────────────────────
+          Real £/mo comparison for the aggregate's median archetype +
+          floor area, computed via the same engine as the wizard +
+          /check/octopus. Renders only when the aggregate carries
+          both a median floor area and at least one built-form
+          entry — otherwise skipped. */}
+      {costExample && (
+        <>
+          <h2>
+            Typical monthly heating cost in {town.name}
+          </h2>
+          <p>
+            Based on the median {town.name} home in our EPC sample —
+            a {costExample.archetype} around {costExample.floorAreaM2}
+            {" "}m² — here&rsquo;s what the two options look like on
+            a like-for-like monthly total. Boiler numbers assume a
+            £{costExample.boiler.installedGBP.toLocaleString("en-GB")}
+            {" "}installed cost on 9.9% APR / 5-year finance plus a
+            typical £{costExample.boiler.service}/mo service plan.
+            Heat-pump numbers apply the £7,500 Boiler Upgrade Scheme
+            grant and 0% APR / 10-year finance on the net cost of
+            £{costExample.heatPump.netGBP.toLocaleString("en-GB")}.
+          </p>
+          <ComparisonTable
+            caption={`Monthly heating cost for a typical ${costExample.floorAreaM2}m² ${costExample.archetype} in ${town.name}`}
+            headers={["Line", "New gas boiler", "Air-source heat pump"]}
+            rows={[
+              [
+                "Finance",
+                `£${costExample.boiler.finance}/mo`,
+                `£${costExample.heatPump.finance}/mo`,
+              ],
+              [
+                "Energy",
+                `£${costExample.boiler.energy}/mo`,
+                `£${costExample.heatPump.electricity}/mo`,
+              ],
+              [
+                "Service / cover",
+                `£${costExample.boiler.service}/mo`,
+                "Not required",
+              ],
+              [
+                "Total per month",
+                `£${costExample.boiler.monthly}/mo`,
+                `£${costExample.heatPump.monthly}/mo`,
+              ],
+            ]}
+            footnote="Illustrative — engine defaults for UK gas (7p/kWh + standing charge) and standard-tariff electricity (27p/kWh). Cheaper heat-pump tariffs push the saving further."
+          />
+          {costExample.savingMonthly > 0 ? (
+            <p>
+              At today&rsquo;s standard tariffs, that&rsquo;s about{" "}
+              <strong>
+                £{costExample.savingMonthly}/mo cheaper
+              </strong>
+              {" "}with the heat pump — roughly{" "}
+              <strong>
+                £{costExample.savingAnnual.toLocaleString("en-GB")}
+                {" "}a year
+              </strong>
+              . The gap grows on a dedicated heat-pump tariff (e.g.
+              Octopus Cosy at 15p/kWh) and as gas prices rise
+              relative to electricity across the 10-year finance
+              term.
+            </p>
+          ) : (
+            <p>
+              At today&rsquo;s standard tariffs — electricity around
+              27p/kWh, gas around 7p/kWh — the two totals land
+              close. Switching to a dedicated heat-pump tariff (e.g.
+              Octopus Cosy at 15p/kWh) typically pushes the heat pump
+              ahead by £30–£50/mo, and any relative gas-vs-electric
+              price movement across the 10-year finance term widens
+              the gap further.
+            </p>
+          )}
+        </>
+      )}
 
       <InstallerListSection
         lat={town.lat}
