@@ -28,6 +28,7 @@ import {
   allArchetypeSlugs,
 } from "@/lib/programmatic/archetypes";
 import { buildTownCostExample } from "@/lib/programmatic/town-cost-example";
+import { fetchOutcodeCentroid } from "@/lib/programmatic/outcode-centroid";
 import {
   loadTownAggregate,
   loadLAAggregate,
@@ -348,34 +349,6 @@ function laToTownAdapter(row: TownAggregateRow): PilotTown {
     lat: row.lat ?? 0,
     lng: row.lng ?? 0,
   };
-}
-
-/** Look up the centroid of a UK outward code (e.g. "DN22") via
- *  Postcodes.io. Outcode centroids are essentially static, so the
- *  response is cached for 30 days at the Next fetch layer. Returns
- *  null on any failure so the page still renders without an
- *  installer block. */
-async function fetchOutcodeCentroid(
-  outcode: string,
-): Promise<{ lat: number; lng: number } | null> {
-  try {
-    const res = await fetch(
-      `https://api.postcodes.io/outcodes/${encodeURIComponent(outcode.toUpperCase())}`,
-      { next: { revalidate: 60 * 60 * 24 * 30 } },
-    );
-    if (!res.ok) return null;
-    const j = (await res.json()) as {
-      result?: { latitude?: number; longitude?: number } | null;
-    };
-    const lat = j.result?.latitude;
-    const lng = j.result?.longitude;
-    if (typeof lat === "number" && typeof lng === "number") {
-      return { lat, lng };
-    }
-    return null;
-  } catch {
-    return null;
-  }
 }
 
 // Same idea for postcode-district rows. The `name` here is the

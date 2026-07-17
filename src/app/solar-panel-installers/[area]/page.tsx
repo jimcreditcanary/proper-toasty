@@ -23,6 +23,7 @@ import {
 import { AEOPage } from "@/components/seo";
 import { DEFAULT_AUTHOR_SLUG } from "@/lib/seo/authors";
 import { InstallerListSection } from "@/components/installer/installer-list-section";
+import { fetchOutcodeCentroid } from "@/lib/programmatic/outcode-centroid";
 
 export const revalidate = 3600;
 
@@ -64,6 +65,17 @@ async function resolveArea(slug: string): Promise<ResolvedArea | null> {
     const admin = createAdminClient();
     const row = await loadPostcodeDistrictAggregate(admin, slug);
     if (!row || !row.indexed) return null;
+    // Back-fill centroid from Postcodes.io when the aggregate row
+    // lacks lat/lng — rowToArea would otherwise bail and 404 the
+    // route, breaking the internal links from the solar town pages.
+    if (row.lat == null || row.lng == null) {
+      const outcode = slug.replace(/^pc-/i, "").toUpperCase();
+      const centroid = await fetchOutcodeCentroid(outcode);
+      if (centroid) {
+        row.lat = centroid.lat;
+        row.lng = centroid.lng;
+      }
+    }
     return rowToArea(slug, row, "pcd");
   }
 
