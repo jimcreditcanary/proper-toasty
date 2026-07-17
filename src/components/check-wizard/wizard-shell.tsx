@@ -165,16 +165,9 @@ interface CheckWizardProps {
 }
 
 export function CheckWizard({ initialState }: CheckWizardProps = {}) {
-  // Brand-partner journeys (e.g. Octopus, /check/octopus) get an
-  // illustrative colour takeover scoped via `theme-octopus` (globals.css).
-  const partner = getPartner(initialState?.partner);
   return (
     <CheckWizardProvider initialState={initialState}>
-      <div
-        className={`flex min-h-[100dvh] flex-col${
-          partner ? " theme-octopus" : ""
-        }`}
-      >
+      <div className="flex min-h-[100dvh] flex-col">
         <PageTitleSync />
         {/* (Skip-to-main-content link removed — its focus position
             drifted inconsistently across pages, causing more confusion
@@ -206,8 +199,8 @@ export function CheckWizard({ initialState }: CheckWizardProps = {}) {
 
 // Shown when a prior journey was restored from localStorage on the
 // plain /check entry — lets the user resume it or wipe the cache and
-// start fresh. Fixes the "I clicked a fresh check but landed back in my
-// old Octopus journey" confusion: /check rehydrates the last session's
+// start fresh. Fixes the "I clicked a fresh check but landed back in
+// my old journey" confusion: /check rehydrates the last session's
 // focus/partner, so without this prompt a stale journey silently
 // hijacks the new one.
 function ResumeJourneyModal() {

@@ -13,7 +13,6 @@ import { Loader2 } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { CheckWizardProvider } from "@/components/check-wizard/context";
 import { ReportShell } from "@/components/check-wizard/report/report-shell";
-import { getPartner } from "@/lib/services/boiler-comparison";
 import type { CheckWizardState } from "@/components/check-wizard/types";
 import type {
   AnalyseResponse,
@@ -29,9 +28,8 @@ type SnapshotShape = {
   electricityTariff?: FuelTariff | null;
   gasTariff?: FuelTariff | null;
   // Journey context, persisted at share time so the shared report
-  // renders the same focus + brand partner the user actually ran
-  // (e.g. the Octopus boiler comparison, not the generic report).
-  // Optional — older snapshots predate this and fall back to "all".
+  // renders the same focus the user actually ran. Optional — older
+  // snapshots predate this and fall back to "all".
   focus?: WizardFocus | null;
   partner?: string | null;
 };
@@ -48,15 +46,6 @@ export default function SharedReportPage({
 }) {
   const { token } = use(params);
   const [state, setState] = useState<LoadState>({ kind: "loading" });
-
-  // Brand-partner takeover (e.g. Octopus). When the loaded snapshot
-  // carries a recognised partner, scope the dark theme to the whole
-  // page via `theme-octopus` (globals.css) so the shared report matches
-  // the journey the user ran.
-  const partner =
-    state.kind === "ok"
-      ? getPartner((state.data.snapshot as SnapshotShape | undefined)?.partner)
-      : null;
 
   useEffect(() => {
     let cancelled = false;
@@ -97,11 +86,7 @@ export default function SharedReportPage({
   }, [token]);
 
   return (
-    <div
-      className={`min-h-screen flex flex-col bg-gradient-to-b from-cream-deep to-cream${
-        partner ? " theme-octopus" : ""
-      }`}
-    >
+    <div className="min-h-screen flex flex-col bg-gradient-to-b from-cream-deep to-cream">
       <header className="bg-cream/80 backdrop-blur-md border-b border-[var(--border)] sticky top-0 z-50">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
           <Link href="/" className="flex items-center shrink-0">
@@ -182,8 +167,8 @@ function SharedReportInner({ data }: { data: LoadReportResponse }) {
     leadCapturedAt: data.createdAt ?? new Date().toISOString(),
     leadEmail: "shared-report",
     // Restore the journey the user ran so the report renders the same
-    // focus + brand partner (e.g. Octopus boiler comparison). Older
-    // snapshots without these fall back to the generic all-focus report.
+    // focus + brand partner. Older snapshots without these fall back
+    // to the generic all-focus report.
     focus: snap.focus ?? "all",
     partner: snap.partner ?? null,
   };

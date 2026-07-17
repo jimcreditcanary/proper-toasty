@@ -17,7 +17,6 @@ import {
   HEAT_PUMP_GROSS_COST_RANGE_GBP,
   HEATING_FINANCE,
   RUNNING_COST,
-  OCTOPUS_PARTNER,
   getPartner,
 } from "../boiler-comparison";
 import type { FuelTariff } from "@/lib/schemas/bill";
@@ -439,44 +438,31 @@ describe("totalCostOfOwnership", () => {
   });
 });
 
-// ─── Partner config (Octopus) ────────────────────────────────────────
+// ─── Partner mechanism (dormant — no active co-brand) ───────────────
 
-describe("partner config", () => {
-  it("getPartner resolves octopus + rejects unknown", () => {
-    expect(getPartner("octopus")).toBe(OCTOPUS_PARTNER);
+describe("partner mechanism", () => {
+  it("getPartner returns null for anything (empty PARTNERS map)", () => {
     expect(getPartner(null)).toBeNull();
-    expect(getPartner("eon")).toBeNull();
+    expect(getPartner(undefined)).toBeNull();
+    expect(getPartner("")).toBeNull();
+    expect(getPartner("anything")).toBeNull();
   });
 
-  it("uses the partner's lower heat-pump price in the comparison", () => {
-    const out = buildBoilerVsHeatPump({
-      epc: epcFound({ builtForm: "Detached" }),
-      eligibility: {
-        heatPump: hp(),
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        solar: {} as any,
-        householdElectricityBaselineKWh: 0,
-      },
-      partner: OCTOPUS_PARTNER,
-    });
-    // £10,500 gross − £7,500 grant = £3,000 net (single-point band).
-    expect(out.heatPump.grossRangeGBP).toEqual([10500, 10500]);
-    expect(out.heatPump.netMidpointGBP).toBe(3000);
-  });
-
-  it("applies the Cosy rate + boiler-care overage in running costs", () => {
+  it("applies heatPumpElecPenceOverride when a caller supplies one", () => {
     const standard = annualRunningCost({
       epc: epcFound({ totalFloorAreaM2: 100 }),
     });
-    const octopus = annualRunningCost({
+    const withOverride = annualRunningCost({
       epc: epcFound({ totalFloorAreaM2: 100 }),
-      heatPumpElecPenceOverride: OCTOPUS_PARTNER.heatPumpElecPencePerKwh,
-      boilerCareAnnualGBP: OCTOPUS_PARTNER.boilerCareMonthlyGBP * 12,
+      heatPumpElecPenceOverride: 15,
+      boilerCareAnnualGBP: 240,
     });
-    // Cosy 15p vs standard 27p → heat pump runs cheaper.
-    expect(octopus.heatPumpAnnualGBP).toBeLessThan(standard.heatPumpAnnualGBP);
-    expect(octopus.heatPumpAnnualGBP).toBe(6000 * 0.15); // 100×60 kWh × 15p
+    // 15p vs standard 27p → heat pump runs cheaper.
+    expect(withOverride.heatPumpAnnualGBP).toBeLessThan(
+      standard.heatPumpAnnualGBP,
+    );
+    expect(withOverride.heatPumpAnnualGBP).toBe(6000 * 0.15); // 100×60 kWh × 15p
     // Boiler care adds £240/yr to the boiler side.
-    expect(octopus.boilerAnnualGBP).toBe(standard.boilerAnnualGBP + 240);
+    expect(withOverride.boilerAnnualGBP).toBe(standard.boilerAnnualGBP + 240);
   });
 });

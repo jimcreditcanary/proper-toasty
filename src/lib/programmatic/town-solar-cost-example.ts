@@ -29,7 +29,7 @@ const SOLAR_INSTALL_COST_PER_KWP_GBP = 1_400;
  *  UK industry consensus for a working-hours household. */
 const SELF_CONSUMPTION_PCT_NO_BATTERY = 35;
 /** Displaced import price — matches the standard-tariff figure the
- *  engine uses in town-cost-example.ts and the /octopus report. */
+ *  engine uses in town-cost-example.ts. */
 const ELECTRICITY_IMPORT_PENCE_PER_KWH = 27;
 /** SEG export tariff — top-tier fixed-rate rung (Octopus Outgoing,
  *  E.ON Next Export). Minimum-SEG suppliers pay ~3p; we use the

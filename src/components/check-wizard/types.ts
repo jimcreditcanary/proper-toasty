@@ -147,11 +147,12 @@ export interface CheckWizardState {
   // Default "all" keeps backwards-compat with the homepage flow.
   focus: WizardFocus;
 
-  // Brand-partnership id (e.g. "octopus") when the user arrived via a
-  // co-branded landing. Resolved to a PartnerConfig via getPartner()
-  // in src/lib/services/boiler-comparison.ts — kept as a string here so
+  // Brand-partnership id when the user arrives via a co-branded
+  // landing. Resolved to a PartnerConfig via getPartner() in
+  // src/lib/services/boiler-comparison.ts — kept as a string here so
   // the foundational types module doesn't depend on the services layer.
-  // null = the neutral (un-partnered) boiler flow.
+  // null = the neutral (un-partnered) boiler flow. No active partner
+  // ships today, so this is always null in practice.
   partner: string | null;
 
   // Step 5 — analysis output (stitched)
