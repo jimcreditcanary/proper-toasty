@@ -719,10 +719,9 @@ function TownPageWithData({
 
       {/* ─── Cost example ───────────────────────────────────────────
           Real £/mo comparison for the aggregate's median archetype +
-          floor area, computed via the same engine as the wizard +
-          /check/octopus. Renders only when the aggregate carries
-          both a median floor area and at least one built-form
-          entry — otherwise skipped. */}
+          floor area, computed via the same engine as the wizard.
+          Renders only when the aggregate carries both a median floor
+          area and at least one built-form entry — otherwise skipped. */}
       {costExample && (
         <>
           <h2>

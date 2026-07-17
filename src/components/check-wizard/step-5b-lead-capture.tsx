@@ -79,8 +79,8 @@ export function Step5bLeadCapture() {
           electricityTariff: state.electricityTariff,
           gasTariff: state.gasTariff,
           // Journey context — so the /r/[token] report renders the
-          // same focus + brand partner (e.g. Octopus) the user ran,
-          // not the generic all-focus report.
+          // same focus + brand partner the user ran, not the
+          // generic all-focus report.
           focus: state.focus,
           partner: state.partner,
         },

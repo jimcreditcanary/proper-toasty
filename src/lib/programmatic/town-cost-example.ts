@@ -1,8 +1,7 @@
 // Town-page cost example — for the "typical monthly heating cost in
 // [town]" section of the /heat-pumps/[town-slug] template.
 //
-// Reuses the same engine helpers as the wizard's BoilerTab and the
-// /check/octopus instant report:
+// Reuses the same engine helpers as the wizard's BoilerTab:
 //   - lookupBoilerCost      → installed boiler cost band + midpoint
 //   - annualRunningCost     → gas + heat-pump electricity, from EPC
 //                             floor area × sizing defaults × tariff
@@ -28,7 +27,7 @@ import {
 import { DEFAULT_SIZING_INPUTS } from "@/lib/admin/sizing-inputs";
 import type { TownAggregateData } from "./town-aggregates";
 
-/** Typical UK gas-boiler service plan — matches the /octopus report. */
+/** Typical UK gas-boiler service plan — industry mid-range. */
 const AVG_BOILER_SERVICE_PLAN_ANNUAL_GBP = 240;
 /** Non-partner boiler finance defaults — match the wizard BoilerTab. */
 const BOILER_FINANCE_APR_PCT = 9.9;

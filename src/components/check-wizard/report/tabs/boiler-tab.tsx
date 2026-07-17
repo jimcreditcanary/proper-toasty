@@ -68,8 +68,8 @@ export function BoilerTab({
   analysis: AnalyseResponse;
   electricityTariff: FuelTariff | null;
   gasTariff: FuelTariff | null;
-  /** Active brand partner (e.g. Octopus) — overrides heat-pump price,
-   *  finance, the heat-pump tariff + energy inflation. */
+  /** Active brand partner — overrides heat-pump price, finance, the
+   *  heat-pump tariff + energy inflation. */
   partner?: PartnerConfig | null;
   /** Whether the user said they pay for boiler cover (partner flows). */
   hasBoilerCare?: boolean;
@@ -165,7 +165,7 @@ export function BoilerTab({
   const hpQuote = hpNet != null ? financeQuote(hpNet, hpApr, hpTerm) : null;
 
   // Horizon for the totals. On the partner flow it follows the heat-pump
-  // term (the Octopus deal); the neutral flow keeps a separate years
+  // term (the partner's offer); the neutral flow keeps a separate years
   // toggle.
   const horizonYears = partner ? hpTerm / 12 : years;
 
@@ -234,27 +234,13 @@ export function BoilerTab({
   const hpName = partner ? `${partner.name} heat pump` : "Air source heat pump";
   const hpInstalledLabel = partner ? "Installed" : "Installed (MCS avg)";
 
-  // Heat-pump glyph. In a brand-partner journey (e.g. Octopus) the bolt
-  // becomes the octopus emoji 🐙; everywhere else it stays the lightning
-  // bolt with its original classes (so non-partner reports are unchanged).
-  const hpIcon = (zapClass: string, emojiSize: string) =>
-    partner ? (
-      <span
-        className={`${emojiSize} leading-none shrink-0`}
-        role="img"
-        aria-label="Heat pump"
-      >
-        🐙
-      </span>
-    ) : (
-      <Zap className={zapClass} />
-    );
+  const hpIcon = (zapClass: string) => <Zap className={zapClass} />;
 
   return (
     <div className="space-y-6">
       {partner && (
         <div className="rounded-2xl border border-coral/30 bg-coral-pale/30 px-5 py-3.5 flex items-center gap-2.5">
-          {hpIcon("w-4 h-4 text-coral shrink-0", "text-base")}
+          {hpIcon("w-4 h-4 text-coral shrink-0")}
           <p className="text-sm text-navy">
             <span className="font-semibold">
               In partnership with {partner.name}.
@@ -291,7 +277,7 @@ export function BoilerTab({
           />
           <CostColumn
             tone="coral"
-            icon={hpIcon("w-5 h-5", "text-xl")}
+            icon={hpIcon("w-5 h-5")}
             heading={hpName}
             headlineLabel={hpNet != null ? "After the grant" : "Before grant"}
             headline={
@@ -396,7 +382,7 @@ export function BoilerTab({
             }
           />
           <RunningStat
-            icon={hpIcon("w-5 h-5", "text-xl")}
+            icon={hpIcon("w-5 h-5")}
             heading={partner ? `${partner.name} heat pump` : "Heat pump"}
             value={fmtGbp(rc.heatPumpAnnualGBP)}
             sub={
@@ -611,7 +597,7 @@ export function BoilerTab({
               {/* Heat pump — the partner calculator (slider tracks to 0%) */}
               <div className="rounded-xl border border-slate-200 bg-white p-4">
                 <div className="flex items-center gap-2 mb-2.5">
-                  {hpIcon("w-4 h-4 text-coral", "text-base")}
+                  {hpIcon("w-4 h-4 text-coral")}
                   <p className="text-sm font-semibold text-navy">
                     {partner.name} heat pump
                   </p>
@@ -705,7 +691,7 @@ export function BoilerTab({
                 </th>
                 <th className="pb-3 px-3">
                   <span className="inline-flex items-center gap-1.5 font-semibold text-navy">
-                    {hpIcon("w-4 h-4 text-coral", "text-base")}{" "}
+                    {hpIcon("w-4 h-4 text-coral")}{" "}
                     {partner ? partner.name : "Heat pump"}
                   </span>
                 </th>
@@ -777,7 +763,7 @@ export function BoilerTab({
               lowest={boilerFinanceTco === lowerFinanceTco}
             />
             <HorizonTotal
-              icon={hpIcon("w-4 h-4", "text-base")}
+              icon={hpIcon("w-4 h-4")}
               label={partner ? partner.name : "Heat pump"}
               total={hpFinanceTco}
               lowest={hpFinanceTco != null && hpFinanceTco === lowerFinanceTco}

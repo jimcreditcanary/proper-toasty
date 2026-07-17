@@ -234,9 +234,8 @@ export function BookVisitTab({
 
   // Brand-partner flow: the partner installs the heat pump, so a grid
   // of competing installers is off-message. Book a real site visit
-  // directly against the partner's installer record (e.g. Octopus,
-  // installer 9864) using the same availability + lead flow as a
-  // pre-survey, pinned to that installer.
+  // directly against the partner's installer record using the same
+  // availability + lead flow as a pre-survey, pinned to that installer.
   if (partner) {
     return (
       <div className="space-y-6">
@@ -913,9 +912,9 @@ function PreSurveyBookingCard({
   techPhrase: string;
   selection: { hasHeatPump: boolean; hasSolar: boolean; hasBattery: boolean };
   /** Pin the booking to a specific installer regardless of the
-   *  pre-survey state — used by brand-partner flows (e.g. Octopus,
-   *  installer 9864) to book a real site visit via the same
-   *  availability + customer-initiated lead path. */
+   *  pre-survey state — used by brand-partner flows to book a real
+   *  site visit via the same availability + customer-initiated lead
+   *  path. */
   installerIdOverride?: number;
 }) {
   const { state, update } = useCheckWizard();

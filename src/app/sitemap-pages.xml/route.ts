@@ -58,13 +58,6 @@ export async function GET(): Promise<Response> {
       changefreq: "monthly",
       priority: 0.9,
     },
-    // Octopus Energy co-branded partner landing.
-    {
-      loc: `${SITE_URL}/octopus`,
-      lastmod: now,
-      changefreq: "monthly",
-      priority: 0.8,
-    },
     // Programmatic-town index landings — entry point for town
     // browsing + ranks for the head terms ("heat pumps UK",
     // "solar panels UK"). The per-town pages are listed in

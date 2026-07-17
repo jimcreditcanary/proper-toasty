@@ -56,8 +56,8 @@ export function Step3Questions() {
   // Boiler variant compares a new gas boiler vs a heat pump — no
   // solar / battery / floorplan / satellite anywhere in this flow.
   const isBoilerFocus = state.focus === "boiler";
-  // Brand-partner boiler flows (e.g. Octopus) ask whether the household
-  // pays for boiler care, so we can add that overage to the gas side.
+  // Brand-partner boiler flows ask whether the household pays for
+  // boiler care, so we can add that overage to the gas side.
   const partner = getPartner(state.partner);
   const asksBoilerCare = isBoilerFocus && partner != null;
 

@@ -202,14 +202,18 @@ export const HEAT_PUMP_GROSS_COST_RANGE_GBP: [number, number] = [12000, 16000];
 
 // ─── Brand partnership configs ───────────────────────────────────────
 //
-// A partner (e.g. Octopus Energy) co-brands the boiler-vs-heat-pump
-// flow and supplies its own commercials: its own (lower) heat-pump
-// price, its own finance terms, the tariff it puts the home on after
-// install, and how it models energy-price inflation. The boiler flow
-// reads these overrides when a partner is active; otherwise the
-// neutral defaults above apply.
+// A partner co-brands the boiler-vs-heat-pump flow and supplies its
+// own commercials: its own (lower) heat-pump price, its own finance
+// terms, the tariff it puts the home on after install, and how it
+// models energy-price inflation. The boiler flow reads these
+// overrides when a partner is active; otherwise the neutral defaults
+// above apply.
+//
+// PARTNERS is empty today — no active co-brand. The mechanism is
+// dormant but intact so a future partner is a config add, not a
+// re-architecture.
 
-export type PartnerId = "octopus";
+export type PartnerId = string;
 
 export interface PartnerConfig {
   id: PartnerId;
@@ -240,28 +244,11 @@ export interface PartnerConfig {
   installerId: number;
 }
 
-export const OCTOPUS_PARTNER: PartnerConfig = {
-  id: "octopus",
-  name: "Octopus Energy",
-  // ~£10.5k installed → £3,000 net after the £7,500 grant.
-  heatPumpGrossRangeGBP: [10500, 10500],
-  financeAprPct: 0,
-  financeTermMonths: 120, // 0% over 10 years
-  heatPumpElecPencePerKwh: 15, // Cosy effective rate
-  gasInflationPctPerYear: 7,
-  elecInflationPctPerYear: 2,
-  boilerCareMonthlyGBP: 20,
-  bookingUrl: "https://octopus.energy/heat-pump-explore/",
-  installerId: 9864, // "Octopus Energy Services Limited"
-};
-
-export const PARTNERS: Record<PartnerId, PartnerConfig> = {
-  octopus: OCTOPUS_PARTNER,
-};
+export const PARTNERS: Record<PartnerId, PartnerConfig> = {};
 
 export function getPartner(id: string | null | undefined): PartnerConfig | null {
   if (!id) return null;
-  return id in PARTNERS ? PARTNERS[id as PartnerId] : null;
+  return id in PARTNERS ? PARTNERS[id] : null;
 }
 
 export interface HeatPumpCostResult {
@@ -462,8 +449,8 @@ export function annualRunningCost(input: {
   gasTariff?: FuelTariff | null;
   sizing?: SizingInputs;
   /** Override the heat-pump electricity rate (p/kWh) — set to a
-   *  partner's heat-pump tariff (e.g. Octopus Cosy) so the heat pump
-   *  isn't penalised by the standard import rate. */
+   *  partner's heat-pump tariff so the heat pump isn't penalised by
+   *  the standard import rate. */
   heatPumpElecPenceOverride?: number;
   /** Added to the boiler side only — an ongoing boiler-care / cover
    *  cost (£/yr) the user told us they pay, which a heat pump avoids. */
