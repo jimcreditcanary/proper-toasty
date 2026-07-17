@@ -20,9 +20,11 @@ import {
   loadTownAggregate,
   loadLAAggregate,
   loadPostcodeDistrictAggregate,
+  loadSiblingPostcodeDistricts,
   ALL_BANDS,
   type TownAggregateRow,
   type EnergyBand,
+  type SiblingPostcodeDistrict,
 } from "@/lib/programmatic/town-aggregates";
 import { AEOPage, ComparisonTable } from "@/components/seo";
 import { DEFAULT_AUTHOR_SLUG } from "@/lib/seo/authors";
@@ -71,6 +73,64 @@ interface PageProps {
   params: Promise<{ "town-slug": string }>;
 }
 
+/**
+ * Turn an aggregate's `display_name` into a natural, town-name-front-
+ * loaded label. Pc-* rows come as "DN22 (Retford)" — we flip to
+ * "Retford (DN22)" because the town name is the higher-volume search
+ * term. Non-pc rows pass through. Twin of the same helper on
+ * /heat-pumps/[town-slug]; duplicated deliberately to keep each
+ * town template self-contained.
+ */
+function formatPrimaryLabel(displayName: string, isPCD: boolean): string {
+  if (isPCD) {
+    const m = displayName.match(/^([A-Z0-9]+)\s*\(([^)]+)\)$/i);
+    if (m) return `${m[2]} (${m[1].toUpperCase()})`;
+  }
+  return displayName;
+}
+
+/** Shared H1 / meta title for the solar route. Front-loaded with the
+ *  target keywords + solar-specific commercial nouns. Under 60 chars
+ *  in the worst case (pc-* with a long town). */
+function buildSolarTitle(primaryLabel: string): string {
+  return `Solar Panels in ${primaryLabel}: Cost, Payback & Installers 2026`;
+}
+
+/** Shared solar meta description. ~150 chars, ends with a CTA. */
+function buildSolarDescription(
+  primaryLabel: string,
+  samplePretty: string,
+): string {
+  return `Solar in ${primaryLabel}: install cost, typical payback, Smart Export Guarantee rates, and MCS installers. EPC data from ${samplePretty} local homes. Free 5-min check.`;
+}
+
+/** Look up the centroid of a UK outward code (e.g. "DN22") via
+ *  Postcodes.io. Cached 30 days at the Next fetch layer. Returns
+ *  null on any failure so the page still renders without an
+ *  installer block. Twin of the same helper on the heat-pump route. */
+async function fetchOutcodeCentroid(
+  outcode: string,
+): Promise<{ lat: number; lng: number } | null> {
+  try {
+    const res = await fetch(
+      `https://api.postcodes.io/outcodes/${encodeURIComponent(outcode.toUpperCase())}`,
+      { next: { revalidate: 60 * 60 * 24 * 30 } },
+    );
+    if (!res.ok) return null;
+    const j = (await res.json()) as {
+      result?: { latitude?: number; longitude?: number } | null;
+    };
+    const lat = j.result?.latitude;
+    const lng = j.result?.longitude;
+    if (typeof lat === "number" && typeof lng === "number") {
+      return { lat, lng };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 export async function generateMetadata({
   params,
 }: PageProps): Promise<Metadata> {
@@ -84,8 +144,10 @@ export async function generateMetadata({
       return { robots: { index: false, follow: false } };
     }
     const url = `https://www.propertoasty.com/solar-panels/${slug}`;
-    const title = `Solar panels across ${row.display_name}: 2026 cost + SEG guide`;
-    const description = `Rooftop solar PV suitability across the ${row.display_name} local authority area, with install cost ranges, Smart Export Guarantee context, and EPC band data from ${row.sample_size.toLocaleString("en-GB")} local properties.`;
+    const primaryLabel = formatPrimaryLabel(row.display_name, false);
+    const samplePretty = row.sample_size.toLocaleString("en-GB");
+    const title = buildSolarTitle(primaryLabel);
+    const description = buildSolarDescription(primaryLabel, samplePretty);
     return {
       title,
       description,
@@ -110,8 +172,10 @@ export async function generateMetadata({
       return { robots: { index: false, follow: false } };
     }
     const url = `https://www.propertoasty.com/solar-panels/${slug}`;
-    const title = `Solar panels in ${row.display_name}: 2026 cost + SEG guide`;
-    const description = `Rooftop solar PV suitability across the ${row.display_name} postcode area, with install cost ranges, Smart Export Guarantee context, and EPC band data from ${row.sample_size.toLocaleString("en-GB")} local properties.`;
+    const primaryLabel = formatPrimaryLabel(row.display_name, true);
+    const samplePretty = row.sample_size.toLocaleString("en-GB");
+    const title = buildSolarTitle(primaryLabel);
+    const description = buildSolarDescription(primaryLabel, samplePretty);
     return {
       title,
       description,
@@ -142,8 +206,10 @@ export async function generateMetadata({
   }
 
   const url = `https://www.propertoasty.com/solar-panels/${slug}`;
-  const title = `Solar panels in ${town.name}: 2026 cost + SEG guide`;
-  const description = `Rooftop solar PV suitability in ${town.name}, with install cost ranges, payback periods, Smart Export Guarantee context, and EPC band data from ${row.sample_size.toLocaleString("en-GB")} local properties.`;
+  const primaryLabel = formatPrimaryLabel(town.name, false);
+  const samplePretty = row.sample_size.toLocaleString("en-GB");
+  const title = buildSolarTitle(primaryLabel);
+  const description = buildSolarDescription(primaryLabel, samplePretty);
   return {
     title,
     description,
@@ -178,7 +244,31 @@ export default async function SolarPanelsTownPage({ params }: PageProps) {
     const row = await loadPostcodeDistrictAggregate(admin, slug);
     if (!row) notFound();
     const fakeTown = pcdToTownAdapter(row);
-    return <TownPageWithData town={fakeTown} row={row} isPCD />;
+    // pc-* aggregate rows commonly lack lat/lng; without them
+    // InstallerListSection short-circuits to null. Fill from
+    // Postcodes.io outcode endpoint (cached 30d) so the installer
+    // block renders. Same pattern as the heat-pumps route.
+    if (!fakeTown.lat || !fakeTown.lng) {
+      const outcode = fakeTown.postcodeDistricts[0];
+      if (outcode) {
+        const centroid = await fetchOutcodeCentroid(outcode);
+        if (centroid) {
+          fakeTown.lat = centroid.lat;
+          fakeTown.lng = centroid.lng;
+        }
+      }
+    }
+    // Sibling pc-* aggregates in the same area code — internal
+    // linking hub-and-spoke for cluster authority flow.
+    const siblings = await loadSiblingPostcodeDistricts(admin, slug, 8);
+    return (
+      <TownPageWithData
+        town={fakeTown}
+        row={row}
+        isPCD
+        siblings={siblings}
+      />
+    );
   }
 
   const town = getTownBySlug(slug);
@@ -250,15 +340,18 @@ function TownPageWithData({
   row,
   isLA = false,
   isPCD = false,
+  siblings = [],
 }: {
   town: PilotTown;
   row: TownAggregateRow;
   isLA?: boolean;
   isPCD?: boolean;
+  /** Same-area-code postcode-district siblings for internal linking.
+   *  Populated on the pc-* branch only; empty otherwise. */
+  siblings?: SiblingPostcodeDistrict[];
 }) {
   const data = row.data;
   const url = `https://www.propertoasty.com/solar-panels/${town.slug}`;
-  const inOrAcross = isLA || isPCD ? "across" : "in";
   const areaLabel = isLA
     ? `${town.name} (local authority area)`
     : isPCD
@@ -306,8 +399,11 @@ function TownPageWithData({
 
   return (
     <AEOPage
-      headline={`Solar panels ${inOrAcross} ${areaLabel}: 2026 cost + SEG guide`}
-      description={`Rooftop solar PV suitability ${inOrAcross} ${areaLabel}, with install cost ranges, payback periods, Smart Export Guarantee context, and EPC band data from ${samplePretty} local properties.`}
+      headline={buildSolarTitle(formatPrimaryLabel(town.name, isPCD))}
+      description={buildSolarDescription(
+        formatPrimaryLabel(town.name, isPCD),
+        samplePretty,
+      )}
       url={url}
       image="/hero-solar.jpg"
       datePublished="2026-05-11"
@@ -524,6 +620,30 @@ function TownPageWithData({
         areaSlug={town.slug}
       />
 
+      {/* Same-area postcode-district siblings — pc-* only. Hub-and-
+          spoke internal linking so PageRank flows across the postcode
+          cluster. Mirrors the heat-pumps twin. */}
+      {isPCD && siblings.length > 0 && (
+        <>
+          <h3>
+            Related postcode areas near {town.name}
+          </h3>
+          <p>
+            Same postcode area, useful if your property sits on a
+            district boundary or you want to compare the wider area:
+          </p>
+          <ul>
+            {siblings.map((s) => (
+              <li key={s.scope_key}>
+                <a href={`/solar-panels/${s.scope_key}`}>
+                  Solar panels in {s.display_name}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+
       {nearby.length > 0 && (
         <>
           <h3>Nearby towns we cover</h3>
@@ -586,6 +706,14 @@ function buildSolarTownFaqs(
     {
       question: `Does the £7,500 BUS grant cover solar?`,
       answer: `No — the Boiler Upgrade Scheme is for heat pumps and biomass boilers, not solar PV. The main UK solar incentive is the Smart Export Guarantee, which pays you per kWh exported to the grid. Solar installs are not currently grant-subsidised in ${town.name} or anywhere else in the UK, but the install qualifies for 0% VAT (extended through to March 2027) and battery storage qualifies for the same VAT relief when fitted with solar.`,
+    },
+    {
+      question: `How much do solar panels cost in ${town.name}?`,
+      answer: `A typical 3.5–5 kW rooftop PV install in ${town.name} runs £4,000 to £8,000 fully fitted, with the higher end covering panel + inverter upgrades, scaffolding on complex roofs, or in-roof mounting for a flush finish. Adding a 5 kWh battery adds roughly £3,000 to £5,000. Both qualify for 0% VAT through March 2027. Payback lands around 7–12 years without a battery and 10–14 years with — driven by how much of your generation you can self-consume rather than export at Smart Export Guarantee rates.`,
+    },
+    {
+      question: `Which MCS-certified solar installers cover ${town.name}?`,
+      answer: `We list MCS-certified solar installers with a service area covering ${town.name} further down this page, ranked by proximity to the area centroid and by verified reviews from Google and Checkatrade. Every installer shown is certified to install rooftop solar PV, register your export meter, and process the DNO G98/G99 sign-off. MCS certification is also the eligibility gate for the Smart Export Guarantee, so pick one from the list rather than a non-MCS installer.`,
     },
   ];
 }
