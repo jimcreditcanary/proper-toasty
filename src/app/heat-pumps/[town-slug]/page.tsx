@@ -246,6 +246,20 @@ export default async function HeatPumpsTownPage({ params }: PageProps) {
     const row = await loadPostcodeDistrictAggregate(admin, slug);
     if (!row) notFound();
     const fakeTown = pcdToTownAdapter(row);
+    // Postcode-district aggregate rows commonly lack lat/lng — without
+    // them InstallerListSection short-circuits to null and the page
+    // loses its installer block entirely. Fill from Postcodes.io's
+    // outcodes endpoint (heavily cached, free) so the block renders.
+    if (!fakeTown.lat || !fakeTown.lng) {
+      const outcode = fakeTown.postcodeDistricts[0];
+      if (outcode) {
+        const centroid = await fetchOutcodeCentroid(outcode);
+        if (centroid) {
+          fakeTown.lat = centroid.lat;
+          fakeTown.lng = centroid.lng;
+        }
+      }
+    }
     return <TownPageWithData town={fakeTown} row={row} isPCD />;
   }
 
@@ -283,6 +297,34 @@ function laToTownAdapter(row: TownAggregateRow): PilotTown {
     lat: row.lat ?? 0,
     lng: row.lng ?? 0,
   };
+}
+
+/** Look up the centroid of a UK outward code (e.g. "DN22") via
+ *  Postcodes.io. Outcode centroids are essentially static, so the
+ *  response is cached for 30 days at the Next fetch layer. Returns
+ *  null on any failure so the page still renders without an
+ *  installer block. */
+async function fetchOutcodeCentroid(
+  outcode: string,
+): Promise<{ lat: number; lng: number } | null> {
+  try {
+    const res = await fetch(
+      `https://api.postcodes.io/outcodes/${encodeURIComponent(outcode.toUpperCase())}`,
+      { next: { revalidate: 60 * 60 * 24 * 30 } },
+    );
+    if (!res.ok) return null;
+    const j = (await res.json()) as {
+      result?: { latitude?: number; longitude?: number } | null;
+    };
+    const lat = j.result?.latitude;
+    const lng = j.result?.longitude;
+    if (typeof lat === "number" && typeof lng === "number") {
+      return { lat, lng };
+    }
+    return null;
+  } catch {
+    return null;
+  }
 }
 
 // Same idea for postcode-district rows. The `name` here is the
@@ -387,7 +429,13 @@ function TownPageWithData({
   ];
 
   // ── Town-specific FAQs ──────────────────────────────────────────
-  const faqs = buildTownFaqs(town, medianBand, samplePretty, dOrWorsePct);
+  const faqs = buildTownFaqs(
+    town,
+    medianBand,
+    samplePretty,
+    dOrWorsePct,
+    data.mains_gas_pct ?? null,
+  );
 
   // ── Nearby towns for internal linking ───────────────────────────
   const nearby = getNearbyTowns(town.slug, 3);
@@ -700,6 +748,7 @@ function buildTownFaqs(
   medianBand: EnergyBand | "D",
   samplePretty: string,
   dOrWorsePct: number,
+  mainsGasPct: number | null,
 ) {
   const insulationLikelihood =
     dOrWorsePct >= 60
@@ -707,6 +756,19 @@ function buildTownFaqs(
       : dOrWorsePct >= 40
       ? "around half"
       : "a minority of";
+
+  // Mains-gas FAQ only fires when the aggregate carries the datum —
+  // some LA / postcode-district rows don't have it and we prefer
+  // omitting the Q to guessing a percentage.
+  const gasQ =
+    mainsGasPct != null
+      ? [
+          {
+            question: `Is ${town.name} on the mains gas grid?`,
+            answer: `Around ${Math.round(mainsGasPct)}% of homes in ${town.name} are heated by mains gas, based on the local EPC sample. The rest — typically oil, LPG or electric storage — see the biggest running-cost saving from a heat pump because they're switching away from a much dearer fuel. Homes on gas still qualify for the £7,500 BUS grant; the ongoing bill saving is smaller but the carbon and comfort case is the same.`,
+          },
+        ]
+      : [];
 
   return [
     {
@@ -725,6 +787,11 @@ function buildTownFaqs(
       question: `Do most ${town.name} homes need insulation upgrades before a heat pump?`,
       answer: `Based on the EPC sample for ${town.name}, ${insulationLikelihood} local homes carry an unaddressed loft or cavity wall insulation recommendation on their current EPC. The BUS rules require these to be cleared (either completed or formally exempted) before the grant applies. Typical clearance work — loft top-up to 270mm and cavity wall insulation — costs £400–£3,500 combined and can often be done under the Great British Insulation Scheme or ECO4 for eligible households.`,
     },
+    {
+      question: `Which MCS-certified heat pump installers cover ${town.name}?`,
+      answer: `We list MCS-certified installers with a service area covering ${town.name} further down this page, ranked by proximity to the area centroid and by verified reviews from Google and Checkatrade. Every installer shown is certified to install air-source heat pumps and processes the £7,500 BUS grant on your behalf. For the full directory — with distance, review counts, and BUS-registered status — see our dedicated heat pump installers page for ${town.name}.`,
+    },
+    ...gasQ,
   ];
 }
 
