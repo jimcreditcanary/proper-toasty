@@ -30,6 +30,7 @@ import { AEOPage, ComparisonTable } from "@/components/seo";
 import { DEFAULT_AUTHOR_SLUG } from "@/lib/seo/authors";
 import { InstallerListSection } from "@/components/installer/installer-list-section";
 import { fetchOutcodeCentroid } from "@/lib/programmatic/outcode-centroid";
+import { buildTownSolarCostExample } from "@/lib/programmatic/town-solar-cost-example";
 
 export const revalidate = 3600;
 
@@ -358,6 +359,15 @@ function TownPageWithData({
   const faqs = buildSolarTownFaqs(town, medianBand, samplePretty, cOrBetterPct);
   const nearby = getNearbyTowns(town.slug, 3);
 
+  // Engine-derived cost + payback example. Null when the aggregate
+  // lacks the two inputs (median floor area + built-form entry) —
+  // the page then skips the section rather than rendering
+  // fabricated figures. Same failure mode as the heat-pump twin.
+  const solarCostExample = buildTownSolarCostExample(
+    data,
+    town.lat > 0 ? town.lat : null,
+  );
+
   // Same band-distribution table as heat-pumps, but with a SOLAR-
   // specific interpretation column.
   const tableRows: Array<Array<string | number>> = ALL_BANDS.map((b) => {
@@ -507,6 +517,90 @@ function TownPageWithData({
                 </li>
               )}
           </ul>
+        </>
+      )}
+
+      {/* ─── Solar cost example ─────────────────────────────────────
+          Deterministic £ / payback figure sized to the aggregate's
+          median floor area, with a latitude-adjusted UK yield curve.
+          No PVGIS/Solar API calls at render time — the wizard
+          replaces this with real per-roof numbers once the user runs
+          the pre-survey. Renders only when the aggregate carries the
+          two inputs it needs (median floor area + built-form entry). */}
+      {solarCostExample && (
+        <>
+          <h2>
+            Typical solar payback in {town.name}
+          </h2>
+          <p>
+            Based on the median {town.name} home in our EPC sample —
+            a {solarCostExample.archetype} around{" "}
+            {solarCostExample.floorAreaM2} m² — a{" "}
+            {solarCostExample.systemKwp} kWp roof-mounted PV system
+            (roughly {Math.round(solarCostExample.systemKwp / 0.4)}{" "}
+            × 400 W panels) fits the typical roof size and generates
+            about{" "}
+            {solarCostExample.annualKwh.toLocaleString("en-GB")} kWh
+            a year. Install cost sits around{" "}
+            £{solarCostExample.installedGBP.toLocaleString("en-GB")}{" "}
+            fully fitted (0% VAT on domestic PV means no grant
+            paperwork — the price is what you pay).
+          </p>
+          <ComparisonTable
+            caption={`Illustrative annual solar economics for a ${solarCostExample.floorAreaM2}m² ${solarCostExample.archetype} in ${town.name}`}
+            headers={["Line", "kWh / year", "£ / year"]}
+            rows={[
+              [
+                "Self-consumed (offsets 27p/kWh import)",
+                solarCostExample.savings.selfConsumedKwh.toLocaleString(
+                  "en-GB",
+                ),
+                `£${Math.round(
+                  (solarCostExample.savings.selfConsumedKwh *
+                    solarCostExample.savings.importRatePence) /
+                    100,
+                ).toLocaleString("en-GB")}`,
+              ],
+              [
+                "Exported (SEG at 15p/kWh)",
+                solarCostExample.savings.exportedKwh.toLocaleString(
+                  "en-GB",
+                ),
+                `£${Math.round(
+                  (solarCostExample.savings.exportedKwh *
+                    solarCostExample.savings.exportRatePence) /
+                    100,
+                ).toLocaleString("en-GB")}`,
+              ],
+              [
+                "Total annual bill saving",
+                solarCostExample.annualKwh.toLocaleString("en-GB"),
+                `£${solarCostExample.savings.annualGBP.toLocaleString(
+                  "en-GB",
+                )}`,
+              ],
+            ]}
+            footnote={`Assumes ~${solarCostExample.savings.selfConsumptionPct}% self-consumption without a battery — typical for a working-hours household. A battery pushes self-consumption to ~75%, cutting export earnings but increasing higher-rate import savings.`}
+          />
+          <p>
+            Simple payback on the{" "}
+            £{solarCostExample.installedGBP.toLocaleString("en-GB")}{" "}
+            install is <strong>
+              ~{solarCostExample.paybackYears} years
+            </strong>{" "}
+            at today&rsquo;s standard tariffs — well inside the
+            25-year MCS panel warranty. Financed at 8.9% APR over 10
+            years, monthly cost is roughly £
+            {solarCostExample.finance.monthlyGBP}/mo against £
+            {solarCostExample.savings.monthlyGBP}/mo of bill
+            savings — a net of{" "}
+            {solarCostExample.netMonthly > 0
+              ? `£${solarCostExample.netMonthly}/mo outlay while the loan runs, then £${solarCostExample.savings.monthlyGBP}/mo pure saving from year 11 on`
+              : `£${Math.abs(solarCostExample.netMonthly)}/mo positive cashflow from day one`}
+            . A dedicated EV tariff or heat-pump time-of-use tariff
+            widens the gap further because self-consumed solar
+            offsets a higher import price during peak hours.
+          </p>
         </>
       )}
 
