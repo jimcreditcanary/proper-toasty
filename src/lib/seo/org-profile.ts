@@ -27,11 +27,14 @@
 export const ORG_PROFILE = {
   // ── Core identity ─────────────────────────────────────────────────
   name: "Propertoasty",
-  /** Trading / legal entity name. Used in legal-page schema + the
-   *  press kit. Different from `name` only if you've registered a
-   *  separate company. Leave === name when they're the same. */
-  legalName: "Propertoasty",
+  /** Trading / legal entity name. Propertoasty is a trading name of
+   *  Braemar, Brook & New Limited (Companies House 11591983). */
+  legalName: "Braemar, Brook & New Limited",
   url: "https://www.propertoasty.com",
+  /** UK Companies House number for the parent legal entity. Used to
+   *  build the parentOrganization block + the Companies House sameAs
+   *  cross-link. */
+  companiesHouseNumber: "11591983",
   /** Absolute URL. The schema component picks this up automatically;
    *  if you change the favicon path, change it here too. */
   logoPath: "/icon.svg",
@@ -56,8 +59,12 @@ export const ORG_PROFILE = {
   },
 
   // ── Contact ───────────────────────────────────────────────────────
-  contactPoint: null as null | {
-    contactType: string; // e.g. "customer service"
+  contactPoint: {
+    contactType: "customer service",
+    email: "hello@propertoasty.com",
+    availableLanguage: "en-GB",
+  } as null | {
+    contactType: string;
     email?: string;
     telephone?: string;
     availableLanguage?: string;
@@ -66,21 +73,13 @@ export const ORG_PROFILE = {
   // ── Cross-references (sameAs) ─────────────────────────────────────
   // Each `sameAs` entry is a public profile of the same organisation
   // on another platform. Google uses these to consolidate the entity
-  // into a single Knowledge Graph node. Add what's real, leave
-  // commented-out placeholders for what's coming.
-  //
-  // Common candidates:
-  //   - LinkedIn company page
-  //   - Crunchbase company page
-  //   - Companies House profile (UK-specific signal of legitimacy)
-  //   - X / Twitter
-  //   - YouTube channel
-  //   - Wikidata entry (once we get one)
+  // into a single Knowledge Graph node. Only add real, verified URLs.
   sameAs: [
-    // TODO_FILL: add real URLs as they come online.
+    // Companies House record for the parent legal entity — the strongest
+    // UK-specific legitimacy signal we can ship without touching socials.
+    "https://find-and-update.company-information.service.gov.uk/company/11591983",
+    // TODO_FILL: add these as Jim confirms the real URLs.
     // "https://www.linkedin.com/company/propertoasty",
-    // "https://www.crunchbase.com/organization/propertoasty",
-    // "https://find-and-update.company-information.service.gov.uk/company/<NUMBER>",
     // "https://x.com/propertoasty",
   ] as string[],
 

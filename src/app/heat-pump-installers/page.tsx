@@ -10,6 +10,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight, ShieldCheck, MapPin, Search } from "lucide-react";
 import { AEOPage } from "@/components/seo";
+import { ItemListSchema } from "@/components/seo/schema";
 import { DEFAULT_AUTHOR_SLUG } from "@/lib/seo/authors";
 import { PILOT_TOWNS } from "@/lib/programmatic/towns";
 
@@ -158,6 +159,22 @@ export default function HeatPumpInstallersHubPage() {
         },
       ]}
     >
+      {/* ─── ItemList JSON-LD ───────────────────────────────────────
+          Ordered list of per-area installer directory pages so Google
+          can render a list-style rich result + AI answer engines can
+          resolve "heat pump installers near {area}" to the right
+          sub-page. Order mirrors what the featured grid visually shows. */}
+      <ItemListSchema
+        url={URL}
+        name="Featured UK areas — MCS-certified heat pump installers"
+        description="Featured towns in the Propertoasty heat pump installer directory. Each entry links to a distance-ranked list of MCS-certified, BUS-registered installers covering that area."
+        items={featured.map((a) => ({
+          name: `Heat pump installers in ${a.name}`,
+          url: `https://www.propertoasty.com/heat-pump-installers/${a.slug}`,
+          description: `MCS-certified heat pump installers covering ${a.name}, ${a.region}.`,
+        }))}
+      />
+
       {/* Postcode quick-search prompt → routes to /check, which handles
           postcode → MCS-directory live search. */}
       <div className="not-prose rounded-2xl border border-[var(--border)] bg-white p-6 mb-10">

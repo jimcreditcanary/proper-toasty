@@ -9,6 +9,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { AEOPage } from "@/components/seo";
+import { DatasetSchema } from "@/components/seo/schema";
 import { DEFAULT_AUTHOR_SLUG } from "@/lib/seo/authors";
 
 const PAGE_URL = "https://www.propertoasty.com/research";
@@ -151,6 +152,41 @@ export default function ResearchHubPage() {
         },
       ]}
     >
+      {/* ─── Dataset JSON-LD ────────────────────────────────────────
+          Two open datasets are derived from the GOV.UK EPC Register
+          and published under OGL v3.0. Marking each as a distinct
+          Dataset makes them discoverable via Google Dataset Search
+          and cite-able by AI answer engines fielding data queries
+          ("UK council heat-pump readiness by area"). */}
+      <DatasetSchema
+        url="https://www.propertoasty.com/research/epc-index-2026-q2"
+        name="Propertoasty EPC Index — Q2 2026"
+        description="Quarterly snapshot of UK council-area home energy efficiency, derived from the full GOV.UK EPC Register. ~17.8 M certificates aggregated by local authority; band distribution, mean SAP, floor area, heating type mix, and lodgement-year trends per area."
+        temporalCoverage="2008-01-01/2026-06-30"
+        spatialCoverage="United Kingdom"
+        keywords={[
+          "EPC",
+          "Energy Performance Certificate",
+          "UK home energy efficiency",
+          "SAP rating",
+          "local authority",
+          "heat pump readiness",
+        ]}
+      />
+      <DatasetSchema
+        url="https://www.propertoasty.com/research/uk-affordability-index"
+        name="UK Heat Pump & Solar Affordability Index 2026"
+        description="Trended snapshot of UK home energy affordability across 5 EPC lodgement years and 13 regions, built from the full GOV.UK EPC Register. Reports heat-pump running-cost ranges per archetype and solar payback per region."
+        temporalCoverage="2012-01-01/2026-06-30"
+        spatialCoverage="United Kingdom"
+        keywords={[
+          "heat pump running cost",
+          "solar PV payback",
+          "UK home energy affordability",
+          "EPC",
+          "regional analysis",
+        ]}
+      />
       <h2>What we publish</h2>
       <p>
         Propertoasty Research is the open-data arm of the

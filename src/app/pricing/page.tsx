@@ -18,6 +18,7 @@ import {
   Zap,
 } from "lucide-react";
 import { MarketingHeader } from "@/components/marketing-header";
+import { FaqPageSchema } from "@/components/seo/schema";
 import {
   CREDIT_PACKS,
   formatGbp,
@@ -29,6 +30,36 @@ import {
   INSTALLER_FREE_STARTER_CREDITS,
 } from "@/lib/booking/credits";
 
+// FAQ items — lifted to module scope so the Faq component + the
+// FaqPageSchema render the same content. Any answer edit stays in
+// one place; the JSON-LD block never drifts from what visitors read.
+const FAQ_ITEMS: Array<{ q: string; a: string }> = [
+  {
+    q: "Do credits expire?",
+    a: "No. Once they're in your account they stay there until you spend them.",
+  },
+  {
+    q: "Is there a contract or subscription?",
+    a: "No. Top-ups are one-off purchases. Auto top-up is opt-in and can be turned off any time.",
+  },
+  {
+    q: "What happens if I run out mid-quote?",
+    a: "Quote sends and homeowner messaging are always free. You only spend credits on accepting leads and sending pre-survey emails — top up takes 30 seconds via Stripe Checkout.",
+  },
+  {
+    q: "Are prices VAT-inclusive?",
+    a: "Yes — every figure on this page is the total you pay. VAT receipts are downloadable from the Billing page once you've signed up.",
+  },
+  {
+    q: "Can I get a refund?",
+    a: "Unspent credits aren't refundable — but they don't expire either, so you'll always be able to use them. If something goes wrong with a specific transaction, drop us a note and we'll sort it.",
+  },
+  {
+    q: "Is there a per-installer team plan?",
+    a: "Not yet — every installer profile is a single account today. If you're running a multi-engineer outfit and want shared credits or seat-based access, get in touch.",
+  },
+];
+
 export const metadata = {
   title: "Pricing — Propertoasty for installers",
   description: `Free to start — ${INSTALLER_FREE_STARTER_CREDITS} credits on the house. Pay-as-you-go credit packs, no subscriptions.`,
@@ -38,6 +69,12 @@ export const metadata = {
 export default function PricingPage() {
   return (
     <div className="flex min-h-screen flex-col bg-cream text-navy">
+      {/* FAQPage JSON-LD — mirrors the visible Faq section below.
+          Emit at the top of the tree so it's near the head where
+          Google prefers to see structured data. */}
+      <FaqPageSchema
+        faqs={FAQ_ITEMS.map((it) => ({ question: it.q, answer: it.a }))}
+      />
       <MarketingHeader audience="installer" active="pricing" />
 
       <main className="flex-1">
@@ -275,39 +312,13 @@ function PackTile({ pack }: { pack: CreditPack }) {
 // ─── FAQ ─────────────────────────────────────────────────────────
 
 function Faq() {
-  const items = [
-    {
-      q: "Do credits expire?",
-      a: "No. Once they're in your account they stay there until you spend them.",
-    },
-    {
-      q: "Is there a contract or subscription?",
-      a: "No. Top-ups are one-off purchases. Auto top-up is opt-in and can be turned off any time.",
-    },
-    {
-      q: "What happens if I run out mid-quote?",
-      a: "Quote sends and homeowner messaging are always free. You only spend credits on accepting leads and sending pre-survey emails — top up takes 30 seconds via Stripe Checkout.",
-    },
-    {
-      q: "Are prices VAT-inclusive?",
-      a: "Yes — every figure on this page is the total you pay. VAT receipts are downloadable from the Billing page once you've signed up.",
-    },
-    {
-      q: "Can I get a refund?",
-      a: "Unspent credits aren't refundable — but they don't expire either, so you'll always be able to use them. If something goes wrong with a specific transaction, drop us a note and we'll sort it.",
-    },
-    {
-      q: "Is there a per-installer team plan?",
-      a: "Not yet — every installer profile is a single account today. If you're running a multi-engineer outfit and want shared credits or seat-based access, get in touch.",
-    },
-  ];
   return (
     <section className="mx-auto max-w-3xl px-4 sm:px-6 mb-16">
       <h2 className="text-2xl sm:text-3xl text-navy text-center mb-8 font-bold tracking-tight">
         Common questions
       </h2>
       <div className="space-y-3">
-        {items.map((it) => (
+        {FAQ_ITEMS.map((it) => (
           <details
             key={it.q}
             className="rounded-xl border border-slate-200 bg-white p-4 group"
