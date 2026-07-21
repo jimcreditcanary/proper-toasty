@@ -1,7 +1,22 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Logo } from "@/components/logo";
 import { MarketingHeader } from "@/components/marketing-header";
 import { AlertTriangle } from "lucide-react";
+
+export const metadata: Metadata = {
+  title: "AI Statement — how Propertoasty uses AI in your pre-survey report",
+  description:
+    "Where Propertoasty uses AI (floorplan vision, satellite roof reading, EPC interpretation, report generation), where we don't, its limits, and how to double-check the output.",
+  alternates: { canonical: "https://www.propertoasty.com/ai-statement" },
+  openGraph: {
+    title: "AI Statement — how Propertoasty uses AI in your pre-survey report",
+    description:
+      "Where Propertoasty uses AI (floorplan vision, satellite roof reading, EPC interpretation, report generation), where we don't, its limits, and how to double-check the output.",
+    type: "article",
+    url: "https://www.propertoasty.com/ai-statement",
+  },
+};
 
 export default function AIStatementPage() {
   return (
@@ -12,7 +27,7 @@ export default function AIStatementPage() {
         <h1 className="text-3xl sm:text-4xl font-bold tracking-tight mb-2">
           AI Statement
         </h1>
-        <p className="text-sm text-slate-500 mb-10">Last updated: 14 April 2026</p>
+        <p className="text-sm text-slate-500 mb-10">Last updated: 17 July 2026</p>
 
         <div className="prose prose-slate prose-lg max-w-none prose-headings:font-bold prose-headings:tracking-tight prose-h2:text-xl prose-h2:mt-14 prose-h2:mb-6 prose-h3:text-lg prose-h3:mt-10 prose-h3:mb-4 prose-p:leading-[1.8] prose-p:text-slate-600 prose-p:mb-7 prose-li:text-slate-600 prose-li:my-2 prose-li:leading-[1.8] prose-ul:my-7 prose-ol:my-7 prose-a:text-coral prose-a:font-semibold prose-a:no-underline hover:prose-a:underline">
 
@@ -22,75 +37,78 @@ export default function AIStatementPage() {
               <AlertTriangle className="size-5 text-amber-600 shrink-0 mt-0.5" />
               <div>
                 <p className="font-semibold text-amber-900 text-sm">
-                  AI-generated content should be treated with caution
+                  Our reports are a pre-survey indication, not an engineering assessment.
                 </p>
                 <p className="text-sm text-amber-700 mt-1">
-                  While we use AI to help analyse and present information, AI can make mistakes. Always verify important details independently before making financial decisions.
+                  AI helps us read your floorplan and roof, but a certified installer&rsquo;s site visit is what confirms the design and price. Always verify with an MCS-certified installer before committing to an install.
                 </p>
               </div>
             </div>
           </div>
 
           <p>
-            Propertoasty (a trading name of <strong><a href="https://find-and-update.company-information.service.gov.uk/company/11591983" target="_blank" rel="noopener noreferrer">Braemar, Brook &amp; New Limited</a></strong>, company no. 11591983) uses artificial intelligence in specific parts of our service. We believe in being transparent about where AI is used, what it does, and its limitations.
+            Propertoasty (a trading name of <strong><a href="https://find-and-update.company-information.service.gov.uk/company/11591983" target="_blank" rel="noopener noreferrer">Braemar, Brook &amp; New Limited</a></strong>, company no. 11591983) uses artificial intelligence in specific parts of the pre-survey report. We believe in being transparent about where AI is used, what it does, and its limitations.
           </p>
 
           <h2>Where we use AI</h2>
-          <p>We currently use AI (powered by Anthropic&apos;s Claude) in the following areas:</p>
+          <p>The pre-survey report uses AI (powered by Anthropic&apos;s Claude and Google&apos;s Solar API) in the following areas:</p>
 
-          <h3>1. Invoice data extraction</h3>
+          <h3>1. Floorplan analysis (machine vision)</h3>
           <p>
-            When you upload an invoice, estimate, or payment request, we use AI to automatically extract key details such as the payee name, company name, bank sort code, account number, VAT number, and payment amount. This saves you from manually entering this information.
+            When you upload a floorplan, Claude reads it as an image: identifying rooms, estimating floor area if the EPC record is missing, spotting where the current gas boiler is likely located, and flagging spaces that could realistically house a hot-water cylinder. The output is a structured description of your layout, validated against a strict schema — not free-form prose.
           </p>
 
-          <h3>2. Online review summarisation</h3>
+          <h3>2. Satellite roof reading (Google Solar API)</h3>
           <p>
-            As part of our verification checks, we use AI to search for and summarise online reviews and reputation information about a payee. The AI analyses publicly available review data and presents a summary of findings.
+            For the solar pre-survey, we call Google&apos;s Solar API with your address. It returns per-segment roof geometry (pitch, azimuth, area) and modelled annual irradiance for your specific rooftop. We use that to estimate a realistic panel count, kWp system size, and expected annual generation. The API&apos;s data quality is graded HIGH / MEDIUM / LOW per address — we surface that grade in the report so you know how much weight to place on it.
           </p>
 
-          <h3>3. Marketplace valuation</h3>
+          <h3>3. EPC interpretation</h3>
           <p>
-            When you provide a Facebook Marketplace listing, we use AI to analyse the listing details and provide an estimated market valuation to help you assess whether the asking price is reasonable.
+            We pull your home&apos;s Energy Performance Certificate directly from the GOV.UK EPC Register. AI is used to read the certificate&apos;s recommendations — e.g. &ldquo;loft insulation to 270mm&rdquo; — and translate them into the Boiler Upgrade Scheme (BUS) prerequisites that Ofgem expects to be cleared before a heat pump goes in. The rules engine that decides &ldquo;BUS-eligible&rdquo; vs &ldquo;insulation-first&rdquo; is a set of pure functions cited against Ofgem guidance — not AI.
           </p>
 
-          <h3>4. Risk assessment summaries</h3>
+          <h3>4. Report generation</h3>
           <p>
-            AI is used to compile the results of our various checks (bank verification, company status, VAT validation, reviews) into an overall risk summary with plain-English explanations.
+            Once the property, EPC, solar, and floorplan data are stitched together, AI is used to compose the plain-English narrative that explains what it all means for your home — what heat-pump size fits, what roof segments are best for solar, what the BUS grant would be worth, and what to ask an installer. The underlying numbers come from deterministic calculations; the AI writes the words around them.
           </p>
 
           <h2>Where we do not use AI</h2>
-          <p>The following checks use direct data lookups and do not involve AI interpretation:</p>
+          <p>Several parts of the report are direct data lookups or deterministic calculations — no AI interpretation:</p>
           <ul>
-            <li><strong>Confirmation of Payee</strong> — a direct check with the receiving bank to verify the account name</li>
-            <li><strong>Companies House lookup</strong> — direct query of the Companies House register</li>
-            <li><strong>HMRC VAT validation</strong> — direct verification with HMRC&apos;s VAT database</li>
+            <li><strong>EPC record lookup</strong> — direct API call to the GOV.UK EPC Register, keyed on your address (UPRN).</li>
+            <li><strong>Address &amp; postcode resolution</strong> — direct calls to Google Places and Postcodes.io.</li>
+            <li><strong>BUS eligibility rules</strong> — pure functions coded against Ofgem&apos;s published guidance, unit-tested and auditable.</li>
+            <li><strong>Heat-pump running-cost model</strong> — deterministic maths: floor area × demand-per-m² × SCOP × tariff.</li>
+            <li><strong>Solar yield</strong> — PVGIS v5.3, an EU Joint Research Centre model of solar irradiance. Numerical, not AI.</li>
+            <li><strong>MCS installer directory</strong> — direct import of the official MCS-certified installers list.</li>
           </ul>
 
           <h2>Limitations of AI</h2>
-          <p>AI technology, while powerful, has important limitations that you should be aware of:</p>
+          <p>AI technology, while powerful, has important limits you should be aware of:</p>
           <ul>
-            <li><strong>AI can make mistakes</strong> — extracted data from invoices may contain errors, especially with handwritten, scanned, or poorly formatted documents</li>
-            <li><strong>AI can misinterpret context</strong> — review summaries may not fully capture nuance or may present outdated information</li>
-            <li><strong>AI does not verify facts</strong> — when AI summarises reviews or analyses listings, it presents information as found; it cannot independently confirm whether reviews are genuine or listings are legitimate</li>
-            <li><strong>AI outputs are not advice</strong> — our risk assessments are informational summaries, not financial or legal advice</li>
+            <li><strong>Floorplan reading can miss detail</strong> — hand-drawn floorplans, low-resolution scans, or ambiguous room labels can produce misidentified rooms or misjudged floor area. Always sanity-check the extracted floor area against what you know.</li>
+            <li><strong>Satellite roof data isn&apos;t universal</strong> — Google&apos;s Solar API has excellent coverage of English cities and much of Wales, but some rural addresses land at LOW quality or no coverage at all. We flag this in the report; a physical roof survey is the only way to confirm.</li>
+            <li><strong>EPC records can be out of date</strong> — a 2011 EPC won&apos;t reflect insulation you added in 2023. We show the certificate&apos;s expiry date so you can judge.</li>
+            <li><strong>Our report is a pre-survey indication, not a design</strong> — it&apos;s what an installer can use to give you a properly-priced quote without a two-hour first visit. It is not the final engineering assessment.</li>
           </ul>
 
-          <h2>How to double-check AI results</h2>
-          <p>We encourage you to verify AI-generated information, especially before making large payments:</p>
+          <h2>How to double-check the AI output</h2>
+          <p>We encourage you to verify AI-generated parts of the report before committing to an install:</p>
           <ul>
-            <li><strong>Review extracted invoice data</strong> — after AI extraction, you can review and edit all fields before submitting your check. Always compare against the original document.</li>
-            <li><strong>Check the source data</strong> — our verification results link back to source data where possible (e.g., Companies House records, HMRC VAT checker)</li>
-            <li><strong>Contact the payee directly</strong> — for large payments, call the payee on a known number to confirm bank details</li>
-            <li><strong>Seek professional advice</strong> — if you are uncertain about a payment, consult your bank or a qualified advisor</li>
+            <li><strong>Review the extracted floorplan summary</strong> — the report lists the rooms and floor area we read from your upload. If it&rsquo;s wrong, tell us; we&rsquo;ll re-analyse.</li>
+            <li><strong>Check the EPC record source</strong> — the report links directly to your certificate on <a href="https://find-energy-certificate.service.gov.uk/" target="_blank" rel="noopener noreferrer">find-energy-certificate.service.gov.uk</a>.</li>
+            <li><strong>Check the roof coverage grade</strong> — the report displays the Google Solar API&apos;s per-address quality grade. LOW-grade addresses should be treated as directional; MEDIUM/HIGH are quote-ready.</li>
+            <li><strong>Book a site visit with an MCS-certified installer</strong> — the report is designed so an installer can quote from it, but the final design and price come from a physical survey.</li>
           </ul>
 
           <h2>Our commitment</h2>
           <p>We are committed to:</p>
           <ul>
-            <li><strong>Transparency</strong> — clearly indicating where AI is used in our results</li>
-            <li><strong>Accuracy</strong> — continuously improving our AI models and prompts to reduce errors</li>
-            <li><strong>Human oversight</strong> — designing our service so that you always have the opportunity to review and verify AI-generated content before acting on it</li>
-            <li><strong>Data privacy</strong> — processing your data in accordance with our <Link href="/privacy">Privacy Policy</Link> and UK GDPR</li>
+            <li><strong>Transparency</strong> — clearly indicating where AI is used in the report and where it isn&apos;t.</li>
+            <li><strong>Accuracy</strong> — continuously improving our prompts, schema validation, and rules engines to reduce errors.</li>
+            <li><strong>Human oversight</strong> — designing the report so a homeowner can sanity-check each section and an installer can override any AI-derived assumption on the site visit.</li>
+            <li><strong>Data privacy</strong> — processing your data in accordance with our <Link href="/privacy">Privacy Policy</Link> and UK GDPR. Floorplans are stored in a private bucket with 90-day retention.</li>
           </ul>
 
           <h2>Contact us</h2>

@@ -34,6 +34,7 @@ export const metadata = {
   title: "Heat pump check — Propertoasty",
   description:
     "Is your UK home ready for a heat pump? Check BUS grant eligibility, system size and outdoor-unit placement in five minutes — no site visit needed.",
+  alternates: { canonical: "https://www.propertoasty.com/heatpump" },
 };
 
 export default function HeatPumpLanding() {

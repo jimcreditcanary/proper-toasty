@@ -29,6 +29,7 @@ export const metadata = {
   title: "Check your home",
   description:
     "Find out if your UK home is eligible for the Boiler Upgrade Scheme and suitable for rooftop solar — a pre-survey indication in minutes.",
+  alternates: { canonical: "https://www.propertoasty.com/check" },
 };
 
 interface PageProps {

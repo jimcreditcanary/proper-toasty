@@ -32,6 +32,7 @@ export const metadata = {
   description:
     "Pre-survey reports, lead routing, written quotes, and CRM API access for MCS-certified UK heat pump and solar installers. " +
     `Free to start — ${INSTALLER_FREE_STARTER_CREDITS} credits on signup.`,
+  alternates: { canonical: "https://www.propertoasty.com/enterprise" },
 };
 
 export default function EnterprisePage() {
