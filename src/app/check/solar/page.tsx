@@ -24,7 +24,7 @@ import { CheckWizard } from "@/components/check-wizard/wizard-shell";
 import { isFeatureEnabled } from "@/lib/feature-flags";
 
 export const metadata = {
-  title: "Solar check — Propertoasty",
+  title: "Solar check",
   description:
     "Find out if your UK roof is suited to solar PV + battery. We use Google Solar imagery + your address — no floorplan needed.",
   alternates: { canonical: "https://www.propertoasty.com/check/solar" },

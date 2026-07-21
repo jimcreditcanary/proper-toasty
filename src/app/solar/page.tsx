@@ -31,7 +31,7 @@ import {
 const HERO_IMAGE = "/hero-solar.jpg";
 
 export const metadata = {
-  title: "Solar + battery check — Propertoasty",
+  title: "Solar + battery check",
   description:
     "Is your UK roof right for solar? Get a satellite-read kWp estimate, annual generation and battery payback in five minutes — no floorplan upload needed.",
   alternates: { canonical: "https://www.propertoasty.com/solar" },

@@ -13,44 +13,49 @@ const fraunces = Fraunces({
   axes: ["SOFT", "WONK"],
 });
 
+// Sitewide default OG / Twitter image. 1200×630 is Facebook/Twitter's
+// preferred aspect. hero-uk-home.jpg is the brand-neutral house shot
+// we use as the homepage lead; pages with their own hero can override
+// by setting `openGraph.images` in their metadata block.
+const OG_IMAGE = {
+  url: "/hero-uk-home.jpg",
+  width: 1200,
+  height: 630,
+  alt: "Propertoasty — UK home pre-survey report",
+};
+
 export const metadata: Metadata = {
   metadataBase: new URL("https://www.propertoasty.com"),
   title: {
-    default: "Proper Toasty — Greener living starts at home",
-    template: "%s | Proper Toasty",
+    // Brand standardised to "Propertoasty" (single word, no space).
+    // Was "Proper Toasty" — the split form fragmented the entity
+    // across brand mentions ("Proper Toasty", "Propertoasty",
+    // "propertoasty.com"), which weakens the Knowledge Graph node
+    // AI search engines resolve to.
+    default: "Propertoasty — Greener living starts at home",
+    template: "%s | Propertoasty",
   },
   description:
     "Check your UK home for a heat pump, rooftop solar, or a home battery — with room for EV charging when you're ready. Pre-survey report, installer-ready, grant-eligible.",
-  keywords: [
-    "heat pump eligibility",
-    "Boiler Upgrade Scheme",
-    "BUS grant",
-    "solar PV suitability",
-    "home battery",
-    "battery storage UK",
-    "EV charger home",
-    "MCS installer",
-    "UK home energy",
-    "air source heat pump",
-    "EPC check",
-    "rooftop solar",
-    "greener living",
-  ],
+  // No `keywords` array — meta keywords has been unused by every
+  // major search engine since 2009. Removed to reduce noise.
   robots: { index: true, follow: true },
   openGraph: {
     type: "website",
     locale: "en_GB",
     url: "https://www.propertoasty.com",
-    siteName: "Proper Toasty",
-    title: "Proper Toasty — Greener living starts at home",
+    siteName: "Propertoasty",
+    title: "Propertoasty — Greener living starts at home",
     description:
       "Pre-survey checks for UK heat pump, solar, battery, and EV-charger upgrades. Report-ready for your MCS installer.",
+    images: [OG_IMAGE],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Proper Toasty — Greener living starts at home",
+    title: "Propertoasty — Greener living starts at home",
     description:
       "Heat pump, solar, battery, and EV-ready checks for your UK home. Grant-eligible, installer-ready.",
+    images: [OG_IMAGE.url],
   },
   // NO layout-level `alternates.canonical`. Next.js metadata merges child
   // into parent — a default canonical here silently leaks to every page

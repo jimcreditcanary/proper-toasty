@@ -31,7 +31,7 @@ import {
 const HERO_IMAGE = "/hero-heatpump.jpg";
 
 export const metadata = {
-  title: "Heat pump check — Propertoasty",
+  title: "Heat pump check",
   description:
     "Is your UK home ready for a heat pump? Check BUS grant eligibility, system size and outdoor-unit placement in five minutes — no site visit needed.",
   alternates: { canonical: "https://www.propertoasty.com/heatpump" },

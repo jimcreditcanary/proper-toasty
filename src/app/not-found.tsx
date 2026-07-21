@@ -7,7 +7,7 @@ import { MarketingHeader } from "@/components/marketing-header";
 import { LandingFooter } from "@/components/landing-footer";
 
 export const metadata: Metadata = {
-  title: "Page not found — Propertoasty",
+  title: "Page not found",
   description:
     "The page you're looking for doesn't exist. Try the homepage, the free property check, or our installer directory.",
   robots: { index: false, follow: false },

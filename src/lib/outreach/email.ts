@@ -85,7 +85,7 @@ function formatFrom(): string {
   const addr =
     process.env.POSTMARK_OUTREACH_SENDER_EMAIL ?? "jim@mail.propertoasty.com";
   const name =
-    process.env.POSTMARK_OUTREACH_SENDER_NAME ?? "Jim @ Proper Toasty";
+    process.env.POSTMARK_OUTREACH_SENDER_NAME ?? "Jim @ Propertoasty";
   return `${name} <${addr}>`;
 }
 

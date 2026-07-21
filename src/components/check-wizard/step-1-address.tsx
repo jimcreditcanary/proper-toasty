@@ -132,6 +132,20 @@ export function Step1Address() {
   const firstName = state.leadName?.split(" ")[0] || null;
   const isPrefilled = !!state.preSurveyRequestId;
 
+  // Page-level H1 — focus-aware so /check/heatpump and /check/solar
+  // read as their own dedicated landing rather than a generic
+  // "everything check". The postcode prompt now lives as a label
+  // above the input (better semantics + fixes the SEO audit finding
+  // that /check's H1 was just "What's your postcode?").
+  const pageHeading =
+    state.focus === "solar"
+      ? "Check your roof for solar and a battery"
+      : state.focus === "heatpump"
+        ? "Check your home for a heat pump"
+        : state.focus === "boiler"
+          ? "New boiler or heat pump? Check your home"
+          : "Check your home for a heat pump, solar and battery";
+
   return (
     <div className="max-w-xl mx-auto w-full">
       <div className="text-center mb-8">
@@ -142,8 +156,8 @@ export function Step1Address() {
         )}
         <h1 className="text-3xl sm:text-4xl text-navy">
           {isPrefilled && firstName
-            ? `${firstName}, what's your postcode?`
-            : "What’s your postcode?"}
+            ? `${firstName}, let’s start with your postcode`
+            : pageHeading}
         </h1>
         <p className="mt-3 text-slate-600">
           We&rsquo;ll pull the exact property — UPRN, EPC, roof — from public UK data.
@@ -157,35 +171,44 @@ export function Step1Address() {
           void search();
         }}
       >
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-        <input
-          type="text"
-          inputMode="text"
-          autoComplete="postal-code"
-          spellCheck={false}
-          placeholder="e.g. SW1A 2AA"
-          className="w-full h-14 pl-12 pr-32 rounded-xl border border-[var(--border)] bg-white text-base text-navy placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-coral focus:border-transparent shadow-sm uppercase"
-          value={postcode}
-          onChange={(e) => setPostcode(e.target.value)}
-          disabled={phase === "searching" || phase === "resolving"}
-        />
-        <button
-          type="submit"
-          disabled={phase === "searching" || phase === "resolving" || postcode.trim().length < 5}
-          className="absolute right-2 top-1/2 -translate-y-1/2 inline-flex items-center gap-1.5 h-10 px-4 rounded-lg bg-coral hover:bg-coral-dark disabled:bg-slate-300 disabled:cursor-not-allowed text-cream font-semibold text-sm transition-colors"
+        <label
+          htmlFor="postcode-input"
+          className="block text-sm font-semibold text-navy mb-2 text-center"
         >
-          {phase === "searching" ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin" />
-              Searching
-            </>
-          ) : (
-            <>
-              Find address
-              <ArrowRight className="w-4 h-4" />
-            </>
-          )}
-        </button>
+          What&rsquo;s your postcode?
+        </label>
+        <div className="relative">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+          <input
+            id="postcode-input"
+            type="text"
+            inputMode="text"
+            autoComplete="postal-code"
+            spellCheck={false}
+            placeholder="e.g. SW1A 2AA"
+            className="w-full h-14 pl-12 pr-32 rounded-xl border border-[var(--border)] bg-white text-base text-navy placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-coral focus:border-transparent shadow-sm uppercase"
+            value={postcode}
+            onChange={(e) => setPostcode(e.target.value)}
+            disabled={phase === "searching" || phase === "resolving"}
+          />
+          <button
+            type="submit"
+            disabled={phase === "searching" || phase === "resolving" || postcode.trim().length < 5}
+            className="absolute right-2 top-1/2 -translate-y-1/2 inline-flex items-center gap-1.5 h-10 px-4 rounded-lg bg-coral hover:bg-coral-dark disabled:bg-slate-300 disabled:cursor-not-allowed text-cream font-semibold text-sm transition-colors"
+          >
+            {phase === "searching" ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Searching
+              </>
+            ) : (
+              <>
+                Find address
+                <ArrowRight className="w-4 h-4" />
+              </>
+            )}
+          </button>
+        </div>
       </form>
 
       {error && (
