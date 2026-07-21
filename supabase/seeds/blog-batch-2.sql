@@ -87,7 +87,7 @@ values
 
 <p>If you are in a typical UK home with a normal-sized garden: air source. If you have land and plan to stay long-term: get a ground source quote alongside an air source one and compare 15-year running costs against the install premium. Our <a href="/check">free pre-survey check</a> shows the install size and running cost for an air source system on your specific property in five minutes.</p>',
   'Guides',
-  'Propertoasty',
+  'Jim Fell',
   true,
   now()
 ),
@@ -101,7 +101,7 @@ values
 
 <p>Here is what actually matters in an older property.</p>
 
-<h2>The radiator question</h2>
+<h2>Do I need bigger radiators for a heat pump?</h2>
 
 <p>Heat pumps run cooler water through your radiators (45-50°C) than a gas boiler (65-75°C). To heat a room with cooler water, you need more radiator surface area. In practice that means 30-50% bigger radiators in most rooms.</p>
 
@@ -113,7 +113,7 @@ values
   <li>Underfloor heating works even better but is rarely worth retrofitting through an existing floor.</li>
 </ul>
 
-<h2>The insulation question</h2>
+<h2>How much insulation does an old house need before a heat pump?</h2>
 
 <p>You do not need to insulate every wall before getting a heat pump. You do need to make sure heat is not pouring out of obvious places.</p>
 
@@ -126,7 +126,7 @@ values
 
 <p>EPC band E or above is a reasonable target before installing. We have a separate guide on <a href="/blog/insulation-before-heat-pump">insulation prerequisites for heat pumps</a>.</p>
 
-<h2>The sizing question</h2>
+<h2>What size heat pump does an old house need?</h2>
 
 <p>An older home loses more heat than a modern one — typically 80-120 W/m² versus 40-60 W/m² for a recent build. That means a 3-bed Victorian needs an 8-10 kW heat pump where a 3-bed new-build needs 5-6 kW.</p>
 
@@ -152,7 +152,7 @@ values
 
 <p>Heat pumps work in old houses when designed properly. They fail when an installer treats them as a like-for-like boiler swap. The premium you pay over the cheapest quote almost always reflects bigger radiators, a proper heat-loss survey, and competent commissioning — and that premium is the difference between a system you love and one you hate. Run our <a href="/check">free pre-survey check</a> to see what a heat pump install looks like on your specific property.</p>',
   'Guides',
-  'Propertoasty',
+  'Jim Fell',
   true,
   now()
 ),
@@ -215,7 +215,7 @@ values
 
 <p>Run our <a href="/check">free pre-survey check</a> for a personalised running-cost estimate based on your property and current heating fuel.</p>',
   'Guides',
-  'Propertoasty',
+  'Jim Fell',
   true,
   now()
 ),
@@ -284,7 +284,7 @@ values
 
 <p>Run our <a href="/check">free pre-survey check</a> for a sense of where the unit would go on your property and what the install looks like.</p>',
   'Guides',
-  'Propertoasty',
+  'Jim Fell',
   true,
   now()
 ),
@@ -356,7 +356,7 @@ values
 
 <p>If you are getting one, plan for both. The marginal cost of adding solar to a heat pump install is ~£5,000-£8,000 net of the inverter you would have needed anyway. Payback is typically 6-9 years and the systems share a 25-year operational lifespan. Run our <a href="/check">free pre-survey check</a> to see what a combined install looks like on your roof.</p>',
   'Guides',
-  'Propertoasty',
+  'Jim Fell',
   true,
   now()
 ),
@@ -433,7 +433,7 @@ values
 
 <p>Treat SEG as a switch-and-forget — pick the highest-paying tariff that matches your import setup, register with the certificate your installer gives you, then forget it for a year. Revisit annually because supplier rates change. For a typical 4 kWp install, expect £100-£250/yr from SEG alongside whatever you save on imports. Run our <a href="/check">free pre-survey check</a> for a personalised export estimate based on your roof.</p>',
   'Guides',
-  'Propertoasty',
+  'Jim Fell',
   true,
   now()
 ),
@@ -510,7 +510,7 @@ values
 
 <p>Switch within a month of your heat pump going live. Octopus Cosy is the safest default; OVO Heat Pump Plus if you cannot face scheduling. Run our <a href="/check">free pre-survey check</a> for a personalised running-cost estimate that includes tariff comparisons.</p>',
   'Guides',
-  'Propertoasty',
+  'Jim Fell',
   true,
   now()
 ),
@@ -591,7 +591,7 @@ values
 
 <p>Possible in most flats; smooth in well-managed buildings with cooperative freeholders; impossible if your lease is restrictive or your building is communal-heated. Always start with the lease and the freeholder before getting installer quotes. Run our <a href="/check">free pre-survey check</a> to see what the install would look like on your specific property — it works on flats too.</p>',
   'Guides',
-  'Propertoasty',
+  'Jim Fell',
   true,
   now()
 ),
@@ -642,7 +642,7 @@ values
   <li>What the warranty looks like and who handles servicing.</li>
 </ul>
 
-<h2>The hydrogen question</h2>
+<h2>Will hydrogen boilers replace gas boilers in UK homes?</h2>
 
 <p>You will read articles claiming we will all run hydrogen boilers instead. The honest answer: <strong>this is unlikely for domestic heating</strong>. The UK''s Hydrogen Village trials (Whitby, Redcar) were both cancelled in 2023-2024. The Climate Change Committee, the National Infrastructure Commission, and most independent analysts agree hydrogen will be used in industry and heavy transport, not in homes. Plan around heat pumps, not hydrogen.</p>
 
@@ -659,7 +659,7 @@ values
 
 <p>The 2035 ban is a policy intent for new gas boilers, not an obligation to rip out working ones. Most homeowners will switch to heat pumps voluntarily as boilers fail and grant economics keep improving. There is no need to panic; there is good reason to plan. Run our <a href="/check">free pre-survey check</a> for a personalised view of when a heat pump makes sense for your property.</p>',
   'News',
-  'Propertoasty',
+  'Jim Fell',
   true,
   now()
 ),
@@ -727,7 +727,7 @@ values
 
 <p>Get loft and cavity sorted before the heat pump (legally required for BUS, cheap to do). Do not let an installer talk you into solid wall insulation as a precondition — the maths rarely supports it. Run our <a href="/check">free pre-survey check</a>; the report flags any insulation prerequisites for your specific property based on your EPC.</p>',
   'Guides',
-  'Propertoasty',
+  'Jim Fell',
   true,
   now()
 )

@@ -107,6 +107,24 @@ export function getAuthor(slug: string): AuthorProfile | null {
   return AUTHORS[slug] ?? null;
 }
 
+/**
+ * Reverse lookup — resolve a free-text author name (as stored on
+ * `public.blog_posts.author`) to a registry slug. Used by the
+ * blog byline to render a link to /authors/<slug> when the name
+ * matches a real author. Case-insensitive.
+ *
+ * Returns null for unknown names (external contributors we haven't
+ * added to the registry yet, or legacy pre-migration bylines).
+ * Callers should fall back to plain-text rendering.
+ */
+export function authorSlugForName(name: string): string | null {
+  const normalised = name.trim().toLowerCase();
+  for (const [slug, author] of Object.entries(AUTHORS)) {
+    if (author.name.toLowerCase() === normalised) return slug;
+  }
+  return null;
+}
+
 /** Absolute URL of an author's bio page on the site. */
 export function authorUrl(slug: string): string {
   return `${ORG_PROFILE.url}/authors/${slug}`;
