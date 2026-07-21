@@ -25,7 +25,31 @@ import {
   Zap,
 } from "lucide-react";
 import { MarketingHeader } from "@/components/marketing-header";
+import { HowToSchema } from "@/components/seo/schema";
 import { INSTALLER_FREE_STARTER_CREDITS } from "@/lib/booking/credits";
+
+// Four-step onboarding — lifted to module scope so the visible
+// HowItWorks section and the HowTo JSON-LD read from one source
+// (audit item 13). Rendered as HowTo rather than Article because
+// this IS a procedural walkthrough, not a general explainer.
+const HOW_IT_WORKS_STEPS: Array<{ name: string; text: string }> = [
+  {
+    name: "Claim your MCS profile",
+    text: "Find your company in the MCS directory, claim it in 30 seconds. No paperwork.",
+  },
+  {
+    name: `Get ${INSTALLER_FREE_STARTER_CREDITS} free credits`,
+    text: `Granted automatically the moment your claim completes. Roughly six leads or ${INSTALLER_FREE_STARTER_CREDITS} pre-survey sends, on us.`,
+  },
+  {
+    name: "Set your availability",
+    text: "Pick the slots you can take site visits. Without this, the directory won't route any leads to you.",
+  },
+  {
+    name: "Win + quote leads",
+    text: "Accept the leads that fit, send written quotes straight from the report, get accept/decline back via email.",
+  },
+];
 
 export const metadata = {
   title: "For installers",
@@ -38,6 +62,19 @@ export const metadata = {
 export default function EnterprisePage() {
   return (
     <div className="flex min-h-screen flex-col bg-cream text-navy">
+      {/* HowTo JSON-LD — mirrors the visible "Four steps from
+          sign-up to first quote" section. Emitting here (near the
+          document head) is Google's preferred position. */}
+      <HowToSchema
+        headline="Onboarding as an installer on Propertoasty"
+        description="Four steps from claiming your MCS profile to winning your first quoted lead — the standard Propertoasty installer onboarding flow."
+        url="https://www.propertoasty.com/enterprise"
+        image="/hero-heatpump.jpg"
+        datePublished="2026-05-14"
+        dateModified="2026-07-20"
+        totalTime="PT1H"
+        steps={HOW_IT_WORKS_STEPS}
+      />
       <MarketingHeader audience="installer" active="overview" />
       <main className="flex-1">
         <Hero />
@@ -201,26 +238,14 @@ function HowItWorks() {
           </h2>
         </div>
         <div className="mt-12 grid grid-cols-1 md:grid-cols-4 gap-6">
-          <Step
-            n="01"
-            title="Claim your MCS profile"
-            body="Find your company in the directory, claim it in 30 seconds. No paperwork."
-          />
-          <Step
-            n="02"
-            title="Get 30 free credits"
-            body="Granted automatically the moment your claim completes. ~6 leads OR 30 pre-survey sends, on us."
-          />
-          <Step
-            n="03"
-            title="Set your availability"
-            body="Pick the slots you can take site visits. Without this, the directory won't route any leads to you."
-          />
-          <Step
-            n="04"
-            title="Win + quote leads"
-            body="Accept the leads that fit, send written quotes from the report, get accept/decline back via email."
-          />
+          {HOW_IT_WORKS_STEPS.map((s, i) => (
+            <Step
+              key={s.name}
+              n={String(i + 1).padStart(2, "0")}
+              title={s.name}
+              body={s.text}
+            />
+          ))}
         </div>
       </div>
     </section>

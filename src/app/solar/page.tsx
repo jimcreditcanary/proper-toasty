@@ -12,6 +12,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { MarketingHeader } from "@/components/marketing-header";
 import { LandingFooter } from "@/components/landing-footer";
+import { FaqPageSchema } from "@/components/seo/schema";
 import {
   ArrowRight,
   Sun,
@@ -24,6 +25,31 @@ import {
   CheckCircle2,
   Leaf,
 } from "lucide-react";
+
+// AEO FAQ block — 40-60 word direct-answer paragraphs mirrored to
+// FAQPage JSON-LD.
+const SOLAR_FAQS: Array<{ q: string; a: string }> = [
+  {
+    q: "How much do solar panels cost for a typical UK roof?",
+    a: "A 3.5-5 kW residential PV system installed on a UK roof in 2026 costs £4,000-£8,000 fully fitted (panels, inverter, scaffolding, DNO notification). Adding a 5 kWh battery lifts the total to £6,500-£10,500. Prices vary with roof complexity, inverter placement, and access. 0% VAT on domestic solar until 2027 means the sticker price is what you pay.",
+  },
+  {
+    q: "How long does solar payback take in the UK?",
+    a: "A typical 4 kW UK system with no battery pays back in 8-12 years at 2026 tariffs — self-consumed generation offsets 27p/kWh import, exported surplus earns 3-15p/kWh via the Smart Export Guarantee. Adding a battery shifts more generation to self-consumption and typically cuts payback to 6-9 years for households spending over £800/year on electricity.",
+  },
+  {
+    q: "Do I need planning permission for rooftop solar?",
+    a: "For most UK homes, no — rooftop solar falls under Permitted Development if panels don't project more than 200mm above the roof plane, don't cover the highest part of the roof, and aren't within 1m of a flat-roof edge. Listed buildings and Conservation Areas DO require planning consent; check with your local planning authority before you commit.",
+  },
+  {
+    q: "How much does a battery add — and is it worth it?",
+    a: "A 5 kWh battery adds roughly £3,500 installed. It stores daytime solar for evening use, lifting self-consumption from ~35% (no battery) to ~75%. Worth it for households spending more than £800/year on electricity or planning an EV — payback typically 8-12 years. Not worth it for low-usage homes or south-of-4kW systems where daytime demand already absorbs most generation.",
+  },
+  {
+    q: "Do I need a site visit to get a solar quote?",
+    a: "Not for a first quote. Propertoasty combines your address with Google's Solar API (per-roof-segment geometry, pitch, azimuth, irradiance) and PVGIS yield modelling to produce an installer-ready pre-survey. An MCS-certified installer can quote from that remotely. A physical survey happens before the install to confirm structural fixings, cable routing, and inverter placement.",
+  },
+];
 
 // Hero image: solar PV on a tiled roof (sourced from Unsplash,
 // licence-free). Served from /public so it goes out on the same
@@ -197,8 +223,43 @@ export default function SolarLanding() {
         </div>
       </section>
 
+      {/* ─── FAQ ────────────────────────────────────────────────────
+          Five direct-answer questions, 40-60 word answers each,
+          mirrored to FAQPage JSON-LD. */}
+      <FaqPageSchema
+        faqs={SOLAR_FAQS.map((it) => ({ question: it.q, answer: it.a }))}
+      />
+      <section className="border-y border-[var(--border)] bg-cream-deep">
+        <div className="mx-auto max-w-3xl px-4 sm:px-6 py-20">
+          <div className="text-center max-w-xl mx-auto mb-10">
+            <p className="eyebrow">Common questions</p>
+            <h2 className="mt-3 text-3xl sm:text-4xl text-navy">
+              Solar in the UK — the five things homeowners ask us most.
+            </h2>
+          </div>
+          <div className="space-y-3">
+            {SOLAR_FAQS.map((it) => (
+              <details
+                key={it.q}
+                className="group rounded-xl border border-[var(--border)] bg-white p-5"
+              >
+                <summary className="cursor-pointer text-base font-semibold text-navy flex items-center justify-between gap-3">
+                  <span>{it.q}</span>
+                  <span className="text-coral text-xs shrink-0 group-open:rotate-180 transition-transform">
+                    ▼
+                  </span>
+                </summary>
+                <p className="mt-4 text-slate-700 leading-relaxed">
+                  {it.a}
+                </p>
+              </details>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Final CTA */}
-      <section className="mx-auto max-w-6xl px-4 sm:px-6 pb-24">
+      <section className="mx-auto max-w-6xl px-4 sm:px-6 pb-24 pt-20">
         <div className="rounded-3xl bg-coral text-cream p-10 sm:p-14 text-center relative overflow-hidden">
           <div className="absolute inset-0 opacity-20 pointer-events-none" aria-hidden>
             <div className="absolute -top-20 -right-20 w-80 h-80 rounded-full bg-terracotta blur-3xl" />
