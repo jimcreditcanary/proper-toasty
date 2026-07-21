@@ -8,6 +8,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight, ShieldCheck, MapPin, Search } from "lucide-react";
 import { AEOPage } from "@/components/seo";
+import { ItemListSchema } from "@/components/seo/schema";
 import { DEFAULT_AUTHOR_SLUG } from "@/lib/seo/authors";
 import { PILOT_TOWNS } from "@/lib/programmatic/towns";
 
@@ -148,6 +149,21 @@ export default function SolarPanelInstallersHubPage() {
         },
       ]}
     >
+      {/* ─── ItemList JSON-LD ───────────────────────────────────────
+          Same as the heat-pump twin — ordered list of per-area solar
+          installer pages so the directory becomes a list-shaped
+          entity for Google + AI answer engines. */}
+      <ItemListSchema
+        url={URL}
+        name="Featured UK areas — MCS-certified solar PV installers"
+        description="Featured towns in the Propertoasty solar installer directory. Each entry links to a distance-ranked list of MCS-certified installers covering that area."
+        items={featured.map((a) => ({
+          name: `Solar panel installers in ${a.name}`,
+          url: `https://www.propertoasty.com/solar-panel-installers/${a.slug}`,
+          description: `MCS-certified solar PV installers covering ${a.name}, ${a.region}.`,
+        }))}
+      />
+
       {/* Postcode quick-search prompt → routes to /check, which handles
           postcode → MCS-directory live search. */}
       <div className="not-prose rounded-2xl border border-[var(--border)] bg-white p-6 mb-10">

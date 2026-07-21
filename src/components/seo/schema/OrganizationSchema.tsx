@@ -59,6 +59,28 @@ export function OrganizationSchema(): React.ReactElement | null {
     contactPoint: ORG_PROFILE.contactPoint
       ? { "@type": "ContactPoint", ...ORG_PROFILE.contactPoint }
       : undefined,
+    // Propertoasty is a trading name of the parent legal entity — emit
+    // that separately so Google + AI engines model the corporate tree
+    // instead of conflating brand and legal entity. Only emitted when
+    // legalName differs from name (i.e. we're actually trading under a
+    // parent company). Cast avoids TS folding the literal comparison.
+    parentOrganization:
+      (ORG_PROFILE.legalName as string) !== (ORG_PROFILE.name as string)
+        ? {
+            "@type": "Organization",
+            name: ORG_PROFILE.legalName,
+            url: ORG_PROFILE.companiesHouseNumber
+              ? `https://find-and-update.company-information.service.gov.uk/company/${ORG_PROFILE.companiesHouseNumber}`
+              : undefined,
+            identifier: ORG_PROFILE.companiesHouseNumber
+              ? {
+                  "@type": "PropertyValue",
+                  propertyID: "UK Companies House",
+                  value: ORG_PROFILE.companiesHouseNumber,
+                }
+              : undefined,
+          }
+        : undefined,
   };
 
   return <JsonLd data={data} />;

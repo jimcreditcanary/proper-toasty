@@ -22,3 +22,12 @@ export {
   type HowToSchemaProps,
   type HowToStep,
 } from "./HowToSchema";
+export {
+  DatasetSchema,
+  type DatasetSchemaProps,
+} from "./DatasetSchema";
+export {
+  ItemListSchema,
+  type ItemListEntry,
+  type ItemListSchemaProps,
+} from "./ItemListSchema";
