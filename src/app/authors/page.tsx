@@ -16,12 +16,12 @@ import { AUTHORS } from "@/lib/seo/authors";
 const URL = "https://www.propertoasty.com/authors";
 
 export const metadata: Metadata = {
-  title: "Authors + contributors — Propertoasty",
+  title: "Authors + contributors",
   description:
     "The named authors and reviewers whose bylines appear on Propertoasty editorial content. Bios, areas of expertise, credentials, and links to published work.",
   alternates: { canonical: URL },
   openGraph: {
-    title: "Authors + contributors — Propertoasty",
+    title: "Authors + contributors",
     description:
       "Named bylines + bios for every author and reviewer on Propertoasty editorial.",
     type: "website",

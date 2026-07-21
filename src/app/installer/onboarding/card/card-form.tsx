@@ -159,7 +159,7 @@ export function CardSetupForm({ publishableKey }: Props) {
         </button>
         <p className="mt-3 text-[11px] text-slate-500 text-center leading-relaxed">
           <Lock className="w-3 h-3 inline-block mr-1 -mt-0.5" />
-          Card details go straight to Stripe — Proper Toasty never
+          Card details go straight to Stripe — Propertoasty never
           sees the full number.
         </p>
       </div>
@@ -319,7 +319,7 @@ function TrustPanel({
       <p className="flex items-start gap-2">
         <Lock className="w-3.5 h-3.5 mt-0.5 shrink-0" />
         <span>
-          Card stored by <strong>Stripe</strong> — Proper Toasty
+          Card stored by <strong>Stripe</strong> — Propertoasty
           never sees the full card details.
         </span>
       </p>
@@ -492,7 +492,7 @@ function CardFormInner({
         )}
       </button>
       <p className="text-[11px] text-slate-500 text-center leading-relaxed">
-        Stored by Stripe under your Proper Toasty Customer record.
+        Stored by Stripe under your Propertoasty Customer record.
         Change auto-recharge rules any time at{" "}
         <a
           href="/installer/billing/auto-recharge"

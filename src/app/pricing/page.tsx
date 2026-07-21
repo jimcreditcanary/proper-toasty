@@ -30,7 +30,7 @@ import {
 } from "@/lib/booking/credits";
 
 export const metadata = {
-  title: "Pricing — Propertoasty for installers",
+  title: "Pricing for installers",
   description: `Free to start — ${INSTALLER_FREE_STARTER_CREDITS} credits on the house. Pay-as-you-go credit packs, no subscriptions.`,
   alternates: { canonical: "https://www.propertoasty.com/pricing" },
 };

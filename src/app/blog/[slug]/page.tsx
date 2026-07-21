@@ -132,7 +132,7 @@ export async function generateMetadata({
       description: excerpt,
       type: "article",
       url,
-      siteName: "Proper Toasty",
+      siteName: "Propertoasty",
       locale: "en_GB",
       images: [{ url: ogImage, width: 1200, height: 630, alt: title }],
       publishedTime: publishedAt,

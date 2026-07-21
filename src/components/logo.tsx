@@ -51,7 +51,7 @@ export function Logo({
         <span
           className={`${s.text} leading-none ${wordColor} whitespace-nowrap`}
           style={WORDMARK_STYLE}
-          aria-label="Proper Toasty"
+          aria-label="Propertoasty"
         >
           <span>Proper&nbsp;</span>
           <span style={TOASTY_GRADIENT_STYLE}>Toasty</span>
