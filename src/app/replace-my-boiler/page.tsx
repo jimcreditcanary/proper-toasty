@@ -34,6 +34,7 @@ export const metadata = {
   title: "New boiler or heat pump? — Propertoasty",
   description:
     "Boiler on its way out? Compare the all-in cost of a new gas boiler vs an air source heat pump with the £7,500 grant — both with monthly finance. Five minutes, no site visit.",
+  alternates: { canonical: "https://www.propertoasty.com/replace-my-boiler" },
 };
 
 export default function ReplaceBoilerLanding() {

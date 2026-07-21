@@ -27,6 +27,7 @@ export const metadata = {
   title: "Solar check — Propertoasty",
   description:
     "Find out if your UK roof is suited to solar PV + battery. We use Google Solar imagery + your address — no floorplan needed.",
+  alternates: { canonical: "https://www.propertoasty.com/check/solar" },
 };
 
 export const dynamic = "force-dynamic";

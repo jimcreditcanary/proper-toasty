@@ -61,6 +61,14 @@ const SITE_URL = "https://www.propertoasty.com";
 // auth flows, private portals, share-link tokens, API surface. Each
 // per-bot block reuses this list so we never accidentally widen access
 // for one crawler.
+//
+// PREFIX-MATCH BUG (fixed): robots.txt rules are prefix matches, so an
+// unqualified `/installer` also blocks the PUBLIC installer directory
+// at `/installers` (linked site-wide from the footer). Fix is two-part:
+// the disallow list now uses `/installer/` only (with trailing slash),
+// and each rule set gets an explicit `Allow: /installers` — the Google
+// spec says the longest matching path wins, so `/installers` (10 chars)
+// overrides `/installer` if any crawler still prefix-matches it.
 const SHARED_DISALLOW = [
   "/api/",
   "/auth/",
@@ -70,10 +78,17 @@ const SHARED_DISALLOW = [
   "/r/",
   "/lead/",
   "/p/",
-  // Trailing-slash variants for crawlers that strip them.
-  "/admin",
-  "/installer",
-  "/dashboard",
+];
+
+// Explicit allows that MUST override any accidental prefix collision
+// with the disallow list. `/installers` is the public installer
+// directory; it collides with the `/installer/` disallow above only
+// if a crawler drops the trailing slash — belt and braces.
+const SHARED_ALLOW = [
+  "/",
+  "/installers",
+  "/heat-pump-installers",
+  "/solar-panel-installers",
 ];
 
 // AI training / answer-engine crawler user-agents we explicitly invite.
@@ -112,7 +127,7 @@ export default function robots(): MetadataRoute.Robots {
       // Default catch-all — existing site-wide policy.
       {
         userAgent: "*",
-        allow: ["/"],
+        allow: SHARED_ALLOW,
         disallow: SHARED_DISALLOW,
       },
       // Explicit allow per AI crawler, with the same private-route
@@ -120,7 +135,7 @@ export default function robots(): MetadataRoute.Robots {
       // top-of-file note on per-UA rule independence.
       ...AI_USER_AGENTS.map((userAgent) => ({
         userAgent,
-        allow: ["/"],
+        allow: SHARED_ALLOW,
         disallow: SHARED_DISALLOW,
       })),
     ],

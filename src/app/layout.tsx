@@ -52,9 +52,12 @@ export const metadata: Metadata = {
     description:
       "Heat pump, solar, battery, and EV-ready checks for your UK home. Grant-eligible, installer-ready.",
   },
-  alternates: {
-    canonical: "https://www.propertoasty.com",
-  },
+  // NO layout-level `alternates.canonical`. Next.js metadata merges child
+  // into parent — a default canonical here silently leaks to every page
+  // that doesn't override, causing Google to canonicalise entire routes
+  // onto the homepage. Each page sets its OWN self-referencing canonical
+  // in its `export const metadata`. Missing = no <link rel="canonical">
+  // (fine — the URL infers itself); the failure mode of wrong is worse.
   // Icons — explicit + deterministic. Lesson learnt the hard way:
   //   - DO NOT put `favicon.ico` or `icon.*` files inside `src/app/`.
   //     The App Router file convention turns them into dynamic Route

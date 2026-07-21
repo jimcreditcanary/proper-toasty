@@ -1,6 +1,21 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { MarketingHeader } from "@/components/marketing-header";
 import { Leaf, ArrowRight, Calendar, Mail } from "lucide-react";
+
+export const metadata: Metadata = {
+  title: "Journal — heat pump & solar guides for UK homeowners | Propertoasty",
+  description:
+    "Practical guides for UK homeowners on heat pumps, rooftop solar, the Boiler Upgrade Scheme, retrofit, and the tariff choices that make the numbers work.",
+  alternates: { canonical: "https://www.propertoasty.com/blog" },
+  openGraph: {
+    title: "Journal — heat pump & solar guides for UK homeowners | Propertoasty",
+    description:
+      "Practical guides for UK homeowners on heat pumps, rooftop solar, the Boiler Upgrade Scheme, retrofit, and the tariff choices that make the numbers work.",
+    type: "website",
+    url: "https://www.propertoasty.com/blog",
+  },
+};
 
 type BlogPost = {
   slug: string;
@@ -80,7 +95,7 @@ export default async function BlogPage() {
             Journal
           </div>
           <h1 className="mt-6 text-4xl sm:text-5xl lg:text-6xl text-navy leading-[1.05]">
-            Living greener at home.
+            Heat pump &amp; solar guides for UK homeowners.
           </h1>
           <p className="mt-6 text-lg text-[var(--muted-brand)] max-w-xl mx-auto leading-relaxed">
             Practical notes on heat pumps, rooftop solar, retrofit, and the small decisions that
