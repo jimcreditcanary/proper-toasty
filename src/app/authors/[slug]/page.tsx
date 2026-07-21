@@ -24,6 +24,43 @@ import {
   PersonSchema,
   BreadcrumbListSchema,
 } from "@/components/seo/schema";
+import { collectStaticArticlesByAuthor } from "@/lib/seo/collect-articles";
+
+/** Fetch this author's blog posts from Supabase. Returns [] when the
+ *  DB is unreachable or the byline doesn't match anyone — the render
+ *  degrades gracefully to just the static articles list. */
+async function fetchBlogPostsByAuthor(
+  authorName: string,
+): Promise<
+  Array<{ slug: string; title: string; published_at: string }>
+> {
+  try {
+    const { createAdminClient } = await import("@/lib/supabase/admin");
+    const admin = createAdminClient();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (admin as any)
+      .from("blog_posts")
+      .select("slug, title, published_at")
+      .eq("published", true)
+      .eq("author", authorName)
+      .order("published_at", { ascending: false });
+    if (error) return [];
+    return (data ?? []) as Array<{
+      slug: string;
+      title: string;
+      published_at: string;
+    }>;
+  } catch {
+    return [];
+  }
+}
+
+function formatShortDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-GB", {
+    month: "short",
+    year: "numeric",
+  });
+}
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -73,6 +110,15 @@ export default async function AuthorPage({ params }: PageProps) {
   const { slug } = await params;
   const author = getAuthor(slug);
   if (!author) notFound();
+
+  // Enumerate every article this author has published. Two sources:
+  //   1. Static: filesystem scan of /guides, /compare, /research
+  //      AEOPage-wrapped routes (build time — free at request time).
+  //   2. Dynamic: Supabase blog_posts rows matching author name.
+  // Empty result from either is fine — the section only renders
+  // whatever's non-empty.
+  const staticArticles = collectStaticArticlesByAuthor(author.slug);
+  const blogPosts = await fetchBlogPostsByAuthor(author.name);
 
   return (
     <div className="bg-cream min-h-screen flex flex-col">
@@ -197,41 +243,62 @@ export default async function AuthorPage({ params }: PageProps) {
             </>
           )}
 
-          {/* Published on Propertoasty — the two index pages already
-              enumerate every guide + comparison this author has
-              written (all currently authored by the default author).
-              Once a second author ships we'll swap this for a
-              per-author manifest. Until then, sending readers to
-              the indexes is both correct and doesn't rot. */}
-          <h2>Published on Propertoasty</h2>
-          <p>
-            {author.name} has written every guide and comparison
-            currently on the site. Browse them by topic:
-          </p>
-          <ul>
-            <li>
-              <Link href="/guides">Guides</Link> — long-form
-              walkthroughs of the Boiler Upgrade Scheme, MCS site
-              visits, fabric-first retrofit, smart-tariff setup,
-              hot-water planning, and the numbers behind heat-pump
-              payback.
-            </li>
-            <li>
-              <Link href="/compare">Comparisons</Link> — head-to-head
-              heat-pump vs boiler / heat-pump vs storage-heater
-              breakdowns, solar-with-battery vs solar-alone, and the
-              installer tariff and manufacturer comparisons.
-            </li>
-            <li>
-              <Link href="/research">Research</Link> — the EPC Index
-              and the UK Home Energy Affordability Index, plus
-              standalone data deep-dives.
-            </li>
-            <li>
-              <Link href="/blog">Journal</Link> — shorter posts on
-              retrofit decisions and homeowner questions.
-            </li>
-          </ul>
+          {/* Published on Propertoasty — the actual list, enumerated
+              at build time from the filesystem (guides + comparisons +
+              research) and at render time from Supabase (blog posts).
+              Grouped by section so a scanning reader sees the shape of
+              the author's work rather than a flat firehose. */}
+          {(staticArticles.length > 0 || blogPosts.length > 0) && (
+            <>
+              <h2>Published on Propertoasty</h2>
+
+              {(["Guide", "Comparison", "Research"] as const).map(
+                (sectionLabel) => {
+                  const items = staticArticles.filter(
+                    (a) => a.section === sectionLabel,
+                  );
+                  if (items.length === 0) return null;
+                  const heading =
+                    sectionLabel === "Guide"
+                      ? "Guides"
+                      : sectionLabel === "Comparison"
+                        ? "Comparisons"
+                        : "Research";
+                  return (
+                    <div key={sectionLabel}>
+                      <h3>{heading}</h3>
+                      <ul>
+                        {items.map((a) => (
+                          <li key={a.path}>
+                            <Link href={a.path}>{a.headline}</Link>{" "}
+                            <span className="text-slate-400 text-sm">
+                              · {formatShortDate(a.datePublished)}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  );
+                },
+              )}
+
+              {blogPosts.length > 0 && (
+                <div>
+                  <h3>Journal</h3>
+                  <ul>
+                    {blogPosts.map((p) => (
+                      <li key={p.slug}>
+                        <Link href={`/blog/${p.slug}`}>{p.title}</Link>{" "}
+                        <span className="text-slate-400 text-sm">
+                          · {formatShortDate(p.published_at)}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </>
+          )}
         </section>
       </main>
 
