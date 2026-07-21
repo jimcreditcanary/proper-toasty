@@ -13,6 +13,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { MarketingHeader } from "@/components/marketing-header";
 import { LandingFooter } from "@/components/landing-footer";
+import { FaqPageSchema } from "@/components/seo/schema";
 import {
   ArrowRight,
   Flame,
@@ -24,6 +25,33 @@ import {
   CheckCircle2,
   Leaf,
 } from "lucide-react";
+
+// AEO FAQ block — 40-60 word direct-answer paragraphs, mirrored to
+// FAQPage JSON-LD so Google + AI answer engines can lift the
+// answers verbatim. Items live at module scope so the visible
+// accordion + the schema stay in sync.
+const HP_FAQS: Array<{ q: string; a: string }> = [
+  {
+    q: "Am I eligible for the £7,500 Boiler Upgrade Scheme grant?",
+    a: "The £7,500 BUS grant is available to owners of homes in England or Wales with a valid EPC certificate and no outstanding recommendations for loft or cavity-wall insulation. The property must have an existing fossil-fuel boiler (gas, oil, or LPG) being replaced. Our free check tells you within five minutes if your property qualifies.",
+  },
+  {
+    q: "How big a heat pump does my home need?",
+    a: "Most UK homes need between 5 kW and 12 kW of heat-pump capacity, sized on peak heat demand rather than boiler kW. A well-insulated 3-bed semi typically lands around 7-8 kW; a detached 4-bed nearer 10-12 kW. Sizing depends on floor area, fabric performance, and design outside temperature. Our pre-survey uses your EPC + floorplan to indicate a specific kW range.",
+  },
+  {
+    q: "Do I need a site visit to get a quote?",
+    a: "Not for a first quote. Propertoasty produces an installer-ready pre-survey from your address, EPC, floorplan, and roof imagery — enough for an MCS-certified installer to give you a written quote remotely. A physical site visit is still needed before the install itself, so the installer can confirm placement, radiator sizing, and cable runs.",
+  },
+  {
+    q: "How much does a heat pump cost after the £7,500 grant?",
+    a: "A typical UK air-source heat pump install costs £12,000–£16,000 before the grant, so £4,500–£8,500 after the £7,500 BUS deduction. Complex installs (larger homes, new hot-water cylinder, radiator upgrades) run higher. Our engine gives you a specific range from your property data + local install-cost bands.",
+  },
+  {
+    q: "Does my home need extra insulation before a heat pump can go in?",
+    a: "Only when the EPC lists an outstanding loft or cavity-wall insulation recommendation — Ofgem's BUS rules require those to be cleared first. Homes rated EPC C or better usually pass with no fabric work. Roughly 15% of homes that start our check discover they need insulation first; we flag it before you waste an installer's time.",
+  },
+];
 
 // Hero image: an outdoor ASHP unit beside a UK brick wall (sourced
 // from Unsplash, licence-free). Served from /public so it goes out
@@ -197,8 +225,45 @@ export default function HeatPumpLanding() {
         </div>
       </section>
 
+      {/* ─── FAQ ────────────────────────────────────────────────────
+          Five direct-answer questions, 40-60 word answers each. The
+          FaqPageSchema at the top of the tree mirrors the visible
+          accordion so Google + AI answer engines can lift the
+          answers verbatim without visiting the page. */}
+      <FaqPageSchema
+        faqs={HP_FAQS.map((it) => ({ question: it.q, answer: it.a }))}
+      />
+      <section className="border-y border-[var(--border)] bg-cream-deep">
+        <div className="mx-auto max-w-3xl px-4 sm:px-6 py-20">
+          <div className="text-center max-w-xl mx-auto mb-10">
+            <p className="eyebrow">Common questions</p>
+            <h2 className="mt-3 text-3xl sm:text-4xl text-navy">
+              Heat pumps in the UK — the five things homeowners ask us most.
+            </h2>
+          </div>
+          <div className="space-y-3">
+            {HP_FAQS.map((it) => (
+              <details
+                key={it.q}
+                className="group rounded-xl border border-[var(--border)] bg-white p-5"
+              >
+                <summary className="cursor-pointer text-base font-semibold text-navy flex items-center justify-between gap-3">
+                  <span>{it.q}</span>
+                  <span className="text-coral text-xs shrink-0 group-open:rotate-180 transition-transform">
+                    ▼
+                  </span>
+                </summary>
+                <p className="mt-4 text-slate-700 leading-relaxed">
+                  {it.a}
+                </p>
+              </details>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Final CTA */}
-      <section className="mx-auto max-w-6xl px-4 sm:px-6 pb-24">
+      <section className="mx-auto max-w-6xl px-4 sm:px-6 pb-24 pt-20">
         <div className="rounded-3xl bg-coral text-cream p-10 sm:p-14 text-center relative overflow-hidden">
           <div className="absolute inset-0 opacity-20 pointer-events-none" aria-hidden>
             <div className="absolute -top-20 -right-20 w-80 h-80 rounded-full bg-terracotta blur-3xl" />

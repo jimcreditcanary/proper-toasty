@@ -196,6 +196,42 @@ export default async function AuthorPage({ params }: PageProps) {
               </ul>
             </>
           )}
+
+          {/* Published on Propertoasty — the two index pages already
+              enumerate every guide + comparison this author has
+              written (all currently authored by the default author).
+              Once a second author ships we'll swap this for a
+              per-author manifest. Until then, sending readers to
+              the indexes is both correct and doesn't rot. */}
+          <h2>Published on Propertoasty</h2>
+          <p>
+            {author.name} has written every guide and comparison
+            currently on the site. Browse them by topic:
+          </p>
+          <ul>
+            <li>
+              <Link href="/guides">Guides</Link> — long-form
+              walkthroughs of the Boiler Upgrade Scheme, MCS site
+              visits, fabric-first retrofit, smart-tariff setup,
+              hot-water planning, and the numbers behind heat-pump
+              payback.
+            </li>
+            <li>
+              <Link href="/compare">Comparisons</Link> — head-to-head
+              heat-pump vs boiler / heat-pump vs storage-heater
+              breakdowns, solar-with-battery vs solar-alone, and the
+              installer tariff and manufacturer comparisons.
+            </li>
+            <li>
+              <Link href="/research">Research</Link> — the EPC Index
+              and the UK Home Energy Affordability Index, plus
+              standalone data deep-dives.
+            </li>
+            <li>
+              <Link href="/blog">Journal</Link> — shorter posts on
+              retrofit decisions and homeowner questions.
+            </li>
+          </ul>
         </section>
       </main>
 

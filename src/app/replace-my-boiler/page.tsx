@@ -15,6 +15,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { MarketingHeader } from "@/components/marketing-header";
 import { LandingFooter } from "@/components/landing-footer";
+import { FaqPageSchema } from "@/components/seo/schema";
 import {
   ArrowRight,
   ArrowRightLeft,
@@ -25,6 +26,31 @@ import {
   Calculator,
   Flame,
 } from "lucide-react";
+
+// AEO FAQ block — 40-60 word direct-answer paragraphs mirrored to
+// FAQPage JSON-LD.
+const BOILER_FAQS: Array<{ q: string; a: string }> = [
+  {
+    q: "Is a heat pump really cheaper than a new gas boiler over 10 years?",
+    a: "On total cost of ownership over 10 years, a heat pump on a dedicated tariff (Octopus Cosy, British Gas HomeEnergy) typically lands £2,000-£4,000 cheaper than a like-for-like new gas boiler for a UK 3-bed. On a standard tariff the two run roughly level. Our cost engine gives you specific figures from your EPC + tariff data.",
+  },
+  {
+    q: "Can I get finance for a heat pump like a boiler?",
+    a: "Yes — most MCS installers offer 0% finance over 5-10 years on the net-of-grant heat-pump price (typically £4,500-£8,500 after the £7,500 BUS deduction). Monthly figures often come in lower than typical boiler finance because the loan principal is smaller thanks to the grant. Boiler finance is normally 9-10% APR over 3-5 years for comparison.",
+  },
+  {
+    q: "How much do I save on running costs vs a gas boiler?",
+    a: "On a heat-pump-specific tariff (~15p/kWh peak blended), a 3-bed UK home typically spends £600-£800/year running the heat pump vs £700-£1,000 running a modern gas boiler at 2026 gas-cap prices. Net running-cost saving is £100-£300/year. Bigger savings on tariffs like Octopus Cosy that shift load to overnight cheap windows.",
+  },
+  {
+    q: "Am I eligible for the £7,500 BUS grant?",
+    a: "The £7,500 Boiler Upgrade Scheme grant is available to English and Welsh homeowners replacing a fossil-fuel boiler (gas, oil, or LPG) with an MCS-certified air-source or ground-source heat pump. Your EPC must have no outstanding recommendation for loft or cavity-wall insulation. Our check tells you within five minutes whether your specific property qualifies.",
+  },
+  {
+    q: "Do I need to change my radiators for a heat pump?",
+    a: "Sometimes — but rarely all of them. Heat pumps run at lower flow temperatures (~45°C vs a boiler's ~70°C), so radiators in your worst-heated rooms may need upsizing to deliver the same heat output at the lower flow. Typical UK 3-bed retrofit swaps 2-4 radiators. Your installer sizes each one at the site visit; our pre-survey flags likely candidates from your floorplan.",
+  },
+];
 
 // Reuse the ASHP hero — this page is about the heat-pump alternative
 // to a boiler, so the outdoor unit is the right visual.
@@ -194,8 +220,43 @@ export default function ReplaceBoilerLanding() {
         </div>
       </section>
 
+      {/* ─── FAQ ────────────────────────────────────────────────────
+          Five direct-answer questions, 40-60 word answers each,
+          mirrored to FAQPage JSON-LD. */}
+      <FaqPageSchema
+        faqs={BOILER_FAQS.map((it) => ({ question: it.q, answer: it.a }))}
+      />
+      <section className="border-y border-[var(--border)] bg-cream-deep">
+        <div className="mx-auto max-w-3xl px-4 sm:px-6 py-20">
+          <div className="text-center max-w-xl mx-auto mb-10">
+            <p className="eyebrow">Common questions</p>
+            <h2 className="mt-3 text-3xl sm:text-4xl text-navy">
+              Boiler vs heat pump — the five things homeowners ask us most.
+            </h2>
+          </div>
+          <div className="space-y-3">
+            {BOILER_FAQS.map((it) => (
+              <details
+                key={it.q}
+                className="group rounded-xl border border-[var(--border)] bg-white p-5"
+              >
+                <summary className="cursor-pointer text-base font-semibold text-navy flex items-center justify-between gap-3">
+                  <span>{it.q}</span>
+                  <span className="text-coral text-xs shrink-0 group-open:rotate-180 transition-transform">
+                    ▼
+                  </span>
+                </summary>
+                <p className="mt-4 text-slate-700 leading-relaxed">
+                  {it.a}
+                </p>
+              </details>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Final CTA */}
-      <section className="mx-auto max-w-6xl px-4 sm:px-6 pb-24">
+      <section className="mx-auto max-w-6xl px-4 sm:px-6 pb-24 pt-20">
         <div className="rounded-3xl bg-coral text-cream p-10 sm:p-14 text-center relative overflow-hidden">
           <div className="absolute inset-0 opacity-20 pointer-events-none" aria-hidden>
             <div className="absolute -top-20 -right-20 w-80 h-80 rounded-full bg-terracotta blur-3xl" />
