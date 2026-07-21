@@ -66,7 +66,7 @@ values
 
 <p>For most UK homes off the gas grid, a heat pump pays back faster than people expect. For mains-gas households the answer depends on boiler age and how long you plan to stay. Either way, the BUS grant transforms the maths — and grants do not last forever, so the next 12–24 months are the right window to look properly.</p>',
   'Guides',
-  'Propertoasty',
+  'Jim Fell',
   true,
   now()
 ),
@@ -131,7 +131,7 @@ values
 
 <p>Generic ranges only go so far. Use the free check at <a href="/check">propertoasty.com/check</a> to get a typical price band for your address, an indicative system size, and a list of MCS-certified installers in your postcode who can quote.</p>',
   'Guides',
-  'Propertoasty',
+  'Jim Fell',
   true,
   now()
 ),
@@ -182,7 +182,7 @@ values
 
 <p>Run a free check at <a href="/check">propertoasty.com/check</a>. We pull your actual roof shape from satellite, calculate annual yield from PVGIS climate data, and tell you the exact kWp that fits — not a national average.</p>',
   'Guides',
-  'Propertoasty',
+  'Jim Fell',
   true,
   now()
 ),
@@ -244,7 +244,7 @@ values
 
 <p>Generic averages are useful for the &quot;is it worth it&quot; gut check, but the actual answer depends on your roof. Run the check at <a href="/check">propertoasty.com/check</a> — we use real satellite data + UK PVGIS climate data to estimate your annual kWh, then back-calculate the saving against your actual tariff.</p>',
   'Guides',
-  'Propertoasty',
+  'Jim Fell',
   true,
   now()
 ),
@@ -310,7 +310,7 @@ values
 
 <p>Run the numbers for your specific home at <a href="/check">propertoasty.com/check</a> — we estimate the annual saving against your actual tariff so you can plug it into the comparison above.</p>',
   'Guides',
-  'Propertoasty',
+  'Jim Fell',
   true,
   now()
 ),
@@ -386,7 +386,7 @@ values
 
 <p>Run the free check at <a href="/check">propertoasty.com/check</a> — we cross-check your EPC and outdoor-space requirements against the live BUS rules and tell you whether you qualify in plain English.</p>',
   'Guides',
-  'Propertoasty',
+  'Jim Fell',
   true,
   now()
 ),
@@ -454,7 +454,7 @@ values
 
 <p>Run the free check at <a href="/check">propertoasty.com/check</a> — we use your EPC fabric data + uploaded floorplan to give an indicative system size with the same maths an MCS installer would do on day one of a survey.</p>',
   'Guides',
-  'Propertoasty',
+  'Jim Fell',
   true,
   now()
 ),
@@ -541,7 +541,7 @@ values
 
 <p>Run the free check at <a href="/check">propertoasty.com/check</a>. We list MCS-certified installers in your area with their next available site-visit slot, so you can see realistic dates rather than &quot;up to 14 weeks&quot;.</p>',
   'Guides',
-  'Propertoasty',
+  'Jim Fell',
   true,
   now()
 ),
@@ -605,7 +605,7 @@ values
 
 <p>The right answer depends on your exact tariff, daily consumption shape, and existing solar. Run the free check at <a href="/check">propertoasty.com/check</a> — we model the with-battery vs without-battery savings using your real tariff and roof yield, not a national average.</p>',
   'Guides',
-  'Propertoasty',
+  'Jim Fell',
   true,
   now()
 ),
@@ -673,7 +673,7 @@ values
 
 <p>Our pre-survey check shortlists MCS-certified installers in your postcode based on capabilities (brand allegiance, site-visit availability, recent work in similar properties) — so you do not have to start from scratch on Google. Run it at <a href="/check">propertoasty.com/check</a>.</p>',
   'Guides',
-  'Propertoasty',
+  'Jim Fell',
   true,
   now()
 )

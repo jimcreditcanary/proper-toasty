@@ -11,7 +11,7 @@ import { BlogPostContent } from "@/components/blog-post-content";
 import { RelatedPosts } from "@/components/blog/related-posts";
 import { SocialShare } from "@/components/blog/social-share";
 import { ArticleSchema, BreadcrumbListSchema } from "@/components/seo/schema";
-import { DEFAULT_AUTHOR_SLUG } from "@/lib/seo/authors";
+import { DEFAULT_AUTHOR_SLUG, authorSlugForName } from "@/lib/seo/authors";
 import { InstallerPostByline } from "@/components/blog/installer-post-byline";
 import { InstallerPostCta } from "@/components/blog/installer-post-cta";
 import { InstallerPostRelated } from "@/components/blog/installer-post-related";
@@ -285,9 +285,25 @@ export default async function BlogPostPage({
             <Calendar className="size-3.5" />
             {formatDate(publishedAt)}
           </span>
+          {/* Byline resolves to an /authors/<slug> link when the DB
+              name matches a registry author. Unknown names (external
+              contributors we haven't registered yet) fall back to
+              plain text so we don't 404 on a bad link. */}
           <span className="flex items-center gap-1.5 text-sm text-slate-400">
             <User className="size-3.5" />
-            {author}
+            {(() => {
+              const authorSlug = authorSlugForName(author);
+              return authorSlug ? (
+                <Link
+                  href={`/authors/${authorSlug}`}
+                  className="hover:text-coral transition-colors underline decoration-slate-300 underline-offset-2"
+                >
+                  {author}
+                </Link>
+              ) : (
+                author
+              );
+            })()}
           </span>
           <span className="flex items-center gap-1.5 text-sm text-slate-400">
             <Clock className="size-3.5" />
