@@ -9,6 +9,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { ArrowLeft, ArrowRight, Calendar, Clock, User, ShieldCheck } from "lucide-react";
 import { BlogPostContent } from "@/components/blog-post-content";
 import { RelatedPosts } from "@/components/blog/related-posts";
+import { BlogSeeAlso } from "@/components/blog/see-also";
 import { SocialShare } from "@/components/blog/social-share";
 import { ArticleSchema, BreadcrumbListSchema } from "@/components/seo/schema";
 import { DEFAULT_AUTHOR_SLUG, authorSlugForName } from "@/lib/seo/authors";
@@ -414,6 +415,14 @@ export default async function BlogPostPage({
           />
         )}
       </article>
+
+      {/* See also on Propertoasty — hand-curated tiles pointing at
+          the guides / comparisons / check flow that most closely
+          match this post's topic. Bridges the /blog silo to the
+          rest of the site so blog readers get pushed into the
+          commercial + AEO surfaces. Only editorial posts get this
+          (installer posts have their own CTA card above). */}
+      {!installer && <BlogSeeAlso slug={slug} />}
 
       {/* Related posts — 3 follow-up reads, same category preferred,
           backfills with most-recent if the category is sparse. Loads
