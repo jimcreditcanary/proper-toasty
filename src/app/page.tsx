@@ -1,7 +1,18 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import { MarketingHeader } from "@/components/marketing-header";
 import { LandingFooter } from "@/components/landing-footer";
+
+// Homepage self-canonical. Layout-level canonical was removed in
+// Phase 1 (was leaking the homepage URL onto every other page as
+// their canonical). The homepage still needs its own — otherwise
+// query-string variants (utm_source, ?ref=…, etc.) risk being
+// treated as separate URLs by Google. Title/description default
+// to the layout-level title.default + description.
+export const metadata: Metadata = {
+  alternates: { canonical: "https://www.propertoasty.com" },
+};
 import {
   ArrowRight,
   ArrowRightLeft,
