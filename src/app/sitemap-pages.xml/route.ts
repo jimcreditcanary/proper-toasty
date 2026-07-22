@@ -58,6 +58,34 @@ export async function GET(): Promise<Response> {
       changefreq: "monthly",
       priority: 0.9,
     },
+    // Wizard entries — the primary conversion pages. Each variant is
+    // its own indexable landing (self-canonical, focus-specific H1,
+    // separate metadata) so they all belong in the sitemap. Priority
+    // just below the marketing landings that funnel into them.
+    {
+      loc: `${SITE_URL}/check`,
+      lastmod: now,
+      changefreq: "monthly",
+      priority: 0.85,
+    },
+    {
+      loc: `${SITE_URL}/check/heatpump`,
+      lastmod: now,
+      changefreq: "monthly",
+      priority: 0.85,
+    },
+    {
+      loc: `${SITE_URL}/check/solar`,
+      lastmod: now,
+      changefreq: "monthly",
+      priority: 0.85,
+    },
+    {
+      loc: `${SITE_URL}/check/boiler`,
+      lastmod: now,
+      changefreq: "monthly",
+      priority: 0.85,
+    },
     // Programmatic-town index landings — entry point for town
     // browsing + ranks for the head terms ("heat pumps UK",
     // "solar panels UK"). The per-town pages are listed in
