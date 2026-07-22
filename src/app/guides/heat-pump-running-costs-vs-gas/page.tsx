@@ -45,6 +45,44 @@ export default function HeatPumpRunningCosts() {
         { name: "Guides", url: "/guides" },
         { name: "Heat pump vs gas running costs" },
       ]}
+      related={[
+        {
+          href: "/compare/heat-pump-tariffs",
+          eyebrow: "Comparison",
+          title: "Heat pump electricity tariffs UK 2026",
+          body: "Cosy vs British Gas Heat Pump Plus vs EDF GoElectric — the smart-tariff detail behind the running-cost figures.",
+        },
+        {
+          href: "/guides/heat-pump-smart-tariff-setup",
+          eyebrow: "Guide",
+          title: "Setting up a heat pump on a smart tariff",
+          body: "How to actually configure weather compensation + scheduling to hit the cheap-rate windows.",
+        },
+        {
+          href: "/guides/heat-pump-payback-period-uk",
+          eyebrow: "Guide",
+          title: "Heat pump payback in the UK",
+          body: "Running-cost delta is one of five payback levers. Full model + typical ranges.",
+        },
+        {
+          href: "/compare/heat-pump-vs-gas-boiler",
+          eyebrow: "Comparison",
+          title: "Heat pump vs gas boiler",
+          body: "The lifetime-cost comparison. Install cost, running cost, lifespan, and carbon on one page.",
+        },
+        {
+          href: "/guides/scop-cop-spf-explained",
+          eyebrow: "Guide",
+          title: "SCOP, COP, SPF explained",
+          body: "The efficiency numbers behind the running-cost maths — what they mean and how they get abused.",
+        },
+        {
+          href: "/heat-pump-installers",
+          eyebrow: "Directory",
+          title: "MCS-certified heat pump installers",
+          body: "Directory of installers who can specify a system for the running costs you're targeting.",
+        },
+      ]}
       directAnswer="For a typical UK 3-bed semi consuming around 12,000 kWh/year of heat in 2026, a modern condensing gas boiler costs roughly £780/year to run at the 7p/kWh gas cap. A heat pump on a standard variable electricity tariff (28p/kWh) achieving a seasonal COP of 3.2 costs around £1,050/year — slightly more than gas. The SAME heat pump on a smart tariff like Octopus Cosy (average ~17p/kWh blended) costs around £640/year — about 18% cheaper than gas. Insulation, weather compensation tuning, and tariff choice swing the result; the heat pump is only reliably cheaper than gas when paired with a heat-pump-specific tariff and a well-tuned system."
       tldr={[
         "Gas boiler running cost UK 2026: roughly £780/year for a typical 3-bed semi using 12,000 kWh of heat.",

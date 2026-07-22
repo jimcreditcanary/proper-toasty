@@ -51,6 +51,44 @@ export default function HeatPumpVsLpgBoiler() {
         { name: "Compare", url: "/compare" },
         { name: "Heat pump vs LPG boiler" },
       ]}
+      related={[
+        {
+          href: "/compare/heat-pump-vs-oil-boiler",
+          eyebrow: "Comparison",
+          title: "Heat pump vs oil boiler",
+          body: "The other off-grid case. Similar economics, slightly cheaper oil per kWh but higher standing costs.",
+        },
+        {
+          href: "/compare/heat-pump-vs-gas-boiler",
+          eyebrow: "Comparison",
+          title: "Heat pump vs gas boiler",
+          body: "For homes on mains gas — a tighter margin but heat pumps still edge it on lifetime cost.",
+        },
+        {
+          href: "/guides/bus-application-walkthrough",
+          eyebrow: "Guide",
+          title: "How the £7,500 BUS grant application works",
+          body: "Off-grid LPG homes qualify — the grant plus avoided tank swap tips payback into 4-6 years.",
+        },
+        {
+          href: "/guides/heat-pump-payback-period-uk",
+          eyebrow: "Guide",
+          title: "Heat pump payback in the UK",
+          body: "Payback ranges + the five levers that move them. LPG replacers land near the fast end of the range.",
+        },
+        {
+          href: "/compare/heat-pump-tariffs",
+          eyebrow: "Comparison",
+          title: "Heat pump electricity tariffs UK 2026",
+          body: "The smart-tariff options that keep running costs below LPG — Cosy, HomeEnergy, GoElectric compared.",
+        },
+        {
+          href: "/heat-pump-installers",
+          eyebrow: "Directory",
+          title: "MCS-certified heat pump installers",
+          body: "Distance-ranked with Google verified reviews. Every entry BUS-registered.",
+        },
+      ]}
       directAnswer="In 2026 a new LPG boiler costs £3,500–£7,000 installed; an air-source heat pump costs £1,500–£6,500 after the £7,500 Boiler Upgrade Scheme grant — so the heat pump usually wins on day-one cost. Running costs favour the heat pump by £500–£900 a year on typical UK LPG prices, and you free yourself from a multi-year tank-supply contract."
       tldr={[
         "LPG is the most expensive of the three fossil heating fuels per useful kWh in 2026.",

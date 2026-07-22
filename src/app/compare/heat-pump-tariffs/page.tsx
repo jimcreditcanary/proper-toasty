@@ -52,6 +52,44 @@ export default function HeatPumpTariffs() {
         { name: "Compare", url: "/compare" },
         { name: "Heat pump tariffs" },
       ]}
+      related={[
+        {
+          href: "/guides/heat-pump-smart-tariff-setup",
+          eyebrow: "Guide",
+          title: "Setting up a heat pump on a smart tariff",
+          body: "Weather compensation, scheduling, and the smart-controller options that pull day-ahead prices.",
+        },
+        {
+          href: "/guides/heat-pump-running-costs-vs-gas",
+          eyebrow: "Guide",
+          title: "Heat pump vs gas — running costs compared",
+          body: "Real annual costs on flat-rate vs smart-tariff electricity — the tariff choice moves the answer by £300+/year.",
+        },
+        {
+          href: "/compare/heat-pump-vs-gas-boiler",
+          eyebrow: "Comparison",
+          title: "Heat pump vs gas boiler",
+          body: "The lifetime-cost comparison — where the smart-tariff choice determines whether HP beats gas.",
+        },
+        {
+          href: "/guides/heat-pump-payback-period-uk",
+          eyebrow: "Guide",
+          title: "Heat pump payback in the UK",
+          body: "Tariff choice is one of the five levers — a smart tariff can knock 3-5 years off payback.",
+        },
+        {
+          href: "/compare/heat-pump-finance-options",
+          eyebrow: "Comparison",
+          title: "Heat pump finance options",
+          body: "Once tariff is chosen, work out cash vs finance — 0% APR, green loans, and what monthly figures actually look like.",
+        },
+        {
+          href: "/heat-pump-installers",
+          eyebrow: "Directory",
+          title: "MCS-certified heat pump installers",
+          body: "Directory of installers ready to configure your heat pump for the tariff you pick.",
+        },
+      ]}
       directAnswer="Heat-pump-specific UK electricity tariffs price your heat-pump-driven electricity at 13–18p/kWh during designated cheap-rate windows (typically 4–7 hours overnight + sometimes daytime), vs 25–35p/kWh on standard variable. For a typical UK heat-pump home using 3,400–4,500 kWh/year, the saving is £200–£400 annually. As of May 2026, Octopus Cosy, British Gas Heat Pump Plus, EDF GoElectric and E.ON Next Heat Pump are the four major options. Specific rates change quarterly — verify current pricing with the supplier before switching."
       tldr={[
         "Heat-pump tariffs offer cheap-rate windows (13–18p/kWh) for heat-pump electricity use.",

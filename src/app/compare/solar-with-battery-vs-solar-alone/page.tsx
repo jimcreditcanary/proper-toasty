@@ -49,6 +49,44 @@ export default function SolarWithBatteryVsSolarAlone() {
         { name: "Compare", url: "/compare" },
         { name: "Solar + battery vs solar alone" },
       ]}
+      related={[
+        {
+          href: "/compare/solar-vs-no-solar",
+          eyebrow: "Comparison",
+          title: "Solar vs no solar",
+          body: "Should you go solar at all? Payback ranges, SEG earnings, and self-consumption on a typical UK roof.",
+        },
+        {
+          href: "/compare/solar-pv-vs-solar-thermal",
+          eyebrow: "Comparison",
+          title: "Solar PV vs solar thermal",
+          body: "Electricity or hot water? Why PV wins for most UK roofs.",
+        },
+        {
+          href: "/compare/heat-pump-tariffs",
+          eyebrow: "Comparison",
+          title: "Heat pump electricity tariffs UK 2026",
+          body: "Smart-tariff arbitrage — how a battery lets you charge overnight cheap and discharge peak, on top of solar.",
+        },
+        {
+          href: "/solar-panel-installers",
+          eyebrow: "Directory",
+          title: "MCS-certified solar PV installers",
+          body: "MCS-certified installers by area, with Google verified reviews. Required for SEG eligibility.",
+        },
+        {
+          href: "/research/uk-affordability-index",
+          eyebrow: "Research",
+          title: "UK Home Energy Affordability Index 2026",
+          body: "Regional solar + battery payback ranges built from the full EPC Register.",
+        },
+        {
+          href: "/solar",
+          eyebrow: "Check",
+          title: "Free solar pre-survey",
+          body: "5 minutes, satellite roof read + your address — see if your roof + household load fit a battery.",
+        },
+      ]}
       directAnswer="Adding a 5–10 kWh battery to a UK solar install costs £3,500–£6,500 extra. It pays back over 9–14 years on most homes by storing midday solar generation for evening use instead of exporting at 5–15p/kWh and re-buying at 25–35p/kWh. Battery pays back fastest on homes with high evening electricity use, a heat pump, or an EV; least well on homes that are out all day and use most electricity overnight."
       tldr={[
         "Battery cost: £3,500–£6,500 for 5–10 kWh capacity, on top of the solar install.",

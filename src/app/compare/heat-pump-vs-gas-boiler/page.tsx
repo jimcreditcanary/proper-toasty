@@ -45,6 +45,44 @@ export default function HeatPumpVsGasBoiler() {
         { name: "Compare", url: "/compare" },
         { name: "Heat pump vs gas boiler" },
       ]}
+      related={[
+        {
+          href: "/compare/heat-pump-vs-oil-boiler",
+          eyebrow: "Comparison",
+          title: "Heat pump vs oil boiler",
+          body: "Off-grid economics — where the £7,500 BUS grant plus oil-tank-avoided-cost tips payback into 3-6 years.",
+        },
+        {
+          href: "/compare/heat-pump-vs-electric-boiler",
+          eyebrow: "Comparison",
+          title: "Heat pump vs electric boiler",
+          body: "Both electric. Electric boilers install cheap; heat pumps use 3× less electricity per kWh of heat.",
+        },
+        {
+          href: "/compare/heat-pump-tariffs",
+          eyebrow: "Comparison",
+          title: "Heat pump electricity tariffs UK 2026",
+          body: "Cosy vs British Gas Heat Pump Plus vs EDF GoElectric — the smart-tariff options that make heat-pump running costs cheaper than gas.",
+        },
+        {
+          href: "/compare/heat-pump-finance-options",
+          eyebrow: "Comparison",
+          title: "Heat pump finance options",
+          body: "0% APR vs green loan vs cash — what's available, monthly figures, and how it stacks against boiler finance.",
+        },
+        {
+          href: "/guides/heat-pump-payback-period-uk",
+          eyebrow: "Guide",
+          title: "Heat pump payback in the UK",
+          body: "Payback ranges + the five levers that move them — grant, tariff, weather compensation, solar, insulation.",
+        },
+        {
+          href: "/heat-pump-installers",
+          eyebrow: "Directory",
+          title: "MCS-certified heat pump installers",
+          body: "5,500+ installers, distance-ranked with Google verified reviews. Every entry BUS-registered.",
+        },
+      ]}
       directAnswer="In 2026 a new gas boiler costs £2,500–£4,500 installed; an air-source heat pump costs £1,500–£6,500 after the £7,500 Boiler Upgrade Scheme grant. Running costs are close on equivalent tariffs at £900–£1,400 a year. Heat pumps win on lifetime cost, carbon and resale; gas boilers win only on retrofit speed in poorly insulated homes."
       tldr={[
         "Out-of-pocket install: heat pump often LESS than gas boiler after BUS grant.",

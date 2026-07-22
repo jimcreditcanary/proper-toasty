@@ -75,6 +75,44 @@ export default function BusApplicationWalkthrough() {
         { name: "Guides", url: "/guides" },
         { name: "BUS application walkthrough" },
       ]}
+      related={[
+        {
+          href: "/guides/mcs-site-visit-what-to-expect",
+          eyebrow: "Guide",
+          title: "What to expect at an MCS site visit",
+          body: "The physical survey that comes after the pre-survey and before the install. What the installer measures + why.",
+        },
+        {
+          href: "/guides/fabric-first-retrofit-before-heat-pump",
+          eyebrow: "Guide",
+          title: "Fabric-first retrofit before a heat pump",
+          body: "Loft, cavity, glazing — what to fix first so BUS eligibility is clear and the pump is sized right.",
+        },
+        {
+          href: "/compare/heat-pump-vs-oil-boiler",
+          eyebrow: "Comparison",
+          title: "Heat pump vs oil boiler",
+          body: "Off-grid oil homes are the strongest BUS case — payback often inside 5 years with the £7,500 grant.",
+        },
+        {
+          href: "/guides/heat-pump-payback-period-uk",
+          eyebrow: "Guide",
+          title: "Heat pump payback in the UK",
+          body: "Payback ranges + the five levers that move them. Grant is the biggest lever.",
+        },
+        {
+          href: "/heat-pump-installers",
+          eyebrow: "Directory",
+          title: "MCS-certified heat pump installers",
+          body: "Every entry BUS-registered — required to nominate for the grant. Distance-ranked with Google verified reviews.",
+        },
+        {
+          href: "/check/heatpump",
+          eyebrow: "Check",
+          title: "Free heat pump pre-survey",
+          body: "5 minutes — see if your specific property qualifies before you brief an installer.",
+        },
+      ]}
       directAnswer="The £7,500 Boiler Upgrade Scheme grant is applied for by your MCS-certified installer, not by you. Ofgem pays the £7,500 directly to the installer; you see it as a line-item discount on your final invoice. The application happens after the install is commissioned and registered with MCS. Typical end-to-end timeline: 4–10 weeks from initial quote to grant-discounted commissioning. The homeowner's job is to consent to the application, hold a valid EPC + cleared insulation recommendations, and verify the installer is MCS-certified."
       tldr={[
         "Your INSTALLER applies for BUS, not you — they receive the £7,500 and discount your invoice.",

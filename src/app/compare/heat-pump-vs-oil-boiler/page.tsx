@@ -50,6 +50,44 @@ export default function HeatPumpVsOilBoiler() {
         { name: "Compare", url: "/compare" },
         { name: "Heat pump vs oil boiler" },
       ]}
+      related={[
+        {
+          href: "/compare/heat-pump-vs-lpg-boiler",
+          eyebrow: "Comparison",
+          title: "Heat pump vs LPG boiler",
+          body: "Similar off-grid economics — heat-pump running costs run half of LPG, payback typically inside 5 years.",
+        },
+        {
+          href: "/compare/heat-pump-vs-gas-boiler",
+          eyebrow: "Comparison",
+          title: "Heat pump vs gas boiler",
+          body: "For homes on mains gas. Install cost, running cost, lifespan, and carbon on a like-for-like basis.",
+        },
+        {
+          href: "/guides/bus-application-walkthrough",
+          eyebrow: "Guide",
+          title: "How the £7,500 BUS grant application works",
+          body: "Step-by-step: eligibility, installer nominates, Ofgem approves, install, sign-off.",
+        },
+        {
+          href: "/guides/heat-pump-payback-period-uk",
+          eyebrow: "Guide",
+          title: "Heat pump payback in the UK",
+          body: "Off-grid homes pay back fastest — the five levers that move the payback range.",
+        },
+        {
+          href: "/guides/heat-pump-running-costs-vs-gas",
+          eyebrow: "Guide",
+          title: "Heat pump vs gas — running costs compared",
+          body: "What a typical UK 3-bed spends per year on each fuel at 2026 tariffs. Honest numbers, both scenarios.",
+        },
+        {
+          href: "/heat-pump-installers",
+          eyebrow: "Directory",
+          title: "MCS-certified heat pump installers",
+          body: "Directory of every UK MCS-certified heat pump installer, distance-ranked with Google verified reviews.",
+        },
+      ]}
       directAnswer="In 2026 a new oil boiler costs £3,000–£6,500 installed; an air-source heat pump costs £1,500–£6,500 after the £7,500 Boiler Upgrade Scheme grant — so the heat pump usually wins on day-one cost. Running costs favour the heat pump by £300–£700 a year on typical UK oil prices, plus you reclaim the oil tank's footprint."
       tldr={[
         "Out-of-pocket install: heat pump beats oil for most UK homes after the BUS grant.",

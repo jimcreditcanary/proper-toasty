@@ -45,6 +45,44 @@ export default function HeatPumpPaybackPeriodUk() {
         { name: "Guides", url: "/guides" },
         { name: "Heat pump payback period UK" },
       ]}
+      related={[
+        {
+          href: "/guides/heat-pump-running-costs-vs-gas",
+          eyebrow: "Guide",
+          title: "Heat pump vs gas — running costs compared",
+          body: "The running-cost delta drives half the payback maths. Real annual costs on flat-rate vs smart-tariff electricity.",
+        },
+        {
+          href: "/guides/heat-pump-smart-tariff-setup",
+          eyebrow: "Guide",
+          title: "Setting up a heat pump on a smart tariff",
+          body: "Weather compensation + scheduling for Cosy / GoElectric — cuts running cost 25-40% vs flat rate.",
+        },
+        {
+          href: "/compare/heat-pump-vs-gas-boiler",
+          eyebrow: "Comparison",
+          title: "Heat pump vs gas boiler",
+          body: "Full lifetime-cost comparison — where the smart-tariff choice determines whether HP beats gas.",
+        },
+        {
+          href: "/guides/bus-application-walkthrough",
+          eyebrow: "Guide",
+          title: "How the £7,500 BUS grant application works",
+          body: "The grant is the biggest single payback lever. Step-by-step: eligibility, apply, receive.",
+        },
+        {
+          href: "/compare/heat-pump-finance-options",
+          eyebrow: "Comparison",
+          title: "Heat pump finance options",
+          body: "0% APR vs green loan vs cash — how finance changes the payback view (cash + fastest payback = strongest case).",
+        },
+        {
+          href: "/heat-pump-installers",
+          eyebrow: "Directory",
+          title: "MCS-certified heat pump installers",
+          body: "Directory of installers who can quote against your specific property + payback picture.",
+        },
+      ]}
       directAnswer="In UK 2026 the heat-pump payback period depends almost entirely on which fuel you're replacing. Replacing a working gas boiler: payback is 12–25 years at typical install costs with the £7,500 BUS grant and a smart tariff. Replacing an oil boiler: 5–9 years. Replacing LPG: 3–6 years. Replacing direct electric heating or storage heaters: 2–4 years. The biggest cost gap is not 'install vs do nothing' — it's 'install now vs install when the existing boiler dies anyway', because at boiler end-of-life the relevant comparison cost is a heat pump vs a new gas boiler (~£3,500), which makes the net premium £2,500–£4,500 and payback drops to 4–8 years."
       tldr={[
         "Payback on a gas-replacement: 12-25 years on the full install cost basis.",
