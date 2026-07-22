@@ -15,6 +15,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { MarketingHeader } from "@/components/marketing-header";
 import { LandingFooter } from "@/components/landing-footer";
+import { RelatedCard } from "@/components/marketing/related-card";
 import { FaqPageSchema } from "@/components/seo/schema";
 import {
   ArrowRight,
@@ -255,8 +256,58 @@ export default function ReplaceBoilerLanding() {
         </div>
       </section>
 
+      {/* ─── Related reading ────────────────────────────────────────
+          Contextual internal links to the head-to-head comparisons +
+          finance guide + installer directory. */}
+      <section className="mx-auto max-w-6xl px-4 sm:px-6 py-20">
+        <div className="max-w-xl mb-10">
+          <p className="eyebrow">Keep reading</p>
+          <h2 className="mt-3 text-3xl sm:text-4xl text-navy">
+            Boiler-vs-heat-pump questions people ask next.
+          </h2>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <RelatedCard
+            href="/compare/heat-pump-vs-gas-boiler"
+            eyebrow="Comparison"
+            title="Heat pump vs gas boiler"
+            body="Head-to-head on install cost, running cost, lifespan, and carbon for a UK mains-gas home."
+          />
+          <RelatedCard
+            href="/compare/heat-pump-vs-oil-boiler"
+            eyebrow="Comparison"
+            title="Heat pump vs oil boiler"
+            body="Off-grid economics — where the £7,500 BUS grant + oil-tank-avoided-cost tip payback into 3-6 years."
+          />
+          <RelatedCard
+            href="/compare/heat-pump-vs-lpg-boiler"
+            eyebrow="Comparison"
+            title="Heat pump vs LPG boiler"
+            body="Similar picture to oil — heat-pump running costs run half of LPG, payback typically inside 5 years."
+          />
+          <RelatedCard
+            href="/compare/heat-pump-finance-options"
+            eyebrow="Comparison"
+            title="Heat pump finance options"
+            body="0% APR / green loan / cash — what's actually available, monthly figures, and how it compares to boiler finance."
+          />
+          <RelatedCard
+            href="/guides/heat-pump-payback-period-uk"
+            eyebrow="Guide"
+            title="Heat pump payback in the UK"
+            body="Payback ranges + the five levers that move them. Grant, tariff, weather compensation, solar, insulation."
+          />
+          <RelatedCard
+            href="/heat-pump-installers"
+            eyebrow="Directory"
+            title="MCS-certified heat pump installers"
+            body="5,500+ installers, distance-ranked with Google verified reviews. Every entry BUS-registered."
+          />
+        </div>
+      </section>
+
       {/* Final CTA */}
-      <section className="mx-auto max-w-6xl px-4 sm:px-6 pb-24 pt-20">
+      <section className="mx-auto max-w-6xl px-4 sm:px-6 pb-24 pt-4">
         <div className="rounded-3xl bg-coral text-cream p-10 sm:p-14 text-center relative overflow-hidden">
           <div className="absolute inset-0 opacity-20 pointer-events-none" aria-hidden>
             <div className="absolute -top-20 -right-20 w-80 h-80 rounded-full bg-terracotta blur-3xl" />

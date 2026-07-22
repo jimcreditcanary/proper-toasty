@@ -13,6 +13,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { MarketingHeader } from "@/components/marketing-header";
 import { LandingFooter } from "@/components/landing-footer";
+import { RelatedCard } from "@/components/marketing/related-card";
 import { FaqPageSchema } from "@/components/seo/schema";
 import {
   ArrowRight,
@@ -262,8 +263,61 @@ export default function HeatPumpLanding() {
         </div>
       </section>
 
+      {/* ─── Related reading ────────────────────────────────────────
+          Contextual internal links to the deep guides + comparisons
+          + installer directory. Distributes PageRank into evergreen
+          pages that would otherwise be reachable only from the
+          /guides + /compare indexes, and gives homeowners the next
+          step for whichever sub-question they arrived with. */}
+      <section className="mx-auto max-w-6xl px-4 sm:px-6 py-20">
+        <div className="max-w-xl mb-10">
+          <p className="eyebrow">Keep reading</p>
+          <h2 className="mt-3 text-3xl sm:text-4xl text-navy">
+            The heat-pump questions everyone lands on next.
+          </h2>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <RelatedCard
+            href="/guides/heat-pump-payback-period-uk"
+            eyebrow="Guide"
+            title="How long does a heat pump take to pay back?"
+            body="Payback ranges + the five levers that move it — grant, tariff, weather compensation, solar, insulation."
+          />
+          <RelatedCard
+            href="/guides/heat-pump-running-costs-vs-gas"
+            eyebrow="Guide"
+            title="Heat pump vs gas — running costs compared"
+            body="What a typical UK 3-bed spends per year on each fuel at 2026 tariffs. Honest numbers, both scenarios."
+          />
+          <RelatedCard
+            href="/guides/bus-application-walkthrough"
+            eyebrow="Guide"
+            title="How the £7,500 BUS grant application works"
+            body="Step-by-step: eligibility, installer nominates, Ofgem approves, install, sign-off. What to expect."
+          />
+          <RelatedCard
+            href="/guides/fabric-first-retrofit-before-heat-pump"
+            eyebrow="Guide"
+            title="Fabric-first retrofit before a heat pump"
+            body="What to do, in what order, so the pump is sized right + BUS eligibility is clear."
+          />
+          <RelatedCard
+            href="/compare/heat-pump-vs-gas-boiler"
+            eyebrow="Comparison"
+            title="Heat pump vs gas boiler"
+            body="Head-to-head on install cost, running cost, lifespan, and carbon."
+          />
+          <RelatedCard
+            href="/heat-pump-installers"
+            eyebrow="Directory"
+            title="MCS-certified heat pump installers"
+            body="5,500+ installers, distance-ranked with Google verified reviews. Every entry BUS-registered."
+          />
+        </div>
+      </section>
+
       {/* Final CTA */}
-      <section className="mx-auto max-w-6xl px-4 sm:px-6 pb-24 pt-20">
+      <section className="mx-auto max-w-6xl px-4 sm:px-6 pb-24 pt-4">
         <div className="rounded-3xl bg-coral text-cream p-10 sm:p-14 text-center relative overflow-hidden">
           <div className="absolute inset-0 opacity-20 pointer-events-none" aria-hidden>
             <div className="absolute -top-20 -right-20 w-80 h-80 rounded-full bg-terracotta blur-3xl" />
