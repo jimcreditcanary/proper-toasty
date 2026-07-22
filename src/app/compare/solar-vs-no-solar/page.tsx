@@ -40,6 +40,44 @@ export default function SolarVsNoSolar() {
         { name: "Compare", url: "/compare" },
         { name: "Solar vs no solar" },
       ]}
+      related={[
+        {
+          href: "/compare/solar-with-battery-vs-solar-alone",
+          eyebrow: "Comparison",
+          title: "Solar with battery vs solar alone",
+          body: "The battery decision — when it earns its keep, when it doesn't, and how smart tariffs change the maths.",
+        },
+        {
+          href: "/compare/solar-pv-vs-solar-thermal",
+          eyebrow: "Comparison",
+          title: "Solar PV vs solar thermal",
+          body: "Electricity or hot water? Why PV wins for most UK roofs but solar thermal still has niche cases.",
+        },
+        {
+          href: "/research/uk-affordability-index",
+          eyebrow: "Research",
+          title: "UK Home Energy Affordability Index 2026",
+          body: "Regional solar payback ranges built from the full EPC Register — where in the UK solar pays back fastest.",
+        },
+        {
+          href: "/solar-panel-installers",
+          eyebrow: "Directory",
+          title: "MCS-certified solar PV installers",
+          body: "MCS-certified installers by area, with Google verified reviews. Required for SEG eligibility.",
+        },
+        {
+          href: "/solar",
+          eyebrow: "Check",
+          title: "Free solar pre-survey",
+          body: "5 minutes, Google Solar API roof read + your address — see if your roof is a fit before you commit.",
+        },
+        {
+          href: "/blog",
+          eyebrow: "Journal",
+          title: "Guides + retrofit stories",
+          body: "Practical notes on rooftop solar, batteries, and the tariff choices that make the numbers work.",
+        },
+      ]}
       directAnswer="A 4 kW UK solar PV install costs £5,000–£7,500 and saves £500–£900 a year on electricity plus Smart Export Guarantee income. Payback in 7–11 years on most south-facing roofs; lifetime saving over 25 years is £8,000–£15,000. Adding a 5 kWh battery roughly doubles self-consumption and shifts payback closer to 9–13 years."
       tldr={[
         "Typical install: £5,000–£7,500 for a 4 kW system without battery.",

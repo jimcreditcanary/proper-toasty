@@ -6,7 +6,11 @@
 // callers can opt into a schema component standalone if they need
 // to.
 
-export { AEOPage, type AEOPageProps } from "./AEOPage";
+export {
+  AEOPage,
+  type AEOPageProps,
+  type RelatedArticle,
+} from "./AEOPage";
 export { DirectAnswer } from "./DirectAnswer";
 export { LastUpdated } from "./LastUpdated";
 export { AuthorByline } from "./AuthorByline";

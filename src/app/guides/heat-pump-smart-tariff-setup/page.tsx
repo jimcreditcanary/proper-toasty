@@ -75,6 +75,44 @@ export default function HeatPumpSmartTariffSetup() {
         { name: "Guides", url: "/guides" },
         { name: "Setting up a heat pump smart tariff" },
       ]}
+      related={[
+        {
+          href: "/compare/heat-pump-tariffs",
+          eyebrow: "Comparison",
+          title: "Heat pump electricity tariffs UK 2026",
+          body: "Cosy vs British Gas Heat Pump Plus vs EDF GoElectric vs E.ON Next Heat Pump — the four tariffs to pick between.",
+        },
+        {
+          href: "/guides/heat-pump-running-costs-vs-gas",
+          eyebrow: "Guide",
+          title: "Heat pump vs gas — running costs compared",
+          body: "The numbers behind the tariff choice — how much a smart tariff actually saves vs flat-rate electricity.",
+        },
+        {
+          href: "/guides/heat-pump-payback-period-uk",
+          eyebrow: "Guide",
+          title: "Heat pump payback in the UK",
+          body: "Tariff choice is one of the five payback levers — worth ~3-5 years off the payback range.",
+        },
+        {
+          href: "/guides/scop-cop-spf-explained",
+          eyebrow: "Guide",
+          title: "SCOP, COP, SPF explained",
+          body: "Weather-comp tuning drives SCOP up from 3.0 toward 3.5+ — direct effect on running cost on any tariff.",
+        },
+        {
+          href: "/guides/hot-water-planning-heat-pump",
+          eyebrow: "Guide",
+          title: "Hot-water planning for a heat pump",
+          body: "Shift the cylinder reheat cycle to the cheap window — worth ~£300/year on its own.",
+        },
+        {
+          href: "/heat-pump-installers",
+          eyebrow: "Directory",
+          title: "MCS-certified heat pump installers",
+          body: "Directory of installers who can configure weather compensation + tariff-aware scheduling on your specific system.",
+        },
+      ]}
       directAnswer="To run a heat pump on a UK smart tariff you need three things: (1) a heat-pump-friendly tariff with defined cheap-rate windows or live half-hourly pricing, (2) weather compensation enabled on the heat pump so flow temperature scales with outside conditions, and (3) a schedule that pushes the heating + hot-water cycles into the cheap-rate windows. Done well this cuts running cost by 25–40% vs running on a flat single-rate tariff. The best fixed-window tariffs in May 2026 are Octopus Cosy and British Gas HomeEnergy; the best dynamic options are Octopus Agile and Tracker, which need a smart controller (Homely, MyEnergi Eddi, or Home Assistant) to react to daily price changes."
       tldr={[
         "Smart tariffs typically save 25-40% on running cost vs flat single-rate.",

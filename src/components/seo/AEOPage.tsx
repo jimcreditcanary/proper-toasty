@@ -42,6 +42,7 @@
 import * as React from "react";
 import { MarketingHeader } from "@/components/marketing-header";
 import { LandingFooter } from "@/components/landing-footer";
+import { RelatedCard } from "@/components/marketing/related-card";
 import {
   ArticleSchema,
   BreadcrumbListSchema,
@@ -58,6 +59,16 @@ import { TLDR } from "./TLDR";
 import { SourcesList } from "./SourcesList";
 import type { SourceEntry } from "@/lib/seo/validators";
 import { countWords } from "@/lib/seo/validators";
+
+/** Related-article entry rendered as a tile below the body. Used
+ *  to point at topically-adjacent guides / comparisons / directories
+ *  so PageRank flows across the topic cluster. */
+export interface RelatedArticle {
+  href: string;
+  eyebrow: string;
+  title: string;
+  body: string;
+}
 
 export interface AEOPageProps {
   // ─── Required identity ────────────────────────────────────────
@@ -111,6 +122,15 @@ export interface AEOPageProps {
   /** Optional total time estimate for HowTo schema (ISO 8601
    *  duration: "PT4H" for 4 hours, "P3M" for 3 months). */
   howToTotalTime?: string;
+  /** Related articles rendered as tiles below the body (before
+   *  SourcesList). 3-6 tiles is typical. Every entry becomes an
+   *  internal link — huge for PageRank flow across topic clusters
+   *  when set on every /compare/* and /guides/* page. */
+  related?: RelatedArticle[];
+  /** Optional heading override for the related section. Defaults
+   *  to "Keep reading". Pass e.g. "Related comparisons" when the
+   *  tiles are all comparisons. */
+  relatedHeading?: string;
   /** Body content — H2/H3/p/img/etc. */
   children: React.ReactNode;
 }
@@ -162,6 +182,8 @@ export function AEOPage(props: AEOPageProps): React.ReactElement {
     kind = "article",
     howToSteps,
     howToTotalTime,
+    related,
+    relatedHeading = "Keep reading",
     children,
   } = props;
 
@@ -272,6 +294,28 @@ export function AEOPage(props: AEOPageProps): React.ReactElement {
         <div className="mt-8 prose prose-slate prose-lg max-w-none prose-headings:font-semibold prose-headings:text-navy prose-h2:mt-12 prose-h2:mb-4 prose-h3:mt-8 prose-h3:mb-3 prose-p:leading-relaxed prose-a:text-coral hover:prose-a:text-coral-dark prose-strong:text-navy">
           {children}
         </div>
+
+        {/* Related — topically-adjacent guides / comparisons /
+            directories. Rendered above Sources so the visual weight
+            reads as "next reads" rather than "references". */}
+        {related && related.length > 0 && (
+          <section className="not-prose mt-12">
+            <h2 className="text-xl font-semibold text-navy mb-4">
+              {relatedHeading}
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {related.map((r) => (
+                <RelatedCard
+                  key={r.href}
+                  href={r.href}
+                  eyebrow={r.eyebrow}
+                  title={r.title}
+                  body={r.body}
+                />
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* Sources — always rendered at the bottom of the article. */}
         <SourcesList sources={sources} />
