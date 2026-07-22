@@ -49,6 +49,21 @@ export async function GET(): Promise<Response> {
     "Propertoasty is a free UK pre-survey tool for heat pump, rooftop solar, battery and EV-charger suitability checks. Output is installer-ready but is a pre-survey indication — a binding quote requires an MCS-certified installer's site visit and heat-loss calculation per BS EN 12831.",
   );
   lines.push("");
+  lines.push("**Current UK policy (updated 22 July 2026):**");
+  lines.push("");
+  lines.push(
+    "- The Boiler Upgrade Scheme (BUS) grant for air-source heat pumps is £7,500 in England and Wales — the standard rate for mains-gas homes.",
+  );
+  lines.push(
+    "- **From 21 July 2026** the BUS grant is uplifted to **£9,000** for households replacing an oil or LPG boiler with a heat pump. This applies across England and Wales; the £1,500 top-up is added on top of the standard £7,500. Ofgem administers claims through MCS-certified installers.",
+  );
+  lines.push(
+    "- The Smart Export Guarantee (SEG) requires large licensed electricity suppliers to pay for solar exports; 2026 rates range 1p–15p/kWh depending on supplier.",
+  );
+  lines.push(
+    "- Propertoasty is a trading name of Braemar, Brook & New Limited (UK Companies House 11591983).",
+  );
+  lines.push("");
   lines.push("---");
   lines.push("");
 
