@@ -12,6 +12,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { MarketingHeader } from "@/components/marketing-header";
 import { LandingFooter } from "@/components/landing-footer";
+import { RelatedCard } from "@/components/marketing/related-card";
 import { FaqPageSchema } from "@/components/seo/schema";
 import {
   ArrowRight,
@@ -258,8 +259,58 @@ export default function SolarLanding() {
         </div>
       </section>
 
+      {/* ─── Related reading ────────────────────────────────────────
+          Contextual internal links to the deep solar comparisons +
+          installer directory. */}
+      <section className="mx-auto max-w-6xl px-4 sm:px-6 py-20">
+        <div className="max-w-xl mb-10">
+          <p className="eyebrow">Keep reading</p>
+          <h2 className="mt-3 text-3xl sm:text-4xl text-navy">
+            The solar questions everyone lands on next.
+          </h2>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <RelatedCard
+            href="/compare/solar-vs-no-solar"
+            eyebrow="Comparison"
+            title="Solar vs no solar — is it worth it?"
+            body="Real numbers on install cost, self-consumption, SEG earnings, and how long payback actually takes on a UK roof."
+          />
+          <RelatedCard
+            href="/compare/solar-with-battery-vs-solar-alone"
+            eyebrow="Comparison"
+            title="Solar with battery vs solar alone"
+            body="When a battery earns its keep, when it doesn't — and how smart-tariff arbitrage changes the maths."
+          />
+          <RelatedCard
+            href="/compare/solar-pv-vs-solar-thermal"
+            eyebrow="Comparison"
+            title="Solar PV vs solar thermal"
+            body="Electricity or hot water? Which suits your roof + your household load — and why PV wins for most homes."
+          />
+          <RelatedCard
+            href="/research/uk-affordability-index"
+            eyebrow="Research"
+            title="UK Home Energy Affordability Index 2026"
+            body="Trended snapshot of UK home energy affordability across 5 lodgement years and 13 regions."
+          />
+          <RelatedCard
+            href="/blog"
+            eyebrow="Journal"
+            title="Guides + retrofit stories"
+            body="Practical notes on rooftop solar, batteries, and the tariff choices that make the numbers work."
+          />
+          <RelatedCard
+            href="/solar-panel-installers"
+            eyebrow="Directory"
+            title="MCS-certified solar PV installers"
+            body="MCS-certified installers covering every UK postcode. Google verified reviews, request a quote in 5 minutes."
+          />
+        </div>
+      </section>
+
       {/* Final CTA */}
-      <section className="mx-auto max-w-6xl px-4 sm:px-6 pb-24 pt-20">
+      <section className="mx-auto max-w-6xl px-4 sm:px-6 pb-24 pt-4">
         <div className="rounded-3xl bg-coral text-cream p-10 sm:p-14 text-center relative overflow-hidden">
           <div className="absolute inset-0 opacity-20 pointer-events-none" aria-hidden>
             <div className="absolute -top-20 -right-20 w-80 h-80 rounded-full bg-terracotta blur-3xl" />
