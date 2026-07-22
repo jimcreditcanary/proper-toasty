@@ -154,6 +154,11 @@ const CHECKS: Check[] = [
         : "no rows with the fixed href — migration 078 not applied";
     },
   },
+  {
+    migration: "079_blog_posts_sources",
+    artifact: "column blog_posts.sources (jsonb)",
+    probe: selectProbe("blog_posts", "sources"),
+  },
 ];
 
 async function main(): Promise<void> {

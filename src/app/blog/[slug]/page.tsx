@@ -11,6 +11,8 @@ import { BlogPostContent } from "@/components/blog-post-content";
 import { RelatedPosts } from "@/components/blog/related-posts";
 import { BlogSeeAlso } from "@/components/blog/see-also";
 import { SocialShare } from "@/components/blog/social-share";
+import { SourcesList } from "@/components/seo/SourcesList";
+import type { SourceEntry } from "@/lib/seo/validators";
 import { ArticleSchema, BreadcrumbListSchema } from "@/components/seo/schema";
 import { DEFAULT_AUTHOR_SLUG, authorSlugForName } from "@/lib/seo/authors";
 import { InstallerPostByline } from "@/components/blog/installer-post-byline";
@@ -175,6 +177,21 @@ export default async function BlogPostPage({
     post.installer_id != null;
   const installerId = post.installer_id as number | null;
   const readingMinutes = estimateReadingMinutes(content);
+
+  // Optional citations block (migration 079). NULL / missing = no
+  // Sources section rendered — same graceful-degrade pattern the
+  // guides use. Runtime shape-guard because the DB column is `jsonb`
+  // and we don't validate it at write time yet.
+  const sourcesRaw = post.sources as unknown;
+  const sources: SourceEntry[] = Array.isArray(sourcesRaw)
+    ? (sourcesRaw as unknown[]).filter(
+        (s): s is SourceEntry =>
+          !!s &&
+          typeof s === "object" &&
+          typeof (s as SourceEntry).name === "string" &&
+          typeof (s as SourceEntry).url === "string",
+      )
+    : [];
   const categoryColors =
     CATEGORY_COLORS[category] ?? "bg-slate-50 text-slate-700 border-slate-200";
 
@@ -391,6 +408,13 @@ export default async function BlogPostPage({
             websiteUrl={installer.website}
           />
         )}
+
+        {/* Sources — visible citation list. Same pattern as guides +
+            comparisons via AEOPage. Renders only when the post carries
+            a `sources` array (migration 079). Google + AI raters use
+            visible citations as an E-E-A-T signal, so we prefer no
+            block over an empty one. */}
+        {sources.length > 0 && <SourcesList sources={sources} />}
 
         {/* Repeat the share row at the bottom — readers who finish
             the post are the ones most likely to share it. */}
