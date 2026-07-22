@@ -18,7 +18,7 @@ export const metadata: Metadata = {
   title:
     "Find an MCS-certified UK installer — Propertoasty directory",
   description:
-    "Find an MCS-certified UK installer for heat pumps or solar PV. 5,500+ installers, distance-ranked, with Google verified reviews. Free 5-minute property check matches you with installers covering your exact postcode.",
+    "5,500+ MCS-certified UK heat pump + solar installers. Distance-ranked with Google verified reviews. Free 5-minute check matches installers covering your postcode.",
   alternates: { canonical: URL },
   openGraph: {
     title: "Find an MCS-certified UK installer",

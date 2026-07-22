@@ -70,6 +70,20 @@ export async function generateStaticParams() {
   return Object.keys(AUTHORS).map((slug) => ({ slug }));
 }
 
+/** Trim a long bio down to a meta-description-friendly length.
+ *  Google truncates at ~155-160 chars — anything longer is wasted
+ *  render + gets cut mid-word. First sentence when it fits;
+ *  otherwise a hard-cap at 155 with an ellipsis on a word boundary. */
+function shortDescription(bio: string): string {
+  const firstSentence = bio.split(/[.!?]\s/)[0];
+  if (firstSentence.length <= 155) {
+    return firstSentence + (bio.length > firstSentence.length ? "." : "");
+  }
+  const cap = bio.slice(0, 155);
+  const lastSpace = cap.lastIndexOf(" ");
+  return cap.slice(0, lastSpace > 100 ? lastSpace : cap.length) + "…";
+}
+
 export async function generateMetadata({
   params,
 }: PageProps): Promise<Metadata> {
@@ -80,13 +94,14 @@ export async function generateMetadata({
   }
   const url = authorUrl(slug);
   const title = `${author.name} — ${author.jobTitle}`;
+  const description = shortDescription(author.bio);
   return {
     title,
-    description: author.bio,
+    description,
     alternates: { canonical: url },
     openGraph: {
       title,
-      description: author.bio,
+      description,
       type: "profile",
       url,
       siteName: ORG_PROFILE.name,

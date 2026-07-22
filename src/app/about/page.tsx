@@ -15,7 +15,7 @@ const URL = "https://www.propertoasty.com/about";
 export const metadata: Metadata = {
   title: "About Propertoasty — UK heat pump + solar suitability service",
   description:
-    "Propertoasty is the UK home energy suitability service. We combine the GOV.UK EPC Register, Google's Solar API, and machine-vision floorplan analysis to produce installer-ready reports for homeowners considering heat pumps or solar PV.",
+    "The UK home energy suitability service. GOV.UK EPC + Google Solar API + floorplan vision produce installer-ready reports for heat pump and solar decisions.",
   alternates: { canonical: URL },
   openGraph: {
     title: "About Propertoasty",
