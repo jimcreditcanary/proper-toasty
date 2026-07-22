@@ -41,7 +41,7 @@ values
 
 <h2>Cost — what you actually pay</h2>
 
-<p>Both qualify for the <a href="/blog/boiler-upgrade-scheme-explained">£7,500 Boiler Upgrade Scheme</a> grant. After the grant:</p>
+<p>Both qualify for the <a href="/guides/bus-application-walkthrough">£7,500 Boiler Upgrade Scheme</a> grant. After the grant:</p>
 
 <ul>
   <li><strong>Air source:</strong> typically £2,500-£6,500 net for an average UK home.</li>

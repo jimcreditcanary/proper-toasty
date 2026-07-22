@@ -339,8 +339,8 @@ export default function HotWaterPlanning() {
         central-heating run pattern.
       </p>
       <p>
-        See the upcoming{" "}
-        <a href="/compare/heat-pump-tariffs-2026">
+        See the{" "}
+        <a href="/compare/heat-pump-tariffs">
           heat pump tariffs comparison
         </a>{" "}
         for tariff-specific guidance.
