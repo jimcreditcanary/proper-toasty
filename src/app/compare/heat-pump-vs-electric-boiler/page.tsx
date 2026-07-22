@@ -52,6 +52,14 @@ export default function HeatPumpVsElectricBoiler() {
         { name: "Compare", url: "/compare" },
         { name: "Heat pump vs electric boiler" },
       ]}
+      related={[
+        { href: "/compare/heat-pump-vs-gas-boiler", eyebrow: "Comparison", title: "Heat pump vs gas boiler", body: "The mains-gas alternative comparison. Gas is cheaper per kWh but a heat pump uses 3× less kWh." },
+        { href: "/compare/heat-pump-vs-oil-boiler", eyebrow: "Comparison", title: "Heat pump vs oil boiler", body: "Off-grid alternative comparison. Where the BUS grant plus oil-tank-avoided-cost tips payback fastest." },
+        { href: "/compare/heat-pump-vs-night-storage-heaters", eyebrow: "Comparison", title: "Heat pump vs night storage heaters", body: "The direct-electric alternative to compare against — E7 storage is cheap-electric but inefficient." },
+        { href: "/compare/heat-pump-tariffs", eyebrow: "Comparison", title: "Heat pump electricity tariffs UK 2026", body: "A heat pump's per-kWh electricity cost isn't the standard rate — smart tariffs cut it 40%." },
+        { href: "/guides/heat-pump-running-costs-vs-gas", eyebrow: "Guide", title: "Heat pump running costs", body: "Real annual costs on flat-rate vs smart-tariff electricity — electric-boiler homes save the most by switching." },
+        { href: "/heat-pump-installers", eyebrow: "Directory", title: "MCS-certified heat pump installers", body: "Directory of installers who can quote a heat-pump replacement for an existing all-electric home." },
+      ]}
       directAnswer="Both systems run on grid electricity, but a direct-electric boiler outputs 1 kWh of heat per 1 kWh of electricity while a heat pump outputs about 3.5 kWh of heat per 1 kWh of electricity. For a typical UK home, that efficiency gap is worth £600–£1,200 a year in running cost — and the £7,500 BUS grant usually makes the heat pump cheaper upfront too."
       tldr={[
         "Same fuel (grid electricity) — only the efficiency differs.",

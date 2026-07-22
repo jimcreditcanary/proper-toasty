@@ -46,6 +46,14 @@ export default function ScopCopSpfExplained() {
         { name: "Guides", url: "/guides" },
         { name: "SCOP, COP, SPF explained" },
       ]}
+      related={[
+        { href: "/guides/heat-pump-running-costs-vs-gas", eyebrow: "Guide", title: "Heat pump vs gas running costs", body: "SCOP is the efficiency number behind the running-cost model — this shows the £ impact of 0.5 SCOP." },
+        { href: "/guides/heat-pump-smart-tariff-setup", eyebrow: "Guide", title: "Setting up a heat pump on a smart tariff", body: "Weather compensation is the practical lever that pushes measured SPF up from 3.0 toward 3.5+." },
+        { href: "/compare/heat-pump-tariffs", eyebrow: "Comparison", title: "Heat pump electricity tariffs UK 2026", body: "SCOP × tariff cheap-rate = the true running-cost number — this compares tariff-side of that equation." },
+        { href: "/guides/heat-pump-payback-period-uk", eyebrow: "Guide", title: "Heat pump payback in the UK", body: "SCOP is one of the five payback levers — well-tuned weather comp = ~2-3 years off payback." },
+        { href: "/compare/heat-pump-vs-gas-boiler", eyebrow: "Comparison", title: "Heat pump vs gas boiler", body: "The full lifetime-cost comparison — SCOP is what makes the electric bill smaller than the gas bill." },
+        { href: "/heat-pump-installers", eyebrow: "Directory", title: "MCS-certified heat pump installers", body: "Directory of installers who can size + commission a system that hits its rated SCOP in your home." },
+      ]}
       directAnswer="A heat pump's efficiency is measured by three related but distinct numbers. COP (Coefficient of Performance) is the instantaneous ratio of heat output to electricity input at fixed test conditions — typically 7°C outside, 35°C flow. SCOP (Seasonal COP) is the annual-average COP across a defined climate zone, accounting for varying outdoor temperatures and flow temperatures throughout the year — this is the number on MCS quotes. SPF (Seasonal Performance Factor) is the real-world measured efficiency from a calibrated electricity + heat meter once the pump is installed. Typical UK 2026 numbers: COP 4.5–5.5 in brochures, SCOP 3.5–4.5 on MCS quotes, SPF 2.8–3.8 measured in the field."
       tldr={[
         "COP = lab test condition efficiency (brochure number, optimistic).",

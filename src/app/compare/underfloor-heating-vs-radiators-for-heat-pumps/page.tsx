@@ -56,6 +56,14 @@ export default function UnderfloorVsRadiatorsForHeatPumps() {
         { name: "Compare", url: "/compare" },
         { name: "Underfloor heating vs radiators for heat pumps" },
       ]}
+      related={[
+        { href: "/guides/scop-cop-spf-explained", eyebrow: "Guide", title: "SCOP, COP, SPF explained", body: "Flow-temperature drives SCOP — underfloor's lower flow temp is where its efficiency edge shows up." },
+        { href: "/guides/heat-pump-payback-period-uk", eyebrow: "Guide", title: "Heat pump payback in the UK", body: "Underfloor's install premium vs radiator-swap cost — how it changes the payback range." },
+        { href: "/guides/fabric-first-retrofit-before-heat-pump", eyebrow: "Guide", title: "Fabric-first retrofit before a heat pump", body: "Well-insulated homes can often run radiators at heat-pump flow temps without upsizing — changes the underfloor case." },
+        { href: "/guides/heat-pump-smart-tariff-setup", eyebrow: "Guide", title: "Setting up a heat pump on a smart tariff", body: "Underfloor's thermal mass suits smart-tariff pre-heat cycles better than radiators — practical impact on running cost." },
+        { href: "/guides/mcs-site-visit-what-to-expect", eyebrow: "Guide", title: "What to expect at an MCS site visit", body: "The site visit is where the installer decides which radiators need upsizing — or whether underfloor makes sense at all." },
+        { href: "/heat-pump-installers", eyebrow: "Directory", title: "MCS-certified heat pump installers", body: "Underfloor + heat pump is a specific installer skill — filter for retrofit-underfloor experience." },
+      ]}
       directAnswer="Heat pumps work efficiently with both underfloor heating (UFH) and properly-sized radiators. UFH typically delivers a slightly higher SCOP (4.5–5.0 vs 3.8–4.5 on rads) because it runs at lower flow temperatures (35–40°C vs 45–55°C). The trade-off is cost: retrofitting wet UFH to an existing UK home costs £6,000–£15,000 vs £1,500–£5,500 to upgrade radiators. For new builds and renovations where floors are already up, UFH usually wins. For most retrofit installs, upgraded rads are the cheaper, faster path."
       tldr={[
         "Heat pumps work with both — neither is mandatory.",

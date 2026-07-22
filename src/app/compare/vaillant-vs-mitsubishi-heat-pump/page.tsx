@@ -50,6 +50,14 @@ export default function VaillantVsMitsubishiHeatPump() {
         { name: "Compare", url: "/compare" },
         { name: "Vaillant vs Mitsubishi heat pump" },
       ]}
+      related={[
+        { href: "/compare/vaillant-vs-daikin-heat-pump", eyebrow: "Comparison", title: "Vaillant vs Daikin heat pump", body: "The other Vaillant head-to-head — Daikin brings different refrigerant + install pattern than Mitsubishi." },
+        { href: "/compare/daikin-vs-mitsubishi-heat-pump", eyebrow: "Comparison", title: "Daikin vs Mitsubishi heat pump", body: "Japanese head-to-head — takes Vaillant out of the picture to compare the two Japanese majors directly." },
+        { href: "/compare/samsung-vs-lg-heat-pump", eyebrow: "Comparison", title: "Samsung vs LG heat pump", body: "The Korean alternative pair — cheaper tier, thinner UK installer network." },
+        { href: "/heat-pump-installers", eyebrow: "Directory", title: "MCS-certified heat pump installers", body: "Both Vaillant + Mitsubishi have strong UK installer coverage — filter by area, then check brand skill." },
+        { href: "/guides/mcs-site-visit-what-to-expect", eyebrow: "Guide", title: "What to expect at an MCS site visit", body: "Where the installer commits to a specific unit for your home." },
+        { href: "/guides/heat-pump-payback-period-uk", eyebrow: "Guide", title: "Heat pump payback in the UK", body: "Brand choice moves running cost ±10% via SCOP — one of the five payback levers." },
+      ]}
       directAnswer="Vaillant aroTHERM and Mitsubishi Ecodan are both top-five UK air-source heat pump ranges. Both deliver BUS-grant-eligible installs with overlapping capacities (3–14 kW), SCOP figures within ~5% (4.4–5.0 at W35), and similar warranty terms. The standout spec difference is refrigerant: Vaillant aroTHERM plus runs R290 propane (lowest GWP); Mitsubishi Ecodan PUZ-WM runs R32 (industry mainstream). Practical pick depends on installer preference and refrigerant choice."
       tldr={[
         "Both brands deliver MCS-compliant, BUS-eligible installs across the typical UK 4–14 kW capacity range.",

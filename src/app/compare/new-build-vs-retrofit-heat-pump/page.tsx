@@ -49,6 +49,14 @@ export default function NewBuildVsRetrofitHeatPump() {
         { name: "Compare", url: "/compare" },
         { name: "New build vs retrofit heat pump" },
       ]}
+      related={[
+        { href: "/compare/heat-pump-vs-gas-boiler", eyebrow: "Comparison", title: "Heat pump vs gas boiler", body: "The retrofit-side comparison — most UK heat pumps replace an existing boiler." },
+        { href: "/guides/fabric-first-retrofit-before-heat-pump", eyebrow: "Guide", title: "Fabric-first retrofit before a heat pump", body: "The retrofit playbook — insulation, glazing, radiator swaps in the right order." },
+        { href: "/guides/heat-pump-payback-period-uk", eyebrow: "Guide", title: "Heat pump payback in the UK", body: "New-builds get simpler payback maths (no boiler-avoided-cost); retrofits have the BUS grant lever." },
+        { href: "/guides/mcs-site-visit-what-to-expect", eyebrow: "Guide", title: "What to expect at an MCS site visit", body: "Retrofit site visits are longer + more variable — this covers what the installer measures." },
+        { href: "/heat-pump-installers", eyebrow: "Directory", title: "MCS-certified heat pump installers", body: "Directory of installers — filter by capability + read their retrofit vs new-build experience mix." },
+        { href: "/guides/bus-application-walkthrough", eyebrow: "Guide", title: "How the £7,500 BUS grant works", body: "Retrofits qualify. New-builds usually don't — the grant is the retrofit's biggest lever." },
+      ]}
       directAnswer="New-build heat pumps are now standard under the Future Homes Standard (no gas-boiler installs in English new builds from 2025). The heat pump is spec'd in at construction — radiator/UFH sizing, cylinder location, electrical capacity all designed for it from the start. Retrofit installs adapt the heat pump to an existing home's fabric, emitters and electrical supply. New-build installs typically cost £6,500–£10,000 inclusive in the build budget; retrofits cost £8,000–£14,000 pre-grant, £1,500–£6,500 net after the £7,500 BUS grant — which new builds aren't eligible for."
       tldr={[
         "Future Homes Standard from 2025 banned gas-boiler installs in English new builds — heat pumps are now mandatory.",

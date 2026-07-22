@@ -45,6 +45,14 @@ export default function Mcs020NoiseRulesExplained() {
         { name: "Guides", url: "/guides" },
         { name: "MCS 020 noise rules explained" },
       ]}
+      related={[
+        { href: "/guides/mcs-site-visit-what-to-expect", eyebrow: "Guide", title: "What to expect at an MCS site visit", body: "The MCS 020 noise assessment happens on the site visit — this covers what the installer measures + why." },
+        { href: "/blog/heat-pump-noise-rules-uk", eyebrow: "Journal", title: "Heat pump noise rules UK", body: "Shorter blog take framed for homeowners — the 42 dB(A) limit + what triggers a planning application." },
+        { href: "/blog/heat-pump-for-flat-or-leasehold", eyebrow: "Journal", title: "Heat pumps for flats + leasehold", body: "Noise rules bite hardest for flats + terraces — this covers the leasehold-permission angle." },
+        { href: "/heat-pump-installers", eyebrow: "Directory", title: "MCS-certified heat pump installers", body: "Every entry MCS-certified — MCS 020 compliance is part of every quote." },
+        { href: "/guides/bus-application-walkthrough", eyebrow: "Guide", title: "How the £7,500 BUS grant works", body: "Grant eligibility requires MCS certification — which requires MCS 020 sign-off." },
+        { href: "/heatpump", eyebrow: "Check", title: "Free heat pump pre-survey", body: "5 minutes — we flag outdoor-unit placement candidates that respect MCS 020 from your floorplan." },
+      ]}
       directAnswer="MCS 020 is the planning-standard noise calculation that every MCS-certified air-source heat pump install in England, Wales, Scotland, and Northern Ireland must satisfy to qualify as permitted development (PD) — bypassing the need for planning permission. The rule: the calculated sound pressure level at the nearest neighbour's habitable window must not exceed 42 dB(A) at 1 metre from the wall. If it does, the install needs full planning permission. Most installs pass MCS 020 with the heat pump sited 3+ metres from any neighbour boundary and with no acoustic barriers in the line of sight. Fixing a failing calculation usually means relocating the unit, adding an acoustic barrier, or switching to a quieter model."
       tldr={[
         "MCS 020 is the noise standard that gates permitted development (PD) status.",

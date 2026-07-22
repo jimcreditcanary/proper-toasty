@@ -53,6 +53,14 @@ export default function HeatPumpFinanceOptions() {
         { name: "Compare", url: "/compare" },
         { name: "Heat pump finance options" },
       ]}
+      related={[
+        { href: "/guides/heat-pump-payback-period-uk", eyebrow: "Guide", title: "Heat pump payback in the UK", body: "How finance changes the payback view — cash + fastest payback = strongest case; 0% APR spreads it." },
+        { href: "/compare/heat-pump-vs-gas-boiler", eyebrow: "Comparison", title: "Heat pump vs gas boiler", body: "The lifetime-cost comparison — where finance monthly costs go head-to-head with boiler finance monthly costs." },
+        { href: "/compare/heat-pump-tariffs", eyebrow: "Comparison", title: "Heat pump electricity tariffs UK 2026", body: "Once finance is chosen, the tariff choice determines whether monthly running cost beats gas." },
+        { href: "/guides/bus-application-walkthrough", eyebrow: "Guide", title: "How the £7,500 BUS grant works", body: "Grant lands directly on the installer invoice — reduces the principal you finance." },
+        { href: "/replace-my-boiler", eyebrow: "Check", title: "New boiler or heat pump?", body: "Side-by-side monthly cost comparison — boiler finance vs heat-pump finance with the grant applied." },
+        { href: "/heat-pump-installers", eyebrow: "Directory", title: "MCS-certified heat pump installers", body: "Directory of installers — most offer their own 0% finance option alongside the neutral market rates." },
+      ]}
       directAnswer="After the £7,500 Boiler Upgrade Scheme grant, the typical UK homeowner pays £1,500–£6,500 net for an air-source heat pump install. Five main paths cover that balance: cash from savings, 0% APR installer finance (typically 24–60 month terms), green mortgage add-ons from major UK banks, secured personal loans, and heat-pump-as-a-service subscription contracts. Cash is cheapest in absolute terms; 0% installer finance is often the best risk-adjusted option for households without spare savings."
       tldr={[
         "BUS grant covers most of the cost; finance addresses the £1,500–£6,500 net balance.",
