@@ -74,6 +74,14 @@ export default function HotWaterPlanning() {
         { name: "Guides", url: "/guides" },
         { name: "Hot water planning for a heat pump install" },
       ]}
+      related={[
+        { href: "/guides/heat-pump-smart-tariff-setup", eyebrow: "Guide", title: "Setting up a heat pump on a smart tariff", body: "The cylinder-reheat scheduling logic — shift to cheap windows for the biggest single tariff saving." },
+        { href: "/compare/heat-pump-tariffs", eyebrow: "Comparison", title: "Heat pump electricity tariffs UK 2026", body: "Cosy vs GoElectric vs HomeEnergy — cheap-rate window shapes drive when the cylinder cycles." },
+        { href: "/guides/scop-cop-spf-explained", eyebrow: "Guide", title: "SCOP, COP, SPF explained", body: "Hot-water production runs at higher flow temps than space heating — different SCOP maths apply." },
+        { href: "/guides/mcs-site-visit-what-to-expect", eyebrow: "Guide", title: "What to expect at an MCS site visit", body: "Where cylinder placement + reheat scheduling gets locked in during the pre-install survey." },
+        { href: "/guides/heat-pump-running-costs-vs-gas", eyebrow: "Guide", title: "Heat pump vs gas running costs", body: "Hot-water spend is often ~30% of a heat pump's annual electricity use — running-cost model breaks it out." },
+        { href: "/heat-pump-installers", eyebrow: "Directory", title: "MCS-certified heat pump installers", body: "Directory of installers who can size + place the cylinder + schedule the reheat cycle." },
+      ]}
       directAnswer="A heat-pump install needs an unvented hot-water cylinder sized to 45 litres per person as a rule of thumb (so 180L for 4 people, 250L for 5+). The cylinder heats once or twice a day to around 50°C via the heat pump, with a backup immersion for the weekly 60°C Legionella cycle required by HSE L8 guidance. Combi boilers can't be replaced by a heat pump like-for-like — every heat-pump install needs a cylinder, which means finding airing-cupboard or utility space. The hot-water side typically adds £800–£2,500 to an install over and above the heat pump itself."
       tldr={[
         "Sizing rule of thumb: 45 litres of cylinder capacity per person.",

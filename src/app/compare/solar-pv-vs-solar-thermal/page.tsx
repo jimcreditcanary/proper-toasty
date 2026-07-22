@@ -52,6 +52,14 @@ export default function SolarPvVsSolarThermal() {
         { name: "Compare", url: "/compare" },
         { name: "Solar PV vs solar thermal" },
       ]}
+      related={[
+        { href: "/compare/solar-vs-no-solar", eyebrow: "Comparison", title: "Solar vs no solar — is it worth it?", body: "The PV-side decision — payback, SEG earnings, self-consumption on a typical UK roof." },
+        { href: "/compare/solar-with-battery-vs-solar-alone", eyebrow: "Comparison", title: "Solar with battery vs solar alone", body: "The battery decision — a PV-only story, doesn't apply to solar thermal." },
+        { href: "/solar-panel-installers", eyebrow: "Directory", title: "MCS-certified solar PV installers", body: "PV directory — most solar-thermal installers now double as PV installers." },
+        { href: "/guides/hot-water-planning-heat-pump", eyebrow: "Guide", title: "Hot-water planning with a heat pump", body: "The heat-pump alternative to solar thermal for hot-water production." },
+        { href: "/solar", eyebrow: "Check", title: "Free solar pre-survey", body: "5 minutes — satellite roof read. Sizes a PV system for your specific roof geometry." },
+        { href: "/research/uk-affordability-index", eyebrow: "Research", title: "UK Home Energy Affordability Index 2026", body: "Regional payback ranges for solar PV across 13 UK regions." },
+      ]}
       directAnswer="Solar PV generates electricity that can power anything in the home (or export to the grid for SEG income). Solar thermal generates heat for the hot-water cylinder only. In 2026 UK economics, solar PV almost always wins: PV install costs £5,000–£7,500 for a 4 kWp system that saves £500–£900/year on bills + earns SEG export income; solar thermal costs £3,500–£6,000 and saves £150–£300/year by displacing hot-water heating. PV is more flexible, scales better, and pairs natively with heat pumps."
       tldr={[
         "Solar PV: electricity → powers anything. Solar thermal: heat → hot water only.",

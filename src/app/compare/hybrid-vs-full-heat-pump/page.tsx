@@ -53,6 +53,14 @@ export default function HybridVsFullHeatPump() {
         { name: "Compare", url: "/compare" },
         { name: "Hybrid vs full heat pump" },
       ]}
+      related={[
+        { href: "/compare/heat-pump-vs-gas-boiler", eyebrow: "Comparison", title: "Heat pump vs gas boiler", body: "The either-or comparison behind the hybrid decision. Full HP typically wins on 10-year TCO." },
+        { href: "/guides/heat-pump-payback-period-uk", eyebrow: "Guide", title: "Heat pump payback in the UK", body: "Hybrids have a shorter payback but a lower ceiling — full HP catches up around year 8." },
+        { href: "/guides/bus-application-walkthrough", eyebrow: "Guide", title: "How the £7,500 BUS grant works", body: "Full heat pumps qualify for the grant. Hybrids don't — biggest single reason to go full." },
+        { href: "/guides/heat-pump-running-costs-vs-gas", eyebrow: "Guide", title: "Heat pump vs gas running costs", body: "Hybrids run gas at design-cold temps — running-cost model shows when that matters." },
+        { href: "/guides/fabric-first-retrofit-before-heat-pump", eyebrow: "Guide", title: "Fabric-first retrofit before a heat pump", body: "Homes that need a hybrid usually need fabric work — this guide covers the ordering." },
+        { href: "/heat-pump-installers", eyebrow: "Directory", title: "MCS-certified heat pump installers", body: "Directory of installers — most now default-quote full HP, some still specialise in hybrid retrofits." },
+      ]}
       directAnswer="A hybrid system runs a heat pump alongside a gas or oil boiler, switching between them based on outdoor temperature. The Boiler Upgrade Scheme stopped funding hybrid installs in May 2023, so a full heat pump now usually wins on day-one cost (after the £7,500 grant), running cost (no fossil fuel), and lifespan. Hybrids retain a narrow niche for very large or poorly insulated homes where a full heat pump alone would struggle on the coldest UK days."
       tldr={[
         "BUS grant excludes hybrids since May 2023 — only full heat pumps qualify for £7,500.",

@@ -75,6 +75,14 @@ export default function FabricFirstRetrofit() {
         { name: "Guides", url: "/guides" },
         { name: "Fabric-first retrofit before a heat pump" },
       ]}
+      related={[
+        { href: "/guides/bus-application-walkthrough", eyebrow: "Guide", title: "How the £7,500 BUS grant works", body: "BUS requires no outstanding insulation recs on your EPC — fabric-first is often the gating step." },
+        { href: "/guides/heat-pump-payback-period-uk", eyebrow: "Guide", title: "Heat pump payback in the UK", body: "Fabric-first is one of the five payback levers — a smaller pump sized to a lower heat loss pays back faster." },
+        { href: "/compare/heat-pump-vs-gas-boiler", eyebrow: "Comparison", title: "Heat pump vs gas boiler", body: "The comparison assumes a home ready for a heat pump — fabric-first work is the prerequisite that gets you there." },
+        { href: "/blog/insulation-before-heat-pump", eyebrow: "Journal", title: "Insulation before a heat pump", body: "The shorter blog take on the same subject — homeowner-first framing." },
+        { href: "/guides/mcs-site-visit-what-to-expect", eyebrow: "Guide", title: "What to expect at an MCS site visit", body: "The site visit is where the installer confirms whether fabric work is needed pre-install." },
+        { href: "/heat-pump-installers", eyebrow: "Directory", title: "MCS-certified heat pump installers", body: "Directory of installers — most offer combined fabric-first + heat-pump packages via retrofit partners." },
+      ]}
       directAnswer="Fabric-first means improving your home's insulation and airtightness BEFORE sizing a heat pump, because a heat pump is sized to your heat-loss number. Lower heat-loss means a smaller cheaper unit running at a lower flow temperature with a better COP and lower running cost. The right order in UK 2026 is: loft insulation top-up first, then draughtproofing, then cavity wall (if you have one), then floor insulation, with glazing and solid-wall insulation last because they cost the most for the least heat-loss reduction per pound."
       tldr={[
         "Heat pumps are sized to heat-loss, so insulation before sizing = smaller, cheaper unit.",

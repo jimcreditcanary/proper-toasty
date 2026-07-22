@@ -51,6 +51,14 @@ export default function SamsungVsLgHeatPump() {
         { name: "Compare", url: "/compare" },
         { name: "Samsung vs LG heat pump" },
       ]}
+      related={[
+        { href: "/compare/daikin-vs-mitsubishi-heat-pump", eyebrow: "Comparison", title: "Daikin vs Mitsubishi heat pump", body: "The Japanese alternative pair — different pricing, different installer network." },
+        { href: "/compare/vaillant-vs-daikin-heat-pump", eyebrow: "Comparison", title: "Vaillant vs Daikin heat pump", body: "European vs Japanese engineering, monobloc vs split — a different manufacturer framing." },
+        { href: "/compare/vaillant-vs-mitsubishi-heat-pump", eyebrow: "Comparison", title: "Vaillant vs Mitsubishi heat pump", body: "The European reputation vs Japanese refrigerant know-how comparison." },
+        { href: "/heat-pump-installers", eyebrow: "Directory", title: "MCS-certified heat pump installers", body: "Filter by area. Samsung + LG installer networks are thinner than Daikin/Mitsubishi — check availability." },
+        { href: "/guides/heat-pump-running-costs-vs-gas", eyebrow: "Guide", title: "Heat pump running costs", body: "The SCOP delta between brands moves running cost ±10% — the running-cost model shows exactly how much." },
+        { href: "/guides/mcs-site-visit-what-to-expect", eyebrow: "Guide", title: "What to expect at an MCS site visit", body: "The site visit is where the installer commits to a specific unit for your home." },
+      ]}
       directAnswer="Samsung EHS Mono and LG Therma V are both Korean-manufactured air-source heat pump ranges that have grown notably in UK MCS installs since 2022. Both deliver BUS-grant-eligible installs across the 5–16 kW capacity range with similar SCOP figures (3.9–4.7 at W35), R32 refrigerant, and warranty terms (5–7 years standard). They're typically priced 5–10% below the Daikin/Mitsubishi/Vaillant trio. The practical pick comes down to which Korean-brand-trained installer covers your area and indoor cylinder pairing."
       tldr={[
         "Both deliver MCS-compliant, BUS-eligible installs across the 5–16 kW UK capacity range.",

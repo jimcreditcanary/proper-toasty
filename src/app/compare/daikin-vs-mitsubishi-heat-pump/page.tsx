@@ -58,6 +58,14 @@ export default function DaikinVsMitsubishiHeatPump() {
         { name: "Compare", url: "/compare" },
         { name: "Daikin vs Mitsubishi heat pump" },
       ]}
+      related={[
+        { href: "/compare/vaillant-vs-daikin-heat-pump", eyebrow: "Comparison", title: "Vaillant vs Daikin heat pump", body: "Another Daikin head-to-head — European vs Japanese engineering, monobloc vs split, installer availability." },
+        { href: "/compare/vaillant-vs-mitsubishi-heat-pump", eyebrow: "Comparison", title: "Vaillant vs Mitsubishi heat pump", body: "The Mitsubishi comparison from the other angle — European reputation vs Japanese refrigerant know-how." },
+        { href: "/compare/samsung-vs-lg-heat-pump", eyebrow: "Comparison", title: "Samsung vs LG heat pump", body: "The Korean alternative pair — different pricing tier, different installer network." },
+        { href: "/heat-pump-installers", eyebrow: "Directory", title: "MCS-certified heat pump installers", body: "Not every installer fits every brand. Filter by area, then ask which brands they specify." },
+        { href: "/guides/heat-pump-payback-period-uk", eyebrow: "Guide", title: "Heat pump payback in the UK", body: "Brand choice moves running cost ±10% via SCOP — one of the five payback levers." },
+        { href: "/guides/mcs-site-visit-what-to-expect", eyebrow: "Guide", title: "What to expect at an MCS site visit", body: "The site visit is where the installer settles on the specific unit for your home." },
+      ]}
       directAnswer="Daikin Altherma and Mitsubishi Ecodan are the two highest-volume air-source heat pump ranges in the UK by 2025 MCS install count. Both deliver BUS-grant-eligible installs with similar SCOP figures (3.8–5.0 at W35), similar warranty terms (5–7 years standard) and overlapping capacity (4–16 kW). Differences land in indoor-unit format, refrigerant choice, controls software, and installer availability — the practical pick comes down to your installer's preferred range, not headline efficiency."
       tldr={[
         "Both brands deliver MCS-compliant, BUS-eligible installs across the typical UK 4–16 kW capacity range.",

@@ -56,6 +56,14 @@ export default function AirToAirVsAirToWaterHeatPump() {
         { name: "Compare", url: "/compare" },
         { name: "Air-to-air vs air-to-water heat pump" },
       ]}
+      related={[
+        { href: "/compare/air-source-vs-ground-source-heat-pump", eyebrow: "Comparison", title: "ASHP vs GSHP", body: "The other big heat-pump split — air source vs ground source. Different economics, similar decision framework." },
+        { href: "/compare/heat-pump-vs-gas-boiler", eyebrow: "Comparison", title: "Heat pump vs gas boiler", body: "The wider question — should you switch from gas at all? Full lifetime-cost comparison." },
+        { href: "/compare/heat-pump-tariffs", eyebrow: "Comparison", title: "Heat pump electricity tariffs UK 2026", body: "Cosy vs British Gas Heat Pump Plus vs EDF GoElectric — the smart-tariff choice affects both types." },
+        { href: "/guides/heat-pump-running-costs-vs-gas", eyebrow: "Guide", title: "Heat pump vs gas — running costs compared", body: "Air-to-water dominates the UK market; the running-cost figures assume it, but the model works for both." },
+        { href: "/heatpump", eyebrow: "Check", title: "Free heat pump pre-survey", body: "5 minutes — we'll indicate which technology suits your home from EPC + floorplan + roof read." },
+        { href: "/heat-pump-installers", eyebrow: "Directory", title: "MCS-certified heat pump installers", body: "Filter by capability — air-to-air vs air-to-water are distinct MCS certifications." },
+      ]}
       directAnswer="Air-to-water heat pumps circulate heated water through your existing or upgraded radiators/underfloor heating, plus a cylinder for hot water — and they qualify for the £7,500 Boiler Upgrade Scheme grant. Air-to-air heat pumps deliver heat as warm air via wall-mounted indoor units (like reverse-cycle air conditioning) and don't qualify for BUS. After the grant, air-to-water typically costs £1,500–£6,500 net vs air-to-air's £3,000–£8,000 unfunded — so for most UK homes with a wet heating system, air-to-water wins decisively."
       tldr={[
         "BUS grant £7,500: air-to-WATER eligible; air-to-air NOT eligible.",

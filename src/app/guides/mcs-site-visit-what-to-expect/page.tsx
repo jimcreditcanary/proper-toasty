@@ -77,6 +77,14 @@ export default function McsSiteVisitWhatToExpect() {
         { name: "Guides", url: "/guides" },
         { name: "MCS site visit: what to expect" },
       ]}
+      related={[
+        { href: "/guides/bus-application-walkthrough", eyebrow: "Guide", title: "How the £7,500 BUS grant works", body: "Site visit is one step in the BUS journey — this covers the wider workflow around it." },
+        { href: "/guides/fabric-first-retrofit-before-heat-pump", eyebrow: "Guide", title: "Fabric-first retrofit before a heat pump", body: "The site visit is where the installer confirms whether fabric work is needed pre-install." },
+        { href: "/guides/mcs-020-noise-rules-explained", eyebrow: "Guide", title: "MCS 020 noise rules explained", body: "The MCS 020 noise assessment happens on the site visit — this covers what the installer measures." },
+        { href: "/guides/heat-pump-smart-tariff-setup", eyebrow: "Guide", title: "Setting up a heat pump on a smart tariff", body: "Weather compensation + scheduling get commissioned at the install — talk tariff choice at the site visit." },
+        { href: "/heat-pump-installers", eyebrow: "Directory", title: "MCS-certified heat pump installers", body: "Directory of installers ready to book the site visit. Distance-ranked with Google verified reviews." },
+        { href: "/guides/heat-pump-payback-period-uk", eyebrow: "Guide", title: "Heat pump payback in the UK", body: "The site visit is where the specific numbers behind your payback picture get confirmed." },
+      ]}
       directAnswer="An MCS-certified installer's site visit takes 60–120 minutes and produces the data needed for a binding quote: a room-by-room heat-loss survey (BS EN 12831), assessment of existing radiators / pipework / cylinder, outdoor unit siting + MCS 020 acoustic check, electrical supply review, and a final discussion of system size, BUS grant, and timeline. The homeowner's job is to give the installer access to every room, the loft, the consumer unit, and the proposed outdoor location."
       tldr={[
         "Duration: 60–120 minutes for a typical UK 3-bed home.",

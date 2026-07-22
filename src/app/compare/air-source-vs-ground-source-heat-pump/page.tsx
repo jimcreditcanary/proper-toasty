@@ -40,6 +40,14 @@ export default function AshpVsGshp() {
         { name: "Compare", url: "/compare" },
         { name: "Air source vs ground source" },
       ]}
+      related={[
+        { href: "/compare/heat-pump-vs-gas-boiler", eyebrow: "Comparison", title: "Heat pump vs gas boiler", body: "Whichever heat pump you pick — is it worth switching from gas at all? Full lifetime-cost comparison." },
+        { href: "/compare/heat-pump-vs-oil-boiler", eyebrow: "Comparison", title: "Heat pump vs oil boiler", body: "Off-grid economics — where the BUS grant plus avoided tank cost tips payback into 3-6 years." },
+        { href: "/guides/heat-pump-payback-period-uk", eyebrow: "Guide", title: "Heat pump payback in the UK", body: "Payback ranges + the five levers that move them. ASHP typically pays back faster; GSHP wins on 25-year TCO." },
+        { href: "/guides/bus-application-walkthrough", eyebrow: "Guide", title: "How the £7,500 BUS grant works", body: "Both ASHP + GSHP qualify — same grant, same rules, same paperwork." },
+        { href: "/compare/heat-pump-tariffs", eyebrow: "Comparison", title: "Heat pump electricity tariffs UK 2026", body: "GSHP's higher SCOP amplifies the smart-tariff advantage. The four major UK options compared." },
+        { href: "/heat-pump-installers", eyebrow: "Directory", title: "MCS-certified heat pump installers", body: "5,500+ installers. Filter by capability — ASHP vs GSHP install skills are distinct." },
+      ]}
       directAnswer="Air-source heat pumps install for £8,000–£14,000 pre-grant; ground-source costs £18,000–£35,000 because of the borehole or trench. Both qualify for the same £7,500 Boiler Upgrade Scheme grant. Air-source suits roughly 95% of UK homes — faster install, smaller footprint, faster payback. Ground-source pays back in 15+ years on detached properties with land and high heat demand."
       tldr={[
         "Install cost: ASHP £8k–£14k vs GSHP £18k–£35k pre-grant.",

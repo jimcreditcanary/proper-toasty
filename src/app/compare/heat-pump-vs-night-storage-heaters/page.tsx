@@ -58,6 +58,14 @@ export default function HeatPumpVsNightStorageHeaters() {
         { name: "Compare", url: "/compare" },
         { name: "Heat pump vs night storage heaters" },
       ]}
+      related={[
+        { href: "/compare/heat-pump-vs-electric-boiler", eyebrow: "Comparison", title: "Heat pump vs electric boiler", body: "The other all-electric replacement path — different efficiency story, different install cost." },
+        { href: "/compare/heat-pump-vs-gas-boiler", eyebrow: "Comparison", title: "Heat pump vs gas boiler", body: "Not available for E7-storage homes usually — but the comparison frames the wider heating decision." },
+        { href: "/compare/heat-pump-tariffs", eyebrow: "Comparison", title: "Heat pump electricity tariffs UK 2026", body: "Cosy + similar tariffs apply E7-style cheap windows but 3.5× more efficiently than a storage heater." },
+        { href: "/heat-pump-installers", eyebrow: "Directory", title: "MCS-certified heat pump installers", body: "Directory of installers — E7-to-HP retrofits usually need radiators + a cylinder, so look for retrofit experience." },
+        { href: "/guides/heat-pump-running-costs-vs-gas", eyebrow: "Guide", title: "Heat pump running costs", body: "The running-cost model — apply it side-by-side vs your current E7 bill." },
+        { href: "/guides/heat-pump-payback-period-uk", eyebrow: "Guide", title: "Heat pump payback in the UK", body: "E7 replacers see fast payback when a heat-pump-specific tariff plus the BUS grant land together." },
+      ]}
       directAnswer="Night storage heaters use Economy 7's cheap overnight rate to store heat in a thermal core, releasing it through the day. The downside: stored heat is largely gone by evening when most homes want it most. A heat pump on a heat-pump-specific tariff matches the overnight cheap-electricity story and delivers heat on demand. Switching typically saves £400–£900 a year for a typical UK home + materially improves evening comfort."
       tldr={[
         "Storage heaters use cheap Economy 7 electricity (~9–13p/kWh) but heat releases all day, not on demand.",
