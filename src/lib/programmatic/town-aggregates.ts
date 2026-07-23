@@ -411,10 +411,18 @@ export async function loadSiblingPostcodeDistricts(
 }
 
 /**
- * Derive a stable LA slug from a council name. Lowercase, replace
+ * Derive a stable RAW slug from a council name. Lowercase, replace
  * non-alphanumerics with hyphens, collapse runs, trim hyphens.
  * "Kingston upon Hull, City of" → "kingston-upon-hull-city-of".
  * "Sheffield" → "sheffield".
+ *
+ * NOTE: this returns the RAW slug, WITHOUT the `la-` prefix. The
+ * scope_key stored in epc_area_aggregates for LA rows MUST be
+ * `la-${rawSlug}` — the /heat-pumps/[town-slug] and
+ * /solar-panels/[town-slug] resolvers only take the LA branch
+ * when the slug starts with `la-`. Callers that write scope_keys
+ * must prefix; consumers that pretty-print the raw form can call
+ * this directly.
  */
 export function laSlugFromCouncilName(councilName: string): string {
   return councilName

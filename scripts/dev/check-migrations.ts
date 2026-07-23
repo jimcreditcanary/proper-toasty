@@ -159,6 +159,22 @@ const CHECKS: Check[] = [
     artifact: "column blog_posts.sources (jsonb)",
     probe: selectProbe("blog_posts", "sources"),
   },
+  {
+    migration: "080_la_slug_prefix",
+    artifact: "data — every local_authority scope_key prefixed with 'la-'",
+    probe: async (admin) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { count, error } = await (admin as any)
+        .from("epc_area_aggregates")
+        .select("scope_key", { count: "exact", head: true })
+        .eq("scope", "local_authority")
+        .not("scope_key", "like", "la-%");
+      if (error) return error.message;
+      return (count ?? 0) === 0
+        ? null
+        : `${count} local_authority row(s) still missing the la- prefix`;
+    },
+  },
 ];
 
 async function main(): Promise<void> {

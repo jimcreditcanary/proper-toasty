@@ -150,8 +150,14 @@ async function buildOne(
   // scopes diverge.
   if (town.councilName && !seenCouncils.has(town.councilName)) {
     seenCouncils.add(town.councilName);
+    // MUST prefix with `la-` — the /heat-pumps/[town-slug] and
+    // /solar-panels/[town-slug] resolvers only take the LA branch
+    // when the slug starts with `la-`. Un-prefixed scope_keys
+    // (bath-and-north-east-somerset, bristol-city-of, …) 404 at
+    // request time + poison the sitemap. Bug lived Jul 2026 across
+    // 6 LAs × 4 route templates = 24 pages.
     const laIdent: LocalAuthorityIdent = {
-      slug: laSlugFromCouncilName(town.councilName),
+      slug: `la-${laSlugFromCouncilName(town.councilName)}`,
       displayName: town.councilName,
       country: town.country,
       region: town.region,
