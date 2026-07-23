@@ -378,6 +378,99 @@ export interface SiblingPostcodeDistrict {
   display_name: string;
 }
 
+/** Row shape returned by loadNearbyAggregates — mixed LA + PCD
+ *  siblings identified geographically. Kept minimal — only the
+ *  fields the sibling-render section actually reads. */
+export interface NearbyAggregate {
+  /** Full slug — starts with `la-` or `pc-`. */
+  scope_key: string;
+  /** Rendered label — usually the town/LA name. */
+  display_name: string;
+  /** Scope tag — lets the render distinguish LA cards from PCD. */
+  scope: "local_authority" | "postcode_district";
+}
+
+/**
+ * Fetch the N indexed LA + PCD aggregate rows geographically nearest
+ * to `lat`/`lng`, excluding `currentSlug`. Powers the "Nearby areas"
+ * section on LA + PCD variants of the town-page templates — closes
+ * the orphan-page problem Ahrefs flagged on 1,166 tail routes.
+ *
+ * Server-side ORDER BY on a haversine expression would be tighter but
+ * requires a Postgres function or PostGIS; keeping the ranking in
+ * TS is simple + fast enough (bounded by the small candidate set we
+ * fetch first). We over-fetch by bounding-box (~2° latitude either
+ * side ≈ 220km) then rank by haversine to trim.
+ */
+export async function loadNearbyAggregates(
+  admin: AdminClient,
+  input: {
+    lat: number;
+    lng: number;
+    /** Slug to EXCLUDE (self). */
+    currentSlug: string;
+    /** How many nearby to return. Default 10. */
+    limit?: number;
+  },
+): Promise<NearbyAggregate[]> {
+  const limit = input.limit ?? 10;
+  // ~2.5° bounding box each way — captures every LA + PCD within
+  // roughly 280km, comfortably wider than we need for "nearby".
+  const boxDeg = 2.5;
+  const minLat = input.lat - boxDeg;
+  const maxLat = input.lat + boxDeg;
+  const minLng = input.lng - boxDeg;
+  const maxLng = input.lng + boxDeg;
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (admin as any)
+    .from("epc_area_aggregates")
+    .select("scope_key, display_name, scope, lat, lng")
+    .in("scope", ["local_authority", "postcode_district"])
+    .neq("scope_key", input.currentSlug)
+    .eq("indexed", true)
+    .not("lat", "is", null)
+    .not("lng", "is", null)
+    .gte("lat", minLat)
+    .lte("lat", maxLat)
+    .gte("lng", minLng)
+    .lte("lng", maxLng)
+    .limit(200); // over-fetch, we rank in TS
+  if (error || !data) return [];
+
+  const rows = data as Array<{
+    scope_key: string;
+    display_name: string;
+    scope: "local_authority" | "postcode_district";
+    lat: number;
+    lng: number;
+  }>;
+
+  // Haversine distance in km — good enough for ordering.
+  const R = 6371;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dist = (a: { lat: number; lng: number }): number => {
+    const dLat = toRad(a.lat - input.lat);
+    const dLng = toRad(a.lng - input.lng);
+    const s =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos(toRad(input.lat)) *
+        Math.cos(toRad(a.lat)) *
+        Math.sin(dLng / 2) ** 2;
+    return 2 * R * Math.asin(Math.sqrt(s));
+  };
+
+  return rows
+    .map((r) => ({ r, d: dist(r) }))
+    .sort((a, b) => a.d - b.d)
+    .slice(0, limit)
+    .map(({ r }) => ({
+      scope_key: r.scope_key,
+      display_name: r.display_name,
+      scope: r.scope,
+    }));
+}
+
 /**
  * Fetch indexed postcode-district aggregates sharing the same area
  * code as `currentSlug`. E.g. for `pc-dn22` returns other DN outcodes
