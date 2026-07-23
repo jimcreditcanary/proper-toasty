@@ -20,7 +20,9 @@ import {
   loadTownAggregate,
   loadLAAggregate,
   loadPostcodeDistrictAggregate,
+  loadNearbyAggregates,
   loadSiblingPostcodeDistricts,
+  type NearbyAggregate,
   ALL_BANDS,
   type TownAggregateRow,
   type EnergyBand,
@@ -210,7 +212,26 @@ export default async function SolarPanelsTownPage({ params }: PageProps) {
     const row = await loadLAAggregate(admin, slug);
     if (!row) notFound();
     const fakeTown = laToTownAdapter(row);
-    return <TownPageWithData town={fakeTown} row={row} isLA />;
+    // Geographic siblings so the LA page isn't orphaned. See the
+    // heat-pumps twin for the Ahrefs 23 Jul rationale (1,166 tail
+    // pages with zero incoming href links).
+    const nearbyAggregates =
+      row.lat != null && row.lng != null
+        ? await loadNearbyAggregates(admin, {
+            lat: row.lat,
+            lng: row.lng,
+            currentSlug: slug,
+            limit: 10,
+          })
+        : [];
+    return (
+      <TownPageWithData
+        town={fakeTown}
+        row={row}
+        isLA
+        nearbyAggregates={nearbyAggregates}
+      />
+    );
   }
 
   // Postcode-district branch — slug shape "pc-<district>".
@@ -236,12 +257,24 @@ export default async function SolarPanelsTownPage({ params }: PageProps) {
     // Sibling pc-* aggregates in the same area code — internal
     // linking hub-and-spoke for cluster authority flow.
     const siblings = await loadSiblingPostcodeDistricts(admin, slug, 8);
+    // Plus geographically-nearest mixed LA + PCD siblings from
+    // adjacent areas — closes orphan-tail loop per Ahrefs 23 Jul.
+    const nearbyAggregates =
+      fakeTown.lat && fakeTown.lng
+        ? await loadNearbyAggregates(admin, {
+            lat: fakeTown.lat,
+            lng: fakeTown.lng,
+            currentSlug: slug,
+            limit: 10,
+          })
+        : [];
     return (
       <TownPageWithData
         town={fakeTown}
         row={row}
         isPCD
         siblings={siblings}
+        nearbyAggregates={nearbyAggregates}
       />
     );
   }
@@ -316,6 +349,7 @@ function TownPageWithData({
   isLA = false,
   isPCD = false,
   siblings = [],
+  nearbyAggregates = [],
 }: {
   town: PilotTown;
   row: TownAggregateRow;
@@ -324,6 +358,9 @@ function TownPageWithData({
   /** Same-area-code postcode-district siblings for internal linking.
    *  Populated on the pc-* branch only; empty otherwise. */
   siblings?: SiblingPostcodeDistrict[];
+  /** Geographically-nearest LA + PCD aggregates — orphan-tail fix,
+   *  see heat-pumps twin for full rationale. */
+  nearbyAggregates?: NearbyAggregate[];
 }) {
   const data = row.data;
   const url = `https://www.propertoasty.com/solar-panels/${town.slug}`;
@@ -727,6 +764,30 @@ function TownPageWithData({
                   Solar panels in {n.name}
                 </a>{" "}
                 — {n.region}, {n.country}.
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+
+      {/* Nearby areas — mixed LA + PCD. Orphan-tail fix per Ahrefs
+          23 Jul; see heat-pumps twin for full rationale. */}
+      {(isLA || isPCD) && nearbyAggregates.length > 0 && (
+        <>
+          <h3>Nearby areas we cover</h3>
+          <p>
+            Adjacent local-authority and postcode areas — useful
+            for comparing across a wider region:
+          </p>
+          <ul>
+            {nearbyAggregates.map((n) => (
+              <li key={n.scope_key}>
+                <a href={`/solar-panels/${n.scope_key}`}>
+                  Solar panels in {n.display_name}
+                </a>
+                {n.scope === "postcode_district"
+                  ? " — postcode area"
+                  : " — local authority"}
               </li>
             ))}
           </ul>

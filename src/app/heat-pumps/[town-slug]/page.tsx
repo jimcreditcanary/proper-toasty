@@ -33,7 +33,9 @@ import {
   loadTownAggregate,
   loadLAAggregate,
   loadPostcodeDistrictAggregate,
+  loadNearbyAggregates,
   loadSiblingPostcodeDistricts,
+  type NearbyAggregate,
   ALL_BANDS,
   type TownAggregateRow,
   type EnergyBand,
@@ -279,7 +281,26 @@ export default async function HeatPumpsTownPage({ params }: PageProps) {
     const row = await loadLAAggregate(admin, slug);
     if (!row) notFound();
     const fakeTown = laToTownAdapter(row);
-    return <TownPageWithData town={fakeTown} row={row} isLA />;
+    // Geographic siblings so the LA page isn't orphaned — Ahrefs
+    // audit (23 Jul) flagged 1,166 tail pages with zero inbound
+    // href links. Nearby-aggregates render below closes the loop.
+    const nearbyAggregates =
+      row.lat != null && row.lng != null
+        ? await loadNearbyAggregates(admin, {
+            lat: row.lat,
+            lng: row.lng,
+            currentSlug: slug,
+            limit: 10,
+          })
+        : [];
+    return (
+      <TownPageWithData
+        town={fakeTown}
+        row={row}
+        isLA
+        nearbyAggregates={nearbyAggregates}
+      />
+    );
   }
 
   // Postcode-district branch — slug shape "pc-<district>".
@@ -305,12 +326,25 @@ export default async function HeatPumpsTownPage({ params }: PageProps) {
     // Siblings from the same area code (e.g. DN22 → DN10, DN11, …).
     // Hub-and-spoke internal linking across the postcode cluster.
     const siblings = await loadSiblingPostcodeDistricts(admin, slug, 8);
+    // Plus geographically-nearest mixed LA + PCD siblings from
+    // adjacent areas — Ahrefs (23 Jul) flagged 1,166 tail pages as
+    // orphans; this closes the loop across the whole tail.
+    const nearbyAggregates =
+      fakeTown.lat && fakeTown.lng
+        ? await loadNearbyAggregates(admin, {
+            lat: fakeTown.lat,
+            lng: fakeTown.lng,
+            currentSlug: slug,
+            limit: 10,
+          })
+        : [];
     return (
       <TownPageWithData
         town={fakeTown}
         row={row}
         isPCD
         siblings={siblings}
+        nearbyAggregates={nearbyAggregates}
       />
     );
   }
@@ -404,6 +438,7 @@ function TownPageWithData({
   isLA = false,
   isPCD = false,
   siblings = [],
+  nearbyAggregates = [],
 }: {
   town: PilotTown;
   row: TownAggregateRow;
@@ -415,6 +450,12 @@ function TownPageWithData({
   /** Same-area-code postcode-district siblings, for internal linking.
    *  Populated on the pc-* branch only; empty on la-* / pilot-town. */
   siblings?: SiblingPostcodeDistrict[];
+  /** Geographically-nearest LA + PCD aggregates. Populated on
+   *  la-* and pc-* branches to close the orphan-tail problem
+   *  Ahrefs flagged on 23 Jul (1,166 tail pages with no inbound
+   *  hrefs). Empty on the pilot-town branch (which has its own
+   *  getNearbyTowns-driven section). */
+  nearbyAggregates?: NearbyAggregate[];
 }) {
   const data = row.data;
   const url = `https://www.propertoasty.com/heat-pumps/${town.slug}`;
@@ -861,6 +902,35 @@ function TownPageWithData({
                   Heat pumps in {n.name}
                 </a>{" "}
                 — {n.region}, {n.country}.
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+
+      {/* ─── Nearby areas (mixed LA + PCD) ───────────────────────
+          Renders on the la-* and pc-* variants so every tail page
+          gets ~10 inbound hrefs from geographically-adjacent
+          sibling pages. Closes the orphan-tail problem Ahrefs
+          flagged (23 Jul) — 1,166 pages with zero incoming links.
+          Empty on the pilot-town branch, which uses getNearbyTowns
+          above for its curated seed. */}
+      {(isLA || isPCD) && nearbyAggregates.length > 0 && (
+        <>
+          <h3>Nearby areas we cover</h3>
+          <p>
+            Adjacent local-authority and postcode areas — useful
+            for comparing across a wider region:
+          </p>
+          <ul>
+            {nearbyAggregates.map((n) => (
+              <li key={n.scope_key}>
+                <a href={`/heat-pumps/${n.scope_key}`}>
+                  Heat pumps in {n.display_name}
+                </a>
+                {n.scope === "postcode_district"
+                  ? " — postcode area"
+                  : " — local authority"}
               </li>
             ))}
           </ul>
