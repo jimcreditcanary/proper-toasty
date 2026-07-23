@@ -452,8 +452,8 @@ function TownPageWithData({
           accessedDate: "May 2026",
         },
         {
-          name: "Energy Saving Trust — Solar panels",
-          url: "https://energysavingtrust.org.uk/advice/solar-panels/",
+          name: "Ofgem — Smart Export Guarantee (SEG)",
+          url: "https://www.ofgem.gov.uk/environmental-and-social-schemes/smart-export-guarantee-seg",
           accessedDate: "May 2026",
         },
         {
@@ -686,11 +686,11 @@ function TownPageWithData({
         face a highway. {town.name}&rsquo;s historic / conservation
         areas vary — check{" "}
         <a
-          href="https://www.gov.uk/check-planning-permission"
+          href="https://www.planningportal.co.uk/permission/common-projects/solar-panels"
           target="_blank"
           rel="noopener noreferrer"
         >
-          gov.uk/check-planning-permission
+          Planning Portal solar-panel rules
         </a>
         {" "}with your postcode before scheduling a survey.
       </p>
@@ -830,7 +830,7 @@ function buildSolarTownFaqs(
     },
     {
       question: `Do I need planning permission for solar panels in ${town.name}?`,
-      answer: `For most ${town.name} properties solar PV falls under permitted development — no planning application required as long as panels don't project more than 200mm above the roof plane, don't cover the highest part of the roof, and (for flat roofs) aren't closer than 1m to the edge. Exceptions: properties in Conservation Areas or Listed Buildings need planning consent, and panels can't face a highway. Check gov.uk/check-planning-permission with your specific postcode before committing.`,
+      answer: `For most ${town.name} properties solar PV falls under permitted development — no planning application required as long as panels don't project more than 200mm above the roof plane, don't cover the highest part of the roof, and (for flat roofs) aren't closer than 1m to the edge. Exceptions: properties in Conservation Areas or Listed Buildings need planning consent, and panels can't face a highway. Check the Planning Portal's solar-panel rules and your council's Conservation Area map with your specific postcode before committing.`,
     },
     {
       question: `Does the £7,500 BUS grant cover solar?`,

@@ -110,8 +110,8 @@ export default function SolarVsNoSolar() {
           accessedDate: "May 2026",
         },
         {
-          name: "Energy Saving Trust — Solar panels",
-          url: "https://energysavingtrust.org.uk/advice/solar-panels/",
+          name: "Ofgem — Smart Export Guarantee (SEG)",
+          url: "https://www.ofgem.gov.uk/environmental-and-social-schemes/smart-export-guarantee-seg",
           accessedDate: "May 2026",
         },
         {

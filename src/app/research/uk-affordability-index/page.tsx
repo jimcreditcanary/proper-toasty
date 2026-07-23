@@ -302,8 +302,8 @@ export default function UkAffordabilityIndexPage() {
           accessedDate: "May 2026",
         },
         {
-          name: "Energy Saving Trust — Energy efficiency context",
-          url: "https://energysavingtrust.org.uk/",
+          name: "MCS Certified — Installer + install directory",
+          url: "https://mcscertified.com/",
           accessedDate: "May 2026",
         },
         {

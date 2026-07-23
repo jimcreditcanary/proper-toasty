@@ -137,14 +137,14 @@ export default function HeatPumpPaybackPeriodUk() {
           accessedDate: "May 2026",
         },
         {
-          name: "Energy Saving Trust — Heat pump costs and savings",
-          url: "https://energysavingtrust.org.uk/advice/air-source-heat-pumps/",
+          name: "Ofgem — Boiler Upgrade Scheme (BUS)",
+          url: "https://www.ofgem.gov.uk/environmental-and-social-schemes/boiler-upgrade-scheme-bus",
           accessedDate: "May 2026",
         },
         {
-          name: "DESNZ — Heat pump deployment statistics",
-          url: "https://www.gov.uk/government/statistics/heat-pump-deployment",
-          accessedDate: "May 2026",
+          name: "MCS Certified — Installer + install directory",
+          url: "https://mcscertified.com/",
+          accessedDate: "July 2026",
         },
       ]}
     >
