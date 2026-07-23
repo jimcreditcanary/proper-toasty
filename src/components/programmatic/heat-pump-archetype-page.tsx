@@ -80,13 +80,13 @@ export function HeatPumpArchetypePage({ archetype }: Props) {
           accessedDate: "May 2026",
         },
         {
-          name: "GOV.UK — PAS 2035 retrofit standard",
-          url: "https://www.gov.uk/government/publications/each-home-counts-review-industry-response-and-implementation-plan",
-          accessedDate: "May 2026",
+          name: "PAS 2035 — Retrofit of dwellings (BSI standard)",
+          url: "https://www.trustmark.org.uk/consumers/pas-2035",
+          accessedDate: "July 2026",
         },
         {
-          name: "Energy Saving Trust — Heat pumps",
-          url: "https://energysavingtrust.org.uk/advice/air-source-heat-pumps/",
+          name: "Ofgem — Boiler Upgrade Scheme (BUS)",
+          url: "https://www.ofgem.gov.uk/environmental-and-social-schemes/boiler-upgrade-scheme-bus",
           accessedDate: "May 2026",
         },
       ]}

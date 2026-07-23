@@ -111,8 +111,8 @@ export default function HeatPumpVsNightStorageHeaters() {
           accessedDate: "May 2026",
         },
         {
-          name: "Energy Saving Trust — Electric storage heaters",
-          url: "https://energysavingtrust.org.uk/advice/storage-heaters/",
+          name: "Ofgem — Boiler Upgrade Scheme (BUS)",
+          url: "https://www.ofgem.gov.uk/environmental-and-social-schemes/boiler-upgrade-scheme-bus",
           accessedDate: "May 2026",
         },
         {

@@ -97,8 +97,8 @@ export default function PerHomeSavingsPage() {
           accessedDate: "May 2026",
         },
         {
-          name: "Energy Saving Trust — Insulation cost guidance",
-          url: "https://energysavingtrust.org.uk/advice/home-insulation/",
+          name: "GOV.UK — EPC register (insulation recommendations)",
+          url: "https://find-energy-certificate.service.gov.uk/",
           accessedDate: "May 2026",
         },
         {

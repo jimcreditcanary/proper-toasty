@@ -104,8 +104,8 @@ export default function HeatPumpVsElectricBoiler() {
           accessedDate: "May 2026",
         },
         {
-          name: "Energy Saving Trust — Electric heating + heat pumps",
-          url: "https://energysavingtrust.org.uk/advice/electric-heating/",
+          name: "Ofgem — Boiler Upgrade Scheme (BUS)",
+          url: "https://www.ofgem.gov.uk/environmental-and-social-schemes/boiler-upgrade-scheme-bus",
           accessedDate: "May 2026",
         },
         {

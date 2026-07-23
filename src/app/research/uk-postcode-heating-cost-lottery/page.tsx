@@ -103,8 +103,8 @@ export default function PostcodeLotteryPage() {
           accessedDate: "May 2026",
         },
         {
-          name: "Energy Saving Trust — Heating fuel comparison",
-          url: "https://energysavingtrust.org.uk/",
+          name: "MCS Certified — Installer + install directory",
+          url: "https://mcscertified.com/",
           accessedDate: "May 2026",
         },
       ]}

@@ -143,8 +143,8 @@ export default function McsSiteVisitWhatToExpect() {
           accessedDate: "May 2026",
         },
         {
-          name: "Energy Saving Trust — Choosing a heat pump installer",
-          url: "https://energysavingtrust.org.uk/advice/air-source-heat-pumps/",
+          name: "Ofgem — Boiler Upgrade Scheme (BUS)",
+          url: "https://www.ofgem.gov.uk/environmental-and-social-schemes/boiler-upgrade-scheme-bus",
           accessedDate: "May 2026",
         },
       ]}

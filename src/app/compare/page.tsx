@@ -215,8 +215,8 @@ export default function ComparePage() {
           accessedDate: "May 2026",
         },
         {
-          name: "Energy Saving Trust — Heating and energy",
-          url: "https://energysavingtrust.org.uk/advice/heating-systems/",
+          name: "Ofgem — Boiler Upgrade Scheme (BUS)",
+          url: "https://www.ofgem.gov.uk/environmental-and-social-schemes/boiler-upgrade-scheme-bus",
           accessedDate: "May 2026",
         },
       ]}

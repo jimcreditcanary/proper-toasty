@@ -94,13 +94,13 @@ export default function SolarPvVsSolarThermal() {
       ]}
       sources={[
         {
-          name: "Energy Saving Trust — Solar thermal",
-          url: "https://energysavingtrust.org.uk/advice/solar-water-heating/",
+          name: "Ofgem — Smart Export Guarantee (SEG)",
+          url: "https://www.ofgem.gov.uk/environmental-and-social-schemes/smart-export-guarantee-seg",
           accessedDate: "May 2026",
         },
         {
-          name: "Energy Saving Trust — Solar PV",
-          url: "https://energysavingtrust.org.uk/advice/solar-panels/",
+          name: "Ofgem — Smart Export Guarantee (SEG)",
+          url: "https://www.ofgem.gov.uk/environmental-and-social-schemes/smart-export-guarantee-seg",
           accessedDate: "May 2026",
         },
         {

@@ -146,9 +146,9 @@ export default function ResearchHubPage() {
           accessedDate: "May 2026",
         },
         {
-          name: "DESNZ — Heat pump deployment statistics",
-          url: "https://www.gov.uk/government/statistics/heat-pump-deployment",
-          accessedDate: "May 2026",
+          name: "MCS Certified — Installer + install directory",
+          url: "https://mcscertified.com/",
+          accessedDate: "July 2026",
         },
       ]}
     >
