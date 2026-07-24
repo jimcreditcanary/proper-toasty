@@ -41,7 +41,12 @@ import {
   type EnergyBand,
   type SiblingPostcodeDistrict,
 } from "@/lib/programmatic/town-aggregates";
-import { AEOPage, ComparisonTable } from "@/components/seo";
+import {
+  AEOPage,
+  ComparisonTable,
+  CrossServiceLinks,
+  PropertySizeCostTable,
+} from "@/components/seo";
 import { DEFAULT_AUTHOR_SLUG } from "@/lib/seo/authors";
 import { HeatPumpArchetypePage } from "@/components/programmatic/heat-pump-archetype-page";
 import { InstallerListSection } from "@/components/installer/installer-list-section";
@@ -956,6 +961,26 @@ function TownPageWithData({
           </ul>
         </>
       )}
+
+      {/* ─── Property-size cost table ─────────────────────────────
+          UK MCS-average pricing tiered by property size. Sunsave
+          uses this exact shape on their /cities-and-regions/[place]
+          pages — it captures the "how much does a heat pump cost
+          for a 3-bed" long-tail. UK-wide until per-LA MCS pricing
+          lands in Supabase. */}
+      <PropertySizeCostTable technology="heat-pump" placeName={town.name} />
+
+      {/* ─── Cross-service links ──────────────────────────────────
+          Links to the other three service pages covering the same
+          location (solar guide, heat-pump installers, solar
+          installers). Modelled on Checkatrade's related-services
+          block — pushes PageRank around a location cluster and
+          gives AI overviews the full service surface in one hop. */}
+      <CrossServiceLinks
+        slug={town.slug}
+        placeName={town.name}
+        currentService="heat-pumps"
+      />
     </AEOPage>
   );
 }
