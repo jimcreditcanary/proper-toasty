@@ -68,13 +68,15 @@ export async function generateStaticParams() {
   const pilotLaGss = new Set(
     PILOT_TOWNS.map((t) => t.laGssCode.toUpperCase()),
   );
-  // PCD pages (pc-s1, pc-m14, etc.) are NOT pre-rendered at build
-  // time — there are ~2,300 of them and they're the long tail of
-  // traffic. Lazy rendering via ISR (revalidate = 3600) on first
-  // request, cached at the Vercel edge thereafter. Cuts build time
-  // by ~50% with no UX regression — first-hit latency ~1s, every
-  // subsequent hit served from edge cache.
+  // Pre-render every indexed LA + PCD at build time. Historically
+  // PCDs were left lazy (ISR on first hit) to keep builds fast, but
+  // Ahrefs (23 Jul 2026) flagged 88 slow pages — all PCD/LA guides
+  // where the first crawler hit timed the cold render at 1-12s
+  // TTFB. Building them up-front + running scripts/seo/warm-sitemap.ts
+  // post-deploy moves that tax off the crawler and onto our own
+  // build/warmup, restoring the Ahrefs "slow pages" signal.
   let laSlugs: string[] = [];
+  let pcdSlugs: string[] = [];
   try {
     const admin = createAdminClient();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -89,12 +91,21 @@ export async function generateStaticParams() {
         return !pilotLaGss.has(gss);
       })
       .map((r) => r.scope_key);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: pcdData } = await (admin as any)
+      .from("epc_area_aggregates")
+      .select("scope_key")
+      .eq("scope", "postcode_district")
+      .eq("indexed", true);
+    pcdSlugs = ((pcdData ?? []) as Array<{ scope_key: string }>).map(
+      (r) => r.scope_key,
+    );
   } catch (err) {
-    // No DB at build time (preview without env) — skip LA pages
+    // No DB at build time (preview without env) — skip LA/PCD pages
     // rather than fail the whole build. Town + archetype routes
     // still build.
     console.warn(
-      "[heat-pumps] generateStaticParams: LA enum failed, skipping:",
+      "[heat-pumps] generateStaticParams: DB enum failed, skipping:",
       err instanceof Error ? err.message : err,
     );
   }
@@ -103,6 +114,7 @@ export async function generateStaticParams() {
     ...allTownSlugs().map((slug) => ({ "town-slug": slug })),
     ...allArchetypeSlugs().map((slug) => ({ "town-slug": slug })),
     ...laSlugs.map((slug) => ({ "town-slug": slug })),
+    ...pcdSlugs.map((slug) => ({ "town-slug": slug })),
   ];
 }
 
