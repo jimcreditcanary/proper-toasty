@@ -122,8 +122,14 @@ export async function generateStaticParams() {
   const pilotLaGss = new Set(
     PILOT_TOWNS.map((t) => t.laGssCode.toUpperCase()),
   );
-  // PCD pages — lazy via ISR, not pre-built.
+  // Pre-render LA + PCD at build time. PCDs without a DB centroid
+  // are excluded here — the installer page needs lat/lng to rank
+  // installers and would 404 without it. resolveArea's Postcodes.io
+  // fallback still catches misses at runtime for any URL we don't
+  // pre-render. See twin in /heat-pumps/[town-slug]/page.tsx for the
+  // Ahrefs (23 Jul 2026) cold-render rationale.
   let laSlugs: string[] = [];
+  let pcdSlugs: string[] = [];
   try {
     const admin = createAdminClient();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -138,9 +144,20 @@ export async function generateStaticParams() {
         return !pilotLaGss.has(gss);
       })
       .map((r) => r.scope_key);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: pcdData } = await (admin as any)
+      .from("epc_area_aggregates")
+      .select("scope_key, lat, lng")
+      .eq("scope", "postcode_district")
+      .eq("indexed", true)
+      .not("lat", "is", null)
+      .not("lng", "is", null);
+    pcdSlugs = (
+      (pcdData ?? []) as Array<{ scope_key: string }>
+    ).map((r) => r.scope_key);
   } catch (err) {
     console.warn(
-      "[heat-pump-installers] generateStaticParams: LA enum failed:",
+      "[heat-pump-installers] generateStaticParams: DB enum failed:",
       err instanceof Error ? err.message : err,
     );
   }
@@ -148,6 +165,7 @@ export async function generateStaticParams() {
   return [
     ...townSlugs.map((slug) => ({ area: slug })),
     ...laSlugs.map((slug) => ({ area: slug })),
+    ...pcdSlugs.map((slug) => ({ area: slug })),
   ];
 }
 
