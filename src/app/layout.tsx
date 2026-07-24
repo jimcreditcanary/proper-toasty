@@ -42,7 +42,7 @@ export const metadata: Metadata = {
     template: "%s",
   },
   description:
-    "Check your UK home for a heat pump, rooftop solar, or a home battery — with room for EV charging when you're ready. Pre-survey report, installer-ready, grant-eligible.",
+    "Check your UK home for a heat pump, rooftop solar or a home battery. Free 5-min pre-survey, installer-ready, BUS-grant aware.",
   // No `keywords` array — meta keywords has been unused by every
   // major search engine since 2009. Removed to reduce noise.
   robots: { index: true, follow: true },

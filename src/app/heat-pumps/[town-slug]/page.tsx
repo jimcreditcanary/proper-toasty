@@ -145,7 +145,9 @@ function buildTownDescription(
   primaryLabel: string,
   samplePretty: string,
 ): string {
-  return `Heat pumps in ${primaryLabel}: real monthly cost, £7,500 BUS grant, MCS installers, EPC data from ${samplePretty} local homes. Free 5-min pre-survey.`;
+  // Under 155 chars for label ≤35 + sample ≤7 digits (largest UK LA
+  // = ~300k EPCs). Was 146 static + label + sample ≈ 187 chars.
+  return `Heat pumps in ${primaryLabel}: cost, £7,500 BUS grant + MCS installers. EPC data from ${samplePretty} local homes.`;
 }
 
 export async function generateMetadata({

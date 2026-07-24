@@ -7,12 +7,12 @@ import { AlertTriangle } from "lucide-react";
 export const metadata: Metadata = {
   title: "AI Statement — how Propertoasty uses AI",
   description:
-    "Where Propertoasty uses AI (floorplan vision, satellite roof reading, EPC interpretation, report generation), where we don't, its limits, and how to double-check the output.",
+    "Where Propertoasty uses AI (floorplan vision, satellite roof reading, EPC interpretation), where we don't, and how to double-check the output.",
   alternates: { canonical: "https://www.propertoasty.com/ai-statement" },
   openGraph: {
     title: "AI Statement — how Propertoasty uses AI",
     description:
-      "Where Propertoasty uses AI (floorplan vision, satellite roof reading, EPC interpretation, report generation), where we don't, its limits, and how to double-check the output.",
+      "Where Propertoasty uses AI (floorplan vision, satellite roof reading, EPC interpretation), where we don't, and how to double-check the output.",
     type: "article",
     url: "https://www.propertoasty.com/ai-statement",
   },

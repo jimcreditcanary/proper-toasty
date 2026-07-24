@@ -164,7 +164,9 @@ export async function generateMetadata({
   // "Heat pump installers in X: MCS-certified directory" (~50 static)
   // which pushed 82-char titles for long labels per Ahrefs (23 Jul).
   const title = `MCS heat pump installers in ${area.displayName}`;
-  const description = `MCS-certified heat pump installers covering ${area.displayName}, ranked by distance with Google verified reviews and BUS-grant registration. Request a quote in 5 minutes.`;
+  // ~100 static chars + label. Fits ≤155 for labels ≤50. Was 149
+  // static — overflowed on every area label per Ahrefs (23 Jul).
+  const description = `MCS heat pump installers near ${area.displayName} — Google-verified reviews + BUS-grant registered. Quote in 5 min.`;
   return {
     title,
     description,
