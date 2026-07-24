@@ -15,7 +15,7 @@ export const metadata: Metadata = {
   title:
     "Mid-Wales homes waste £100 million a year on inefficient heating — Propertoasty EPC Index",
   description:
-    "Six rural Welsh council areas account for £101 M in available annual household savings if their EPC recommendations were cleared. Why mid-Wales housing tops the UK waste league.",
+    "Six rural Welsh council areas hold £101 M/yr in available household energy savings — why mid-Wales tops the UK waste league.",
   alternates: { canonical: URL },
   openGraph: {
     title: "Mid-Wales homes waste £100 million a year (EPC Index)",

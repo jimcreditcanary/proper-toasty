@@ -109,7 +109,9 @@ function buildSolarDescription(
   primaryLabel: string,
   samplePretty: string,
 ): string {
-  return `Solar in ${primaryLabel}: install cost, typical payback, Smart Export Guarantee rates, and MCS installers. EPC data from ${samplePretty} local homes. Free 5-min check.`;
+  // Under 155 chars for label ≤35 + sample ≤7 digits. Was 129
+  // static + label + sample ≈ 170 chars.
+  return `Solar in ${primaryLabel}: cost, payback + SEG rates. MCS installers, EPC data from ${samplePretty} local homes.`;
 }
 
 export async function generateMetadata({

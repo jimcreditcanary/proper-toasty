@@ -56,7 +56,7 @@ export const metadata: Metadata = {
   title:
     "UK Heat Pump & Solar Affordability Index 2026 — EPC-backed data asset",
   description:
-    "Annual snapshot of UK home energy affordability — EPC band shares, heating costs, mains-gas coverage, by year and region. Built from the full GOV.UK EPC Register.",
+    "Annual snapshot of UK home energy affordability by year and region. Built from the full GOV.UK EPC Register.",
   alternates: { canonical: URL },
   openGraph: {
     title: "UK Heat Pump & Solar Affordability Index 2026",

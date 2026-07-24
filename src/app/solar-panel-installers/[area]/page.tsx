@@ -145,7 +145,9 @@ export async function generateMetadata({
   const url = `https://www.propertoasty.com/solar-panel-installers/${slug}`;
   // Same template-length rationale as heat-pump twin.
   const title = `MCS solar panel installers in ${area.displayName}`;
-  const description = `MCS-certified solar PV installers covering ${area.displayName}, ranked by distance with Google verified reviews. Request a quote in 5 minutes.`;
+  // Same rationale as heat-pump twin — Ahrefs (23 Jul) description
+  // overflow.
+  const description = `MCS solar PV installers near ${area.displayName} — Google-verified reviews. Quote in 5 min.`;
   return {
     title,
     description,
