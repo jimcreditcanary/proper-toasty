@@ -16,7 +16,7 @@ const PAGE_URL = "https://www.propertoasty.com/research";
 
 export const metadata: Metadata = {
   title:
-    "Propertoasty Research — UK energy efficiency data + EPC Index reports",
+    "Propertoasty Research — UK EPC + energy efficiency data",
   description:
     "Open data + analysis on UK home energy efficiency. EPC Index quarterly reports, Affordability Index, deep-dives on heat pump and solar PV adoption.",
   alternates: { canonical: PAGE_URL },

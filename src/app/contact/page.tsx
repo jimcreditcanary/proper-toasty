@@ -15,7 +15,7 @@ import { DEFAULT_AUTHOR_SLUG } from "@/lib/seo/authors";
 const URL = "https://www.propertoasty.com/contact";
 
 export const metadata: Metadata = {
-  title: "Contact Propertoasty — homeowner, installer + press enquiries",
+  title: "Contact Propertoasty — homeowner + installer help",
   description:
     "How to reach Propertoasty. Homeowner questions about your suitability report, installer onboarding for the directory, press + research enquiries.",
   alternates: { canonical: URL },

@@ -143,7 +143,8 @@ export async function generateMetadata({
   if (!area) return { robots: { index: false, follow: false } };
 
   const url = `https://www.propertoasty.com/solar-panel-installers/${slug}`;
-  const title = `Solar panel installers in ${area.displayName}: MCS-certified directory`;
+  // Same template-length rationale as heat-pump twin.
+  const title = `MCS solar panel installers in ${area.displayName}`;
   const description = `MCS-certified solar PV installers covering ${area.displayName}, ranked by distance with Google verified reviews. Request a quote in 5 minutes.`;
   return {
     title,

@@ -13,7 +13,7 @@ import { DEFAULT_AUTHOR_SLUG } from "@/lib/seo/authors";
 const URL = "https://www.propertoasty.com/about";
 
 export const metadata: Metadata = {
-  title: "About Propertoasty — UK heat pump + solar suitability service",
+  title: "About Propertoasty — UK heat pump + solar pre-survey",
   description:
     "The UK home energy suitability service. GOV.UK EPC + Google Solar API + floorplan vision produce installer-ready reports for heat pump and solar decisions.",
   alternates: { canonical: URL },

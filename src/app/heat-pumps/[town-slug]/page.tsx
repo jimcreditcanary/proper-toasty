@@ -126,11 +126,17 @@ function formatPrimaryLabel(displayName: string, isPCD: boolean): string {
 }
 
 /** Shared H1 / meta title template. Front-loaded with the target
- *  keywords ("Heat Pumps in [place]") and the commercial nouns
- *  ("Cost, Grants & Installers"), capped comfortably under Google's
- *  ~60-char SERP truncation. */
+ *  keyword ("Heat pumps in [place]") and the two commercial nouns
+ *  ("cost + BUS grant"). Kept at 24 static chars + label so titles
+ *  fit Google's ~60-char SERP truncation even for the longest UK
+ *  local authority names ("Bournemouth, Christchurch and Poole" is
+ *  the max at 35 chars, giving 59-char titles).
+ *
+ *  ALWAYS wrap in `title.absolute` when passing to metadata — the
+ *  root layout template appends " | Propertoasty" (15 chars) which
+ *  would blow the 60-char budget again. */
 function buildTownTitle(primaryLabel: string): string {
-  return `Heat Pumps in ${primaryLabel}: Cost, Grants & Installers 2026`;
+  return `Heat pumps in ${primaryLabel}: cost + BUS grant`;
 }
 
 /** Shared meta description. Front-loaded, ends with an action nudge.
@@ -154,7 +160,7 @@ export async function generateMetadata({
     const title = `Heat pump for a ${archetype.name}: 2026 cost + sizing guide`;
     const description = `Air-source heat pump suitability for a ${archetype.name.toLowerCase()}, with sizing, install cost, BUS grant eligibility and pre-install fabric work.`;
     return {
-      title,
+      title: { absolute: title },
       description,
       alternates: { canonical: url },
       openGraph: {
@@ -182,7 +188,7 @@ export async function generateMetadata({
     const title = buildTownTitle(primaryLabel);
     const description = buildTownDescription(primaryLabel, samplePretty);
     return {
-      title,
+      title: { absolute: title },
       description,
       alternates: { canonical: url },
       openGraph: {
@@ -210,7 +216,7 @@ export async function generateMetadata({
     const title = buildTownTitle(primaryLabel);
     const description = buildTownDescription(primaryLabel, samplePretty);
     return {
-      title,
+      title: { absolute: title },
       description,
       alternates: { canonical: url },
       openGraph: {
@@ -246,7 +252,7 @@ export async function generateMetadata({
   const title = buildTownTitle(primaryLabel);
   const description = buildTownDescription(primaryLabel, samplePretty);
   return {
-    title,
+    title: { absolute: title },
     description,
     alternates: { canonical: url },
     openGraph: {
