@@ -97,7 +97,11 @@ function formatPrimaryLabel(displayName: string, isPCD: boolean): string {
  *  target keywords + solar-specific commercial nouns. Under 60 chars
  *  in the worst case (pc-* with a long town). */
 function buildSolarTitle(primaryLabel: string): string {
-  return `Solar Panels in ${primaryLabel}: Cost, Payback & Installers 2026`;
+  // 25 static chars + label. Fits Google's ~60-char SERP truncation
+  // for every UK LA / town / pcd label (max ~35 chars). ALWAYS pass
+  // via `title.absolute` — the root layout appends " | Propertoasty"
+  // to string titles which would blow the budget.
+  return `Solar panels in ${primaryLabel}: cost + payback`;
 }
 
 /** Shared solar meta description. ~150 chars, ends with a CTA. */
@@ -126,7 +130,7 @@ export async function generateMetadata({
     const title = buildSolarTitle(primaryLabel);
     const description = buildSolarDescription(primaryLabel, samplePretty);
     return {
-      title,
+      title: { absolute: title },
       description,
       alternates: { canonical: url },
       openGraph: {
@@ -154,7 +158,7 @@ export async function generateMetadata({
     const title = buildSolarTitle(primaryLabel);
     const description = buildSolarDescription(primaryLabel, samplePretty);
     return {
-      title,
+      title: { absolute: title },
       description,
       alternates: { canonical: url },
       openGraph: {
@@ -188,7 +192,7 @@ export async function generateMetadata({
   const title = buildSolarTitle(primaryLabel);
   const description = buildSolarDescription(primaryLabel, samplePretty);
   return {
-    title,
+    title: { absolute: title },
     description,
     alternates: { canonical: url },
     openGraph: {

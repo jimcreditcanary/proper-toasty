@@ -159,7 +159,11 @@ export async function generateMetadata({
   if (!area) return { robots: { index: false, follow: false } };
 
   const url = `https://www.propertoasty.com/heat-pump-installers/${slug}`;
-  const title = `Heat pump installers in ${area.displayName}: MCS-certified directory`;
+  // Shorter template: 28 static chars + label. Fits ≤60 for labels
+  // ≤32 chars (covers every UK LA + PCD + PILOT_TOWN). Was
+  // "Heat pump installers in X: MCS-certified directory" (~50 static)
+  // which pushed 82-char titles for long labels per Ahrefs (23 Jul).
+  const title = `MCS heat pump installers in ${area.displayName}`;
   const description = `MCS-certified heat pump installers covering ${area.displayName}, ranked by distance with Google verified reviews and BUS-grant registration. Request a quote in 5 minutes.`;
   return {
     title,

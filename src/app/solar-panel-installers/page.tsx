@@ -16,7 +16,7 @@ const URL = "https://www.propertoasty.com/solar-panel-installers";
 
 export const metadata: Metadata = {
   title:
-    "MCS-certified solar panel installers in the UK — Propertoasty directory",
+    "MCS-certified solar panel installers, UK-wide directory",
   description:
     "Find MCS-certified solar PV installers covering every UK postcode. Distance-ranked with Google verified reviews. Request a quote in 5 minutes.",
   alternates: { canonical: URL },

@@ -33,7 +33,13 @@ export const metadata: Metadata = {
     // "propertoasty.com"), which weakens the Knowledge Graph node
     // AI search engines resolve to.
     default: "Propertoasty — Greener living starts at home",
-    template: "%s | Propertoasty",
+    // Passthrough template: child pages' explicit string titles are
+    // used verbatim. Was "%s | Propertoasty" — the 15-char suffix
+    // pushed 3,368 programmatic titles over Google's ~60-char SERP
+    // truncation (Ahrefs, 23 Jul 2026). Pages that want a brand
+    // suffix now bake it into their own title. Sitewide brand is
+    // still emitted via Organization + WebSite JSON-LD.
+    template: "%s",
   },
   description:
     "Check your UK home for a heat pump, rooftop solar, or a home battery — with room for EV charging when you're ready. Pre-survey report, installer-ready, grant-eligible.",

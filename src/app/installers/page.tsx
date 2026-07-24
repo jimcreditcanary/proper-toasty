@@ -16,7 +16,7 @@ const URL = "https://www.propertoasty.com/installers";
 
 export const metadata: Metadata = {
   title:
-    "Find an MCS-certified UK installer — Propertoasty directory",
+    "MCS-certified UK installer directory — heat pump + solar",
   description:
     "5,500+ MCS-certified UK heat pump + solar installers. Distance-ranked with Google verified reviews. Free 5-minute check matches installers covering your postcode.",
   alternates: { canonical: URL },

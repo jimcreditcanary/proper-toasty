@@ -4,12 +4,12 @@ import { MarketingHeader } from "@/components/marketing-header";
 import { Leaf, ArrowRight, Calendar, Mail } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "Journal — heat pump & solar guides for UK homeowners | Propertoasty",
+  title: "Journal — heat pump & solar guides for UK homeowners",
   description:
     "Practical guides for UK homeowners on heat pumps, rooftop solar, the Boiler Upgrade Scheme, retrofit, and the tariff choices that make the numbers work.",
   alternates: { canonical: "https://www.propertoasty.com/blog" },
   openGraph: {
-    title: "Journal — heat pump & solar guides for UK homeowners | Propertoasty",
+    title: "Journal — heat pump & solar guides for UK homeowners",
     description:
       "Practical guides for UK homeowners on heat pumps, rooftop solar, the Boiler Upgrade Scheme, retrofit, and the tariff choices that make the numbers work.",
     type: "website",

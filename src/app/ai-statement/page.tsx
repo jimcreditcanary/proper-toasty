@@ -5,12 +5,12 @@ import { MarketingHeader } from "@/components/marketing-header";
 import { AlertTriangle } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "AI Statement — how Propertoasty uses AI in your pre-survey report",
+  title: "AI Statement — how Propertoasty uses AI",
   description:
     "Where Propertoasty uses AI (floorplan vision, satellite roof reading, EPC interpretation, report generation), where we don't, its limits, and how to double-check the output.",
   alternates: { canonical: "https://www.propertoasty.com/ai-statement" },
   openGraph: {
-    title: "AI Statement — how Propertoasty uses AI in your pre-survey report",
+    title: "AI Statement — how Propertoasty uses AI",
     description:
       "Where Propertoasty uses AI (floorplan vision, satellite roof reading, EPC interpretation, report generation), where we don't, its limits, and how to double-check the output.",
     type: "article",
