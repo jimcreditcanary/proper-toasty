@@ -85,6 +85,33 @@ export default async function SolarPanelsIndex() {
         },
       ]}
     >
+      {/* Plug-in solar callout — sits high on the hub because the
+          audience it targets (renters, flat-dwellers, no-roof homes)
+          will bounce off "how solar PV works on UK roofs" without
+          this signpost. Added 25 July 2026 after BS 7671 Amendment 4
+          legalised UK plug-in solar. */}
+      <aside
+        style={{
+          border: "1px solid var(--border)",
+          borderRadius: "0.75rem",
+          padding: "1.25rem 1.5rem",
+          background: "var(--cream-deep, #f5efe6)",
+          marginBottom: "1.5rem",
+        }}
+      >
+        <p style={{ fontSize: "0.7rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "#c85a3e", margin: 0 }}>
+          Can&rsquo;t fit rooftop?
+        </p>
+        <p style={{ marginTop: "0.35rem", marginBottom: "0.35rem" }}>
+          <strong>Plug-in solar is now legal in the UK.</strong> 800 W
+          kits from £400, no MCS installer needed, works for renters
+          + flats.{" "}
+          <a href="/plug-in-solar">
+            Read the UK plug-in solar guide →
+          </a>
+        </p>
+      </aside>
+
       <h2>How solar PV works on UK roofs</h2>
       <p>
         A typical UK solar PV install puts 10–14 monocrystalline
