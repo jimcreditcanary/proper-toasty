@@ -28,7 +28,12 @@ import {
   type EnergyBand,
   type SiblingPostcodeDistrict,
 } from "@/lib/programmatic/town-aggregates";
-import { AEOPage, ComparisonTable } from "@/components/seo";
+import {
+  AEOPage,
+  ComparisonTable,
+  CrossServiceLinks,
+  PropertySizeCostTable,
+} from "@/components/seo";
 import { DEFAULT_AUTHOR_SLUG } from "@/lib/seo/authors";
 import { InstallerListSection } from "@/components/installer/installer-list-section";
 import { fetchOutcodeCentroid } from "@/lib/programmatic/outcode-centroid";
@@ -811,6 +816,18 @@ function TownPageWithData({
           </ul>
         </>
       )}
+
+      {/* Property-size cost table — see heat-pumps twin for
+          rationale (Sunsave pattern). */}
+      <PropertySizeCostTable technology="solar" placeName={town.name} />
+
+      {/* Cross-service links — see heat-pumps twin (Checkatrade
+          pattern for related-services PageRank flow). */}
+      <CrossServiceLinks
+        slug={town.slug}
+        placeName={town.name}
+        currentService="solar-panels"
+      />
     </AEOPage>
   );
 }

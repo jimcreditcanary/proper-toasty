@@ -28,7 +28,7 @@ import {
   loadPostcodeDistrictAggregate,
   type TownAggregateRow,
 } from "@/lib/programmatic/town-aggregates";
-import { AEOPage } from "@/components/seo";
+import { AEOPage, CrossServiceLinks } from "@/components/seo";
 import { DEFAULT_AUTHOR_SLUG } from "@/lib/seo/authors";
 import { InstallerListSection } from "@/components/installer/installer-list-section";
 import { fetchOutcodeCentroid } from "@/lib/programmatic/outcode-centroid";
@@ -328,6 +328,14 @@ export default async function HeatPumpInstallersAreaPage({ params }: PageProps) 
         <a href={area.guideHref}>heat pumps in {area.displayName} guide</a>
         {" "}for the full local picture.
       </p>
+
+      {/* Cross-service links — see /heat-pumps/[town-slug]/page.tsx
+          twin for rationale (Checkatrade related-services pattern). */}
+      <CrossServiceLinks
+        slug={slug}
+        placeName={area.displayName}
+        currentService="heat-pump-installers"
+      />
     </AEOPage>
   );
 }

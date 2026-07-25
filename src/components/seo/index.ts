@@ -17,6 +17,8 @@ export { AuthorByline } from "./AuthorByline";
 export { TLDR } from "./TLDR";
 export { SourcesList } from "./SourcesList";
 export { ComparisonTable, type ComparisonTableProps } from "./ComparisonTable";
+export { CrossServiceLinks, type Service } from "./CrossServiceLinks";
+export { PropertySizeCostTable } from "./PropertySizeCostTable";
 
 // Re-export schema components for convenience.
 export * from "./schema";
