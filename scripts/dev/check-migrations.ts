@@ -175,6 +175,11 @@ const CHECKS: Check[] = [
         : `${count} local_authority row(s) still missing the la- prefix`;
     },
   },
+  {
+    migration: "081_local_energy_stats",
+    artifact: "tables la_energy_stats + region_solar_stats",
+    probe: selectProbe("la_energy_stats", "la_gss_code"),
+  },
 ];
 
 async function main(): Promise<void> {
