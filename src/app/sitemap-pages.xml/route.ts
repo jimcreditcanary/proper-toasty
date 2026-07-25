@@ -102,6 +102,16 @@ export async function GET(): Promise<Response> {
       changefreq: "weekly",
       priority: 0.85,
     },
+    // Plug-in solar vertical — BS 7671 A4 legalised 800W plug-in
+    // kits from 15 April 2026; SI 2026/848 formalises retail-sale
+    // rules from 27 August 2026. New search vertical, first-mover
+    // window closes when the market catches up.
+    {
+      loc: `${SITE_URL}/plug-in-solar`,
+      lastmod: now,
+      changefreq: "weekly",
+      priority: 0.8,
+    },
     // Comparison pages — head-term targets ("heat pump vs gas
     // boiler" is one of the highest-search-volume UK heat queries).
     // Hand-curated; one file each under src/app/compare/.
