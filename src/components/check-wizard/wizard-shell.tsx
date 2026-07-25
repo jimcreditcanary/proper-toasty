@@ -20,6 +20,7 @@ import { Step5bLeadCapture } from "./step-5b-lead-capture";
 import { Step6Report } from "./step-6-report";
 import { CountryGate } from "./country-gate";
 import { isV1SupportedCountry } from "@/lib/postcode/region";
+import { logCheckStepViewed } from "@/lib/analytics-client";
 
 // Visible steps in the header progress — `lead_capture` is collapsed into
 // the analysis/report continuum so the user sees a clean "X of 6".
@@ -134,6 +135,28 @@ function PageTitleSync() {
   return null;
 }
 
+// Fires a `check_step_viewed` beacon whenever `step` changes. Feeds
+// the PostHog funnel that measures wizard drop-off between the
+// address entry and the report render (see EventMap in
+// src/lib/analytics.ts). Deliberately sits at the wizard-shell
+// level rather than inside each step — one useEffect covers all 7
+// steps + auto-covers any future step additions.
+function StepAnalyticsSync() {
+  const { step, state } = useCheckWizard();
+  useEffect(() => {
+    logCheckStepViewed(step, {
+      from_presurvey_link: state.preSurveyToken != null,
+      from_installer_prebind:
+        state.preSurveyToken == null && state.preSurveyInstallerId != null,
+    });
+    // Depend only on `step` — a step change should always fire, but
+    // switching between installer-prebind states mid-wizard is not
+    // itself a step-view event.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step]);
+  return null;
+}
+
 // Single width mode for the whole wizard — max-w-7xl matches the header
 // so brand-mark and content edges align on every step. Form-style steps
 // (address, questions, lead capture) keep their own inner max-widths
@@ -169,6 +192,7 @@ export function CheckWizard({ initialState }: CheckWizardProps = {}) {
     <CheckWizardProvider initialState={initialState}>
       <div className="flex min-h-[100dvh] flex-col">
         <PageTitleSync />
+        <StepAnalyticsSync />
         {/* (Skip-to-main-content link removed — its focus position
             drifted inconsistently across pages, causing more confusion
             than it solved. Users with assistive tech can still navigate

@@ -89,6 +89,38 @@ export interface EventMap {
     /** Pre-survey-attributed completions vs organic */
     via_pre_survey: boolean;
   };
+  /**
+   * Fires when the user lands on a step of the 6-step check wizard.
+   * Called from the wizard shell's `useEffect(..., [step])` via a
+   * beacon endpoint (`/api/telemetry/check-step`) since PostHog is
+   * server-only. `step` values match `CheckStep` in the wizard
+   * types module — keep in lockstep when adding new steps.
+   *
+   * PostHog funnel is built on this event, grouped by `step` — the
+   * drop-off between consecutive step values is the metric.
+   */
+  check_step_viewed: {
+    step:
+      | "address"
+      | "preview"
+      | "questions"
+      | "floorplan"
+      | "analysis"
+      | "lead_capture"
+      | "report";
+    /** True when the wizard was pre-filled from an installer's
+     *  pre-survey magic link (?presurvey=<token>). Splits the
+     *  funnel by initiation source. */
+    from_presurvey_link: boolean;
+    /** True when the wizard was pre-bound to an installer via
+     *  ?installer=<id> — comes from the homeowner clicking
+     *  "Request a quote" on an installer card. */
+    from_installer_prebind: boolean;
+    /** URL path the user arrived from (document.referrer or
+     *  document.referrer.pathname when same-origin). Null on
+     *  direct traffic. Trims + drops query strings. */
+    referrer_path: string | null;
+  };
   homeowner_quote_accepted: {
     installer_id: number;
     total_pence: number;
