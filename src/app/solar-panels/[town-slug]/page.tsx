@@ -938,6 +938,21 @@ function TownPageWithData({
         placeName={town.name}
         currentService="solar-panels"
       />
+
+      {/* Plug-in solar sibling — every solar page passes 2,900+
+          inbound links to the /plug-in-solar hub. Sits after the
+          cross-service block (same-location siblings) because
+          plug-in solar isn't location-specific — the pitch is
+          audience-based (renters, flats, no-roof). Added 25 Jul
+          2026 after BS 7671 A4 legalised plug-in solar. */}
+      <p>
+        <strong>Not suitable for rooftop in {town.name}?</strong>{" "}
+        UK plug-in solar was legalised in April 2026 — 800 W kits
+        from £400, no MCS installer needed.{" "}
+        <a href="/plug-in-solar">
+          Read our UK plug-in solar guide →
+        </a>
+      </p>
     </AEOPage>
   );
 }

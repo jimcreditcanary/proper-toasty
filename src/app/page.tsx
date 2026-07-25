@@ -197,6 +197,36 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Plug-in solar banner — added 25 July 2026 after BS 7671
+          Amendment 4 legalised plug-in solar in the UK. Slim strip
+          rather than a full section because the target audience
+          (renters, flat-dwellers) is a subset — visible enough to
+          catch the right eyes without derailing the main flow. */}
+      <section className="bg-coral-pale/50 border-b border-[var(--border)]">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 py-6 flex flex-col sm:flex-row items-center gap-4 sm:gap-6">
+          <span className="shrink-0 inline-flex items-center justify-center w-11 h-11 rounded-xl bg-coral text-white">
+            <Sun className="w-5 h-5" />
+          </span>
+          <div className="flex-1 text-center sm:text-left">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-coral-dark">
+              New in the UK · legal from April 2026
+            </p>
+            <p className="mt-1 text-sm sm:text-base text-navy leading-snug">
+              <strong>Plug-in solar is now legal in the UK.</strong>{" "}
+              800 W kits from £400 — no roof or MCS installer needed.
+              Perfect for renters, flats, and small terraces.
+            </p>
+          </div>
+          <Link
+            href="/plug-in-solar"
+            className="shrink-0 inline-flex items-center gap-1.5 rounded-full bg-coral text-white text-sm font-semibold px-5 py-2.5 hover:bg-coral-dark transition-colors"
+          >
+            Read the guide
+            <ArrowRight className="w-4 h-4" />
+          </Link>
+        </div>
+      </section>
+
       {/* How it works */}
       <section className="bg-cream-deep border-y border-[var(--border)]">
         <div className="mx-auto max-w-6xl px-4 sm:px-6 py-20">
