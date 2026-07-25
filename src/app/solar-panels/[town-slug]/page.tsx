@@ -22,6 +22,7 @@ import {
   loadPostcodeDistrictAggregate,
   loadNearbyAggregates,
   loadSiblingPostcodeDistricts,
+  laSlugFromCouncilName,
   type NearbyAggregate,
   ALL_BANDS,
   type TownAggregateRow,
@@ -34,6 +35,10 @@ import {
   CrossServiceLinks,
   PropertySizeCostTable,
 } from "@/components/seo";
+import {
+  loadLaSolarRegionStats,
+  type LaSolarRegionStats,
+} from "@/lib/programmatic/local-energy-stats";
 import { DEFAULT_AUTHOR_SLUG } from "@/lib/seo/authors";
 import { InstallerListSection } from "@/components/installer/installer-list-section";
 import { fetchOutcodeCentroid } from "@/lib/programmatic/outcode-centroid";
@@ -247,12 +252,17 @@ export default async function SolarPanelsTownPage({ params }: PageProps) {
             limit: 10,
           })
         : [];
+    // Regional solar cost/count stats, resolved through the LA→GOR
+    // lookup embedded in la_energy_stats. Null-safe: page renders
+    // without the block if la_energy_stats isn't populated yet.
+    const laSolarStats = await loadLaSolarRegionStats(admin, slug);
     return (
       <TownPageWithData
         town={fakeTown}
         row={row}
         isLA
         nearbyAggregates={nearbyAggregates}
+        laSolarStats={laSolarStats}
       />
     );
   }
@@ -309,7 +319,21 @@ export default async function SolarPanelsTownPage({ params }: PageProps) {
   const row = await loadTownAggregate(admin, slug);
 
   if (!row) return <NoDataShell town={town} />;
-  return <TownPageWithData town={town} row={row} />;
+  // Pilot-town branch — resolve solar regional stats via the town's
+  // parent council name (same slug shape as la_energy_stats.la_slug).
+  const laSolarStats = town.councilName
+    ? await loadLaSolarRegionStats(
+        admin,
+        `la-${laSlugFromCouncilName(town.councilName)}`,
+      )
+    : null;
+  return (
+    <TownPageWithData
+      town={town}
+      row={row}
+      laSolarStats={laSolarStats}
+    />
+  );
 }
 
 function laToTownAdapter(row: TownAggregateRow): PilotTown {
@@ -373,6 +397,7 @@ function TownPageWithData({
   isPCD = false,
   siblings = [],
   nearbyAggregates = [],
+  laSolarStats = null,
 }: {
   town: PilotTown;
   row: TownAggregateRow;
@@ -384,6 +409,10 @@ function TownPageWithData({
   /** Geographically-nearest LA + PCD aggregates — orphan-tail fix,
    *  see heat-pumps twin for full rationale. */
   nearbyAggregates?: NearbyAggregate[];
+  /** Solar cost/count stats for the LA's parent GOR. Sourced from
+   *  DESNZ Solar PV Cost Data via scripts/seo/import-local-energy-stats.
+   *  Null when the row is absent (fresh preview env, PCD page). */
+  laSolarStats?: LaSolarRegionStats | null;
 }) {
   const data = row.data;
   const url = `https://www.propertoasty.com/solar-panels/${town.slug}`;
@@ -747,6 +776,87 @@ function TownPageWithData({
         capability="solar"
         areaSlug={town.slug}
       />
+
+      {/* ─── Regional MCS solar deployment (DESNZ per-region) ────
+          Real cost/count data from Solar PV Cost Data (Regional
+          costs sheet), pulled via the LA→GOR mapping in
+          la_energy_stats. Renders when the row exists (all LA-
+          branch pages + pilot-town pages with a laGssCode). Silent
+          on the pc-* branch since there is no PCD→LA join yet. */}
+      {laSolarStats?.mean_cost_per_kw_0_4kw_gbp != null && (
+        <>
+          <h2>
+            Solar installs in the {laSolarStats.region_name} region
+          </h2>
+          <p>
+            Per{" "}
+            <a
+              href={laSolarStats.source_url}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              DESNZ Solar PV Cost Data
+            </a>{" "}
+            for {laSolarStats.financial_year}, the average cost of a
+            domestic-scale (0-4 kW) MCS-certified solar PV system in
+            the {laSolarStats.region_name} region was{" "}
+            <strong>
+              £
+              {Math.round(
+                laSolarStats.mean_cost_per_kw_0_4kw_gbp,
+              ).toLocaleString("en-GB")}
+              /kW
+            </strong>
+            {laSolarStats.installations_0_4kw != null && (
+              <>
+                {" "}
+                across{" "}
+                <strong>
+                  {laSolarStats.installations_0_4kw.toLocaleString(
+                    "en-GB",
+                  )}
+                </strong>{" "}
+                domestic installations
+              </>
+            )}
+            . For a typical 4-kW rooftop system, that works out at
+            roughly{" "}
+            <strong>
+              £
+              {Math.round(
+                laSolarStats.mean_cost_per_kw_0_4kw_gbp * 4,
+              ).toLocaleString("en-GB")}
+            </strong>{" "}
+            all-in, before Smart Export Guarantee earnings.
+          </p>
+          {laSolarStats.mean_cost_per_kw_4_10kw_gbp != null && (
+            <p>
+              Larger 4-10 kW systems (typical for 4-5 bed homes)
+              averaged{" "}
+              <strong>
+                £
+                {Math.round(
+                  laSolarStats.mean_cost_per_kw_4_10kw_gbp,
+                ).toLocaleString("en-GB")}
+                /kW
+              </strong>{" "}
+              in the same period
+              {laSolarStats.installations_4_10kw != null && (
+                <>
+                  {" "}
+                  ({laSolarStats.installations_4_10kw.toLocaleString(
+                    "en-GB",
+                  )}{" "}
+                  installs)
+                </>
+              )}
+              . Cost per kW drops as system size grows, driven by
+              scaffolding and travel being roughly fixed regardless
+              of panel count.
+            </p>
+          )}
+        </>
+      )}
 
       {/* Same-area postcode-district siblings — pc-* only. Hub-and-
           spoke internal linking so PageRank flows across the postcode

@@ -35,12 +35,17 @@ import {
   loadPostcodeDistrictAggregate,
   loadNearbyAggregates,
   loadSiblingPostcodeDistricts,
+  laSlugFromCouncilName,
   type NearbyAggregate,
   ALL_BANDS,
   type TownAggregateRow,
   type EnergyBand,
   type SiblingPostcodeDistrict,
 } from "@/lib/programmatic/town-aggregates";
+import {
+  loadLaHeatPumpStats,
+  type LaHeatPumpStats,
+} from "@/lib/programmatic/local-energy-stats";
 import {
   AEOPage,
   ComparisonTable,
@@ -318,12 +323,17 @@ export default async function HeatPumpsTownPage({ params }: PageProps) {
             limit: 10,
           })
         : [];
+    // BUS heat pump installs for this LA — real DESNZ data, keyed
+    // by la_slug. Null-safe: pages render without the block if the
+    // importer hasn't populated the table (e.g. fresh preview env).
+    const laHeatPumpStats = await loadLaHeatPumpStats(admin, slug);
     return (
       <TownPageWithData
         town={fakeTown}
         row={row}
         isLA
         nearbyAggregates={nearbyAggregates}
+        laHeatPumpStats={laHeatPumpStats}
       />
     );
   }
@@ -387,8 +397,25 @@ export default async function HeatPumpsTownPage({ params }: PageProps) {
     return <NoDataShell town={town} />;
   }
 
+  // Pilot-town branch — town has a known parent council name, so
+  // we can fetch the parent LA's BUS install counts and render
+  // them on the town page too. LA slug = same shape used by
+  // /heat-pumps/la-* pages (see la_energy_stats.la_slug).
+  const laHeatPumpStats = town.councilName
+    ? await loadLaHeatPumpStats(
+        admin,
+        `la-${laSlugFromCouncilName(town.councilName)}`,
+      )
+    : null;
+
   // From here on we have data. Build the page.
-  return <TownPageWithData town={town} row={row} />;
+  return (
+    <TownPageWithData
+      town={town}
+      row={row}
+      laHeatPumpStats={laHeatPumpStats}
+    />
+  );
 }
 
 // Adapt an LA aggregate row into a town-shaped object so TownPageWithData
@@ -464,6 +491,7 @@ function TownPageWithData({
   isPCD = false,
   siblings = [],
   nearbyAggregates = [],
+  laHeatPumpStats = null,
 }: {
   town: PilotTown;
   row: TownAggregateRow;
@@ -481,6 +509,11 @@ function TownPageWithData({
    *  hrefs). Empty on the pilot-town branch (which has its own
    *  getNearbyTowns-driven section). */
   nearbyAggregates?: NearbyAggregate[];
+  /** BUS-funded heat pump install counts for this LA (or the pilot
+   *  town's parent LA). Sourced from DESNZ Boiler Upgrade Scheme
+   *  statistics via scripts/seo/import-local-energy-stats.ts.
+   *  Null when the row is absent (fresh preview env, PCD page). */
+  laHeatPumpStats?: LaHeatPumpStats | null;
 }) {
   const data = row.data;
   const url = `https://www.propertoasty.com/heat-pumps/${town.slug}`;
@@ -885,6 +918,78 @@ function TownPageWithData({
         % of the local sample, which compares to the E&W average of
         around 22%.
       </p>
+
+      {/* ─── BUS heat pump deployment (DESNZ per-LA data) ────────
+          Real per-LA install counts from the BUS statistics XLSX,
+          imported by scripts/seo/import-local-energy-stats.ts.
+          Renders when the la_energy_stats row exists (all LA-branch
+          pages + pilot-town pages that carry a laGssCode). Silent
+          on the pc-* branch since there is no PCD→LA join loaded
+          yet. */}
+      {laHeatPumpStats?.bus_hp_installs_total != null && (
+        <>
+          <h2>BUS-funded heat pumps in {laHeatPumpStats.la_name}</h2>
+          <p>
+            Per{" "}
+            <a
+              href={laHeatPumpStats.source_url}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              DESNZ Boiler Upgrade Scheme statistics
+            </a>
+            , homeowners in {laHeatPumpStats.la_name} redeemed{" "}
+            <strong>
+              {laHeatPumpStats.bus_hp_installs_total.toLocaleString(
+                "en-GB",
+              )}
+            </strong>{" "}
+            Boiler Upgrade Scheme vouchers for heat pump installations
+            between {laHeatPumpStats.data_period}
+            {laHeatPumpStats.region_name
+              ? ` (part of the ${laHeatPumpStats.region_name} region)`
+              : ""}
+            .
+          </p>
+          <ul>
+            {laHeatPumpStats.bus_hp_installs_2022_23 != null && (
+              <li>
+                <strong>2022/23:</strong>{" "}
+                {laHeatPumpStats.bus_hp_installs_2022_23.toLocaleString(
+                  "en-GB",
+                )}{" "}
+                installations
+              </li>
+            )}
+            {laHeatPumpStats.bus_hp_installs_2023_24 != null && (
+              <li>
+                <strong>2023/24:</strong>{" "}
+                {laHeatPumpStats.bus_hp_installs_2023_24.toLocaleString(
+                  "en-GB",
+                )}{" "}
+                installations
+              </li>
+            )}
+            {laHeatPumpStats.bus_hp_installs_2024_25 != null && (
+              <li>
+                <strong>2024/25:</strong>{" "}
+                {laHeatPumpStats.bus_hp_installs_2024_25.toLocaleString(
+                  "en-GB",
+                )}{" "}
+                installations
+              </li>
+            )}
+          </ul>
+          <p>
+            <small>
+              BUS is one of several funding routes — MCS-certified
+              installs without a BUS voucher (self-funded, other
+              grants) are not included in these figures. Data covers
+              England and Wales only.
+            </small>
+          </p>
+        </>
+      )}
 
       {/* ─── Same-area postcode-district siblings ─────────────────
           Pc-* only. Fetched from epc_area_aggregates by area-code
