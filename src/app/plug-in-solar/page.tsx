@@ -27,6 +27,7 @@
 import type { Metadata } from "next";
 import { AEOPage } from "@/components/seo";
 import { DEFAULT_AUTHOR_SLUG } from "@/lib/seo/authors";
+import { PlugInSolarCalculator } from "@/components/plug-in-solar/calculator";
 
 const URL = "https://www.propertoasty.com/plug-in-solar";
 
@@ -173,6 +174,12 @@ export default function PlugInSolarHub() {
         },
       ]}
     >
+      {/* Calculator hero — the fast path from "curious" to
+          "ready to buy". Sits at the top so consumers who don't
+          want to read a 2,500 word explainer get straight to a
+          number for their situation. */}
+      <PlugInSolarCalculator />
+
       <h2>What changed in April 2026</h2>
       <p>
         For years, plug-in solar sat in a UK grey zone. The kits
