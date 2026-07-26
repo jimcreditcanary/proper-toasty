@@ -97,30 +97,31 @@ export function PropertySizeCostTable({
       <p>
         {isSolar ? (
           <>
-            Typical installed system sizes for a home in {placeName},
-            with UK average prices from the{" "}
+            Typical system sizes for a home in {placeName}, with UK
+            average prices from the{" "}
             <a
               href="https://mcscertified.com/mcs-data-dashboard/"
               target="_blank"
               rel="noopener noreferrer"
             >
-              MCS Data Dashboard
+              official MCS installer database
             </a>
-            . The right-hand column adds a home battery (≈£3,000).
+            . The right-hand column shows the cost with a home battery
+            included (roughly £3,000 extra).
           </>
         ) : (
           <>
-            Typical air-source heat pump sizes for a home in{" "}
-            {placeName}, with UK average install costs from{" "}
+            Typical heat pump sizes for a home in {placeName}, with UK
+            average install costs from{" "}
             <a
               href="https://www.gov.uk/government/collections/boiler-upgrade-scheme-statistics"
               target="_blank"
               rel="noopener noreferrer"
             >
-              DESNZ Boiler Upgrade Scheme statistics
+              government figures
             </a>
-            . The right-hand column shows the net cost after the
-            £7,500 BUS grant.
+            . The right-hand column shows what you actually pay after
+            the £7,500 grant is deducted.
           </>
         )}
       </p>
@@ -128,12 +129,12 @@ export function PropertySizeCostTable({
         <table>
           <thead>
             <tr>
-              <th>Property size</th>
-              <th>Typical usage</th>
+              <th>Home size</th>
+              <th>Yearly usage</th>
               <th>System size</th>
-              <th>{isSolar ? "Cost (system only)" : "Gross install"}</th>
+              <th>{isSolar ? "Cost (system only)" : "Full price"}</th>
               <th>
-                {isSolar ? "With 5 kWh battery" : "Net (after £7,500 BUS)"}
+                {isSolar ? "With home battery" : "What you pay after grant"}
               </th>
             </tr>
           </thead>
@@ -152,10 +153,9 @@ export function PropertySizeCostTable({
       </div>
       <p>
         <small>
-          Figures are UK averages — actual quotes vary with roof
-          orientation, fabric condition, and installer. Pre-survey
-          indication only; your MCS installer&rsquo;s final quote
-          may differ.
+          These are UK-wide averages — your actual quote will vary
+          with your roof, insulation, and installer. A guide only;
+          your installer&rsquo;s final quote will differ.
         </small>
       </p>
     </>

@@ -928,24 +928,25 @@ function TownPageWithData({
           yet. */}
       {laHeatPumpStats?.bus_hp_installs_total != null && (
         <>
-          <h2>BUS-funded heat pumps in {laHeatPumpStats.la_name}</h2>
+          <h2>Heat pumps installed in {laHeatPumpStats.la_name} with the £7,500 grant</h2>
           <p>
-            Per{" "}
+            According to{" "}
             <a
               href={laHeatPumpStats.source_url}
               target="_blank"
               rel="noopener noreferrer"
             >
-              DESNZ Boiler Upgrade Scheme statistics
+              government figures
             </a>
-            , homeowners in {laHeatPumpStats.la_name} redeemed{" "}
+            , homeowners in {laHeatPumpStats.la_name} used the
+            Boiler Upgrade Scheme (the £7,500 heat pump grant) to
+            install{" "}
             <strong>
               {laHeatPumpStats.bus_hp_installs_total.toLocaleString(
                 "en-GB",
               )}
             </strong>{" "}
-            Boiler Upgrade Scheme vouchers for heat pump installations
-            between {laHeatPumpStats.data_period}
+            heat pumps between {laHeatPumpStats.data_period}
             {laHeatPumpStats.region_name
               ? ` (part of the ${laHeatPumpStats.region_name} region)`
               : ""}
@@ -982,9 +983,9 @@ function TownPageWithData({
           </ul>
           <p>
             <small>
-              BUS is one of several funding routes — MCS-certified
-              installs without a BUS voucher (self-funded, other
-              grants) are not included in these figures. Data covers
+              These figures only cover heat pumps installed using
+              the £7,500 grant — self-funded installs and other
+              schemes aren&rsquo;t counted here. Data covers
               England and Wales only.
             </small>
           </p>

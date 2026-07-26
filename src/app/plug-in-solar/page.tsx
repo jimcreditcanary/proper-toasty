@@ -40,7 +40,7 @@ const amz = (asin: string) =>
 export const metadata: Metadata = {
   title: "Plug-in solar UK 2026: legal, cost + best kits",
   description:
-    "Plug-in solar is now legal in the UK (BS 7671 Amendment 4, in force April 2026). Cost, 800W limit, best kits, and whether it's worth it for renters, flats, and small homes.",
+    "Plug-in solar became legal in the UK in April 2026. Cost, the 800W limit explained, best kits, and whether it's worth it for renters, flats, and small homes.",
   alternates: { canonical: URL },
   openGraph: {
     title: "Plug-in solar UK 2026: legal, cost + best kits",
@@ -75,74 +75,74 @@ export default function PlugInSolarHub() {
           href: "/solar-panels",
           eyebrow: "Solar",
           title: "Rooftop solar in the UK",
-          body: "The full 4kWp+ system route — MCS certified, SEG export tariff, professional install. Compare against plug-in on scale and payback.",
+          body: "The full route — a 4 kW system professionally installed, with the option to sell extra electricity back to the grid. Compare against plug-in on scale and payback.",
         },
         {
           href: "/check/solar",
           eyebrow: "Check",
           title: "Free 5-minute solar pre-survey",
-          body: "Rooftop-oriented, but tells you the roof numbers even if you settle on a balcony kit — orientation, shading, useful reference point.",
+          body: "Rooftop-focused, but gives you the direction and sunlight numbers even if you settle on a balcony kit.",
         },
         {
           href: "/blog",
           eyebrow: "Journal",
           title: "Latest UK solar + heat pump journalism",
-          body: "How grants shift, what the government funds, MCS install stats — the Propertoasty view.",
+          body: "How grants shift, what the government funds, and the latest UK install trends.",
         },
       ]}
-      directAnswer="Plug-in solar became legal in the UK from 15 April 2026 (BS 7671 Amendment 4), with retail-sale rules formalised for 27 August 2026 (SI 2026/848). The rules cap output at 800 W AC from up to 2,000 W of panels, one device per power circuit, no batteries, and the kit must be on the ENA Type Test Register. A typical 800 W kit costs £400–£900 including panels, mounts, and micro-inverter. Payback for a south-facing balcony sits at 3–5 years at 27 p/kWh — meaningful for renters, flats, and small terraces where rooftop solar isn't feasible."
+      directAnswer="Plug-in solar became legal in the UK in April 2026. You buy a kit for £400–£900, hang the panel on a balcony or wall, plug it into a normal socket, and it starts cutting your electricity bill. There's an 800 watt limit on how much it can push into your home. On a south-facing balcony, the kit pays for itself in 3–5 years. Ideal if you rent, live in a flat, or don't have a suitable roof."
       tldr={[
-        "Legal in the UK from 15 April 2026 (BS 7671 A4). Retail-sale rules from 27 August 2026 (SI 2026/848).",
-        "800 W AC output limit, from up to 2,000 W of panels, one kit per circuit, no batteries in the plug-in scope.",
-        "G98 notification to your Distribution Network Operator (DNO) required within 28 days — the installer or manufacturer typically provides a template.",
-        "Typical kit £400–£900. Payback 3–5 years on a south-facing balcony at 27 p/kWh import.",
-        "Best fit: renters, flats, small terraces, garden studios — anywhere rooftop solar isn't feasible.",
+        "Legal in the UK from April 2026. Shops can sell kits openly from 27 August 2026.",
+        "800 watt limit on what the kit pushes into your home — the panels can be bigger; the box in the middle caps the output.",
+        "One-page notification form to your local grid network within 28 days of plugging in. Most kits ship with it pre-filled.",
+        "Kit costs £400–£900. Pays itself back in 3–5 years on a south-facing balcony.",
+        "Best fit: renters, flats, small terraces, garden studios — anywhere rooftop solar isn't an option.",
       ]}
       faqs={[
         {
           question: "Is plug-in solar legal in the UK?",
           answer:
-            "Yes. BS 7671 Amendment 4 (ratified 16 March 2026, in force 15 April 2026) explicitly permits plug-in solar micro-generation up to 800 W AC output for the first time. Statutory Instrument SI 2026/848 (16 July 2026) formalised the retail-sale rules from 27 August 2026. Before this, plug-in solar was in a grey zone — technically usable but not covered by the wiring regulations, which meant most electricians wouldn't sign it off. The 2026 changes give it a formal legal basis and a compliance route.",
+            "Yes. The UK wiring rules were updated in April 2026 to explicitly allow plug-in solar kits up to 800 watts. From 27 August 2026, shops can sell them openly. Before the update, plug-in kits sat in a grey zone — you could plug them in, but electricians wouldn't sign them off and insurers weren't sure how to treat them. The 2026 changes fix that.",
         },
         {
-          question: "What is the 800 W limit?",
+          question: "What is the 800 watt limit?",
           answer:
-            "The 800 W limit is on AC output at the inverter, not on the panels themselves. You can have up to 2,000 W of panels, but the micro-inverter must cap what it feeds into the socket at 800 W. This matches the German Balkonkraftwerk rule (also 800 W since 2024) so most compliant hardware sold in Germany works in the UK once ENA-listed.",
+            "The 800 watt cap is on what actually gets pushed into your home, not on the panels themselves. Panels can total up to 2,000 watts; the box in the middle (called an inverter) automatically holds output at 800 watts. That's why a two-panel kit — each around 430 to 450 watts — is the sweet spot: you get more electricity on cloudy days without wasting anything on sunny ones. It matches the German rule that has been running since 2024.",
         },
         {
           question: "Do I need to tell my energy supplier?",
           answer:
-            "You notify your Distribution Network Operator (DNO), not your supplier. Under G98, you have 28 days after connecting the kit to file a notification with the DNO covering your postcode (find yours at energynetworks.org). Most compliant kits ship with a pre-filled G98 template. This is a paperwork step, not an approval — G98 is 'notify and connect', not 'apply and wait'.",
+            "Not your supplier — you notify the company that owns the electricity cables in your street (called your 'network operator'). It's a one-page form. Most kits ship with it pre-filled. You have 28 days after plugging in to post it. Nobody has to approve anything before you plug in — you plug in first, then post the form.",
         },
         {
           question: "How much does a plug-in solar kit cost?",
           answer:
-            "£400–£900 for a complete 800 W kit as of mid-2026, depending on brand and panel count. Budget kits (single 400 W panel + micro-inverter + mount) start around £400; premium kits with two panels + weatherproof plug + branded mounting start around £700; kits paired with a small portable battery station push toward £1,500+ but the battery itself is outside the plug-in solar scope.",
+            "£400 to £900 for a complete 800 watt kit as of mid-2026. Budget kits (one 400 watt panel plus mount) start around £400. Mid-range kits with two panels and a branded mount start around £700. Kits paired with a small portable battery push toward £1,500 or more — the battery itself sits outside the plug-in solar rules but people often buy both together.",
         },
         {
           question: "Can I use plug-in solar if I rent?",
           answer:
-            "Yes — plug-in solar is one of the few solar options renters can use. It plugs into a standard socket, requires no wall drilling if you use a balcony rail mount, and moves with you when you leave. Check your tenancy for any clause about attaching things to balconies. Most landlords are neutral because there's no electrical work on the property.",
+            "Yes — this is one of the very few solar options renters can use. It plugs into a standard socket, doesn't need any drilling if you use a balcony rail mount, and moves with you when you leave. Worth checking your tenancy for any clause about attaching things to balconies. Most landlords are neutral because there's no electrical work being done on the property.",
         },
         {
           question: "How long is the payback?",
           answer:
-            "3–5 years for a south-facing 800 W kit at UK average irradiance and 27 p/kWh import. A south-facing kit generates around 700–850 kWh/year in the UK; at 27 p/kWh self-consumed that's £190–£230/year, giving a 3–5 year payback on a £600–£900 kit. East/west-facing kits generate about 20% less. North-facing not worth it.",
+            "3 to 5 years for a south-facing 800 watt kit at UK electricity prices. It generates roughly 700 to 850 units of electricity a year — worth £190 to £230 at the current 27p per unit price cap, assuming you're at home to use most of what it produces. East or west-facing kits generate about 20% less. North-facing isn't worth doing.",
         },
         {
           question: "Can I add a battery to a plug-in solar kit?",
           answer:
-            "Not within the 800 W plug-in scope defined by BS 7671 A4 — batteries are explicitly excluded from the plug-in path. If you want battery storage you either buy a portable power station (charge from the plug-in kit, discharge to devices independently) or go the full route with a G98/G99-notified installer-fitted battery.",
+            "Not within the plug-in solar rules — the new law explicitly leaves batteries out of the plug-in scope. If you want battery storage, two options: buy a portable power station (charge it from the plug-in kit during the day, use it in the evening — no restrictions on doing that), or go the full route with an installer-fitted home battery.",
         },
         {
           question: "Is plug-in solar better than rooftop solar?",
           answer:
-            "Different tool for different jobs. Plug-in solar is 400–800 W of capacity — enough to cover baseline standby load and some daytime usage. Rooftop solar is typically 3.5–6 kW — enough to seriously cut a family's electricity bill and pair with a battery for evening use. Plug-in fills the gap for people rooftop can't reach: renters, flats, terraces without owner permission, garden studios.",
+            "Different tool for different jobs. Plug-in solar produces around 400 to 800 watts — enough to cover baseline usage like the fridge, router, and things on standby, plus a chunk of daytime use. Rooftop solar is typically 3,500 to 6,000 watts — enough to seriously cut a family's bill and pair with a battery for evenings. Plug-in fills the gap for people rooftop can't reach: renters, flat-dwellers, terraces without owner permission, garden studios.",
         },
         {
           question: "Do I need MCS certification for plug-in solar?",
           answer:
-            "No. MCS is required for the £7,500 Boiler Upgrade Scheme grant and for the Smart Export Guarantee (SEG) — neither applies to plug-in solar since the 800 W kit doesn't export to the grid (the micro-inverter self-limits when household demand is low). You lose SEG export earnings but you also skip the MCS install cost.",
+            "No. MCS certification is required for the £7,500 Boiler Upgrade Scheme grant and for the Smart Export Guarantee (the scheme that pays you for extra electricity sold back to the grid). Neither applies to plug-in solar — the 800 watt kit doesn't export to the grid (the box in the middle holds back when you're not using much), so you skip both the certification cost and the export earnings.",
         },
       ]}
       sources={[
@@ -175,47 +175,43 @@ export default function PlugInSolarHub() {
     >
       <h2>What changed in April 2026</h2>
       <p>
-        For years, plug-in solar sat in a UK regulatory grey zone.
-        The kits were on Amazon, Germans were installing 800,000+
-        Balkonkraftwerk systems a year, but the UK&rsquo;s{" "}
+        For years, plug-in solar sat in a UK grey zone. The kits
+        were on Amazon, Germany was installing hundreds of thousands
+        a year, but the UK&rsquo;s{" "}
         <a
           href="https://electrical.theiet.org/bs-7671/"
           target="_blank"
           rel="noopener noreferrer"
         >
-          BS 7671 Wiring Regulations
+          wiring rules
         </a>{" "}
-        didn&rsquo;t recognise them. Electricians wouldn&rsquo;t sign
-        them off, insurers were unsure, and every review site had a
-        &ldquo;probably fine but check with your DNO&rdquo; disclaimer.
+        didn&rsquo;t formally recognise them. Electricians
+        wouldn&rsquo;t sign them off, insurers weren&rsquo;t sure how
+        to treat them, and every review site had a &ldquo;probably
+        fine but check first&rdquo; disclaimer.
       </p>
       <p>
-        Amendment 4 to BS 7671 (ratified 16 March 2026, in force 15
-        April 2026) closed that gap. It explicitly permits micro-
-        generation of up to 800 W AC output on a standard 13 A socket
-        circuit, subject to conditions that mirror the German
-        Balkonkraftwerk rules. Statutory Instrument 2026/848 (made 16
-        July 2026, in force 27 August 2026) then set the retail-sale
-        rules: kits sold in the UK must ship with proof of ENA Type
-        Test Register listing, and the labelling must state the 800 W
-        cap. From 27 August 2026 you can walk into an electrical
-        retailer, buy a compliant plug-in solar kit, and plug it in
-        yourself.
+        That changed in April 2026, when the wiring rules were
+        updated to explicitly cover plug-in solar for the first time.
+        Then, from 27 August 2026, shops and websites can start
+        selling them properly: kits have to ship with clear labelling
+        about the 800 watt limit and be on a public register of
+        tested equipment. From that date, you can walk into an
+        electrical retailer, buy a kit, and plug it in yourself.
       </p>
 
-      <h2>The 800 W rule in one paragraph</h2>
+      <h2>The 800 watt rule, in plain English</h2>
       <p>
-        The rule caps AC output — the electricity actually pushed
-        into your socket — at 800 W. The panels themselves can total
-        up to 2,000 W of DC capacity; the micro-inverter throttles
-        output whenever incoming solar exceeds 800 W. In practice
-        this means a two-panel kit (each ~430–450 W) is at the sweet
-        spot: you get more generation in low-light conditions where
-        panels never hit their peak, without wasting sunny-day
-        capacity. One kit per power circuit, no batteries (the plug-
-        in scope excludes storage), and the kit must be on the ENA
-        Type Test Register — a public list confirming the inverter
-        meets G98 grid-connection standards.
+        The 800 watt limit is on what gets pushed into your home,
+        not on the panels themselves. Panels can add up to 2,000
+        watts total; the box in the middle (called an inverter)
+        automatically holds output at 800 watts whenever the panels
+        would produce more. In practice a two-panel kit — each around
+        430 to 450 watts — is the sweet spot. You get more electricity
+        on cloudy days when panels aren&rsquo;t hitting their peak,
+        without wasting anything on sunny ones. One kit per power
+        circuit, no batteries in the box, and the kit has to be on a
+        public register showing it&rsquo;s passed the safety tests.
       </p>
 
       <h2>What a kit actually costs</h2>
@@ -242,69 +238,60 @@ export default function PlugInSolarHub() {
       </p>
       <ul>
         <li>
-          <strong>Budget (£400–£550):</strong> single 400–450 W panel,
-          entry-level micro-inverter, basic mounting bracket. Usually
-          Amazon-only, generic brand. Enough for baseline standby load
-          (fridge, router, always-on devices).
+          <strong>Budget (£400–£550):</strong> one 400–450 watt
+          panel, basic inverter, simple mounting bracket. Usually
+          Amazon-only, generic brand. Covers the fridge, router,
+          and things left on standby — that&rsquo;s about £5–£10
+          off your monthly bill.
         </li>
         <li>
-          <strong>Mid (£600–£900):</strong> two-panel kit (2 × 430 W
-          typical), branded micro-inverter (Hoymiles / APsystems),
-          balcony rail or wall mount. Best £/W ratio, this is where
-          most UK homeowners will land.
+          <strong>Mid (£600–£900):</strong> two-panel kit, branded
+          inverter, balcony rail or wall mount. Best value for
+          money, this is where most UK homeowners will land.
         </li>
         <li>
-          <strong>Premium (£900–£1,200):</strong> full-brand kit from
-          Anker or EcoFlow with app monitoring, warranty support in
-          the UK, and pre-filed G98 notification templates. Adds
-          convenience and warranty peace-of-mind but no extra
-          generation.
+          <strong>Premium (£900–£1,200):</strong> full-brand kit
+          from Anker or EcoFlow with a phone app for monitoring,
+          UK warranty support, and a pre-filled notification form
+          in the box. No extra electricity — you&rsquo;re paying
+          for peace of mind and easier warranty claims.
         </li>
       </ul>
       <p>
-        A separate portable battery station (Anker SOLIX C1000,
-        EcoFlow River 3, Bluetti AC180) is £600–£900 on top. The
-        battery isn&rsquo;t formally part of the plug-in solar scope
-        — the kit charges it, and the battery independently powers
-        devices in the evening. Popular for renters with weekend-
-        heavy home usage, less useful for households already at home
-        during the day.
+        A separate portable battery (£600–£900 on top) sits outside
+        the plug-in solar rules. The kit charges it during the day,
+        and the battery independently powers your devices in the
+        evening. Popular for renters who&rsquo;re out during the
+        day, less useful if someone&rsquo;s already home when the
+        sun&rsquo;s shining.
       </p>
 
-      <h2>Payback and generation numbers</h2>
+      <h2>How much electricity you&rsquo;ll get, and how quickly it pays back</h2>
       <p>
-        A south-facing 800 W kit at UK average solar irradiance
-        (~1,000 kWh/m²/year, per{" "}
-        <a
-          href="https://re.jrc.ec.europa.eu/pvg_tools/en/"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          PVGIS
-        </a>
-        ) generates 700–850 kWh/year. At the mid-2026 UK price cap
-        rate of 27 p/kWh, that&rsquo;s £190–£230 of self-consumed
-        electricity per year — assuming you use most of what you
-        generate rather than letting the inverter throttle down when
-        household demand is low. That gives a mid-band £600–£900 kit
-        a 3–5 year simple payback.
+        A south-facing 800 watt kit in the UK generates roughly 700
+        to 850 units of electricity a year — about a quarter of what
+        an average household uses. At the mid-2026 price cap of 27p
+        per unit, that&rsquo;s £190 to £230 a year off your bill,
+        assuming you&rsquo;re at home to actually use most of what
+        it produces. On a £600–£900 kit that&rsquo;s a 3 to 5 year
+        payback.
       </p>
       <p>
-        Two adjustments to the numbers:
+        Two things that change the numbers:
       </p>
       <ul>
         <li>
-          <strong>Orientation:</strong> east/west-facing generates
-          about 20% less over a year; north-facing generates about
-          40% less and won&rsquo;t pay back inside a decade — not
-          worth doing.
+          <strong>Which way it faces:</strong> east or west generates
+          about 20% less over a year. North generates about 40% less
+          and won&rsquo;t pay back inside a decade — not worth doing.
         </li>
         <li>
-          <strong>Self-consumption:</strong> plug-in kits don&rsquo;t
-          export to the grid (no Smart Export Guarantee income), so
-          every unused watt is lost. Households at home during the
-          day capture 80%+ of generation; households empty during the
-          day capture 40–50%. A £600 kit at 40% self-consumption
+          <strong>Whether you&rsquo;re home during the day:</strong>{" "}
+          plug-in kits don&rsquo;t sell extra electricity back to the
+          grid — anything you&rsquo;re not using at that exact moment
+          is just lost. Households with someone home in the day
+          capture 80% or more of what the kit produces. Households
+          empty in the day capture 40–50%. Even at 40%, a £600 kit
           still pays back inside 6 years — not bad.
         </li>
       </ul>
@@ -320,40 +307,41 @@ export default function PlugInSolarHub() {
       <ol>
         <li>
           <strong>Renters</strong> — plug-in kits move with you.
-          Balcony rail mounts don&rsquo;t require drilling. Most
-          tenancy agreements don&rsquo;t explicitly cover it because
-          it&rsquo;s new, but the &ldquo;no permanent alterations&rdquo;
-          clause is generally satisfied since nothing gets fixed to
-          the building.
+          Balcony rail mounts don&rsquo;t need drilling. Most
+          tenancy agreements don&rsquo;t explicitly cover this yet
+          because it&rsquo;s so new, but since nothing gets attached
+          to the building itself, the usual &ldquo;no permanent
+          changes&rdquo; clause isn&rsquo;t a problem.
         </li>
         <li>
           <strong>Flat-dwellers</strong> — south or west-facing
-          balcony? You&rsquo;re the target audience. In Germany this
-          is called Balkonkraftwerk (balcony power plant) and it&rsquo;s
-          the dominant install pattern. Communal balconies need
-          management-company sign-off; private ones typically
+          balcony? You&rsquo;re exactly who this is designed for.
+          Germany has been doing this at scale for years; it&rsquo;s
+          the norm there. Communal balconies need sign-off from your
+          building management company; private ones usually
           don&rsquo;t.
         </li>
         <li>
-          <strong>Small terraces + garden studios</strong> — a
-          plug-in kit on a sunny wall, garden studio roof, or
-          purpose-built ground-mount frame covers baseline household
-          load. Cheap trial run before deciding on a full rooftop
-          install.
+          <strong>Small terraces and garden studios</strong> — a
+          plug-in kit on a sunny wall, garden studio roof, or ground-
+          mounted frame in the garden covers the baseline of what
+          you use. Cheap way to try solar before deciding on a full
+          rooftop install.
         </li>
         <li>
-          <strong>Rooftop-solar-plus-boost</strong> — households
-          with existing rooftop solar sometimes add an 800 W plug-in
-          kit at a different orientation (east or west) to smooth
-          the generation curve. Not strictly necessary, but a legal
-          way to add capacity without touching the certified inverter.
+          <strong>Already have rooftop solar? Add a boost</strong>{" "}
+          — households with existing rooftop panels sometimes add
+          an 800 watt plug-in kit facing a different direction (east
+          or west) to smooth the generation curve over the day. Not
+          strictly necessary, but a legal way to add capacity without
+          touching your existing inverter.
         </li>
       </ol>
 
       <h2>Best kits available in the UK today</h2>
       <p>
-        The UK market shook out around three brand tiers in the run-
-        up to the April 2026 legalisation:
+        The UK market settled into three tiers in the run-up to the
+        April 2026 legalisation:
       </p>
       <ul>
         <li>
@@ -367,10 +355,10 @@ export default function PlugInSolarHub() {
             </a>{" "}
             (£799):
           </strong>{" "}
-          Two 445 W panels, 800 W micro-inverter, weatherproof rail
-          mount. App monitoring via the Anker app. 10-year warranty.
-          Best all-round pick — Anker&rsquo;s UK service network makes
-          warranty claims painless.
+          Two 445 watt panels, weatherproof rail mount, phone app
+          for monitoring, 10-year warranty. Best all-round pick —
+          Anker&rsquo;s UK service network makes warranty claims
+          painless.
         </li>
         <li>
           <strong>
@@ -383,16 +371,16 @@ export default function PlugInSolarHub() {
             </a>{" "}
             (£899):
           </strong>{" "}
-          800 W AC out, pairs with EcoFlow&rsquo;s wider battery /
-          power-station ecosystem if you plan to add storage later.
-          More expensive per watt than Anker but better software.
+          800 watts out, pairs with EcoFlow&rsquo;s battery range
+          if you plan to add storage later. More expensive than
+          Anker but nicer software.
         </li>
         <li>
           <strong>Amazon budget kits (£450–£600):</strong> Various
-          generic brands. Watch for ENA Type Test Register listing
-          (should be printed on the box or in the listing) — some
-          older stock predates the register and technically won&rsquo;t
-          be compliant post-27-August. If in doubt, ask the seller.
+          generic brands. Check the listing or the box confirms
+          the kit is on the UK&rsquo;s tested-equipment register —
+          some older stock predates the register and won&rsquo;t
+          be compliant after 27 August. If in doubt, ask the seller.
         </li>
       </ul>
       <p>
@@ -403,16 +391,15 @@ export default function PlugInSolarHub() {
         (coming soon).
       </p>
 
-      <h2>The G98 notification, step by step</h2>
+      <h2>The one-page form, step by step</h2>
       <p>
-        &ldquo;Notify and connect&rdquo; means you plug the kit in
-        first, then post the paperwork. The DNO isn&rsquo;t
-        approving anything — they&rsquo;re registering that the kit
-        exists so the network model stays accurate. Steps:
+        You plug the kit in first, then post the form. Nobody has
+        to approve anything — they&rsquo;re just registering that
+        the kit exists so the network model stays accurate. Steps:
       </p>
       <ol>
         <li>
-          Find your DNO — enter your postcode at{" "}
+          Find your network operator — enter your postcode at{" "}
           <a
             href="https://www.energynetworks.org/customers/find-my-network-operator"
             target="_blank"
@@ -420,24 +407,25 @@ export default function PlugInSolarHub() {
           >
             energynetworks.org
           </a>
-          . England + Wales are split across UK Power Networks,
-          Northern Powergrid, Electricity North West, WPD, and SP
-          Energy Networks.
+          . England and Wales are covered by UK Power Networks,
+          Northern Powergrid, Electricity North West, National Grid
+          Electricity Distribution, and SP Energy Networks — you get
+          the one for your area.
         </li>
         <li>
-          Download the G98 notification form for your DNO. Most kits
-          also ship with a pre-filled version — check the paperwork
-          in the box first.
+          Download the notification form from their site. Most kits
+          also ship with a pre-filled version — check the box first.
         </li>
         <li>
-          Fill in your postcode, address, MPAN number (top of your
-          electricity bill), the inverter&rsquo;s ENA Type Test
-          Register reference, and your installation date.
+          Fill in your postcode, address, the reference number for
+          your electricity meter (called the &ldquo;MPAN&rdquo; — top
+          of your electricity bill), the model of your kit, and the
+          date you plugged it in.
         </li>
         <li>
-          Submit within 28 days of connection. The DNO acknowledges
-          in 4–6 weeks. That&rsquo;s the whole process — no site
-          visit, no fee.
+          Post within 28 days of plugging in. The network operator
+          confirms receipt in 4 to 6 weeks. That&rsquo;s the whole
+          process — no site visit, no fee.
         </li>
       </ol>
 
@@ -447,36 +435,39 @@ export default function PlugInSolarHub() {
       </p>
       <ul>
         <li>
-          <strong>Batteries in scope:</strong> DESNZ has signalled it
-          may consult on adding domestic batteries under 5 kWh to the
-          plug-in scope in 2027. If that lands, plug-in solar
-          becomes materially more useful for evening self-consumption.
+          <strong>Small home batteries in scope:</strong> the
+          government has signalled it may consult on adding small
+          batteries (under 5 units of storage) to the plug-in
+          rules in 2027. If that lands, plug-in solar becomes
+          materially more useful for evening use.
         </li>
         <li>
-          <strong>Smart Export Guarantee eligibility:</strong>{" "}
-          currently plug-in kits are excluded from SEG because they
-          don&rsquo;t export. Ofgem has an open consultation on
-          extending SEG to plug-in kits fitted with a smart meter —
-          would add £30–£50/year of export earnings and shorten
-          payback by 6–9 months.
+          <strong>Payment for extra electricity:</strong> right now
+          plug-in kits don&rsquo;t qualify for the scheme that pays
+          you for extra electricity sold back to the grid. Ofgem
+          (the energy regulator) has an open consultation on
+          extending it to plug-in kits with a smart meter — would
+          add £30 to £50 a year of income and shorten payback by
+          6 to 9 months.
         </li>
       </ul>
 
       <h2>Before you buy — the pre-survey shortcut</h2>
       <p>
         Even if plug-in solar is your route, a 5-minute pre-survey
-        gets you the orientation, shading, and irradiance numbers for
-        your specific address — the same numbers a rooftop-solar
-        install would use. Handy sanity check on the payback
-        expectation for whatever balcony or garden mount you choose.
+        tells you which direction your walls and balcony face, how
+        much shade you get, and how much sunlight your address
+        actually receives. Useful sanity check on the payback for
+        whatever balcony or garden mount you end up choosing.
       </p>
       <p>
         <a href="/check/solar">
           Run our free 5-minute solar pre-survey
         </a>{" "}
-        — Google Solar API + your EPC + our sizing engine. Rooftop-
-        oriented but the roof-face irradiance numbers apply to any
-        south-facing balcony or wall in the same postcode.
+        — uses your address and satellite data to give you the
+        numbers. It&rsquo;s aimed at rooftop solar but the direction
+        and sunlight data applies to any south-facing balcony or
+        wall too.
       </p>
     </AEOPage>
   );
