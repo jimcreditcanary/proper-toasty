@@ -789,58 +789,50 @@ function TownPageWithData({
             Solar installs in the {laSolarStats.region_name} region
           </h2>
           <p>
-            Per{" "}
+            According to{" "}
             <a
               href={laSolarStats.source_url}
               target="_blank"
               rel="noopener noreferrer"
             >
-              DESNZ Solar PV Cost Data
+              government figures
             </a>{" "}
-            for {laSolarStats.financial_year}, the average cost of a
-            domestic-scale (0-4 kW) MCS-certified solar PV system in
-            the {laSolarStats.region_name} region was{" "}
-            <strong>
-              £
-              {Math.round(
-                laSolarStats.mean_cost_per_kw_0_4kw_gbp,
-              ).toLocaleString("en-GB")}
-              /kW
-            </strong>
-            {laSolarStats.installations_0_4kw != null && (
-              <>
-                {" "}
-                across{" "}
-                <strong>
-                  {laSolarStats.installations_0_4kw.toLocaleString(
-                    "en-GB",
-                  )}
-                </strong>{" "}
-                domestic installations
-              </>
-            )}
-            . For a typical 4-kW rooftop system, that works out at
-            roughly{" "}
+            for {laSolarStats.financial_year}, a small home solar
+            system (up to 4 kilowatts — typical for a 1 to 3 bed
+            home) in the {laSolarStats.region_name} region cost{" "}
             <strong>
               £
               {Math.round(
                 laSolarStats.mean_cost_per_kw_0_4kw_gbp * 4,
               ).toLocaleString("en-GB")}
             </strong>{" "}
-            all-in, before Smart Export Guarantee earnings.
+            on average, fully installed
+            {laSolarStats.installations_0_4kw != null && (
+              <>
+                {" "}
+                (based on{" "}
+                <strong>
+                  {laSolarStats.installations_0_4kw.toLocaleString(
+                    "en-GB",
+                  )}
+                </strong>{" "}
+                installations in the region that year)
+              </>
+            )}
+            . That&rsquo;s before any earnings from selling extra
+            electricity back to the grid.
           </p>
           {laSolarStats.mean_cost_per_kw_4_10kw_gbp != null && (
             <p>
-              Larger 4-10 kW systems (typical for 4-5 bed homes)
-              averaged{" "}
+              Larger systems for 4 to 5 bed homes (up to 10
+              kilowatts) averaged{" "}
               <strong>
                 £
                 {Math.round(
-                  laSolarStats.mean_cost_per_kw_4_10kw_gbp,
+                  laSolarStats.mean_cost_per_kw_4_10kw_gbp * 6,
                 ).toLocaleString("en-GB")}
-                /kW
               </strong>{" "}
-              in the same period
+              for a typical 6-kilowatt install in the same period
               {laSolarStats.installations_4_10kw != null && (
                 <>
                   {" "}
@@ -850,9 +842,9 @@ function TownPageWithData({
                   installs)
                 </>
               )}
-              . Cost per kW drops as system size grows, driven by
-              scaffolding and travel being roughly fixed regardless
-              of panel count.
+              . Bigger systems cost less per panel because
+              scaffolding and travel don&rsquo;t change much whether
+              you fit 8 panels or 16.
             </p>
           )}
         </>
