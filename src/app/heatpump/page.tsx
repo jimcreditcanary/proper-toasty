@@ -15,6 +15,7 @@ import { MarketingHeader } from "@/components/marketing-header";
 import { LandingFooter } from "@/components/landing-footer";
 import { RelatedCard } from "@/components/marketing/related-card";
 import { FaqPageSchema } from "@/components/seo/schema";
+import { JourneyCTA } from "@/components/analytics/journey-cta";
 import {
   ArrowRight,
   Flame,
@@ -38,11 +39,11 @@ const HP_FAQS: Array<{ q: string; a: string }> = [
   },
   {
     q: "What size heat pump does my home need?",
-    a: "Most UK homes need a heat pump somewhere between 5 and 12 kilowatts, matched to how much heat the home loses on a cold day (not to your current boiler size). A well-insulated 3-bed semi is typically around 7 to 8 kilowatts; a detached 4-bed nearer 10 to 12. Our pre-survey uses your energy certificate and floorplan to give you a specific range.",
+    a: "Most UK homes need a heat pump somewhere between 5 and 12 kilowatts, matched to how much heat the home loses on a cold day (not to your current boiler size). A well-insulated 3-bed semi is typically around 7 to 8 kilowatts; a detached 4-bed nearer 10 to 12. Our pre-survey uses your energy certificate and a few quick questions to give you a specific range.",
   },
   {
     q: "Do I need someone to come round to get a quote?",
-    a: "Not for a first quote. Propertoasty produces an installer-ready pre-survey from your address, energy certificate, floorplan, and roof imagery — enough for a qualified installer to give you a written quote without a site visit. A visit is still needed before the actual install, so the installer can confirm placement, radiator sizes, and cable runs.",
+    a: "Not for a first quote. Propertoasty produces an installer-ready pre-survey from your address, energy certificate, and roof imagery — enough for a qualified installer to give you a written quote without a site visit. A visit is still needed before the actual install, so the installer can confirm placement, radiator sizes, and cable runs.",
   },
   {
     q: "How much does a heat pump cost after the £7,500 grant?",
@@ -96,13 +97,15 @@ export default function HeatPumpLanding() {
             </p>
 
             <div className="mt-10 flex flex-wrap items-center gap-3">
-              <Link
+              <JourneyCTA
                 href="/check/heatpump"
+                journey="heatpump"
+                source="heatpump_landing_hero"
                 className="inline-flex items-center gap-2 h-12 px-6 rounded-full bg-coral hover:bg-coral-dark text-cream font-medium transition-colors shadow-sm"
               >
                 Start my heat pump check
                 <ArrowRight className="w-4 h-4" />
-              </Link>
+              </JourneyCTA>
               <Link
                 href="/check"
                 className="inline-flex items-center gap-2 h-12 px-5 rounded-full text-navy hover:bg-coral-pale transition-colors font-medium"
@@ -166,8 +169,8 @@ export default function HeatPumpLanding() {
             </h2>
             <p className="mt-3 text-[var(--muted-brand)] leading-relaxed">
               We pull your EPC, read your roof and garden from
-              satellite, and use your floorplan to size a system that
-              suits how the home&rsquo;s actually laid out.
+              satellite, and combine it with a few quick answers to
+              size a system that suits how the home&rsquo;s actually laid out.
             </p>
           </div>
 
@@ -180,17 +183,17 @@ export default function HeatPumpLanding() {
             <Feature
               icon={<Wrench className="w-5 h-5" />}
               title="A heat pump sized to your home"
-              body="We work out how much heat your home actually loses on a cold day — from your floorplan and energy certificate, not a postcode average. Result: a specific size range to brief installers on."
+              body="We work out how much heat your home loses on a cold day — from your energy certificate and property type, not a postcode average. Result: a specific size range to brief installers on."
             />
             <Feature
               icon={<HomeIcon className="w-5 h-5" />}
               title="Where the outdoor unit could go"
-              body="We read the placement options straight off your floorplan — near your hot-water cylinder, away from your neighbour's bedroom window, with the clear space installers need around it."
+              body="We check your garden and side alley from satellite imagery — with the clear space installers need around a unit and how far it&rsquo;d be from your neighbour&rsquo;s bedroom window."
             />
             <Feature
               icon={<Sparkles className="w-5 h-5" />}
               title="Hot water + radiator sizing"
-              body="We spot cylinder space on the plan and flag whether any radiators will need upsizing so the pump runs efficiently from day one."
+              body="We flag whether any radiators are likely to need upsizing based on your EPC heat demand — so the pump runs efficiently from day one."
             />
           </ul>
         </div>
@@ -208,14 +211,14 @@ export default function HeatPumpLanding() {
           <Step
             n="01"
             icon={<HomeIcon className="w-5 h-5" />}
-            title="Your address + a floorplan"
-            body="Drag-and-drop a photo or PDF — agent listing, sale brochure, or a quick phone shot of the architect's drawing."
+            title="Your address + a few quick answers"
+            body="Enter your postcode, pick your home from the list, and tell us about your current heating."
           />
           <Step
             n="02"
             icon={<Leaf className="w-5 h-5" />}
             title="We do the legwork"
-            body="We pull your energy certificate, read your floorplan, and check your roof and garden from satellite — then check it all against the current grant rules."
+            body="We pull your energy certificate and check your roof and garden from satellite — then check it all against the current grant rules."
           />
           <Step
             n="03"
@@ -331,13 +334,15 @@ export default function HeatPumpLanding() {
               Free first check. Five minutes. A report you can take
               straight to a qualified installer for a quote.
             </p>
-            <Link
+            <JourneyCTA
               href="/check/heatpump"
+              journey="heatpump"
+              source="heatpump_landing_footer"
               className="mt-8 inline-flex items-center gap-2 h-12 px-7 rounded-full bg-cream text-coral-dark hover:bg-cream-deep font-semibold transition-colors"
             >
               Start my heat pump check
               <ArrowRight className="w-4 h-4" />
-            </Link>
+            </JourneyCTA>
             <p className="mt-5 text-xs text-cream/60">
               Pre-survey indication only — not a final engineering
               assessment. England &amp; Wales for BUS.

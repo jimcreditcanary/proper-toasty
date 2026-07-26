@@ -18,7 +18,11 @@
 "use client";
 
 import Image from "next/image";
-import { useMemo, useState, type ReactElement } from "react";
+import { useEffect, useMemo, useState, type ReactElement } from "react";
+// journey_completed fires once when the calculator mounts. Pairs
+// with the journey_started event on the homepage picker CTA so the
+// funnel dashboard can measure home → calculator conversion.
+import { track } from "@vercel/analytics/react";
 
 // ─── Kit catalogue ─────────────────────────────────────────────────
 // Every kit here is a real Amazon UK listing (July 2026). Product
@@ -180,6 +184,14 @@ export function PlugInSolarCalculator(): ReactElement {
   const [direction, setDirection] = useState<Direction>("south");
   const [homeUse, setHomeUse] = useState<HomeUse>("sometimes-home");
   const [tariffPence, setTariffPence] = useState<number>(27);
+
+  useEffect(() => {
+    track("journey_completed", {
+      journey: "plug_in_solar",
+      via_pre_survey: false,
+    });
+    // Fire once per mount — parameter tweaks aren't a new completion.
+  }, []);
 
   const results = useMemo(() => {
     return KITS.map((k) => calculateKit(k, direction, homeUse, tariffPence))

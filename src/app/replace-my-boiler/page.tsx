@@ -17,6 +17,7 @@ import { MarketingHeader } from "@/components/marketing-header";
 import { LandingFooter } from "@/components/landing-footer";
 import { RelatedCard } from "@/components/marketing/related-card";
 import { FaqPageSchema } from "@/components/seo/schema";
+import { JourneyCTA } from "@/components/analytics/journey-cta";
 import {
   ArrowRight,
   ArrowRightLeft,
@@ -49,7 +50,7 @@ const BOILER_FAQS: Array<{ q: string; a: string }> = [
   },
   {
     q: "Do I need to change my radiators for a heat pump?",
-    a: "Sometimes — but rarely all of them. Heat pumps run your radiators cooler than a boiler does, so the coldest rooms in the home may need slightly bigger radiators to release the same warmth. A typical 3-bed swap involves 2 to 4 radiators. Your installer sizes each one at the site visit; our pre-survey flags likely candidates from your floorplan.",
+    a: "Sometimes — but rarely all of them. Heat pumps run your radiators cooler than a boiler does, so the coldest rooms in the home may need slightly bigger radiators to release the same warmth. A typical 3-bed swap involves 2 to 4 radiators. Your installer sizes each one at the site visit; our pre-survey flags likely candidates from your EPC heat demand.",
   },
 ];
 
@@ -91,13 +92,15 @@ export default function ReplaceBoilerLanding() {
             </p>
 
             <div className="mt-10 flex flex-wrap items-center gap-3">
-              <Link
+              <JourneyCTA
                 href="/check/boiler"
+                journey="boiler"
+                source="boiler_landing_hero"
                 className="inline-flex items-center gap-2 h-12 px-6 rounded-full bg-coral hover:bg-coral-dark text-cream font-medium transition-colors shadow-sm"
               >
                 Compare the cost
                 <ArrowRight className="w-4 h-4" />
-              </Link>
+              </JourneyCTA>
               <Link
                 href="/check"
                 className="inline-flex items-center gap-2 h-12 px-5 rounded-full text-navy hover:bg-coral-pale transition-colors font-medium"
@@ -204,7 +207,7 @@ export default function ReplaceBoilerLanding() {
             n="01"
             icon={<HomeIcon className="w-5 h-5" />}
             title="Just your address"
-            body="No floorplan needed for this one. We pull your EPC to read your property type, size and current heating."
+            body="We pull your EPC to read your property type, size and current heating — no uploads needed."
           />
           <Step
             n="02"
@@ -321,13 +324,15 @@ export default function ReplaceBoilerLanding() {
               Free first check. Five minutes. A clear cost comparison you
               can take to a Gas Safe or MCS installer.
             </p>
-            <Link
+            <JourneyCTA
               href="/check/boiler"
+              journey="boiler"
+              source="boiler_landing_footer"
               className="mt-8 inline-flex items-center gap-2 h-12 px-7 rounded-full bg-cream text-coral-dark hover:bg-cream-deep font-semibold transition-colors"
             >
               Compare the cost
               <ArrowRight className="w-4 h-4" />
-            </Link>
+            </JourneyCTA>
             <p className="mt-5 text-xs text-cream/60">
               Pre-survey indication only — not a quote. £7,500 Boiler
               Upgrade Scheme grant, England &amp; Wales, subject to

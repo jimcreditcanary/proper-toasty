@@ -14,6 +14,7 @@ import { MarketingHeader } from "@/components/marketing-header";
 import { LandingFooter } from "@/components/landing-footer";
 import { RelatedCard } from "@/components/marketing/related-card";
 import { FaqPageSchema } from "@/components/seo/schema";
+import { JourneyCTA } from "@/components/analytics/journey-cta";
 import {
   ArrowRight,
   Sun,
@@ -93,13 +94,15 @@ export default function SolarLanding() {
             </p>
 
             <div className="mt-10 flex flex-wrap items-center gap-3">
-              <Link
+              <JourneyCTA
                 href="/check/solar"
+                journey="solar"
+                source="solar_landing_hero"
                 className="inline-flex items-center gap-2 h-12 px-6 rounded-full bg-coral hover:bg-coral-dark text-cream font-medium transition-colors shadow-sm"
               >
                 Start my solar check
                 <ArrowRight className="w-4 h-4" />
-              </Link>
+              </JourneyCTA>
               <Link
                 href="/check"
                 className="inline-flex items-center gap-2 h-12 px-5 rounded-full text-navy hover:bg-coral-pale transition-colors font-medium"
@@ -110,7 +113,7 @@ export default function SolarLanding() {
 
             <ul className="mt-10 grid grid-cols-2 gap-x-6 gap-y-3 text-sm text-[var(--muted-brand)]">
               {[
-                "No floorplan upload",
+                "Just your address",
                 "Satellite-read sizing",
                 "Battery payback",
                 "Free first check",
@@ -321,16 +324,18 @@ export default function SolarLanding() {
               See if your roof is solar-ready.
             </h2>
             <p className="mt-4 text-cream/80 max-w-xl mx-auto">
-              Free first check. Five minutes. No floorplan upload —
-              just your address and we&rsquo;ll do the rest.
+              Free first check. Five minutes — just your address and
+              we&rsquo;ll do the rest.
             </p>
-            <Link
+            <JourneyCTA
               href="/check/solar"
+              journey="solar"
+              source="solar_landing_footer"
               className="mt-8 inline-flex items-center gap-2 h-12 px-7 rounded-full bg-cream text-coral-dark hover:bg-cream-deep font-semibold transition-colors"
             >
               Start my solar check
               <ArrowRight className="w-4 h-4" />
-            </Link>
+            </JourneyCTA>
             <p className="mt-5 text-xs text-cream/60">
               Pre-survey indication only — not a final engineering
               assessment.
