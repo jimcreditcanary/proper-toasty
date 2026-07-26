@@ -384,11 +384,26 @@ export default function PlugInSolarHub() {
         </li>
       </ul>
       <p>
-        Deeper breakdown in the follow-up:{" "}
+        Deeper breakdown, including which kit fits which setup and
+        the specific things to check before you buy:{" "}
         <a href="/plug-in-solar/best-kits-uk-2026">
-          Best plug-in solar kits UK 2026 (in depth)
+          best plug-in solar kits UK 2026 (in depth) →
+        </a>
+      </p>
+      <p>
+        Renter?{" "}
+        <a href="/plug-in-solar/for-renters">
+          Plug-in solar for renters
         </a>{" "}
-        (coming soon).
+        covers the landlord conversation, tenancy questions, and
+        moving mid-tenancy.
+      </p>
+      <p>
+        Still unclear on the legal side?{" "}
+        <a href="/plug-in-solar/legal-uk">
+          Is plug-in solar legal in the UK?
+        </a>{" "}
+        explains what the 2026 rule change actually says.
       </p>
 
       <h2>The one-page form, step by step</h2>

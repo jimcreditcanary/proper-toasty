@@ -112,6 +112,24 @@ export async function GET(): Promise<Response> {
       changefreq: "weekly",
       priority: 0.8,
     },
+    {
+      loc: `${SITE_URL}/plug-in-solar/best-kits-uk-2026`,
+      lastmod: now,
+      changefreq: "monthly",
+      priority: 0.75,
+    },
+    {
+      loc: `${SITE_URL}/plug-in-solar/legal-uk`,
+      lastmod: now,
+      changefreq: "monthly",
+      priority: 0.75,
+    },
+    {
+      loc: `${SITE_URL}/plug-in-solar/for-renters`,
+      lastmod: now,
+      changefreq: "monthly",
+      priority: 0.75,
+    },
     // Comparison pages — head-term targets ("heat pump vs gas
     // boiler" is one of the highest-search-volume UK heat queries).
     // Hand-curated; one file each under src/app/compare/.
