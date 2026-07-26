@@ -61,7 +61,7 @@ export default function PlugInSolarForRenters() {
           href: "/plug-in-solar/best-kits-uk-2026",
           eyebrow: "Reviews",
           title: "Best plug-in solar kits UK 2026",
-          body: "Anker vs EcoFlow vs Amazon budget — with renter-friendly balcony rail mounts.",
+          body: "EcoFlow STREAM vs DIY vs battery-included kits — with renter-friendly balcony rail mounts.",
         },
         {
           href: "/plug-in-solar/legal-uk",
@@ -122,7 +122,7 @@ export default function PlugInSolarForRenters() {
         {
           question: "Which kit is best for renters?",
           answer:
-            "For a renter setup, the Anker SOLIX RS40P (£799) is the pragmatic pick — Anker's UK service network makes warranty support easy, and their default balcony rail mount fits most standard UK balcony railings. If your budget is tighter, an Amazon-listed budget kit works fine — just check the listing confirms the kit is on the UK's tested-equipment register. See our full comparison of the best plug-in solar kits for UK 2026.",
+            "For a renter setup, the EcoFlow STREAM Balcony Solar with brackets (£499 on Amazon UK) is the pragmatic pick — a complete kit with balcony rail mounts included, no drilling required, backed by EcoFlow's UK warranty. If your budget is tighter, the Solarsys 800W micro-inverter (£149) plus two budget panels comes in around £400 total. See our full comparison of the best plug-in solar kits for UK 2026.",
         },
       ]}
       sources={[
@@ -325,22 +325,23 @@ export default function PlugInSolarForRenters() {
       <h2>Which kit to buy for a rental</h2>
       <p>
         For a renter setup, the pragmatic pick is the{" "}
-        <a
-          href="/plug-in-solar/best-kits-uk-2026"
-        >
-          Anker SOLIX RS40P
+        <a href="/plug-in-solar/best-kits-uk-2026">
+          EcoFlow STREAM Balcony Solar with brackets
         </a>{" "}
-        at £799. Two 445 watt panels, balcony rail mount included,
-        a phone app for monitoring, and a 10-year warranty backed
-        by Anker&rsquo;s real UK service network. If the inverter
-        dies in year 2, you email Anker and they ship a replacement
-        — no hunting a Chinese seller on Amazon.
+        (£499 on Amazon UK). Two 400 watt panels, an 800 watt
+        inverter, balcony rail mounts included, Wi-Fi app for
+        monitoring, and a UK three-pin plug — no drilling, no
+        electrician, no landlord approval required. If anything
+        goes wrong, EcoFlow UK handles the warranty direct.
       </p>
       <p>
-        If your budget is tighter, Amazon-listed budget kits work
-        from £400. Check the listing confirms the kit is on the
-        UK&rsquo;s tested-equipment register — after 27 August
-        2026, kits without it aren&rsquo;t legal to plug in.
+        If your budget is tighter, the Solarsys 800W micro-inverter
+        (£149) plus two budget solar panels comes in around £400
+        total. More assembly required but the electrical output is
+        the same. All the kits we recommend are on the UK&rsquo;s
+        tested-equipment register — after 27 August 2026, kits
+        without it aren&rsquo;t legal to plug in, so check every
+        Amazon listing before you buy.
       </p>
       <p>
         Full comparison:{" "}

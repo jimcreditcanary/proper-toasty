@@ -17,12 +17,19 @@
 
 "use client";
 
+import Image from "next/image";
 import { useMemo, useState, type ReactElement } from "react";
 
 // ─── Kit catalogue ─────────────────────────────────────────────────
-// Each entry mirrors what best-kits-uk-2026 recommends. Prices
-// checked mid-2026 — refresh quarterly. `amazonAsin` null means
-// buy-direct-only.
+// Every kit here is a real Amazon UK listing (July 2026). Product
+// details, prices and image references are pulled straight from
+// the Amazon UK product pages — refresh quarterly.
+//
+// Anker's Balkonkraftwerk-style kits aren't formally listed on
+// Amazon UK yet (they mostly ship as camping/portable power);
+// EcoFlow's STREAM range is the real market leader for UK plug-in
+// solar and covers the same £400-£1,000 price band the calculator
+// needs. Add other brands as they land on Amazon UK.
 interface Kit {
   id: string;
   name: string;
@@ -30,59 +37,67 @@ interface Kit {
   capacityW: number;
   panelCount: number;
   panelW: number;
+  batteryKwh: number;
   priceGBP: number;
-  amazonAsin: string | null;
-  brand: "anker" | "ecoflow" | "generic";
-  color: string; // CSS colour for the visual header
+  amazonAsin: string;
+  /** Path under /public — self-hosted so we don't hotlink Amazon
+   *  CDNs (which occasionally rotate URLs). Downloaded via the
+   *  Amazon Associates program under propertoasty-21. */
+  imagePath: string;
+  color: string; // CSS accent colour for the card header
 }
 
 const KITS: Kit[] = [
   {
-    id: "anker-solix-rs40p",
-    name: "Anker SOLIX RS40P",
-    subtitle: "Best all-round — 10-year warranty, UK service",
+    id: "ecoflow-stream-2x400",
+    name: "EcoFlow STREAM Balcony Solar (800W + 2×400W panels)",
+    subtitle: "Best value complete kit — inverter, panels, cables",
     capacityW: 800,
     panelCount: 2,
-    panelW: 445,
-    priceGBP: 799,
-    amazonAsin: "B0DGCH5GTP",
-    brand: "anker",
-    color: "#0e73f6",
-  },
-  {
-    id: "ecoflow-stream-micro",
-    name: "EcoFlow STREAM Micro",
-    subtitle: "Best for adding a battery later",
-    capacityW: 800,
-    panelCount: 2,
-    panelW: 445,
-    priceGBP: 899,
-    amazonAsin: "B0DXKQXPZ7",
-    brand: "ecoflow",
+    panelW: 400,
+    batteryKwh: 0,
+    priceGBP: 449,
+    amazonAsin: "B0F1CVD47Z",
+    imagePath: "/plug-in-solar/kits/b0f1cvd47z.jpg",
     color: "#00b287",
   },
   {
-    id: "amazon-budget-800w",
-    name: "Amazon budget kit (2-panel)",
-    subtitle: "Cheapest legit — check tested-equipment listing",
+    id: "ecoflow-stream-2x400-brackets",
+    name: "EcoFlow STREAM Balcony Solar (800W + 2×400W + brackets)",
+    subtitle: "Same as above with balcony rail mounts included",
     capacityW: 800,
     panelCount: 2,
     panelW: 400,
-    priceGBP: 500,
-    amazonAsin: null,
-    brand: "generic",
+    batteryKwh: 0,
+    priceGBP: 499,
+    amazonAsin: "B0F1D53MXZ",
+    imagePath: "/plug-in-solar/kits/b0f1d53mxz.jpg",
+    color: "#0e73f6",
+  },
+  {
+    id: "ecoflow-stream-max-battery",
+    name: "EcoFlow STREAM Max (800W + 1.92kWh battery)",
+    subtitle: "Adds a battery — store daytime solar for evening use",
+    capacityW: 800,
+    panelCount: 2,
+    panelW: 400,
+    batteryKwh: 1.92,
+    priceGBP: 949,
+    amazonAsin: "B0FDK6VGNZ",
+    imagePath: "/plug-in-solar/kits/b0fdk6vgnz.jpg",
     color: "#c85a3e",
   },
   {
-    id: "amazon-budget-400w",
-    name: "Amazon budget kit (1-panel starter)",
-    subtitle: "Single-panel starter — testing the water",
-    capacityW: 400,
-    panelCount: 1,
+    id: "solarsys-800w-diy",
+    name: "Solarsys 800W micro-inverter (DIY — buy panels separately)",
+    subtitle: "Cheapest way in — pair with two used or budget 400W panels",
+    capacityW: 800,
+    panelCount: 2,
     panelW: 400,
-    priceGBP: 400,
-    amazonAsin: null,
-    brand: "generic",
+    batteryKwh: 0,
+    priceGBP: 149 + 250, // £149 inverter + ~£250 for two budget panels
+    amazonAsin: "B0H4Z3D1N9",
+    imagePath: "/plug-in-solar/kits/b0h4z3d1n9.jpg",
     color: "#8b7fc7",
   },
 ];
@@ -131,7 +146,15 @@ function calculateKit(
   const annualKwh = Math.round(
     capacityKw * BASE_YIELD_KWH_PER_KW * DIRECTION_MULT[direction],
   );
-  const usedKwh = annualKwh * SELF_CONSUMPTION[homeUse];
+  // Battery lifts self-consumption significantly — a home battery
+  // stores daytime generation for evening use, so it captures the
+  // solar that would otherwise be lost when nobody's home. Roughly
+  // maps out-all-day (0.4) → 0.75, sometimes-home (0.6) → 0.85,
+  // home-daytime (0.85) → 0.95 for a 1.92 kWh battery.
+  const selfConsumption = kit.batteryKwh > 0
+    ? Math.min(0.95, SELF_CONSUMPTION[homeUse] + 0.3)
+    : SELF_CONSUMPTION[homeUse];
+  const usedKwh = annualKwh * selfConsumption;
   const annualSavingGBP = (usedKwh * tariffPence) / 100;
   const monthlySavingGBP = annualSavingGBP / 12;
   const paybackYears =
@@ -280,29 +303,19 @@ function KitResultCard({
 
   return (
     <div style={styles.card}>
-      <div style={{ ...styles.cardHeader, background: kit.color }}>
+      <div style={{ ...styles.cardImageWrap, background: kit.color }}>
         <div style={styles.cardRank}>#{rank}</div>
-        <div style={styles.cardPlaceholder}>
-          {/* Simple visual placeholder — represents the two panels in a
-              typical plug-in kit. Deliberately abstract so we don't
-              depend on external image hosts breaking. */}
-          <div style={styles.panelSVG}>
-            {Array.from({ length: kit.panelCount }).map((_, i) => (
-              <div
-                key={i}
-                style={{
-                  width: 48,
-                  height: 72,
-                  background:
-                    "linear-gradient(135deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.05) 100%)",
-                  border: "1px solid rgba(255,255,255,0.35)",
-                  borderRadius: 4,
-                  boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
-                }}
-              />
-            ))}
-          </div>
-        </div>
+        {/* Real product photo (self-hosted under /public/plug-in-solar/
+            kits) — downloaded from Amazon UK under the Amazon
+            Associates program (tag propertoasty-21). Cropped to a
+            consistent aspect ratio via object-fit for a tidy grid. */}
+        <Image
+          src={kit.imagePath}
+          alt={kit.name}
+          width={400}
+          height={400}
+          style={styles.cardImage}
+        />
       </div>
       <div style={styles.cardBody}>
         <p style={styles.cardName}>{kit.name}</p>
@@ -468,34 +481,31 @@ const styles: Record<string, React.CSSProperties> = {
     display: "flex",
     flexDirection: "column",
   },
-  cardHeader: {
+  cardImageWrap: {
     position: "relative",
-    padding: "1.5rem",
-    minHeight: 120,
+    height: 200,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    color: "white",
+    overflow: "hidden",
+  },
+  cardImage: {
+    maxWidth: "85%",
+    maxHeight: "85%",
+    objectFit: "contain",
+    filter: "drop-shadow(0 6px 18px rgba(0,0,0,0.15))",
   },
   cardRank: {
     position: "absolute",
     top: 12,
     left: 12,
-    background: "rgba(255,255,255,0.2)",
+    background: "rgba(0,0,0,0.55)",
     color: "white",
     fontSize: 12,
     fontWeight: 700,
     padding: "4px 10px",
     borderRadius: 999,
-  },
-  cardPlaceholder: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  panelSVG: {
-    display: "flex",
-    gap: 4,
+    zIndex: 1,
   },
   cardBody: {
     padding: "1.25rem",
