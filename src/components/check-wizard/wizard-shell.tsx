@@ -20,7 +20,12 @@ import { Step5bLeadCapture } from "./step-5b-lead-capture";
 import { Step6Report } from "./step-6-report";
 import { CountryGate } from "./country-gate";
 import { isV1SupportedCountry } from "@/lib/postcode/region";
-import { logCheckStepViewed } from "@/lib/analytics-client";
+// Vercel Analytics — simpler than the previous PostHog beacon
+// (no server route, no anon-id in localStorage, no distinct-id
+// stitching to manage). Custom events surface in Vercel's dashboard
+// under Analytics → Custom Events, which is enough for the
+// wizard-funnel view; deeper cohorts can graduate to PostHog later.
+import { track } from "@vercel/analytics/react";
 
 // Visible steps in the header progress — `lead_capture` is collapsed into
 // the analysis/report continuum so the user sees a clean "X of 6".
@@ -135,16 +140,17 @@ function PageTitleSync() {
   return null;
 }
 
-// Fires a `check_step_viewed` beacon whenever `step` changes. Feeds
-// the PostHog funnel that measures wizard drop-off between the
-// address entry and the report render (see EventMap in
-// src/lib/analytics.ts). Deliberately sits at the wizard-shell
-// level rather than inside each step — one useEffect covers all 7
-// steps + auto-covers any future step additions.
+// Fires a `check_step_viewed` custom event on every step change.
+// Feeds the Vercel Analytics dashboard so we can measure wizard
+// drop-off between address entry and report render. Deliberately
+// sits at the wizard-shell level rather than inside each step —
+// one useEffect covers all 7 steps and auto-covers future step
+// additions.
 function StepAnalyticsSync() {
   const { step, state } = useCheckWizard();
   useEffect(() => {
-    logCheckStepViewed(step, {
+    track("check_step_viewed", {
+      step,
       from_presurvey_link: state.preSurveyToken != null,
       from_installer_prebind:
         state.preSurveyToken == null && state.preSurveyInstallerId != null,

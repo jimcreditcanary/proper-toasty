@@ -15,6 +15,7 @@
 import type { Metadata } from "next";
 import { AEOPage } from "@/components/seo";
 import { DEFAULT_AUTHOR_SLUG } from "@/lib/seo/authors";
+import { PlugInSolarCalculator } from "@/components/plug-in-solar/calculator";
 
 const URL =
   "https://www.propertoasty.com/plug-in-solar/best-kits-uk-2026";
@@ -150,6 +151,11 @@ export default function PlugInSolarBestKits() {
         },
       ]}
     >
+      {/* Calculator up top — this IS the money page, so give
+          buyers a payback figure for their situation before they
+          read a single word of the review. */}
+      <PlugInSolarCalculator />
+
       <h2>How to pick the right one</h2>
       <p>
         Five things separate a good UK plug-in solar kit from a
