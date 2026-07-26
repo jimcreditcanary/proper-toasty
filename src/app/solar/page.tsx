@@ -32,23 +32,23 @@ import {
 const SOLAR_FAQS: Array<{ q: string; a: string }> = [
   {
     q: "How much do solar panels cost for a typical UK roof?",
-    a: "A 3.5-5 kW residential PV system installed on a UK roof in 2026 costs £4,000-£8,000 fully fitted (panels, inverter, scaffolding, DNO notification). Adding a 5 kWh battery lifts the total to £6,500-£10,500. Prices vary with roof complexity, inverter placement, and access. 0% VAT on domestic solar until 2027 means the sticker price is what you pay.",
+    a: "A solar system for a typical UK home in 2026 costs £4,000 to £8,000 fully fitted — that's everything (panels, control box, scaffolding, paperwork). Adding a home battery brings the total to £6,500 to £10,500. Prices vary with roof complexity and access. There's no VAT on domestic solar in the UK until 2027, so the sticker price is what you pay.",
   },
   {
-    q: "How long does solar payback take in the UK?",
-    a: "A typical 4 kW UK system with no battery pays back in 8-12 years at 2026 tariffs — self-consumed generation offsets 27p/kWh import, exported surplus earns 3-15p/kWh via the Smart Export Guarantee. Adding a battery shifts more generation to self-consumption and typically cuts payback to 6-9 years for households spending over £800/year on electricity.",
+    q: "How long does solar take to pay back in the UK?",
+    a: "A typical UK solar system with no battery pays back in 8 to 12 years at 2026 electricity prices — you save 27p for every unit you use directly from the panels, and get paid 3 to 15p for extra electricity sold back to the grid. Adding a battery lets you use more of what you generate and typically cuts payback to 6 to 9 years for households with electricity bills over £800 a year.",
   },
   {
     q: "Do I need planning permission for rooftop solar?",
-    a: "For most UK homes, no — rooftop solar falls under Permitted Development if panels don't project more than 200mm above the roof plane, don't cover the highest part of the roof, and aren't within 1m of a flat-roof edge. Listed buildings and Conservation Areas DO require planning consent; check with your local planning authority before you commit.",
+    a: "For most UK homes, no — rooftop solar counts as a normal home improvement you don't need permission for, as long as the panels don't stick more than 200mm above the roof line and don't cover the highest part of the roof. Listed buildings and Conservation Areas DO need planning permission; check with your local council before you commit.",
   },
   {
-    q: "How much does a battery add — and is it worth it?",
-    a: "A 5 kWh battery adds roughly £3,500 installed. It stores daytime solar for evening use, lifting self-consumption from ~35% (no battery) to ~75%. Worth it for households spending more than £800/year on electricity or planning an EV — payback typically 8-12 years. Not worth it for low-usage homes or south-of-4kW systems where daytime demand already absorbs most generation.",
+    q: "Is a home battery worth it?",
+    a: "A typical home battery adds around £3,500 to the install. It stores daytime solar for you to use in the evening, letting you use about 75% of what your panels generate instead of 35% without one. Worth it if your electricity bill is over £800 a year or you're planning an electric car — payback usually 8 to 12 years. Not worth it for low-usage homes.",
   },
   {
     q: "Do I need a site visit to get a solar quote?",
-    a: "Not for a first quote. Propertoasty combines your address with Google's Solar API (per-roof-segment geometry, pitch, azimuth, irradiance) and PVGIS yield modelling to produce an installer-ready pre-survey. An MCS-certified installer can quote from that remotely. A physical survey happens before the install to confirm structural fixings, cable routing, and inverter placement.",
+    a: "Not for a first quote. Propertoasty combines your address with satellite imagery of your specific roof to work out how many panels it fits, which direction each roof face points, and how much sun it actually gets over a year. A qualified installer can quote from that remotely. A visit is still needed before the install itself, to confirm fixings and cable routing.",
   },
 ];
 
@@ -60,7 +60,7 @@ const HERO_IMAGE = "/hero-solar.jpg";
 export const metadata = {
   title: "Solar + battery check",
   description:
-    "Is your UK roof right for solar? Get a satellite-read kWp estimate, annual generation and battery payback in five minutes — no floorplan upload needed.",
+    "Is your UK roof right for solar? Get a satellite-read estimate of how many panels you fit, how much you'd generate a year, and whether a battery pays for itself — all in five minutes.",
   alternates: { canonical: "https://www.propertoasty.com/solar" },
 };
 
@@ -138,15 +138,15 @@ export default function SolarLanding() {
             <div className="mt-4 grid grid-cols-2 gap-3">
               <HeroStatCard
                 icon={<Sun className="w-5 h-5" />}
-                label="Typical roof"
-                value="~4 kWp"
-                sub="UK semi-detached"
+                label="Typical UK semi"
+                value="~10 panels"
+                sub="on a south-facing roof"
               />
               <HeroStatCard
                 icon={<PoundSterling className="w-5 h-5" />}
                 label="Bill saving"
                 value="~£500/yr"
-                sub="self-consumption"
+                sub="from what you use directly"
               />
             </div>
           </div>
@@ -162,32 +162,32 @@ export default function SolarLanding() {
               Real roof numbers, not a postcode guess.
             </h2>
             <p className="mt-3 text-[var(--muted-brand)] leading-relaxed">
-              We use the same imagery + irradiance models Google uses
-              to size commercial solar projects — applied to your
-              specific roof, your pitch, your shading.
+              We use the same satellite imagery and sunlight data
+              Google uses for commercial solar projects — applied to
+              your specific roof, angle, and shading.
             </p>
           </div>
 
           <ul className="mt-12 grid grid-cols-1 sm:grid-cols-2 gap-5">
             <Feature
               icon={<Compass className="w-5 h-5" />}
-              title="Roof pitch, shading + orientation"
-              body="South-facing vs east-west, chimney shading, tree losses — read from your actual roof, not the postcode average."
+              title="Roof angle, shading + direction"
+              body="South-facing vs east-west, chimney shadows, nearby trees — read from your actual roof, not a postcode average."
             />
             <Feature
               icon={<Sun className="w-5 h-5" />}
-              title="Real annual kWh"
-              body="PVGIS modelling against your roof's azimuth and pitch — a number we'd defend to an MCS installer, not a marketing one."
+              title="How much electricity you'd actually get"
+              body="A real yearly number based on your specific roof direction and angle — the kind of figure we'd stand behind in front of a qualified installer."
             />
             <Feature
               icon={<BatteryCharging className="w-5 h-5" />}
-              title="Battery payback that pays back"
-              body="We model your evening usage against generation — so you only buy the kWh of battery that actually earns its money."
+              title="Battery payback that actually pays back"
+              body="We match your evening electricity use against what your panels would generate — so you only buy the battery size that earns its money."
             />
             <Feature
               icon={<ShieldCheck className="w-5 h-5" />}
               title="What you'd actually save"
-              body="Against your real tariff (or our UK-average if you don't have one). Self-consumption + export — separated, so the maths is honest."
+              body="Against your real electricity price (or UK average if you don't have your bill handy). What you use directly vs what you sell back — kept separate so the maths is honest."
             />
           </ul>
         </div>
@@ -213,13 +213,13 @@ export default function SolarLanding() {
             n="02"
             icon={<Leaf className="w-5 h-5" />}
             title="We do the modelling"
-            body="Google Solar buildingInsights + PVGIS yield + your tariff. All cross-checked against UK install norms."
+            body="Satellite imagery of your roof, official UK sunlight data, and your electricity price — all cross-checked against typical UK install standards."
           />
           <Step
             n="03"
             icon={<Sparkles className="w-5 h-5" />}
             title="A clear, quote-ready report"
-            body="kWp, annual kWh, battery size, payback. Shareable straight with any MCS installer for a real quote."
+            body="Number of panels, how much electricity you'd generate each year, battery size, and payback. Ready to share with any qualified installer for a real quote."
           />
         </div>
       </section>
@@ -303,8 +303,8 @@ export default function SolarLanding() {
           <RelatedCard
             href="/solar-panel-installers"
             eyebrow="Directory"
-            title="MCS-certified solar PV installers"
-            body="MCS-certified installers covering every UK postcode. Google verified reviews, request a quote in 5 minutes."
+            title="Qualified solar installers near you"
+            body="Properly qualified installers covering every UK postcode. Verified Google reviews, request a quote in 5 minutes."
           />
         </div>
       </section>

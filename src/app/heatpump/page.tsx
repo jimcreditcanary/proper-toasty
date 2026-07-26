@@ -33,24 +33,24 @@ import {
 // accordion + the schema stay in sync.
 const HP_FAQS: Array<{ q: string; a: string }> = [
   {
-    q: "Am I eligible for the £7,500 Boiler Upgrade Scheme grant?",
-    a: "The £7,500 BUS grant is available to owners of homes in England or Wales with a valid EPC certificate and no outstanding recommendations for loft or cavity-wall insulation. The property must have an existing fossil-fuel boiler (gas, oil, or LPG) being replaced. Our free check tells you within five minutes if your property qualifies.",
+    q: "Can I get the £7,500 heat pump grant?",
+    a: "The £7,500 Boiler Upgrade Scheme grant is open to homeowners in England and Wales. You need a current energy certificate (EPC) with no outstanding notes about loft or cavity-wall insulation, and you need to be replacing an existing gas, oil, or LPG boiler. Our free check tells you within five minutes whether your home qualifies.",
   },
   {
-    q: "How big a heat pump does my home need?",
-    a: "Most UK homes need between 5 kW and 12 kW of heat-pump capacity, sized on peak heat demand rather than boiler kW. A well-insulated 3-bed semi typically lands around 7-8 kW; a detached 4-bed nearer 10-12 kW. Sizing depends on floor area, fabric performance, and design outside temperature. Our pre-survey uses your EPC + floorplan to indicate a specific kW range.",
+    q: "What size heat pump does my home need?",
+    a: "Most UK homes need a heat pump somewhere between 5 and 12 kilowatts, matched to how much heat the home loses on a cold day (not to your current boiler size). A well-insulated 3-bed semi is typically around 7 to 8 kilowatts; a detached 4-bed nearer 10 to 12. Our pre-survey uses your energy certificate and floorplan to give you a specific range.",
   },
   {
-    q: "Do I need a site visit to get a quote?",
-    a: "Not for a first quote. Propertoasty produces an installer-ready pre-survey from your address, EPC, floorplan, and roof imagery — enough for an MCS-certified installer to give you a written quote remotely. A physical site visit is still needed before the install itself, so the installer can confirm placement, radiator sizing, and cable runs.",
+    q: "Do I need someone to come round to get a quote?",
+    a: "Not for a first quote. Propertoasty produces an installer-ready pre-survey from your address, energy certificate, floorplan, and roof imagery — enough for a qualified installer to give you a written quote without a site visit. A visit is still needed before the actual install, so the installer can confirm placement, radiator sizes, and cable runs.",
   },
   {
     q: "How much does a heat pump cost after the £7,500 grant?",
-    a: "A typical UK air-source heat pump install costs £12,000–£16,000 before the grant, so £4,500–£8,500 after the £7,500 BUS deduction. Complex installs (larger homes, new hot-water cylinder, radiator upgrades) run higher. Our engine gives you a specific range from your property data + local install-cost bands.",
+    a: "A typical UK heat pump install costs £12,000 to £16,000 before the grant, so £4,500 to £8,500 after the £7,500 is deducted. Bigger homes and installs that need a new hot-water cylinder or bigger radiators run higher. Our check gives you a specific range for your property.",
   },
   {
-    q: "Does my home need extra insulation before a heat pump can go in?",
-    a: "Only when the EPC lists an outstanding loft or cavity-wall insulation recommendation — Ofgem's BUS rules require those to be cleared first. Homes rated EPC C or better usually pass with no fabric work. Roughly 15% of homes that start our check discover they need insulation first; we flag it before you waste an installer's time.",
+    q: "Do I need extra insulation before a heat pump can go in?",
+    a: "Only if your energy certificate says you're missing loft or cavity-wall insulation — the grant rules require those to be cleared first. Homes rated C or better on the certificate usually pass with no work needed. About 15% of homes we check discover they need insulation first; we flag it before you waste an installer's time.",
   },
 ];
 
@@ -174,23 +174,23 @@ export default function HeatPumpLanding() {
           <ul className="mt-12 grid grid-cols-1 sm:grid-cols-2 gap-5">
             <Feature
               icon={<ShieldCheck className="w-5 h-5" />}
-              title="BUS grant — yes or no"
-              body="Latest Ofgem rules. We flag blockers (cavity-wall insulation gaps, F/G EPC ratings, second-home rules) before you waste the installer's call."
+              title="£7,500 grant — yes or no"
+              body="We check the current rules and flag anything that would stop you qualifying (missing insulation, low energy rating, second-home rules) before you waste an installer's call."
             />
             <Feature
               icon={<Wrench className="w-5 h-5" />}
-              title="System size that fits"
-              body="Peak heat demand from your floorplan + EPC fabric, not a postcode-average. Gives you the right kW range to brief installers on."
+              title="A heat pump sized to your home"
+              body="We work out how much heat your home actually loses on a cold day — from your floorplan and energy certificate, not a postcode average. Result: a specific size range to brief installers on."
             />
             <Feature
               icon={<HomeIcon className="w-5 h-5" />}
-              title="Where the outdoor unit lives"
-              body="We read placement candidates straight off your plan — close to a hot-water cylinder, away from the neighbour's bedroom window, with the 1 m of clear space MCS needs."
+              title="Where the outdoor unit could go"
+              body="We read the placement options straight off your floorplan — near your hot-water cylinder, away from your neighbour's bedroom window, with the clear space installers need around it."
             />
             <Feature
               icon={<Sparkles className="w-5 h-5" />}
               title="Hot water + radiator sizing"
-              body="Cylinder space spotted on the plan. Radiator count flagged so you know if a few will need upsizing before the pump runs efficiently."
+              body="We spot cylinder space on the plan and flag whether any radiators will need upsizing so the pump runs efficiently from day one."
             />
           </ul>
         </div>
@@ -214,14 +214,14 @@ export default function HeatPumpLanding() {
           <Step
             n="02"
             icon={<Leaf className="w-5 h-5" />}
-            title="We do the survey work"
-            body="EPC pulled. Floorplan read by our AI. Roof + garden checked from satellite. All cross-referenced against MCS + Ofgem rules."
+            title="We do the legwork"
+            body="We pull your energy certificate, read your floorplan, and check your roof and garden from satellite — then check it all against the current grant rules."
           />
           <Step
             n="03"
             icon={<Flame className="w-5 h-5" />}
             title="A report your installer trusts"
-            body="Pre-survey indication of grant, size, placement and any blockers — clear enough for a quote without a site visit first."
+            body="You get a clear picture of grant eligibility, the right heat pump size, where it could go, and anything that might trip you up — enough for a quote without a site visit first."
           />
         </div>
       </section>
@@ -281,25 +281,25 @@ export default function HeatPumpLanding() {
             href="/guides/heat-pump-payback-period-uk"
             eyebrow="Guide"
             title="How long does a heat pump take to pay back?"
-            body="Payback ranges + the five levers that move it — grant, tariff, weather compensation, solar, insulation."
+            body="Payback ranges and the five things that move them — grant, tariff, smart controls, solar, insulation."
           />
           <RelatedCard
             href="/guides/heat-pump-running-costs-vs-gas"
             eyebrow="Guide"
             title="Heat pump vs gas — running costs compared"
-            body="What a typical UK 3-bed spends per year on each fuel at 2026 tariffs. Honest numbers, both scenarios."
+            body="What a typical UK 3-bed spends per year on each fuel at 2026 prices. Honest numbers, both scenarios."
           />
           <RelatedCard
             href="/guides/bus-application-walkthrough"
             eyebrow="Guide"
-            title="How the £7,500 BUS grant application works"
-            body="Step-by-step: eligibility, installer nominates, Ofgem approves, install, sign-off. What to expect."
+            title="How the £7,500 grant application works"
+            body="Step-by-step: eligibility, installer paperwork, install, sign-off. What to expect at each stage."
           />
           <RelatedCard
             href="/guides/fabric-first-retrofit-before-heat-pump"
             eyebrow="Guide"
-            title="Fabric-first retrofit before a heat pump"
-            body="What to do, in what order, so the pump is sized right + BUS eligibility is clear."
+            title="Insulation to fix first"
+            body="What to do, in what order, so the pump is sized right and your grant paperwork is clean."
           />
           <RelatedCard
             href="/compare/heat-pump-vs-gas-boiler"
@@ -310,8 +310,8 @@ export default function HeatPumpLanding() {
           <RelatedCard
             href="/heat-pump-installers"
             eyebrow="Directory"
-            title="MCS-certified heat pump installers"
-            body="5,500+ installers, distance-ranked with Google verified reviews. Every entry BUS-registered."
+            title="Qualified heat pump installers near you"
+            body="5,500+ properly qualified installers, sorted by distance with verified Google reviews. Every one is grant-registered."
           />
         </div>
       </section>
@@ -329,7 +329,7 @@ export default function HeatPumpLanding() {
             </h2>
             <p className="mt-4 text-cream/80 max-w-xl mx-auto">
               Free first check. Five minutes. A report you can take
-              straight to an MCS installer for a quote.
+              straight to a qualified installer for a quote.
             </p>
             <Link
               href="/check/heatpump"
