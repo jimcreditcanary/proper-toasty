@@ -25,14 +25,14 @@ const amz = (asin: string) =>
   `https://www.amazon.co.uk/dp/${asin}?tag=${AMAZON_TAG}`;
 
 export const metadata: Metadata = {
-  title: "Best plug-in solar kits UK 2026: Anker vs EcoFlow vs budget",
+  title: "Best plug-in solar kits UK 2026: EcoFlow STREAM + DIY picks",
   description:
-    "Which plug-in solar kit to buy in the UK. Anker SOLIX vs EcoFlow STREAM vs Amazon budget kits, ranked on price, output, mounting, and warranty.",
+    "Which plug-in solar kit to buy on Amazon UK. EcoFlow STREAM (complete + battery-included) vs the Solarsys DIY inverter, ranked on price, output, mounting, and warranty.",
   alternates: { canonical: URL },
   openGraph: {
-    title: "Best plug-in solar kits UK 2026: Anker vs EcoFlow vs budget",
+    title: "Best plug-in solar kits UK 2026: EcoFlow STREAM + DIY picks",
     description:
-      "Hands-on UK plug-in solar kit comparison. Anker, EcoFlow, and budget picks — with the specs that actually matter.",
+      "The real Amazon UK plug-in solar lineup: EcoFlow STREAM complete kits and the Solarsys DIY inverter — with the specs that actually matter.",
     type: "article",
     url: URL,
     siteName: "Propertoasty",
@@ -78,19 +78,19 @@ export default function PlugInSolarBestKits() {
           body: "How to install without drilling, what your tenancy actually says, and how the kit moves with you.",
         },
       ]}
-      directAnswer="For most UK homeowners buying a plug-in solar kit in 2026, the Anker SOLIX RS40P (£799) is the best all-round pick — two 445 watt panels, a phone app, a 10-year warranty, and Anker's UK service network makes warranty claims painless. The EcoFlow STREAM Micro (£899) is a stronger choice if you plan to add battery storage later. For a budget starting point, look for Amazon-listed kits from £400 — but check the listing confirms the kit is on the UK's tested-equipment register or it won't be legal to use after 27 August 2026."
+      directAnswer="For most UK homeowners buying a plug-in solar kit in 2026, the EcoFlow STREAM Balcony Solar with brackets (£499 on Amazon UK) is the best pick — complete two-panel kit, 800 watt inverter, balcony rail mounts included, UK three-pin plug, on the UK's tested-equipment register. If you want home storage from day one, step up to the EcoFlow STREAM Max with battery (£949). For a DIY starter under £400, the Solarsys 800W micro-inverter (£149) plus two budget panels is the cheapest legit way in. EcoFlow dominates UK plug-in solar Amazon listings today; Anker's Balkonkraftwerk kits are widely available in Germany but haven't landed on Amazon UK yet."
       tldr={[
-        "Best all-round: Anker SOLIX RS40P — £799, 800 watts, 10-year warranty.",
-        "Best for later-adding a battery: EcoFlow STREAM Micro — £899, integrates with EcoFlow's battery range.",
-        "Cheapest legit: Amazon-listed kits from £400 — but check the tested-equipment register.",
-        "Skip: anything without a UK plug (Schuko/Type F), anything advertising more than 800 watts of output, anything that ships without a notification form.",
-        "Match the mount to your setup: balcony rail (most flats), wall bracket (garden studio), ground frame (small garden).",
+        "Best pick: EcoFlow STREAM Balcony Solar + brackets — £499, complete kit, mounts included.",
+        "Same kit without brackets: £449 (source your own mount if you have specific balcony requirements).",
+        "With battery: EcoFlow STREAM Max — £949, adds 1.92kWh of storage for evening use.",
+        "Cheapest DIY: Solarsys 800W inverter — £149, add two budget panels for ~£400 total.",
+        "Skip: anything with a Schuko (German) plug, anything over 800 watts of output, anything not on the UK tested-equipment register.",
       ]}
       faqs={[
         {
           question: "Which plug-in solar kit is best in the UK for 2026?",
           answer:
-            "For most UK homeowners the Anker SOLIX RS40P is the best all-round pick — £799 for two 445 watt panels, a phone app for monitoring, a 10-year warranty, and Anker has a real UK service network so if anything goes wrong warranty claims aren't painful. If you plan to add a home battery later, the EcoFlow STREAM Micro (£899) is a stronger choice because it plugs neatly into EcoFlow's battery range.",
+            "For most UK homeowners the EcoFlow STREAM Balcony Solar (with brackets, £499 on Amazon UK) is the best pick — a complete kit with two 400 watt panels, an 800 watt inverter, balcony rail mounts, and a UK three-pin plug. EcoFlow dominates the UK Amazon listings today. If you want home storage on day one, step up to the STREAM Max with battery (£949). If you're happy sourcing panels yourself, the Solarsys 800W micro-inverter alone (£149) plus two budget panels comes in around £400 total.",
         },
         {
           question: "How much should I spend on a plug-in solar kit?",
@@ -103,9 +103,9 @@ export default function PlugInSolarBestKits() {
             "The £400 to £600 Amazon kits work fine electrically, but check the listing (or box) confirms the kit is on the UK's tested-equipment register. Some older stock predates the register and won't be legal to plug in after 27 August 2026. Warranty claims tend to be harder — generic sellers don't have a UK service network, so if the inverter dies in year 2, you're often on your own.",
         },
         {
-          question: "Anker SOLIX vs EcoFlow STREAM — which one?",
+          question: "Complete kit vs DIY — which one?",
           answer:
-            "Anker if you want a simple 'plug in and forget' setup with the easiest warranty support. EcoFlow if you're building toward a bigger home-energy setup and want everything from one brand — their battery ecosystem is strong. EcoFlow's app is slicker; Anker's UK service is better.",
+            "The EcoFlow STREAM complete kits (£449-£499) are for people who want to open the box, hang the panels, plug in, and be done. The Solarsys DIY inverter (£149 + your own panels ≈ £400 total) is for people happy to source second-hand or budget panels and match them up themselves. Same electrical output either way; the £100 or so difference is buying you a matched, warrantied bundle vs some assembly required.",
         },
         {
           question: "What size panel should I get?",
@@ -196,54 +196,10 @@ export default function PlugInSolarBestKits() {
         </li>
       </ol>
 
-      <h2>1. Anker SOLIX RS40P — £799 (best all-round)</h2>
+      <h2 id="ecoflow-stream-2x400">1. EcoFlow STREAM Balcony Solar — £449 (best value complete kit)</h2>
       <p>
         <a
-          href={amz("B0DGCH5GTP")}
-          target="_blank"
-          rel="noopener sponsored"
-        >
-          Buy on Amazon UK →
-        </a>{" "}
-        or{" "}
-        <a
-          href="https://www.anker.com/uk"
-          target="_blank"
-          rel="noopener sponsored"
-        >
-          direct from Anker UK
-        </a>
-      </p>
-      <p>
-        Two 445 watt panels, a weatherproof mounting rail, a
-        weather-sealed inverter, and a phone app so you can see
-        what the kit&rsquo;s generating in real time. 10-year
-        warranty on both the panels and the inverter.
-      </p>
-      <p>
-        This is the kit most UK homeowners should buy in 2026.
-        Anker has been selling small-scale energy products in the
-        UK for a decade — power banks, portable batteries, small
-        solar generators — so their UK service network is real and
-        their warranty process is painless. You send them a photo
-        of the fault, they send you a replacement. That&rsquo;s
-        worth a lot over 10 years.
-      </p>
-      <p>
-        Two things to watch for. The rail mount ships with generic
-        balcony brackets — if your balcony rail is unusual (glass
-        panels, custom width), you may need to buy an adaptor.
-        And the app is fine for spot-checking but the historical
-        data view is more limited than EcoFlow&rsquo;s.
-      </p>
-      <p>
-        Payback at south-facing average UK sun: 3 to 4 years.
-      </p>
-
-      <h2>2. EcoFlow STREAM Micro — £899 (best if adding a battery later)</h2>
-      <p>
-        <a
-          href={amz("B0DXKQXPZ7")}
+          href={amz("B0F1CVD47Z")}
           target="_blank"
           rel="noopener sponsored"
         >
@@ -259,48 +215,109 @@ export default function PlugInSolarBestKits() {
         </a>
       </p>
       <p>
-        Two 445 watt panels, 800 watt inverter, better app than
-        Anker&rsquo;s. The specific reason to buy this over the
-        Anker: it plugs neatly into EcoFlow&rsquo;s wider battery
-        range. If you think you might buy an EcoFlow DELTA or
-        RIVER power station in the next year or two, the kit
-        integrates with it — the panels charge the battery during
-        the day, the battery powers your evening devices, and the
-        whole thing shows up in one app.
+        Two 400 watt solar panels, an 800 watt weather-sealed
+        inverter with Wi-Fi + app control, cables, and a UK
+        three-pin plug. Adds up to the sweet spot capacity most
+        UK homes want: 800 watts pushed into your home, from
+        panels that comfortably clear that cap on cloudier days.
       </p>
       <p>
-        You&rsquo;re paying £100 more than the Anker for the app
-        and the ecosystem. If you&rsquo;re not going to add a
-        battery, buy the Anker instead.
+        This is the pragmatic pick for most UK homeowners in
+        2026. EcoFlow is the real market leader for UK plug-in
+        solar right now — the only brand with proper UK Amazon
+        stock of a complete kit at this price point. Their app
+        is polished, warranty support runs through EcoFlow UK
+        direct, and the kit is on the UK&rsquo;s tested-equipment
+        register.
       </p>
       <p>
-        Watch for: the mount is EcoFlow&rsquo;s own bracket
-        design, so if you decide to move panels between brands
-        later you&rsquo;ll be re-buying mounts.
+        Watch for: the base kit ships without a balcony mount.
+        If you&rsquo;re installing on a metal balcony rail,
+        upgrade to the &ldquo;with brackets&rdquo; version below
+        (£50 more, saves you sourcing mounts separately).
       </p>
       <p>
-        Payback: 3.5 to 4.5 years south-facing.
+        Payback at south-facing average UK sun: 2 to 3 years for
+        someone home during the day.
       </p>
 
-      <h2>3. Budget: Amazon-listed generic kits — £400 to £600</h2>
+      <h2 id="ecoflow-stream-2x400-brackets">2. EcoFlow STREAM Balcony Solar + brackets — £499</h2>
       <p>
         <a
-          href="https://www.amazon.co.uk/s?k=plug+in+solar+kit&tag=propertoasty-21"
+          href={amz("B0F1D53MXZ")}
           target="_blank"
           rel="noopener sponsored"
         >
-          Browse on Amazon UK →
+          Buy on Amazon UK →
         </a>
       </p>
       <p>
-        Various brands, most of them generic — often the same
-        hardware from Chinese OEMs with different labels stuck on.
-        The electrical performance is usually fine. What
-        you&rsquo;re trading off is warranty service (there
-        isn&rsquo;t one), physical build quality (mounts and
-        cables are noticeably lighter than Anker&rsquo;s), and
-        after-sales support (nobody to email when the app
-        stops working).
+        Same as the flagship kit above but ships with two
+        adjustable balcony-rail brackets included. £50 more but
+        it saves you £30-£50 on separate mounts + the hassle of
+        finding brackets that fit your specific rail. If your
+        balcony has a standard metal railing, this is the
+        one-click buy.
+      </p>
+      <p>
+        The brackets adjust for angle, so you can tilt the panels
+        toward the sun rather than mounting them flush to the
+        rail (about 15% more generation over the year on a
+        south-facing balcony).
+      </p>
+
+      <h2 id="ecoflow-stream-max-battery">3. EcoFlow STREAM Max with battery — £949 (best for adding storage)</h2>
+      <p>
+        <a
+          href={amz("B0FDK6VGNZ")}
+          target="_blank"
+          rel="noopener sponsored"
+        >
+          Buy on Amazon UK →
+        </a>
+      </p>
+      <p>
+        Same 800 watt inverter + two 400 watt panels as above,
+        plus a 1.92 kWh home battery in one integrated package.
+        The battery stores your daytime solar for use in the
+        evening, which lifts self-consumption from around 60% to
+        90% — pretty much every unit the panels generate ends up
+        offsetting a unit you&rsquo;d otherwise buy from the grid.
+      </p>
+      <p>
+        Worth the extra £500 over the plain kit if you&rsquo;re out
+        of the house during the day. Marginal for households
+        already home in the day (the plain kit already captures
+        most of what it generates).
+      </p>
+      <p>
+        Payback at south-facing average UK sun: 3.5 to 5 years.
+      </p>
+
+      <h2 id="solarsys-800w-diy">4. Solarsys 800W micro-inverter — £149 (DIY starter)</h2>
+      <p>
+        <a
+          href={amz("B0H4Z3D1N9")}
+          target="_blank"
+          rel="noopener sponsored"
+        >
+          Buy on Amazon UK →
+        </a>
+      </p>
+      <p>
+        Just the inverter — no panels. Pair with two 300-550 watt
+        second-hand or budget solar panels (roughly £250 for a
+        matched pair on Amazon UK or eBay) for a fully-built kit
+        at around £400 total. Cheapest way in if you&rsquo;re
+        happy sourcing panels yourself.
+      </p>
+      <p>
+        Comes with a 3m AC cable and UK 13A plug pre-fitted,
+        dual-MPPT for uneven-shading panels, on the UK&rsquo;s
+        tested-equipment register. Warranty is thinner than
+        EcoFlow&rsquo;s but everything you actually need is
+        included. Suits people who&rsquo;ve done a bit of DIY
+        electrical work before.
       </p>
       <p>
         Two things to check before you buy any Amazon plug-in
@@ -375,28 +392,34 @@ export default function PlugInSolarBestKits() {
 
       <h2>The bottom line</h2>
       <p>
-        If you want the simplest &ldquo;buy and forget&rdquo; setup,
-        get the{" "}
+        For most UK homes without a battery in the plan, the{" "}
         <a
-          href={amz("B0DGCH5GTP")}
+          href={amz("B0F1D53MXZ")}
           target="_blank"
           rel="noopener sponsored"
         >
-          Anker SOLIX RS40P
-        </a>
-        . If you&rsquo;re planning a bigger home-energy setup with
-        a battery later, get the{" "}
+          EcoFlow STREAM Balcony Solar with brackets (£499)
+        </a>{" "}
+        is the pragmatic pick — complete kit, mounts included, on
+        the UK tested-equipment register, warranty backed by
+        EcoFlow UK. If you want storage from day one, step up to
+        the{" "}
         <a
-          href={amz("B0DXKQXPZ7")}
+          href={amz("B0FDK6VGNZ")}
           target="_blank"
           rel="noopener sponsored"
         >
-          EcoFlow STREAM Micro
+          EcoFlow STREAM Max with battery (£949)
         </a>
-        . If you&rsquo;re watching every pound and OK with limited
-        warranty support, an Amazon budget kit works — just check
-        it&rsquo;s on the UK tested-equipment register before you
-        pay.
+        . For a DIY starter under £400, the{" "}
+        <a
+          href={amz("B0H4Z3D1N9")}
+          target="_blank"
+          rel="noopener sponsored"
+        >
+          Solarsys micro-inverter (£149)
+        </a>{" "}
+        plus two budget panels is the cheapest legit route in.
       </p>
       <p>
         For the full context on how plug-in solar works, the
