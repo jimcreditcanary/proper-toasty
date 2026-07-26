@@ -37,19 +37,19 @@ const BOILER_FAQS: Array<{ q: string; a: string }> = [
   },
   {
     q: "Can I get finance for a heat pump like a boiler?",
-    a: "Yes — most MCS installers offer 0% finance over 5-10 years on the net-of-grant heat-pump price (typically £4,500-£8,500 after the £7,500 BUS deduction). Monthly figures often come in lower than typical boiler finance because the loan principal is smaller thanks to the grant. Boiler finance is normally 9-10% APR over 3-5 years for comparison.",
+    a: "Yes — most qualified installers offer 0% finance over 5 to 10 years on the amount you pay after the £7,500 grant (typically £4,500 to £8,500). Monthly repayments often come in lower than typical boiler finance because you're borrowing less thanks to the grant. Boiler finance is normally 9 to 10% APR over 3 to 5 years for comparison.",
   },
   {
     q: "How much do I save on running costs vs a gas boiler?",
-    a: "On a heat-pump-specific tariff (~15p/kWh peak blended), a 3-bed UK home typically spends £600-£800/year running the heat pump vs £700-£1,000 running a modern gas boiler at 2026 gas-cap prices. Net running-cost saving is £100-£300/year. Bigger savings on tariffs like Octopus Cosy that shift load to overnight cheap windows.",
+    a: "On a heat-pump-friendly electricity plan, a typical 3-bed UK home spends £600 to £800 a year running the heat pump vs £700 to £1,000 running a modern gas boiler at 2026 gas prices. Net saving is £100 to £300 a year. Bigger savings on plans like Octopus Cosy that give you a cheap rate for overnight running.",
   },
   {
-    q: "Am I eligible for the £7,500 BUS grant?",
-    a: "The £7,500 Boiler Upgrade Scheme grant is available to English and Welsh homeowners replacing a fossil-fuel boiler (gas, oil, or LPG) with an MCS-certified air-source or ground-source heat pump. Your EPC must have no outstanding recommendation for loft or cavity-wall insulation. Our check tells you within five minutes whether your specific property qualifies.",
+    q: "Can I get the £7,500 grant?",
+    a: "The £7,500 Boiler Upgrade Scheme grant is open to homeowners in England and Wales who are replacing an existing gas, oil, or LPG boiler with a heat pump fitted by a qualified installer. Your energy certificate must have no outstanding notes about loft or cavity-wall insulation. Our check tells you within five minutes whether your home qualifies.",
   },
   {
     q: "Do I need to change my radiators for a heat pump?",
-    a: "Sometimes — but rarely all of them. Heat pumps run at lower flow temperatures (~45°C vs a boiler's ~70°C), so radiators in your worst-heated rooms may need upsizing to deliver the same heat output at the lower flow. Typical UK 3-bed retrofit swaps 2-4 radiators. Your installer sizes each one at the site visit; our pre-survey flags likely candidates from your floorplan.",
+    a: "Sometimes — but rarely all of them. Heat pumps run your radiators cooler than a boiler does, so the coldest rooms in the home may need slightly bigger radiators to release the same warmth. A typical 3-bed swap involves 2 to 4 radiators. Your installer sizes each one at the site visit; our pre-survey flags likely candidates from your floorplan.",
   },
 ];
 
@@ -175,12 +175,12 @@ export default function ReplaceBoilerLanding() {
             <Feature
               icon={<PoundSterling className="w-5 h-5" />}
               title="Heat pump cost after the grant"
-              body="MCS-average install price, minus the £7,500 Boiler Upgrade Scheme grant where you qualify — so you see the real net figure, not the sticker price."
+              body="Real UK average install price, minus the £7,500 grant where you qualify — so you see the actual figure you'd pay, not the sticker price."
             />
             <Feature
               icon={<ShieldCheck className="w-5 h-5" />}
-              title="Are you eligible for the grant?"
-              body="Latest Ofgem rules. We flag blockers — outstanding insulation, tenure, double-funding — so you know whether the £7,500 is actually on the table."
+              title="Can you get the grant?"
+              body="We check the current rules and flag anything that would stop you qualifying — missing insulation, tenancy issues, other grants already claimed — so you know if the £7,500 is really on the table."
             />
             <Feature
               icon={<Calculator className="w-5 h-5" />}
@@ -295,13 +295,13 @@ export default function ReplaceBoilerLanding() {
             href="/guides/heat-pump-payback-period-uk"
             eyebrow="Guide"
             title="Heat pump payback in the UK"
-            body="Payback ranges + the five levers that move them. Grant, tariff, weather compensation, solar, insulation."
+            body="Payback ranges and the five things that move them: grant, electricity plan, smart controls, solar, insulation."
           />
           <RelatedCard
             href="/heat-pump-installers"
             eyebrow="Directory"
-            title="MCS-certified heat pump installers"
-            body="5,500+ installers, distance-ranked with Google verified reviews. Every entry BUS-registered."
+            title="Qualified heat pump installers near you"
+            body="5,500+ properly qualified installers, sorted by distance with verified Google reviews. Every one is grant-registered."
           />
         </div>
       </section>

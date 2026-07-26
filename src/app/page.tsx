@@ -55,9 +55,10 @@ export default function Home() {
             </h1>
 
             <p className="mt-6 text-lg text-[var(--muted-brand)] leading-relaxed max-w-lg">
-              See if your home is ready for a heat pump, rooftop solar, or a home battery — with
-              room for EV charging when you are. Grant-eligible, installer-ready, and sized for
-              how you actually live.
+              See if your home suits a heat pump, rooftop solar, or a home
+              battery — plus space for an electric car charger when you&rsquo;re
+              ready. Grant-eligible, quote-ready, and sized for how you
+              actually live.
             </p>
 
             <div className="mt-10 flex flex-wrap items-center gap-3">
@@ -125,19 +126,19 @@ export default function Home() {
             <div className="mt-4 grid grid-cols-2 gap-3">
               <HeroStatCard
                 icon={<Flame className="w-5 h-5" />}
-                label="Typical BUS grant"
+                label="Heat pump grant"
                 value="£7,500"
-                sub="off a heat pump install"
+                sub="off your install"
               />
               <HeroStatCard
                 icon={<Sun className="w-5 h-5" />}
-                label="Solar potential"
-                value="~4 kWp"
-                sub="typical UK roof fits"
+                label="Typical UK roof"
+                value="~10 panels"
+                sub="on a south-facing roof"
               />
               <HeroStatCard
                 icon={<Gauge className="w-5 h-5" />}
-                label="EPC headroom"
+                label="Energy rating"
                 value="D → B"
                 sub="average improvement"
               />
@@ -165,8 +166,8 @@ export default function Home() {
             Skip straight to the focused check.
           </h2>
           <p className="mt-2 text-sm text-[var(--muted-brand)] text-center max-w-xl mx-auto leading-relaxed">
-            Fewer questions, a report scoped to the bit you care about,
-            and the same installer-ready output at the end.
+            Fewer questions, a report focused on the bit you care about,
+            and the same quote-ready output at the end.
           </p>
           <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4 max-w-5xl mx-auto">
             <FocusCard
@@ -248,13 +249,13 @@ export default function Home() {
               n="02"
               icon={<Sun className="w-5 h-5" />}
               title="We do the legwork"
-              body="We pull your EPC, read your roof from satellite, and size a system against UK climate data."
+              body="We pull your energy certificate, read your roof from satellite, and size a system against UK weather data."
             />
             <Step
               n="03"
               icon={<Leaf className="w-5 h-5" />}
               title="Get a greener plan"
-              body="A pre-survey report clear enough to share with an MCS installer for a quote."
+              body="A clear report you can take straight to a qualified installer for a quote — no site visit needed first."
             />
           </div>
         </div>
@@ -276,22 +277,22 @@ export default function Home() {
           <Feature
             icon={<Flame className="w-5 h-5" />}
             title="Heat pump eligibility"
-            body="Boiler Upgrade Scheme grant check (up to £7,500) against the latest Ofgem rules — blockers, warnings, and a system-size indication."
+            body="A yes-or-no on the £7,500 grant against the current rules, plus a heat pump size to brief installers on and any blockers to sort first."
           />
           <Feature
             icon={<Sun className="w-5 h-5" />}
             title="Solar suitability"
-            body="Roof pitch, shading, and annual kWh from PVGIS — plus savings and payback as a range, never a single made-up number."
+            body="Roof angle, shading, and how much electricity you'd actually generate a year — plus savings and payback as a range, never a made-up single number."
           />
           <Feature
             icon={<BatteryCharging className="w-5 h-5" />}
             title="Home battery sizing"
-            body="How much storage actually pays back for your usage pattern — paired with your solar output and any overnight heat-pump load."
+            body="How much storage actually earns its money for your usage pattern — paired with your solar output and any overnight heat pump running."
           />
           <Feature
             icon={<Zap className="w-5 h-5" />}
-            title="EV-ready electrics"
-            body="Headroom for a 7 kW charger when you need it, sized against your likely future draw so your installer isn't back out for a second visit."
+            title="Electric car ready"
+            body="Whether your electrics have room for a home charger when you're ready — sized so your installer isn't back for a second visit."
           />
         </ul>
       </section>

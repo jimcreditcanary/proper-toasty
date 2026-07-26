@@ -65,11 +65,11 @@ export default async function HeatPumpsIndex() {
       ]}
       directAnswer={directAnswer}
       tldr={[
-        "BUS grant: flat £7,500 in England and Wales, regardless of household income.",
-        "Pre-grant install cost: £8,000–£14,000 for a 5–10 kW air-source unit.",
-        "Net of grant: £1,500–£6,500 for most UK homes after BUS deduction.",
-        "Running cost: £900–£1,400 a year on a heat-pump-specific tariff.",
-        "Pre-survey: free on Propertoasty; binding quote requires MCS site visit.",
+        "Heat pump grant: flat £7,500 for homeowners in England and Wales.",
+        "Install cost before the grant: £8,000 to £14,000 for a typical family home.",
+        "What you actually pay after the grant: £1,500 to £6,500 for most UK homes.",
+        "Running cost: £900 to £1,400 a year on a heat-pump-friendly electricity plan.",
+        "Pre-survey: free on Propertoasty; final quote needs a site visit.",
       ]}
       sources={[
         {
@@ -96,24 +96,22 @@ export default async function HeatPumpsIndex() {
     >
       <h2>How heat pumps work in UK homes</h2>
       <p>
-        An air-source heat pump (ASHP) extracts heat from outside air
-        using a refrigerant cycle — even at -5°C, there&rsquo;s enough
-        ambient heat to extract usefully. The compressor lifts that
-        heat to 45–55°C for your radiators or underfloor heating, vs.
-        the 70–80°C a gas boiler runs at. The lower flow temperature
-        is why ASHP installs need bigger radiators (or wet underfloor)
-        than a gas system — the heat has to come out more slowly to
-        warm the room.
+        A heat pump takes warmth from the outside air and pumps it
+        into your radiators or underfloor heating — even at -5°C
+        there&rsquo;s enough warmth in the air to be useful. It
+        runs your radiators cooler than a gas boiler does, so
+        heat pump installs usually need slightly bigger radiators
+        (or underfloor heating) to release the same warmth into
+        the room.
       </p>
       <p>
-        The seasonal coefficient of performance (SCOP) measures
-        efficiency. SCOP 3.5 means every 1 kWh of electricity in
-        produces 3.5 kWh of heat out. A typical UK home using
-        12,000 kWh of heat per year at SCOP 3.5 needs about
-        3,400 kWh of electricity to deliver it. On a heat-pump
-        tariff at 18p/kWh that&rsquo;s £612/year before standing
-        charges — usually less than the equivalent gas bill at
-        2026 prices.
+        Heat pumps are efficient because they move existing warmth
+        rather than making it. For every £1 of electricity you put
+        in, a well-set-up heat pump gives you around £3.50 of heat
+        out. A typical UK home costs around £600 a year to heat
+        with a well-run heat pump on a heat-pump-friendly
+        electricity plan — usually less than heating the same
+        home with gas at 2026 prices.
       </p>
 
       <h2>Browse by town</h2>
@@ -156,10 +154,9 @@ export default async function HeatPumpsIndex() {
 
       <h2>Browse by property type</h2>
       <p>
-        Heat-pump sizing, fabric prerequisites, and BUS grant
-        considerations vary by the kind of home you have. Pick the
-        archetype that best matches your property for a deep-dive on
-        what install scope looks like.
+        Heat pump sizing, insulation needs, and grant paperwork vary
+        by the kind of home you have. Pick the closest match to yours
+        for a deep-dive on what an install actually involves.
       </p>
       <ul
         className="not-prose grid grid-cols-1 sm:grid-cols-2 gap-3 my-6"
@@ -183,21 +180,20 @@ export default async function HeatPumpsIndex() {
 
       <h2>Check your specific home</h2>
       <p>
-        Town pages give the local context; the actual answer for your
-        property depends on three factors only a pre-survey can
-        resolve: heat-loss range (set by your floor area, fabric and
-        air-tightness), radiator sizing (most pre-2000s homes need at
-        least one or two upgraded), and outdoor unit placement.
-        Propertoasty&rsquo;s free pre-survey check combines your
-        address, an EPC pull, the Google Solar API&rsquo;s roof data,
-        and a floorplan vision analysis to produce an installer-ready
-        report — typically takes about five minutes.
+        Town pages give the local picture; the actual answer for
+        your home depends on three things only a pre-survey can
+        answer: how much heat your home loses on a cold day
+        (driven by size and insulation), whether any radiators
+        need upsizing (most pre-2000s homes need at least one),
+        and where the outdoor unit could go. Our free pre-survey
+        combines your address, energy certificate, floorplan, and
+        satellite roof imagery — takes about five minutes.
       </p>
       <p>
         <a href="/check">Run a free pre-survey check on your home</a>{" "}
-        — installer-ready report, BUS-eligibility verdict, sizing
-        range, and a list of MCS-certified installers covering your
-        area.
+        — a quote-ready report, whether you qualify for the
+        £7,500 grant, a heat pump size range, and a list of
+        qualified installers covering your area.
       </p>
     </AEOPage>
   );
