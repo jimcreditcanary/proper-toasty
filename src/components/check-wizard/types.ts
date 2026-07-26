@@ -14,11 +14,14 @@ export type CheckStep =
   | "lead_capture"
   | "report";
 
+// Floorplan step removed from the default order (July 2026): it was
+// a friction point that hurt completion — the wizard now runs on
+// EPC + satellite + user answers alone. Step4Upload stays in-tree
+// as dead code until we're sure nothing references it, then it goes.
 export const STEP_ORDER: CheckStep[] = [
   "address",
   "preview",
   "questions",
-  "floorplan",
   "analysis",
   "lead_capture",
   "report",
@@ -45,17 +48,13 @@ export const STEP_ORDER: CheckStep[] = [
  */
 export type WizardFocus = "all" | "solar" | "heatpump" | "boiler";
 
-/** Per-focus step order. Solar drops the floorplan step because the
- *  solar API + satellite imagery don't depend on it; the floorplan
- *  upload would just be friction for a user who came in on the solar
- *  marketing page. The boiler-vs-heat-pump variant drops it for the
- *  same reason — the comparison keys off EPC property type + floor
- *  area + the BUS gate, not a floorplan. Heat-pump variant keeps every
- *  step — the floorplan IS the heat-pump survey input. */
+/** Per-focus step order. Floorplan is no longer part of any focus
+ *  variant (removed July 2026 — was hurting completion). The heat
+ *  pump path relies on EPC property type + floor area + wizard
+ *  answers instead. The parameter is kept because callers pass it
+ *  and future variants might diverge again. */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function stepOrderForFocus(focus: WizardFocus): CheckStep[] {
-  if (focus === "solar" || focus === "boiler") {
-    return STEP_ORDER.filter((s) => s !== "floorplan");
-  }
   return STEP_ORDER;
 }
 

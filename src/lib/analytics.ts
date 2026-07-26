@@ -96,6 +96,39 @@ export interface EventMap {
   // no anon-id in localStorage, and the dashboard is already in
   // Jim's Vercel project. Server-side events below stay in PostHog.
   //
+  // ─── Vercel Analytics events (client-side) ───────────────────
+  // These live outside this map because Vercel's `track()` API is
+  // untyped by design. They're listed here as the canonical
+  // taxonomy so a reader knows what to expect in the dashboard.
+  //
+  //   check_step_viewed
+  //     Props: { step, from_presurvey_link, from_installer_prebind }
+  //     Where: src/components/check-wizard/wizard-shell.tsx
+  //
+  //   journey_started
+  //     Props: { journey, source }
+  //       journey: "heatpump" | "solar" | "boiler"
+  //              | "plug_in_solar" | "all"
+  //       source:  "homepage_hero"
+  //              | "homepage_picker_primary"
+  //              | "homepage_picker_secondary"
+  //              | "homepage_footer_cta"
+  //              | "heatpump_landing_hero"
+  //              | "heatpump_landing_footer"
+  //              | "solar_landing_hero"
+  //              | "solar_landing_footer"
+  //              | "boiler_landing_hero"
+  //              | "boiler_landing_footer"
+  //              | "plug_in_solar_landing_hero"
+  //     Where: src/components/analytics/journey-cta.tsx
+  //
+  //   journey_completed
+  //     Props: { journey, via_pre_survey }
+  //     Where: src/components/check-wizard/report/report-shell.tsx
+  //            src/components/plug-in-solar/calculator.tsx
+  //
+  // Pair journey_started/journey_completed for funnel conversion
+  // per journey type. Vercel dashboard → Analytics → Custom events.
   homeowner_quote_accepted: {
     installer_id: number;
     total_pence: number;

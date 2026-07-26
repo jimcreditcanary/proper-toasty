@@ -21,7 +21,7 @@ import { isFeatureEnabled } from "@/lib/feature-flags";
 export const metadata = {
   title: "Heat pump check",
   description:
-    "Upload your floorplan and find out if your UK home suits a heat pump — BUS grant value + sizing. Pre-survey indication in minutes.",
+    "Find out if your UK home suits a heat pump — BUS grant value + sizing. Pre-survey indication in minutes.",
   alternates: { canonical: "https://www.propertoasty.com/check/heatpump" },
 };
 

@@ -158,13 +158,13 @@ export function MarketingHeader({
           )}
 
           {/* Desktop CTA. Audience-specific:
-                Homeowner → "Check my home" (the free pre-survey tool)
+                Homeowner → "Calculate my savings" (the free savings tool)
                 Installer → "Get started" (signup) */}
           <Link
             href={isInstaller ? "/installer-signup" : "/check"}
             className="hidden md:inline-flex items-center gap-1.5 h-10 px-5 rounded-full bg-coral hover:bg-coral-dark text-cream font-medium text-sm transition-colors"
           >
-            {isInstaller ? "Get started" : "Check my home"}
+            {isInstaller ? "Get started" : "Calculate my savings"}
             <ArrowRight className="w-4 h-4" />
           </Link>
 
@@ -233,7 +233,7 @@ export function MarketingHeader({
                       href="/check"
                       className="block px-4 py-3 text-base font-semibold text-coral-dark hover:bg-coral-pale/40 transition-colors"
                     >
-                      Check my home
+                      Calculate my savings
                     </Link>
                     <div className="border-t border-[var(--border)]" />
                     <Link

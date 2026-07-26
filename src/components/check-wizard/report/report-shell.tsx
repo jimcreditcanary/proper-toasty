@@ -18,7 +18,11 @@
 // same source-of-truth: when the user toggles solar off, battery flips
 // off too and the Solar tab shows it as inactive.
 
-import { useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+// Vercel Analytics — journey_completed fires once per report render
+// so the funnel dashboard can pair it with the journey_started event
+// emitted by the marketing-page CTAs.
+import { track } from "@vercel/analytics/react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -113,6 +117,20 @@ export function ReportShell({ audience = "homeowner" }: ReportShellProps = {}) {
     (state.focus ?? "all") === "boiler" ? "boiler" : "overview",
   );
   const [shareOpen, setShareOpen] = useState(false);
+
+  // journey_completed — fire once per report open. The wizard's
+  // per-step viewed event already covers drop-off; this pairs with
+  // the JourneyCTA journey_started event so the funnel dashboard
+  // can measure end-to-end conversion by journey.
+  useEffect(() => {
+    track("journey_completed", {
+      journey: state.focus ?? "all",
+      via_pre_survey: !!state.preSurveyToken || !!state.preSurveyInstallerId,
+    });
+    // Fire once on mount — later focus/preSurvey changes are edits to
+    // the same completed report, not a new completion.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // "presurvey" mode covers two entry paths:
   //   - Installer-initiated: state.preSurveyRequestId is set (the

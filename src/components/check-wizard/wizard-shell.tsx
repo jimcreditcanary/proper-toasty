@@ -10,11 +10,8 @@ import { STEP_ORDER, type CheckStep, type CheckWizardState } from "./types";
 import { Step1Address } from "./step-1-address";
 import { Step2Preview } from "./step-2-preview";
 import { Step3Questions } from "./step-3-questions";
-// Step 4 is the upload-only flow as of the v2 migration. The legacy
-// canvas builder (step-4-floorplan.tsx) stays in the codebase to be
-// removed in a follow-up commit once the new flow is validated on
-// the three test fixtures.
-import { Step4Upload } from "./step-4-upload";
+// Step 4 (floorplan upload) removed from the flow July 2026 — file
+// left in the tree until the next cleanup pass, no longer imported.
 import { Step5Analysis } from "./step-5-analysis";
 import { Step5bLeadCapture } from "./step-5b-lead-capture";
 import { Step6Report } from "./step-6-report";
@@ -28,22 +25,16 @@ import { isV1SupportedCountry } from "@/lib/postcode/region";
 import { track } from "@vercel/analytics/react";
 
 // Visible steps in the header progress — `lead_capture` is collapsed into
-// the analysis/report continuum so the user sees a clean "X of 6".
-const VISIBLE_STEPS_ALL: CheckStep[] = [
+// the analysis/report continuum so the user sees a clean "X of 5".
+// Floorplan was removed July 2026 — every focus variant now runs the
+// same slim step set.
+const VISIBLE_STEPS: CheckStep[] = [
   "address",
   "preview",
   "questions",
-  "floorplan",
   "analysis",
   "report",
 ];
-
-// Solar + boiler variants skip the floorplan step (mirrors
-// stepOrderForFocus in types.ts) — keep the bar count honest so
-// "Step 4 of 5" doesn't stretch into a non-existent floorplan slot.
-const VISIBLE_STEPS_NO_FLOORPLAN: CheckStep[] = VISIBLE_STEPS_ALL.filter(
-  (s) => s !== "floorplan",
-);
 
 // Right-hand context label in the wizard header. Reflects the
 // variant the user came in on so the header reads consistently
@@ -66,13 +57,10 @@ function FocusLabel() {
 }
 
 function HeaderProgress() {
-  const { step, state } = useCheckWizard();
+  const { step } = useCheckWizard();
   // Treat `lead_capture` as part of `analysis` for progress purposes.
   const effectiveStep: CheckStep = step === "lead_capture" ? "analysis" : step;
-  const visibleSteps =
-    state.focus === "solar" || state.focus === "boiler"
-      ? VISIBLE_STEPS_NO_FLOORPLAN
-      : VISIBLE_STEPS_ALL;
+  const visibleSteps = VISIBLE_STEPS;
   const currentIdx = visibleSteps.indexOf(effectiveStep);
   return (
     <div className="flex items-center gap-1" aria-label={`Step ${currentIdx + 1} of ${visibleSteps.length}`}>
@@ -109,7 +97,11 @@ function CurrentStep() {
     case "questions":
       return <Step3Questions />;
     case "floorplan":
-      return <Step4Upload />;
+      // Legacy step — the wizard flow no longer routes here, but the
+      // union type still includes "floorplan" for backwards-compat
+      // with persisted state. Fall through to analysis so a stale
+      // resumed session doesn't get stuck.
+      return <Step5Analysis />;
     case "analysis":
       return <Step5Analysis />;
     case "lead_capture":
@@ -125,10 +117,11 @@ const STEP_TITLES: Record<CheckStep, string> = {
   address: "Find your address — Propertoasty",
   preview: "Confirm your home — Propertoasty",
   questions: "A few quick questions — Propertoasty",
-  floorplan: "Upload your floorplan — Propertoasty",
+  // Retained for the union type; the step is unreachable in the new flow.
+  floorplan: "Running your check — Propertoasty",
   analysis: "Running your check — Propertoasty",
   lead_capture: "Where should we send your report? — Propertoasty",
-  report: "Your home report — Propertoasty",
+  report: "Your savings report — Propertoasty",
 };
 
 function PageTitleSync() {
