@@ -196,7 +196,7 @@ export default function PlugInSolarBestKits() {
         </li>
       </ol>
 
-      <h2>1. EcoFlow STREAM Balcony Solar — £449 (best value complete kit)</h2>
+      <h2 id="ecoflow-stream-2x400">1. EcoFlow STREAM Balcony Solar — £449 (best value complete kit)</h2>
       <p>
         <a
           href={amz("B0F1CVD47Z")}
@@ -241,7 +241,7 @@ export default function PlugInSolarBestKits() {
         someone home during the day.
       </p>
 
-      <h2>2. EcoFlow STREAM Balcony Solar + brackets — £499</h2>
+      <h2 id="ecoflow-stream-2x400-brackets">2. EcoFlow STREAM Balcony Solar + brackets — £499</h2>
       <p>
         <a
           href={amz("B0F1D53MXZ")}
@@ -266,7 +266,7 @@ export default function PlugInSolarBestKits() {
         south-facing balcony).
       </p>
 
-      <h2>3. EcoFlow STREAM Max with battery — £949 (best for adding storage)</h2>
+      <h2 id="ecoflow-stream-max-battery">3. EcoFlow STREAM Max with battery — £949 (best for adding storage)</h2>
       <p>
         <a
           href={amz("B0FDK6VGNZ")}
@@ -294,7 +294,7 @@ export default function PlugInSolarBestKits() {
         Payback at south-facing average UK sun: 3.5 to 5 years.
       </p>
 
-      <h2>4. Solarsys 800W micro-inverter — £149 (DIY starter)</h2>
+      <h2 id="solarsys-800w-diy">4. Solarsys 800W micro-inverter — £149 (DIY starter)</h2>
       <p>
         <a
           href={amz("B0H4Z3D1N9")}

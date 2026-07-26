@@ -353,29 +353,19 @@ function KitResultCard({
         </div>
 
         <div style={styles.ctaRow}>
-          {kit.amazonAsin ? (
-            <a
-              href={amz(kit.amazonAsin)}
-              target="_blank"
-              rel="noopener sponsored"
-              style={styles.ctaPrimary}
-            >
-              Buy on Amazon UK →
-            </a>
-          ) : (
-            <a
-              href={`https://www.amazon.co.uk/s?k=${encodeURIComponent(
-                kit.name,
-              )}&tag=${AMAZON_TAG}`}
-              target="_blank"
-              rel="noopener sponsored"
-              style={styles.ctaPrimary}
-            >
-              Browse on Amazon UK →
-            </a>
-          )}
-          <a href="/plug-in-solar/best-kits-uk-2026" style={styles.ctaSecondary}>
-            Full review
+          <a
+            href={amz(kit.amazonAsin)}
+            target="_blank"
+            rel="noopener sponsored"
+            style={styles.ctaPrimary}
+          >
+            Buy on Amazon →
+          </a>
+          <a
+            href={`/plug-in-solar/best-kits-uk-2026#${kit.id}`}
+            style={styles.ctaSecondary}
+          >
+            Details
           </a>
         </div>
       </div>
@@ -567,29 +557,32 @@ const styles: Record<string, React.CSSProperties> = {
     marginTop: "auto",
   },
   ctaPrimary: {
-    flex: 1,
+    flex: 2,
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
-    padding: "10px 14px",
+    padding: "10px 12px",
     background: "#c85a3e",
     color: "white",
     borderRadius: 999,
     textDecoration: "none",
     fontSize: 14,
     fontWeight: 600,
+    whiteSpace: "nowrap",
   },
   ctaSecondary: {
+    flex: 1,
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
-    padding: "10px 14px",
+    padding: "10px 12px",
     background: "transparent",
     color: "var(--navy, #0f1f3a)",
     border: "1px solid var(--border, #e2dcd0)",
     borderRadius: 999,
     textDecoration: "none",
     fontSize: 14,
+    whiteSpace: "nowrap",
     fontWeight: 500,
   },
   disclaimer: {
