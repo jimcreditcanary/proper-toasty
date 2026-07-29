@@ -15,12 +15,12 @@ const URL = "https://www.propertoasty.com/about";
 export const metadata: Metadata = {
   title: "About Propertoasty — UK heat pump + solar pre-survey",
   description:
-    "The UK home energy suitability service. GOV.UK EPC + Google Solar API + floorplan vision produce installer-ready reports for heat pump and solar decisions.",
+    "The UK home energy savings calculator. GOV.UK EPC data plus Google Solar imagery produce installer-ready reports for heat pump, solar and battery decisions.",
   alternates: { canonical: URL },
   openGraph: {
     title: "About Propertoasty",
     description:
-      "UK home energy suitability service combining EPC, Solar API, and floorplan analysis.",
+      "UK home energy savings calculator combining EPC data and Google Solar imagery.",
     type: "website",
     url: URL,
     siteName: "Propertoasty",
@@ -32,7 +32,7 @@ export default function AboutPage() {
   return (
     <AEOPage
       headline="About Propertoasty"
-      description="UK home energy suitability service. We combine the GOV.UK EPC Register, Google's Solar API, and floorplan analysis to produce installer-ready reports for homeowners considering heat pumps or solar PV."
+      description="UK home energy savings calculator. We combine the GOV.UK EPC Register, Google's Solar API and current UK grant rules to produce installer-ready reports for homeowners considering heat pumps, solar PV or a home battery."
       url={URL}
       image="/hero-heatpump.jpg"
       datePublished="2026-05-14"

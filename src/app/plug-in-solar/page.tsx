@@ -42,7 +42,7 @@ const amz = (asin: string) =>
 export const metadata: Metadata = {
   title: "Plug-in solar UK 2026: legal, cost + best kits",
   description:
-    "Plug-in solar became legal in the UK in April 2026. Cost, the 800W limit explained, best kits, and whether it's worth it for renters, flats, and small homes.",
+    "Plug-in solar is legal in the UK from April 2026. Best 800W kits, real cost, payback and whether it's worth it for renters, flats and small homes.",
   alternates: { canonical: URL },
   openGraph: {
     title: "Plug-in solar UK 2026: legal, cost + best kits",

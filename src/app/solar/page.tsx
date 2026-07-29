@@ -61,7 +61,7 @@ const HERO_IMAGE = "/hero-solar.jpg";
 export const metadata = {
   title: "Solar + battery check",
   description:
-    "Is your UK roof right for solar? Get a satellite-read estimate of how many panels you fit, how much you'd generate a year, and whether a battery pays for itself — all in five minutes.",
+    "Free UK solar + battery savings calculator. Satellite roof read, panel count, annual kWh and payback in years — no site visit needed.",
   alternates: { canonical: "https://www.propertoasty.com/solar" },
 };
 
