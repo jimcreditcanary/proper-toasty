@@ -42,7 +42,7 @@ export const metadata: Metadata = {
     template: "%s",
   },
   description:
-    "Check your UK home for a heat pump, rooftop solar or a home battery. Free 5-min pre-survey, installer-ready, BUS-grant aware.",
+    "Calculate your savings on a heat pump, rooftop solar or plug-in solar for your UK home. Free 5-min check, installer-ready report, £7,500 grant aware.",
   // No `keywords` array — meta keywords has been unused by every
   // major search engine since 2009. Removed to reduce noise.
   robots: { index: true, follow: true },
@@ -53,14 +53,14 @@ export const metadata: Metadata = {
     siteName: "Propertoasty",
     title: "Propertoasty — Greener living starts at home",
     description:
-      "Pre-survey checks for UK heat pump, solar, battery, and EV-charger upgrades. Report-ready for your MCS installer.",
+      "Calculate your savings on a heat pump, rooftop solar or plug-in solar for your UK home. Installer-ready report, grant aware.",
     images: [OG_IMAGE],
   },
   twitter: {
     card: "summary_large_image",
     title: "Propertoasty — Greener living starts at home",
     description:
-      "Heat pump, solar, battery, and EV-ready checks for your UK home. Grant-eligible, installer-ready.",
+      "UK savings calculator for heat pumps, solar and plug-in solar. Free 5-min check, £7,500 grant aware.",
     images: [OG_IMAGE.url],
   },
   // NO layout-level `alternates.canonical`. Next.js metadata merges child

@@ -41,7 +41,7 @@ export const ORG_PROFILE = {
   /** Short description — surfaces as Organization.description in
    *  Knowledge Graph cards. Keep under 200 chars. */
   description:
-    "Free UK pre-survey for heat pumps, rooftop solar, battery storage and EV charging. Combines EPC data, Google Solar API roof analysis and floorplan vision into an installer-ready report.",
+    "Free UK savings calculator for heat pumps, rooftop solar, home batteries and plug-in solar. Uses EPC data, Google Solar imagery and current UK grants to produce installer-ready reports.",
   /** ISO date — when the company / product started. Surfaces in
    *  Knowledge Graph as "founded". Update if wrong. */
   foundingDate: "2025", // TODO_FILL: replace with the actual founding year of Propertoasty
@@ -78,9 +78,10 @@ export const ORG_PROFILE = {
     // Companies House record for the parent legal entity — the strongest
     // UK-specific legitimacy signal we can ship without touching socials.
     "https://find-and-update.company-information.service.gov.uk/company/11591983",
-    // TODO_FILL: add these as Jim confirms the real URLs.
-    // "https://www.linkedin.com/company/propertoasty",
-    // "https://x.com/propertoasty",
+    "https://www.linkedin.com/company/proper-toasty/",
+    "https://x.com/propertoasty",
+    "https://www.instagram.com/propertoasty/",
+    "https://www.facebook.com/propertoasty",
   ] as string[],
 
   // ── Founder profile ───────────────────────────────────────────────
@@ -99,7 +100,7 @@ export const ORG_PROFILE = {
     /** One-paragraph bio shown on the author page + lifted into the
      *  Person schema's `description`. Keep factual, no marketing puff
      *  — LLMs read this verbatim. */
-    bio: "Founder of Propertoasty and CEO of Credit Canary, a UK fintech that verifies payees against Companies House, HMRC VAT, Confirmation of Payee, and bank data to help households and small businesses avoid invoice fraud. Built Propertoasty after watching homeowners get lost between the Boiler Upgrade Scheme, MCS-certified installers, and the unfamiliar engineering of heat pumps and solar PV — and finding no single source that combined property data, grant eligibility, and installer-grade pre-survey output in one place. The site combines the GOV.UK EPC Register, Google's Solar API, PVGIS yield modelling, and machine-vision floorplan analysis to produce installer-ready reports for UK homeowners. Writes about the Boiler Upgrade Scheme, MCS 3005 rules, solar PV economics under the Smart Export Guarantee, and the practical retrofit decisions homeowners face when commissioning low-carbon heating. UK-based; every figure quoted uses current Ofgem, MCS, and DESNZ guidance for 2026.",
+    bio: "Founder of Propertoasty and CEO of Credit Canary, a UK fintech that verifies payees against Companies House, HMRC VAT, Confirmation of Payee, and bank data to help households and small businesses avoid invoice fraud. Built Propertoasty after watching homeowners get lost between the Boiler Upgrade Scheme, MCS-certified installers, and the unfamiliar engineering of heat pumps and solar PV — and finding no single source that combined property data, grant eligibility, and installer-grade pre-survey output in one place. The site combines the GOV.UK EPC Register, Google's Solar API and PVGIS yield modelling to produce installer-ready reports for UK homeowners. Writes about the Boiler Upgrade Scheme, MCS 3005 rules, solar PV economics under the Smart Export Guarantee, and the practical retrofit decisions homeowners face when commissioning low-carbon heating. UK-based; every figure quoted uses current Ofgem, MCS, and DESNZ guidance for 2026.",
     /** Sitewide credentials / qualifications worth surfacing. Empty
      *  array is fine; Google won't penalise. Examples:
      *    - "BEng, Mechanical Engineering"

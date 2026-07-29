@@ -61,7 +61,7 @@ const HERO_IMAGE = "/hero-heatpump.jpg";
 export const metadata = {
   title: "New boiler or heat pump?",
   description:
-    "Boiler on its way out? Compare the all-in cost of a new gas boiler vs an air source heat pump with the £7,500 grant — both with monthly finance. Five minutes, no site visit.",
+    "Compare a new gas boiler vs a heat pump with the £7,500 BUS grant — all-in cost, monthly finance, and lifetime running cost. Five minutes, no site visit.",
   alternates: { canonical: "https://www.propertoasty.com/replace-my-boiler" },
 };
 
