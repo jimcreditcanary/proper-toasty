@@ -50,35 +50,58 @@ export function pillarForDate(d: Date): Pillar {
   return CALENDAR[d.getUTCDay()] ?? "blog";
 }
 
-// Category → pillar mapping. Blog posts land in one of a handful
-// of categories; we route by category name. Keep this list
-// aligned with the categories actually used on /blog — grep the
-// posts table if unsure.
+// Classify a blog post into a pillar. Uses slug + title + category
+// as evidence — the /blog corpus lives under generic categories
+// like "Guides" / "News", so we can't rely on category alone.
 //
-// Anything that doesn't match falls through to the 'blog' pillar
-// and is only picked on Sundays / as last-resort fallback.
-export function categoryToPillar(category: string): Pillar {
-  const c = category.toLowerCase();
+// Order matters: check plug-in solar FIRST (its slug always
+// contains the word "solar", so it'd get miscategorised by the
+// generic solar rule below).
+//
+// Falls through to 'blog' for content that doesn't fit a pillar —
+// picked only on the Sunday variety slot.
+export function classifyPost(post: {
+  slug: string;
+  title: string;
+  category: string;
+}): Pillar {
+  const haystack = `${post.slug} ${post.title} ${post.category}`.toLowerCase();
   if (
-    c.includes("heat pump") ||
-    c.includes("heat-pump") ||
-    c.includes("bus") ||
-    c.includes("boiler upgrade")
+    haystack.includes("plug-in-solar") ||
+    haystack.includes("plug-in solar") ||
+    haystack.includes("plug in solar") ||
+    haystack.includes("balcony solar")
   ) {
-    return "heat_pump";
-  }
-  if (c.includes("plug-in solar") || c.includes("plug in solar") || c.includes("balcony")) {
     return "plug_in_solar";
   }
   if (
-    c.includes("solar") ||
-    c.includes("pv") ||
-    c.includes("battery") ||
-    c.includes("smart export")
+    haystack.includes("heat-pump") ||
+    haystack.includes("heat pump") ||
+    haystack.includes("bus grant") ||
+    haystack.includes("boiler upgrade") ||
+    haystack.includes("boiler ban") ||
+    haystack.includes("air source") ||
+    haystack.includes("ground source")
+  ) {
+    return "heat_pump";
+  }
+  if (
+    haystack.includes("solar") ||
+    haystack.includes(" pv ") ||
+    haystack.includes("smart export") ||
+    haystack.includes("battery")
   ) {
     return "solar";
   }
   return "blog";
+}
+
+/**
+ * @deprecated Use classifyPost — kept for callers we haven't
+ * migrated yet.
+ */
+export function categoryToPillar(category: string): Pillar {
+  return classifyPost({ slug: "", title: "", category });
 }
 
 interface SelectorContext {
@@ -145,9 +168,7 @@ export async function pickBlogPost(
 
   const eligible = (posts ?? [])
     .filter((p) => !excludeSlugs.has(p.slug))
-    .filter((p) =>
-      pillar === "blog" ? true : categoryToPillar(p.category) === pillar,
-    );
+    .filter((p) => (pillar === "blog" ? true : classifyPost(p) === pillar));
 
   if (eligible.length === 0) return null;
   // Newest first (already ordered) — that's step 1 of the picker.
