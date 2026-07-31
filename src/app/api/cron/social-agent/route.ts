@@ -295,6 +295,71 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: message }, { status: 500 });
     }
   }
+  // Probe: try multiple GraphQL query shapes against the current
+  // token and report which succeed. Used to identify what a
+  // narrowly-scoped Personal Access Token can actually see.
+  if (debug === "probe") {
+    const token = process.env.BUFFER_ACCESS_TOKEN;
+    if (!token) {
+      return NextResponse.json(
+        { error: "BUFFER_ACCESS_TOKEN not set" },
+        { status: 500 },
+      );
+    }
+    const probes: Array<{ name: string; query: string }> = [
+      {
+        name: "account_organizations_channels",
+        query: `query { account { organizations { id channels { id name service } } } }`,
+      },
+      {
+        name: "channels_root",
+        query: `query { channels { id name service } }`,
+      },
+      {
+        name: "me",
+        query: `query { me { id name email } }`,
+      },
+      {
+        name: "viewer",
+        query: `query { viewer { id } }`,
+      },
+      {
+        name: "organizations_root",
+        query: `query { organizations { id channels { id name service } } }`,
+      },
+    ];
+    const results: Array<Record<string, unknown>> = [];
+    for (const p of probes) {
+      try {
+        const res = await fetch("https://api.buffer.com", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ query: p.query }),
+        });
+        const body = (await res.json()) as {
+          data?: unknown;
+          errors?: Array<{ message: string }>;
+        };
+        results.push({
+          probe: p.name,
+          status: res.status,
+          ok: !body.errors,
+          errors: body.errors?.map((e) => e.message) ?? null,
+          data: body.data,
+        });
+      } catch (err) {
+        results.push({
+          probe: p.name,
+          status: 0,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
+    return NextResponse.json({ probes: results });
+  }
   try {
     const result = await run(req);
     return NextResponse.json(result);
