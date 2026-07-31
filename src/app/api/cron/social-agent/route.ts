@@ -162,15 +162,31 @@ async function run(req: Request): Promise<RunResult | { error: string }> {
     }
 
     const service = PLATFORM_TO_SERVICE[draft.platform];
-    const channelId = await findChannelId(service).catch(() => null);
+    let channelId: string | null;
+    try {
+      channelId = await findChannelId(service);
+    } catch (err) {
+      // Buffer API itself failed (auth expired, network). This
+      // affects the whole run, not just this platform — surface
+      // as an error rather than masking as "no_channel".
+      errors += 1;
+      const reason = err instanceof Error ? err.message : String(err);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (admin as any).from("social_posts").insert({
+        platform: draft.platform,
+        pillar,
+        blog_post_slug: post.slug,
+        content: draft.text,
+        link_url: linkUrl,
+        factual_check_passed: true,
+        error: `buffer listChannels failed: ${reason}`,
+      });
+      detail.push({ platform: draft.platform, outcome: "error", reason });
+      continue;
+    }
     if (!channelId) {
-      // Buffer isn't connected to this platform. Log for
-      // visibility but don't count as an error — Jim may have
-      // deliberately dropped a channel.
-      // Cast to any: social_posts is a new table (migration 082) —
-      // the generated Supabase types don't know about it until Jim
-      // runs `supabase gen types` post-migration. Same pattern as
-      // la_energy_stats in src/lib/programmatic/local-energy-stats.ts.
+      // Buffer is reachable but this platform isn't connected —
+      // log for visibility, no error count (Jim may have dropped it).
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await (admin as any).from("social_posts").insert({
         platform: draft.platform,
