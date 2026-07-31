@@ -308,24 +308,24 @@ export async function GET(req: Request) {
     }
     const probes: Array<{ name: string; query: string }> = [
       {
-        name: "account_organizations_channels",
-        query: `query { account { organizations { id channels { id name service } } } }`,
+        name: "channels_input_empty",
+        query: `query { channels(input: {}) { id name service } }`,
       },
       {
-        name: "channels_root",
-        query: `query { channels { id name service } }`,
+        name: "organizations_input_empty",
+        query: `query { organizations(input: {}) { id name } }`,
       },
       {
-        name: "me",
-        query: `query { me { id name email } }`,
+        name: "channels_input_with_organizationId_null",
+        query: `query { channels(input: {organizationId: null}) { id name service } }`,
       },
       {
-        name: "viewer",
-        query: `query { viewer { id } }`,
+        name: "introspect_channels_input",
+        query: `query { __type(name: "ChannelsInput") { name inputFields { name type { name kind ofType { name } } } } }`,
       },
       {
-        name: "organizations_root",
-        query: `query { organizations { id channels { id name service } } }`,
+        name: "introspect_query_channels",
+        query: `query { __schema { queryType { fields { name args { name type { name kind ofType { name kind } } } } } } }`,
       },
     ];
     const results: Array<Record<string, unknown>> = [];
