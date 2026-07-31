@@ -257,6 +257,28 @@ export async function GET(req: Request) {
   if (auth !== `Bearer ${expected}`) {
     return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
   }
+  const url = new URL(req.url);
+  // Diagnostic modes — don't publish anything, just introspect.
+  //   ?debug=channels — list every Buffer channel + its raw service
+  //                     string so we can align PLATFORM_TO_SERVICE.
+  const debug = url.searchParams.get("debug");
+  if (debug === "channels") {
+    try {
+      const { listChannels } = await import("@/lib/services/buffer");
+      const channels = await listChannels(true);
+      return NextResponse.json({
+        connected: channels.length,
+        channels: channels.map((c) => ({
+          service: c.service,
+          name: c.name,
+          id: c.id,
+        })),
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      return NextResponse.json({ error: message }, { status: 500 });
+    }
+  }
   try {
     const result = await run(req);
     return NextResponse.json(result);
