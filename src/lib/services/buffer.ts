@@ -138,13 +138,31 @@ export async function listChannels(force = false): Promise<BufferChannel[]> {
 }
 
 /**
- * Look up the channel id for a given service. Returns null if
- * the account isn't connected to that platform (caller decides
- * whether that's fatal — usually not, we just skip that platform).
+ * Look up the channel id for a given service.
+ *
+ * Resolution order:
+ *   1. Env override — BUFFER_CHANNEL_LINKEDIN etc. If set, used
+ *      verbatim. Zero API round-trip, immune to Buffer scope
+ *      restrictions on account.organizations. This is the primary
+ *      path Jim uses.
+ *   2. Fallback — call listChannels() and match on service. Only
+ *      works if the Buffer token has organizations-read scope.
+ *
+ * Returns null if the platform isn't connected (env unset AND API
+ * has no matching channel).
  */
+const ENV_KEY: Record<BufferService, string> = {
+  linkedin: "BUFFER_CHANNEL_LINKEDIN",
+  twitter: "BUFFER_CHANNEL_TWITTER",
+  facebook: "BUFFER_CHANNEL_FACEBOOK",
+  instagram: "BUFFER_CHANNEL_INSTAGRAM",
+};
+
 export async function findChannelId(
   service: BufferService,
 ): Promise<string | null> {
+  const envValue = process.env[ENV_KEY[service]];
+  if (envValue && envValue.trim().length > 0) return envValue.trim();
   const channels = await listChannels();
   const match = channels.find((c) => c.service === service);
   return match?.id ?? null;
