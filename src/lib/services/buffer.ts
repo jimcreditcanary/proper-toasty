@@ -198,6 +198,9 @@ export interface CreatePostArgs {
   /** Body text. Include the destination URL inline — Buffer parses
    *  links from text on every service. */
   text: string;
+  /** Buffer service string — needed so we can attach service-
+   *  specific metadata (e.g. Facebook requires a `type`). */
+  service: BufferService;
 }
 
 export interface CreatePostResult {
@@ -240,9 +243,8 @@ export async function createPost(
       input: {
         channelId: args.channelId,
         text: args.text,
-        // ShareMode enum: valid values TBD (introspecting). "shareNow"
-        // is what Buffer's docs example shows; may need to be lowercase
-        // like the other enums.
+        // ShareMode enum: valid values addToQueue | customScheduled |
+        // shareNext | shareNow. "shareNow" = publish immediately.
         mode: "shareNow",
         // SchedulingType enum: "automatic" | "notification" (lowercase,
         // per introspection). "automatic" = Buffer publishes on the
@@ -251,6 +253,13 @@ export async function createPost(
         // Both required (NON_NULL in the schema) even for shareNow.
         needsApproval: false,
         assets: [],
+        // Service-specific metadata. Facebook requires a `type` field
+        // (post | story | reel); LinkedIn / X don't need this today.
+        // Trying `metadata: { facebook: { type: "post" } }` per the
+        // error message; adjust if the schema uses a different shape.
+        ...(args.service === "facebook"
+          ? { metadata: { facebook: { type: "post" } } }
+          : {}),
       },
     },
   );
