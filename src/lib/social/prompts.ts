@@ -131,6 +131,9 @@ Step 2: Draft the four posts (LinkedIn, X, Facebook, Instagram) applying the pla
 - Contain at least one factual claim traceable to either the blog post or a web_search citation.
 - End with a natural CTA to visit the destination link.
 
+CITATION RULE — mandatory:
+For EVERY specific statistic, £ figure, or percentage that appears in ANY post, the underlying source URL must appear in the "citations" array. If you can't find a citable source for a stat, omit the stat — use vague framing ("thousands of UK homes", "most owners") instead. Attributing to "Ofgem's data" or "DESNZ figures" without a URL in citations WILL fail the guardrail.
+
 Step 3: Return this JSON exactly:
 
 {
