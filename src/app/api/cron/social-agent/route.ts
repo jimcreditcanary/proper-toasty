@@ -308,24 +308,20 @@ export async function GET(req: Request) {
     }
     const probes: Array<{ name: string; query: string }> = [
       {
-        name: "account_bare",
-        query: `query { account { id } }`,
+        name: "introspect_scheduling_type",
+        query: `query { __type(name: "SchedulingType") { name enumValues { name description } } }`,
       },
       {
-        name: "account_current_organization",
-        query: `query { account { id currentOrganization { id name } } }`,
+        name: "introspect_createpost_input",
+        query: `query { __type(name: "CreatePostInput") { name inputFields { name type { name kind ofType { name kind } } } } }`,
       },
       {
-        name: "account_default_organization",
-        query: `query { account { id defaultOrganization { id name } } }`,
+        name: "introspect_postmode",
+        query: `query { __type(name: "PostMode") { name enumValues { name description } } }`,
       },
       {
-        name: "account_all_fields",
-        query: `query { account { id email name } }`,
-      },
-      {
-        name: "introspect_account_type",
-        query: `query { __type(name: "Account") { name fields { name type { name kind ofType { name kind } } } } }`,
+        name: "introspect_postaction_payload",
+        query: `query { __type(name: "PostActionPayload") { name possibleTypes { name } } }`,
       },
     ];
     const results: Array<Record<string, unknown>> = [];
