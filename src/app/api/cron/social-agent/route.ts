@@ -224,6 +224,7 @@ async function run(req: Request): Promise<RunResult | { error: string }> {
       const result = await bufferCreatePost({
         channelId,
         text: draft.text,
+        service,
       });
       posted += 1;
       // Cast to any: social_posts is a new table (migration 082) —
