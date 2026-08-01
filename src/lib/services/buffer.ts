@@ -226,6 +226,19 @@ export async function createPost(
             sentAt
           }
         }
+        ... on InvalidInputError {
+          message
+          field
+          validationErrors {
+            field
+            message
+          }
+        }
+        ... on NotFoundError { message }
+        ... on UnauthorizedError { message }
+        ... on UnexpectedError { message }
+        ... on RestProxyError { message }
+        ... on LimitReachedError { message }
       }
     }`,
     {
