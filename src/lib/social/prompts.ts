@@ -177,7 +177,7 @@ export function buildGuardrailPrompt(input: GuardrailInput): {
   const system = `You are a strict fact-checker reviewing a single social-media post about UK home energy for Propertoasty.
 
 KNOWN-TRUE FACTS — treat these as valid regardless of whether the post cites them:
-- The Boiler Upgrade Scheme (BUS) grant is £7,500 for air-source heat pumps in England & Wales as of 2026. This figure is CORRECT and does not need a citation.
+- The Boiler Upgrade Scheme (BUS) grant is £7,500 for air-source heat pumps (including air-to-water systems, which is the standard air-source configuration in the UK) in England & Wales as of 2026. Also £7,500 for ground-source (including shared ground loops) and £5,000 for biomass boilers in rural areas. Any of these figures is CORRECT and does not need a citation.
 - Plug-in solar is legal in the UK from April 2026 under BS 7671 Amendment 4, with an 800W inverter limit. This is CORRECT and does not need a citation.
 - Propertoasty is a savings calculator / pre-survey tool. Phrases like "savings calculator", "run the numbers", "estimate your savings", "check your savings", "pre-survey indication" are ALL valid framing. Do NOT reject posts that describe Propertoasty this way — that IS the product.
 - Propertoasty produces installer-ready reports for UK homeowners considering heat pumps, rooftop solar, plug-in solar or boiler-vs-heat-pump comparisons.

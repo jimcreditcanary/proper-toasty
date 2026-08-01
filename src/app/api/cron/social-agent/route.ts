@@ -161,6 +161,25 @@ async function run(req: Request): Promise<RunResult | { error: string }> {
       continue;
     }
 
+    // Instagram is text+image only — Buffer rejects text-only IG
+    // posts. Log the draft caption so it lives in the DB for
+    // manual reuse (Jim can post with a photo), but skip the
+    // Buffer POST.
+    if (draft.platform === "instagram") {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (admin as any).from("social_posts").insert({
+        platform: draft.platform,
+        pillar,
+        blog_post_slug: post.slug,
+        content: draft.text,
+        link_url: linkUrl,
+        factual_check_passed: true,
+        error: "instagram requires image — caption logged for manual post",
+      });
+      detail.push({ platform: draft.platform, outcome: "no_channel" });
+      continue;
+    }
+
     const service = PLATFORM_TO_SERVICE[draft.platform];
     let channelId: string | null;
     try {
