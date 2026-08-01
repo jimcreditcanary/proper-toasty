@@ -101,7 +101,7 @@ async function runWriter(ctx: GenerationContext): Promise<{
   for (let attempt = 0; attempt < 2; attempt++) {
     const res = await anthropic.messages.create({
       model: CONTENT_MODEL,
-      max_tokens: 4096,
+      max_tokens: 8192,
       system,
       messages: [{ role: "user", content: user }],
       tools: [
@@ -112,17 +112,29 @@ async function runWriter(ctx: GenerationContext): Promise<{
         },
       ],
     });
-    // Pull the last text block — post tool use, the final block is
-    // the model's answer. Older SDK versions returned this as
-    // content[0]; newer ones may interleave tool_use / tool_result.
-    const textBlock = [...res.content]
-      .reverse()
-      .find((b) => b.type === "text");
-    if (!textBlock || textBlock.type !== "text") {
-      throw new Error("Writer returned no text block");
+    // Concatenate every text block — the model may split its
+    // answer across multiple text blocks around web_search calls.
+    // Empty answer = flag it with context so the runbook can act.
+    const allText = res.content
+      .filter((b) => b.type === "text")
+      .map((b) => (b.type === "text" ? b.text : ""))
+      .join("\n");
+    if (!allText.trim()) {
+      const shape = res.content.map((b) => b.type).join(",");
+      console.error("[social-agent] writer produced no text", {
+        stop_reason: res.stop_reason,
+        content_blocks: shape,
+        attempt,
+      });
+      if (attempt === 1) {
+        throw new Error(
+          `Writer returned no text (stop_reason=${res.stop_reason}, blocks=${shape})`,
+        );
+      }
+      continue; // retry
     }
     try {
-      const parsed = parseJson<RawContentJson>(textBlock.text);
+      const parsed = parseJson<RawContentJson>(allText);
       return normaliseContent(parsed, ctx.primary_cta_url);
     } catch (err) {
       if (attempt === 1) {
