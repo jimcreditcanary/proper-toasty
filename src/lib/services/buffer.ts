@@ -228,11 +228,6 @@ export async function createPost(
         }
         ... on InvalidInputError {
           message
-          field
-          validationErrors {
-            field
-            message
-          }
         }
         ... on NotFoundError { message }
         ... on UnauthorizedError { message }
