@@ -232,11 +232,17 @@ export async function createPost(
       input: {
         channelId: args.channelId,
         text: args.text,
+        // ShareMode enum: valid values TBD (introspecting). "shareNow"
+        // is what Buffer's docs example shows; may need to be lowercase
+        // like the other enums.
         mode: "shareNow",
-        // AUTOMATIC_PUBLISHING = Buffer publishes on its own,
-        // no draft/queue step. Combined with shareNow above,
-        // the post goes out as soon as the mutation returns.
-        schedulingType: "AUTOMATIC_PUBLISHING",
+        // SchedulingType enum: "automatic" | "notification" (lowercase,
+        // per introspection). "automatic" = Buffer publishes on the
+        // user's behalf directly to the platform.
+        schedulingType: "automatic",
+        // Both required (NON_NULL in the schema) even for shareNow.
+        needsApproval: false,
+        assets: [],
       },
     },
   );
