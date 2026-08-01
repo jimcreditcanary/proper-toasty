@@ -170,14 +170,27 @@ export async function findChannelId(
 
 // ─── Post creation ────────────────────────────────────────────────
 
+// Buffer's createPost returns a union type — success or error
+// variants. The GraphQL client must use inline fragments to query
+// each variant separately. `__typename` tells us which variant
+// we got back.
+interface CreatePostSuccess {
+  __typename: "PostActionSuccess";
+  post: {
+    id: string;
+    status: string;
+    sentAt: string | null;
+  } | null;
+}
+
+interface CreatePostError {
+  __typename: string;
+  message?: string;
+  code?: string;
+}
+
 interface CreatePostResponse {
-  createPost: {
-    post: {
-      id: string;
-      status: string;
-      sentAt: string | null;
-    } | null;
-  };
+  createPost: CreatePostSuccess | CreatePostError;
 }
 
 export interface CreatePostArgs {
@@ -205,10 +218,13 @@ export async function createPost(
   const data = await graphql<CreatePostResponse>(
     `mutation CreatePost($input: CreatePostInput!) {
       createPost(input: $input) {
-        post {
-          id
-          status
-          sentAt
+        __typename
+        ... on PostActionSuccess {
+          post {
+            id
+            status
+            sentAt
+          }
         }
       }
     }`,
@@ -224,9 +240,17 @@ export async function createPost(
       },
     },
   );
-  const post = data.createPost.post;
+  const payload = data.createPost;
+  if (payload.__typename !== "PostActionSuccess") {
+    // Union variant we haven't modelled — surface the whole payload
+    // so the runbook can see what Buffer actually returned.
+    throw new Error(
+      `Buffer createPost returned ${payload.__typename}: ${JSON.stringify(payload)}`,
+    );
+  }
+  const post = (payload as CreatePostSuccess).post;
   if (!post) {
-    throw new Error("Buffer returned no post payload from createPost");
+    throw new Error("Buffer PostActionSuccess had null post");
   }
   return post;
 }
