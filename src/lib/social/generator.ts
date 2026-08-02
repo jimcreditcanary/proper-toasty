@@ -15,6 +15,7 @@ import {
   type DraftPost,
   type GenerationContext,
   type GuardrailVerdict,
+  type Persona,
   type Platform,
 } from "./prompts";
 
@@ -92,11 +93,14 @@ function normaliseContent(
  * the model can cite live UK sources. Retries once on parse
  * failure — the failure mode we've seen is a stray closing backtick.
  */
-async function runWriter(ctx: GenerationContext): Promise<{
+async function runWriter(
+  ctx: GenerationContext,
+  persona: Persona,
+): Promise<{
   drafts: DraftPost[];
   citations: Array<{ url: string; publisher: string }>;
 }> {
-  const { system, user } = buildContentPrompt(ctx);
+  const { system, user } = buildContentPrompt(ctx, persona);
 
   for (let attempt = 0; attempt < 2; attempt++) {
     const res = await anthropic.messages.create({
@@ -200,8 +204,9 @@ async function runGuardrail(
 export async function generateReviewedPosts(
   ctx: GenerationContext,
   blogExcerpt: string,
+  persona: Persona,
 ): Promise<GenerationResult> {
-  const { drafts, citations } = await runWriter(ctx);
+  const { drafts, citations } = await runWriter(ctx, persona);
 
   const reviewed = await Promise.all(
     drafts.map(async (d) => {

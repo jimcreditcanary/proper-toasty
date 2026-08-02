@@ -47,32 +47,80 @@ const PILLAR_ANGLES: Record<Pillar, string> = {
     "Distil the single most surprising or actionable insight from the blog post. Consumer voice, no summary of the whole article — one hook, one insight, one CTA.",
 };
 
+// ─── Persona rotation ─────────────────────────────────────────────
+// Four writer personas rotate by UTC day-of-week so the feed doesn't
+// have the same voice every day. Same pillar can be written by any
+// persona — the persona controls VOICE + HOOK-STYLE, the pillar
+// controls TOPIC.
+
+export type Persona =
+  | "numbers_analyst"  // data-first, tabular thinking, sceptical of vibes
+  | "storyteller"      // homeowner-scene openers, human beats before data
+  | "myth_buster"      // contrarian hook, corrects a wrong assumption
+  | "deep_expert";     // engineer voice, one specific mechanism explained
+
+const PERSONA_ROTATION: Record<number, Persona> = {
+  0: "myth_buster",     // Sun
+  1: "numbers_analyst", // Mon
+  2: "storyteller",     // Tue
+  3: "myth_buster",     // Wed
+  4: "numbers_analyst", // Thu
+  5: "storyteller",     // Fri
+  6: "deep_expert",     // Sat
+};
+
+export function personaForDate(d: Date): Persona {
+  return PERSONA_ROTATION[d.getUTCDay()] ?? "storyteller";
+}
+
+const PERSONA_BRIEFS: Record<Persona, string> = {
+  numbers_analyst:
+    "Open with a specific number or £ figure. Structure as compact, tabular thinking — 'here's the maths'. Voice is dry, evidence-first, no fluff. Reader trusts you because you've done the sums. Avoid metaphors; use bullets or short numbered lines where they land better than prose.",
+  storyteller:
+    "Open with a specific homeowner scene ('Postcode BS3, three-bed semi, mum working from home...'). Human beat first, data second. Voice is conversational, curious, warm. Never fake anecdotes — use archetypes ('a customer in Bristol' style) grounded in real UK housing patterns. Never invent named individuals.",
+  myth_buster:
+    "Open with a contrarian claim or myth reversal ('Heat pumps don't work in old houses' — false, and here's why). Voice is direct, mildly contrarian, protective of the reader against bad advice they've heard elsewhere. Structure: myth → why people think it → what's actually true → what to do.",
+  deep_expert:
+    "Open with a specific technical mechanism ('The reason a heat pump keeps a UK home warm at −5°C is refrigerant pressure...'). Voice is patient teacher — one idea explained properly. Reader leaves knowing HOW something works, not just THAT it works. Ok to be slightly nerdier than the other personas. Never assume prior knowledge.",
+};
+
+// ─── Platform-native templates (2026 best practices) ───────────────
+
 const PLATFORM_SPECS = `
-Platform-specific rules — ALL are mandatory:
+Platform rules — 2026 best practice. Each rule is there for an
+engagement reason. Do not deviate.
 
-LinkedIn (professional, thoughtful, 1200-1800 chars):
-- Open with a strong hook line (question, contrarian claim, or data point).
-- 3-5 short paragraphs. Line breaks between them.
-- End with a specific "what to do next" CTA linking to {link_url}.
-- No hashtag spam — 3-5 relevant tags at the bottom, each # on its own line at end.
-- Sound like a UK founder writing to peers. Not marketing.
+LinkedIn (1200-1600 chars — the sweet spot):
+- Line 1 = HOOK. A specific number, a contrarian claim, or a question. Never "Did you know…", never "I want to talk about…". First 8 words earn the click on "see more".
+- After line 1, INSERT AN EMPTY LINE. This triggers LinkedIn's "…see more" cutoff at the ideal position.
+- Then 3-5 SHORT paragraphs (1-3 sentences each), separated by blank lines. LinkedIn crushes wall-of-text posts.
+- One specific insight per post, not a summary. Reader should learn ONE thing they didn't know.
+- Link inline, near the end (the "link in first comment" trick died in 2024 — link inline is fine again).
+- End with a soft question ("What's been your experience?") OR a direct CTA. Never both.
+- 3 hashtags maximum, at the very bottom, each on its own line. #UKPropertyPolicy #HeatPumps #EnergyBills style.
 
-X / Twitter (punchy, 240-275 chars — leave room for the link):
-- One hook. One insight. One link.
-- Optional: 1 stat, 1 emoji max. NO hashtags in the body — audience is UK homeowners, not marketers.
-- Link goes at the end.
+X (single tweet — thread support isn't in this build):
+- 240-275 chars including the link. No throat-clearing.
+- Numbers > adjectives. "£7,500 grant + 5-min check" beats "amazing new savings tool".
+- NO hashtags in the post body. They tank reach on X since 2023.
+- One emoji maximum, only if it earns its place (📉 next to a bill reduction is fine; 🔥 anywhere is not).
+- Link at the end. Buffer will auto-shorten.
+- Do NOT end with a question — X's algorithm doesn't reward replies the way LinkedIn does.
 
-Facebook (warm, conversational, 250-400 chars):
-- Community voice. Frame as "sharing this with UK homeowners in our community".
-- End with a question that invites replies.
+Facebook (250-400 chars):
+- Community voice — this is a neighbourhood conversation, not a press release.
+- Open with a scenario or observation, not a headline.
+- Emoji-friendly but tasteful (2-3 max).
+- ALWAYS end with a question inviting replies. FB's algorithm boosts posts that generate comments.
 - Link at end.
 
-Instagram (visual-first caption, 300-500 chars):
-- Assume there's a static image with the post (agent doesn't upload one, but the caption should read as if there is).
-- Emoji-forward but tasteful. 3-4 relevant emojis max.
-- Line breaks liberal.
-- 5-8 relevant hashtags at the end (block, one line).
-- Link says "Link in bio" — Instagram doesn't accept clickable links in captions, so we can't include the URL. The link is still recorded in the log for parity.
+Instagram (300-500 chars caption):
+- FIRST LINE = HOOK. Only the first line is visible before "…more" — everything after that only gets seen if the hook works.
+- After line 1, LINE BREAK.
+- Emoji-forward but tasteful. 4-6 emojis total across the caption, none in the hook line.
+- 4-8 line breaks throughout. IG captions read as poetry, not prose.
+- End with "Link in bio" — captions can't have clickable URLs. Then "Save this for later" OR "Tag someone who needs this".
+- 6-10 hashtags at bottom in ONE line block. Mix broad (#HeatPumpUK) and niche (#BUSGrant #HomeRetrofit).
 `;
 
 const HOUSE_STYLE = `
@@ -93,8 +141,17 @@ We DO:
  * Produce the system + user pair for the content-generation call.
  * Caller wires web_search tool separately; the model is prompted
  * to use it before drafting.
+ *
+ * The persona is injected into the system prompt so the model's
+ * voice + hook style rotates day-to-day, killing the "every post
+ * sounds the same" fatigue. Pillar and persona are independent
+ * axes — the pillar controls what to write about, the persona
+ * controls how.
  */
-export function buildContentPrompt(ctx: GenerationContext): {
+export function buildContentPrompt(
+  ctx: GenerationContext,
+  persona: Persona = "storyteller",
+): {
   system: string;
   user: string;
 } {
@@ -103,6 +160,9 @@ export function buildContentPrompt(ctx: GenerationContext): {
 Your job today: produce four short-form social posts based on ONE blog post + 1-2 external UK-authority sources you gather via web_search.
 
 ${HOUSE_STYLE}
+
+TODAY'S WRITER PERSONA — apply across all four posts:
+${PERSONA_BRIEFS[persona]}
 
 ${PLATFORM_SPECS}
 

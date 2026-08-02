@@ -15,7 +15,11 @@ import {
   generateReviewedPosts,
   pillarCtaUrl,
 } from "@/lib/social/generator";
-import type { Platform } from "@/lib/social/prompts";
+import {
+  personaForDate,
+  type Persona,
+  type Platform,
+} from "@/lib/social/prompts";
 
 // GET /api/cron/social-agent
 //
@@ -52,6 +56,7 @@ const PLATFORM_TO_SERVICE: Record<Platform, BufferService> = {
 
 interface RunResult {
   pillar: Pillar;
+  persona: Persona;
   blog_post_slug: string | null;
   attempted: number;
   posted: number;
@@ -87,8 +92,23 @@ async function run(req: Request): Promise<RunResult | { error: string }> {
       ? forcedPillar
       : pillarForDate(new Date());
 
+  // Persona rotation — independent of pillar so both axes vary
+  // across the week. Override via ?persona=X for smoke tests.
+  const validPersonas: Persona[] = [
+    "numbers_analyst",
+    "storyteller",
+    "myth_buster",
+    "deep_expert",
+  ];
+  const forcedPersona = searchParams.get("persona") as Persona | null;
+  const persona: Persona =
+    forcedPersona && validPersonas.includes(forcedPersona)
+      ? forcedPersona
+      : personaForDate(new Date());
+
   console.log("[cron/social-agent] starting", {
     pillar,
+    persona,
     label: pillarLabel(pillar),
     baseUrl,
   });
@@ -102,6 +122,7 @@ async function run(req: Request): Promise<RunResult | { error: string }> {
     });
     return {
       pillar,
+      persona,
       blog_post_slug: null,
       attempted: 0,
       posted: 0,
@@ -128,6 +149,7 @@ async function run(req: Request): Promise<RunResult | { error: string }> {
       primary_cta_url: linkUrl,
     },
     post.excerpt,
+    persona,
   );
 
   const detail: RunResult["detail"] = [];
@@ -269,6 +291,7 @@ async function run(req: Request): Promise<RunResult | { error: string }> {
 
   const result: RunResult = {
     pillar,
+    persona,
     blog_post_slug: post.slug,
     attempted: generation.posts.length,
     posted,
