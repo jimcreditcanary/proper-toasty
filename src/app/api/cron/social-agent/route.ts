@@ -351,16 +351,20 @@ export async function GET(req: Request) {
     }
     const probes: Array<{ name: string; query: string }> = [
       {
-        name: "introspect_asset_input",
-        query: `query { __type(name: "AssetInput") { name inputFields { name type { name kind ofType { name kind ofType { name } } } } } }`,
+        name: "introspect_image_asset_input",
+        query: `query { __type(name: "ImageAssetInput") { name inputFields { name type { name kind ofType { name kind ofType { name } } } } } }`,
       },
       {
-        name: "introspect_postinputmetadata",
-        query: `query { __type(name: "PostInputMetaData") { name inputFields { name type { name kind ofType { name kind } } } } }`,
+        name: "introspect_instagram_meta",
+        query: `query { __type(name: "InstagramPostMetadataInput") { name inputFields { name type { name kind ofType { name kind } } } } }`,
       },
       {
-        name: "search_asset_types",
-        query: `query { __schema { types(kind: ENUM) { name enumValues { name } } } }`,
+        name: "introspect_facebook_meta",
+        query: `query { __type(name: "FacebookPostMetadataInput") { name inputFields { name type { name kind ofType { name kind } } } } }`,
+      },
+      {
+        name: "introspect_twitter_meta",
+        query: `query { __type(name: "TwitterPostMetadataInput") { name inputFields { name type { name kind ofType { name kind } } } } }`,
       },
     ];
     const results: Array<Record<string, unknown>> = [];
