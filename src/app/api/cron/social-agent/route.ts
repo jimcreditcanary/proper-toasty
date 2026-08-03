@@ -115,7 +115,19 @@ async function run(req: Request): Promise<RunResult | { error: string }> {
 
   // Pick a blog post for this pillar. If none available, no-op
   // rather than force-posting stale content.
-  const post = await pickBlogPost(pillar, { supabase: admin });
+  //
+  // ?cooldown_days=<N> — smoke-test escape hatch. Default 14
+  // (the actual production cooldown). Pass 0 during dev to bypass
+  // the "already syndicated" check when iterating on prompts.
+  const cooldownParam = searchParams.get("cooldown_days");
+  const cooldownDays =
+    cooldownParam !== null && !Number.isNaN(Number(cooldownParam))
+      ? Math.max(0, Number(cooldownParam))
+      : 14;
+  const post = await pickBlogPost(pillar, {
+    supabase: admin,
+    cooldownDays,
+  });
   if (!post) {
     console.log("[cron/social-agent] no eligible blog post for pillar", {
       pillar,
