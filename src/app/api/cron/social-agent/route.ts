@@ -351,12 +351,16 @@ export async function GET(req: Request) {
     }
     const probes: Array<{ name: string; query: string }> = [
       {
-        name: "introspect_createpost_assets",
-        query: `query { __type(name: "CreatePostInput") { name inputFields { name type { name kind ofType { name kind ofType { name kind ofType { name } } } } } } }`,
+        name: "introspect_asset_input",
+        query: `query { __type(name: "AssetInput") { name inputFields { name type { name kind ofType { name kind ofType { name } } } } } }`,
+      },
+      {
+        name: "introspect_postinputmetadata",
+        query: `query { __type(name: "PostInputMetaData") { name inputFields { name type { name kind ofType { name kind } } } } }`,
       },
       {
         name: "search_asset_types",
-        query: `query { __schema { types { name kind } } }`,
+        query: `query { __schema { types(kind: ENUM) { name enumValues { name } } } }`,
       },
     ];
     const results: Array<Record<string, unknown>> = [];
