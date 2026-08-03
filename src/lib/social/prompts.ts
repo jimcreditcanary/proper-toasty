@@ -114,13 +114,12 @@ Facebook (250-400 chars):
 - ALWAYS end with a question inviting replies. FB's algorithm boosts posts that generate comments.
 - Link at end.
 
-Instagram (300-500 chars caption):
-- FIRST LINE = HOOK. Only the first line is visible before "…more" — everything after that only gets seen if the hook works.
-- After line 1, LINE BREAK.
-- Emoji-forward but tasteful. 4-6 emojis total across the caption, none in the hook line.
-- 4-8 line breaks throughout. IG captions read as poetry, not prose.
-- End with "Link in bio" — captions can't have clickable URLs. Then "Save this for later" OR "Tag someone who needs this".
-- 6-10 hashtags at bottom in ONE line block. Mix broad (#HeatPumpUK) and niche (#BUSGrant #HomeRetrofit).
+Instagram (SHORT — 150-250 chars caption max):
+- The branded square card carries the message on Instagram. The caption is deliberately minimal — feed viewers scroll fast, the image does the work.
+- LINE 1 = HOOK. One tight sentence. Only line visible before "…more".
+- LINE 2 = "Link in bio to run your check." (or similar single-sentence CTA — captions can't have clickable URLs).
+- LINE 3 = 6-10 hashtags in ONE block. Mix broad (#HeatPumpUK) and niche (#BUSGrant #HomeRetrofit).
+- That's it. NO paragraphs, NO body copy, NO emojis in the caption body (1-2 total max, none in the hook). If you feel the urge to explain — trust the card to say it.
 `;
 
 const HOUSE_STYLE = `

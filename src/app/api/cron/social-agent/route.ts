@@ -146,18 +146,23 @@ async function run(req: Request): Promise<RunResult | { error: string }> {
 
   const linkUrl = pillarCtaUrl(pillar, baseUrl);
 
-  // Branded card URL — Buffer fetches it and attaches as media on
-  // every post so we don't get the same OG hero on every LinkedIn
-  // / X / Facebook / Instagram post. Deterministic (same title +
-  // pillar = same PNG) so Vercel edge-caches for 30d.
-  const imageUrl = `${baseUrl}/api/og/social-card?title=${encodeURIComponent(
+  // Branded card URLs. Two aspect ratios:
+  //   - landscape 1200×630 for LinkedIn / X / Facebook link cards
+  //   - square 1080×1080 for Instagram feed (IG letterboxes anything
+  //     landscape, kills engagement — square dominates the frame).
+  // Both deterministic per (title, pillar) so Vercel edge-caches 30d.
+  const cardBase = `${baseUrl}/api/og/social-card?title=${encodeURIComponent(
     post.title,
   )}&pillar=${encodeURIComponent(pillar)}`;
+  const cardUrls = {
+    landscape: cardBase,
+    square: `${cardBase}&format=square`,
+  };
 
-  console.log("[cron/social-agent] selected blog + CTA + card", {
+  console.log("[cron/social-agent] selected blog + CTA + cards", {
     slug: post.slug,
     linkUrl,
-    imageUrl,
+    cardUrls,
   });
 
   const generation = await generateReviewedPosts(
@@ -250,7 +255,9 @@ async function run(req: Request): Promise<RunResult | { error: string }> {
         channelId,
         text: draft.text,
         service,
-        imageUrl,
+        // Square card for Instagram, landscape for everyone else.
+        imageUrl:
+          service === "instagram" ? cardUrls.square : cardUrls.landscape,
       });
       posted += 1;
       // Cast to any: social_posts is a new table (migration 082) —
