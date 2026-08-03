@@ -133,9 +133,19 @@ async function run(req: Request): Promise<RunResult | { error: string }> {
   }
 
   const linkUrl = pillarCtaUrl(pillar, baseUrl);
-  console.log("[cron/social-agent] selected blog + CTA", {
+
+  // Branded card URL — Buffer fetches it and attaches as media on
+  // every post so we don't get the same OG hero on every LinkedIn
+  // / X / Facebook / Instagram post. Deterministic (same title +
+  // pillar = same PNG) so Vercel edge-caches for 30d.
+  const imageUrl = `${baseUrl}/api/og/social-card?title=${encodeURIComponent(
+    post.title,
+  )}&pillar=${encodeURIComponent(pillar)}`;
+
+  console.log("[cron/social-agent] selected blog + CTA + card", {
     slug: post.slug,
     linkUrl,
+    imageUrl,
   });
 
   const generation = await generateReviewedPosts(
@@ -180,25 +190,6 @@ async function run(req: Request): Promise<RunResult | { error: string }> {
         outcome: "rejected",
         reason: draft.verdict.reason,
       });
-      continue;
-    }
-
-    // Instagram is text+image only — Buffer rejects text-only IG
-    // posts. Log the draft caption so it lives in the DB for
-    // manual reuse (Jim can post with a photo), but skip the
-    // Buffer POST.
-    if (draft.platform === "instagram") {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (admin as any).from("social_posts").insert({
-        platform: draft.platform,
-        pillar,
-        blog_post_slug: post.slug,
-        content: draft.text,
-        link_url: linkUrl,
-        factual_check_passed: true,
-        error: "instagram requires image — caption logged for manual post",
-      });
-      detail.push({ platform: draft.platform, outcome: "no_channel" });
       continue;
     }
 
@@ -247,6 +238,7 @@ async function run(req: Request): Promise<RunResult | { error: string }> {
         channelId,
         text: draft.text,
         service,
+        imageUrl,
       });
       posted += 1;
       // Cast to any: social_posts is a new table (migration 082) —

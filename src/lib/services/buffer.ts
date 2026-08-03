@@ -201,12 +201,45 @@ export interface CreatePostArgs {
   /** Buffer service string — needed so we can attach service-
    *  specific metadata (e.g. Facebook requires a `type`). */
   service: BufferService;
+  /** Optional image URL to attach as the post's media. Required
+   *  for Instagram (IG rejects text-only posts). Recommended for
+   *  every platform — Buffer defaults to scraping the OG image
+   *  from the linked URL otherwise, which produces identical
+   *  visuals across every post. Must be publicly fetchable by
+   *  Buffer's servers. */
+  imageUrl?: string;
 }
 
 export interface CreatePostResult {
   id: string;
   status: string;
   sentAt: string | null;
+}
+
+// Per-platform metadata. Buffer requires enum-typed `type` fields
+// on Facebook + Instagram, and Instagram additionally requires
+// shouldShareToFeed. LinkedIn / X are content with the defaults.
+//
+// Returns { metadata: {...} } to be spread into the mutation input,
+// or {} when no metadata is needed.
+function buildServiceMetadata(
+  service: BufferService,
+): { metadata?: Record<string, unknown> } {
+  switch (service) {
+    case "facebook":
+      return { metadata: { facebook: { type: "post" } } };
+    case "instagram":
+      return {
+        metadata: {
+          instagram: {
+            type: "post",
+            shouldShareToFeed: true,
+          },
+        },
+      };
+    default:
+      return {};
+  }
 }
 
 /**
@@ -252,14 +285,19 @@ export async function createPost(
         schedulingType: "automatic",
         // Both required (NON_NULL in the schema) even for shareNow.
         needsApproval: false,
-        assets: [],
-        // Service-specific metadata. Facebook requires a `type` field
-        // (post | story | reel); LinkedIn / X don't need this today.
-        // Trying `metadata: { facebook: { type: "post" } }` per the
-        // error message; adjust if the schema uses a different shape.
-        ...(args.service === "facebook"
-          ? { metadata: { facebook: { type: "post" } } }
-          : {}),
+        // AssetInput is a 4-way union: {image | video | link | document}
+        // — image asset takes { url: String! }. Empty array when no
+        // media is provided (LinkedIn/X/FB tolerate text-only posts;
+        // IG requires media at the metadata level).
+        assets: args.imageUrl
+          ? [{ image: { url: args.imageUrl } }]
+          : [],
+        // Service-specific metadata. Facebook + Instagram require a
+        // `type` (PostTypeFacebook / PostType enum — "post" is valid
+        // per introspection). Instagram additionally requires
+        // shouldShareToFeed: true. LinkedIn + X have no required
+        // metadata today.
+        ...buildServiceMetadata(args.service),
       },
     },
   );
