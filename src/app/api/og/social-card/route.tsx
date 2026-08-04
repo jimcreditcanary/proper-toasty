@@ -31,6 +31,7 @@
 // Runtime: edge.
 
 import { ImageResponse } from "next/og";
+import { pickPhotoDeterministic } from "@/lib/services/pexels";
 
 export const runtime = "edge";
 export const revalidate = 2592000;
@@ -54,40 +55,47 @@ type Pillar = "heat_pump" | "solar" | "plug_in_solar" | "blog";
 interface PillarMeta {
   label: string;
   accent: string;
-  photoPath: string;
+  /** Pexels search query for this pillar. Curated for UK-relevance
+   *  where possible. */
+  pexelsQuery: string;
+  /** Fallback local hero photo if Pexels API is unavailable or the
+   *  key isn't configured. All licence-cleared. */
+  fallbackPhoto: string;
 }
 
-// Pillar → chip + which hero photo to full-bleed. All photos live
-// in /public and are already licence-cleared for site use, so no
-// external API dependency for MVP. Add /public/social-stock/*
-// variants later if we want more rotation.
+// Pillar → chip + Pexels query + local fallback. The fetchPhotoUrl
+// helper below tries Pexels first (with a deterministic per-title
+// pick so same post = same photo), falls back to the local hero
+// image on any failure.
 function pillarMeta(p: string): PillarMeta {
   switch (p as Pillar) {
     case "heat_pump":
       return {
         label: "Heat pump savings",
         accent: BRAND.coral,
-        photoPath: "/hero-heatpump.jpg",
+        pexelsQuery: "air source heat pump",
+        fallbackPhoto: "/hero-heatpump.jpg",
       };
     case "solar":
       return {
         label: "Solar + battery",
         accent: BRAND.terracotta,
-        photoPath: "/hero-solar.jpg",
+        pexelsQuery: "solar panels house roof",
+        fallbackPhoto: "/hero-solar.jpg",
       };
     case "plug_in_solar":
-      // No dedicated plug-in-solar hero yet; UK home works.
-      // Follow-up: add a balcony-solar photo to /public.
       return {
         label: "Plug-in solar",
         accent: BRAND.sage,
-        photoPath: "/hero-uk-home.jpg",
+        pexelsQuery: "balcony apartment",
+        fallbackPhoto: "/hero-uk-home.jpg",
       };
     default:
       return {
         label: "Propertoasty",
         accent: BRAND.coral,
-        photoPath: "/hero-uk-home.jpg",
+        pexelsQuery: "british house",
+        fallbackPhoto: "/hero-uk-home.jpg",
       };
   }
 }
@@ -271,8 +279,10 @@ function Card({
       }}
     >
       {/* Photo — full-bleed. next/og supports <img> with absolute URLs
-          (Satori fetches at render time). Object-fit:cover fills the
-          canvas regardless of aspect. */}
+          (Satori fetches at render time). next/image doesn't work
+          inside Satori — the ESLint warning is a false positive here.
+          Object-fit:cover fills the canvas regardless of aspect. */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={photoUrl}
         alt=""
@@ -343,8 +353,22 @@ export async function GET(req: Request) {
   const format =
     searchParams.get("format") === "square" ? "square" : "landscape";
 
-  // Same-origin photo URL — Satori needs an absolute URL to fetch.
-  const photoUrl = new URL(pillar.photoPath, url.origin).toString();
+  // Seed the Pexels picker with the blog title so each post gets a
+  // stable photo (a re-render for the same blog picks the same
+  // photo — no visual jitter) but different posts land on different
+  // photos in the same result set.
+  const seed = searchParams.get("title") ?? "propertoasty";
+
+  const pexelsPhoto = await pickPhotoDeterministic({
+    query: pillar.pexelsQuery,
+    orientation: format === "square" ? "square" : "landscape",
+    seed,
+  });
+
+  // Absolute URL either way — Satori needs a fetchable URL.
+  const photoUrl =
+    pexelsPhoto?.url ??
+    new URL(pillar.fallbackPhoto, url.origin).toString();
 
   if (format === "square") {
     return new ImageResponse(
