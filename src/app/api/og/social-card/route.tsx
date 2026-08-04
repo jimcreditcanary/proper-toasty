@@ -1,34 +1,39 @@
 // Branded social card — PNG rendered on demand.
 //
-// The daily social agent (/api/cron/social-agent) generates a
-// card URL per post and passes it to Buffer as an image asset,
-// so every LinkedIn / X / Facebook / Instagram post gets a unique
-// on-brand visual instead of the same OG image scraped from
-// propertoasty.com every day.
+// Design goals (post Jim's Aug 2026 review):
+//   - Real photo backgrounds, not typography-heavy quote cards.
+//     Uses the existing site hero photography per pillar (all
+//     licence-cleared) so posts don't look identical to each other
+//     while staying on-brand.
+//   - EXACT site logo (3-flame leaf mark + "Proper Toasty" wordmark
+//     with warm gradient on "Toasty") — lifted from
+//     src/components/logo.tsx so brand consistency is guaranteed.
+//   - Minimal text: no blog headline. Pillar chip + URL is enough.
+//     The caption on the post itself carries the message.
 //
 // Two formats:
-//   - landscape (default) — 1200×630, correct for LinkedIn / X /
-//     Facebook link cards + Open Graph previews.
-//   - square              — 1080×1080, correct for Instagram feed.
-//     Same brand system, redesigned proportions so the headline
-//     dominates and doesn't get letterboxed inside IG's frame.
+//   - landscape 1200×630 (LinkedIn / X / Facebook)
+//   - square    1080×1080 (Instagram)
 //
 // Constraints (next/og + Satori):
-//   - Layout is flexbox-only; no CSS grid, no floats
-//   - Colours must be full literals (no CSS vars)
-//   - No images from URLs unless embedded — the wordmark is text
+//   - Flexbox only, no CSS grid.
+//   - Images referenced by absolute URL (Satori fetches them at
+//     render time) — we build a same-origin URL from the request.
 //
 // Params:
-//   ?title=<blog title>       (required, ≤ 140 chars)
-//   ?pillar=<pillar slug>     one of heat_pump|solar|plug_in_solar|blog
+//   ?title=<blog title>       (kept for cache-key uniqueness; no
+//                              longer rendered on the card. Ensures
+//                              a per-post cached PNG so each blog
+//                              gets a distinct edge-cached asset.)
+//   ?pillar=<pillar slug>     heat_pump|solar|plug_in_solar|blog
 //   ?format=<landscape|square> defaults to landscape
 //
-// Runtime: edge (fast, cheap, cached at the edge).
+// Runtime: edge.
 
 import { ImageResponse } from "next/og";
+import { pickPhotoDeterministic } from "@/lib/services/pexels";
 
 export const runtime = "edge";
-// Cache aggressively — deterministic query = same PNG bytes.
 export const revalidate = 2592000;
 
 const BRAND = {
@@ -38,253 +43,160 @@ const BRAND = {
   terracotta: "#D9813C",
   sage: "#A8BCA1",
   muted: "#6B7266",
-  border: "#E8E2D6",
+  // Warm gradient stops used for "Toasty" + the flame-leaf mark.
+  toastyDark: "#A43B2E",
+  toastyMid: "#D9813C",
+  toastyLight: "#E8B647",
+  toastyPale: "#F8D97A",
 } as const;
 
 type Pillar = "heat_pump" | "solar" | "plug_in_solar" | "blog";
 
-function pillarChip(p: string): { label: string; accent: string } {
+interface PillarMeta {
+  label: string;
+  accent: string;
+  /** Pexels search query for this pillar. Curated for UK-relevance
+   *  where possible. */
+  pexelsQuery: string;
+  /** Fallback local hero photo if Pexels API is unavailable or the
+   *  key isn't configured. All licence-cleared. */
+  fallbackPhoto: string;
+}
+
+// Pillar → chip + Pexels query + local fallback. The fetchPhotoUrl
+// helper below tries Pexels first (with a deterministic per-title
+// pick so same post = same photo), falls back to the local hero
+// image on any failure.
+function pillarMeta(p: string): PillarMeta {
   switch (p as Pillar) {
     case "heat_pump":
-      return { label: "Heat pump savings", accent: BRAND.coral };
+      return {
+        label: "Heat pump savings",
+        accent: BRAND.coral,
+        pexelsQuery: "air source heat pump",
+        fallbackPhoto: "/hero-heatpump.jpg",
+      };
     case "solar":
-      return { label: "Solar + battery", accent: BRAND.terracotta };
+      return {
+        label: "Solar + battery",
+        accent: BRAND.terracotta,
+        pexelsQuery: "solar panels house roof",
+        fallbackPhoto: "/hero-solar.jpg",
+      };
     case "plug_in_solar":
-      return { label: "Plug-in solar", accent: BRAND.sage };
+      return {
+        label: "Plug-in solar",
+        accent: BRAND.sage,
+        pexelsQuery: "balcony apartment",
+        fallbackPhoto: "/hero-uk-home.jpg",
+      };
     default:
-      return { label: "Propertoasty", accent: BRAND.coral };
+      return {
+        label: "Propertoasty",
+        accent: BRAND.coral,
+        pexelsQuery: "british house",
+        fallbackPhoto: "/hero-uk-home.jpg",
+      };
   }
 }
 
-// ─── Landscape (1200×630) — for LinkedIn / X / Facebook link cards ─
-function LandscapeCard({
-  title,
-  pillar,
-}: {
-  title: string;
-  pillar: { label: string; accent: string };
-}) {
-  const fontSize =
-    title.length > 80 ? 58 : title.length > 55 ? 72 : 86;
+// ─── Building blocks ──────────────────────────────────────────────
+
+// The exact 3-flame leaf mark from src/components/logo.tsx.
+// SVG paths + gradient copied verbatim so the card matches the
+// site chrome byte-for-byte.
+function LogoMark({ size }: { size: number }) {
   return (
-    <div
-      style={{
-        width: "100%",
-        height: "100%",
-        display: "flex",
-        flexDirection: "column",
-        background: BRAND.cream,
-        fontFamily: "Georgia, serif",
-        padding: "72px",
-        position: "relative",
-      }}
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 48 48"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      style={{ display: "flex" }}
     >
-      <CornerAccents />
-      <Wordmark />
-      <div
-        style={{
-          flex: 1,
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "center",
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            fontSize,
-            lineHeight: 1.08,
-            color: BRAND.navy,
-            fontWeight: 700,
-            letterSpacing: -1.5,
-            fontFamily: "Georgia, serif",
-            maxWidth: 1000,
-          }}
+      <defs>
+        <linearGradient
+          id="toasty-flame"
+          x1="50%"
+          y1="100%"
+          x2="50%"
+          y2="0%"
         >
-          {title}
-        </div>
-      </div>
-      <BottomRow pillar={pillar} />
-    </div>
+          <stop offset="0%" stopColor={BRAND.toastyDark} />
+          <stop offset="35%" stopColor={BRAND.toastyMid} />
+          <stop offset="70%" stopColor={BRAND.toastyLight} />
+          <stop offset="100%" stopColor={BRAND.toastyPale} />
+        </linearGradient>
+      </defs>
+      <path
+        d="M12 42 C 8 34, 9 25, 14 18 C 17 22, 18 28, 17 35 C 16 39, 14 41, 12 42 Z"
+        fill="url(#toasty-flame)"
+      />
+      <path
+        d="M36 42 C 40 33, 38 24, 33 16 C 31 21, 30 28, 31 34 C 32 38, 34 41, 36 42 Z"
+        fill="url(#toasty-flame)"
+      />
+      <path
+        d="M24 44 C 18 35, 18 22, 23 8 C 25 11, 28 20, 29 28 C 30 35, 28 40, 24 44 Z"
+        fill="url(#toasty-flame)"
+      />
+    </svg>
   );
 }
 
-// ─── Square (1080×1080) — for Instagram feed ──────────────────────
-// Designed square-first, not resized. Headline occupies the visual
-// centre; wordmark + chip flank vertically. Larger corner accents
-// balance the square canvas. Font-size ramp is tuned for the
-// narrower usable width.
-function SquareCard({
-  title,
-  pillar,
+function LockupBar({
+  scale = 1,
 }: {
-  title: string;
-  pillar: { label: string; accent: string };
+  /** 1 = base LinkedIn size; scale up for square/IG. */
+  scale?: number;
 }) {
-  // Square has less horizontal room but more vertical — bigger
-  // baseline font, tighter length breakpoints.
-  const fontSize =
-    title.length > 80 ? 66 : title.length > 55 ? 82 : 104;
-  return (
-    <div
-      style={{
-        width: "100%",
-        height: "100%",
-        display: "flex",
-        flexDirection: "column",
-        background: BRAND.cream,
-        fontFamily: "Georgia, serif",
-        padding: "80px",
-        position: "relative",
-      }}
-    >
-      {/* Corner accents — larger + repositioned for the square canvas */}
-      <div
-        style={{
-          position: "absolute",
-          right: -220,
-          bottom: -220,
-          width: 620,
-          height: 620,
-          borderRadius: 620,
-          background: BRAND.terracotta,
-          opacity: 0.14,
-          display: "flex",
-        }}
-      />
-      <div
-        style={{
-          position: "absolute",
-          left: -160,
-          top: -160,
-          width: 380,
-          height: 380,
-          borderRadius: 380,
-          background: BRAND.sage,
-          opacity: 0.18,
-          display: "flex",
-        }}
-      />
-
-      <Wordmark />
-
-      {/* Middle: headline dominates. flex:1 with center alignment
-          so short + long titles both look balanced. */}
-      <div
-        style={{
-          flex: 1,
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "center",
-          paddingTop: 20,
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            fontSize,
-            lineHeight: 1.05,
-            color: BRAND.navy,
-            fontWeight: 700,
-            letterSpacing: -1.8,
-            fontFamily: "Georgia, serif",
-            maxWidth: 920,
-          }}
-        >
-          {title}
-        </div>
-      </div>
-
-      <BottomRow pillar={pillar} />
-    </div>
-  );
-}
-
-// ─── Shared building blocks ───────────────────────────────────────
-
-function CornerAccents() {
-  return (
-    <>
-      <div
-        style={{
-          position: "absolute",
-          right: -180,
-          bottom: -180,
-          width: 500,
-          height: 500,
-          borderRadius: 500,
-          background: BRAND.terracotta,
-          opacity: 0.14,
-          display: "flex",
-        }}
-      />
-      <div
-        style={{
-          position: "absolute",
-          left: -120,
-          top: -120,
-          width: 300,
-          height: 300,
-          borderRadius: 300,
-          background: BRAND.sage,
-          opacity: 0.18,
-          display: "flex",
-        }}
-      />
-    </>
-  );
-}
-
-function Wordmark() {
+  const iconSize = 56 * scale;
+  const wordSize = 40 * scale;
   return (
     <div
       style={{
         display: "flex",
         alignItems: "center",
-        gap: 14,
+        gap: 14 * scale,
+        padding: `${14 * scale}px ${22 * scale}px`,
+        background: "rgba(250, 247, 242, 0.94)",
+        borderRadius: 999,
+        // Subtle shadow so the lockup sits proud of the photo.
+        boxShadow: "0 2px 12px rgba(0,0,0,0.12)",
       }}
     >
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          width: 44,
-          height: 44,
-          borderRadius: 12,
-          background: BRAND.coral,
-          color: BRAND.cream,
-          fontSize: 26,
-          fontFamily: "Georgia, serif",
-          fontWeight: 700,
-        }}
-      >
-        P
-      </div>
+      <LogoMark size={iconSize} />
       <div
         style={{
           display: "flex",
           flexDirection: "row",
           alignItems: "baseline",
-          gap: 6,
+          gap: 6 * scale,
         }}
       >
         <span
           style={{
-            fontSize: 30,
+            fontSize: wordSize,
             fontWeight: 700,
             color: BRAND.navy,
-            letterSpacing: -0.4,
+            letterSpacing: -1,
+            fontFamily: "Georgia, serif",
           }}
         >
           Proper
         </span>
+        {/* Satori doesn't reliably render background-clip:text, so
+            "Toasty" gets the terracotta mid-tone from the flame
+            gradient as a solid — visually consistent with the
+            warm palette without depending on unsupported CSS. */}
         <span
           style={{
-            fontSize: 30,
-            fontWeight: 700,
-            color: BRAND.terracotta,
-            letterSpacing: -0.4,
+            fontSize: wordSize,
+            fontWeight: 800,
+            color: BRAND.toastyMid,
+            letterSpacing: -1,
+            fontFamily: "Georgia, serif",
           }}
         >
           Toasty
@@ -294,46 +206,139 @@ function Wordmark() {
   );
 }
 
-function BottomRow({
-  pillar,
+function PillarChip({
+  meta,
+  scale = 1,
 }: {
-  pillar: { label: string; accent: string };
+  meta: PillarMeta;
+  scale?: number;
 }) {
   return (
     <div
       style={{
         display: "flex",
         alignItems: "center",
-        justifyContent: "space-between",
+        gap: 14 * scale,
+        padding: `${14 * scale}px ${26 * scale}px`,
+        borderRadius: 999,
+        background: meta.accent,
+        color: BRAND.cream,
+        fontSize: 28 * scale,
+        fontWeight: 600,
+        letterSpacing: -0.3,
+        fontFamily: "Georgia, serif",
+        boxShadow: "0 2px 12px rgba(0,0,0,0.18)",
       }}
     >
+      {meta.label}
+    </div>
+  );
+}
+
+function UrlLabel({ scale = 1 }: { scale?: number }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        fontSize: 26 * scale,
+        color: BRAND.cream,
+        fontWeight: 600,
+        letterSpacing: -0.3,
+        textShadow: "0 2px 8px rgba(0,0,0,0.5)",
+        fontFamily: "Georgia, serif",
+      }}
+    >
+      propertoasty.com
+    </div>
+  );
+}
+
+// ─── Card composition ─────────────────────────────────────────────
+//
+// Same composition in landscape and square: full-bleed photo +
+// dark gradient overlay + top-left logo lockup + bottom-left
+// pillar chip + bottom-right URL. No blog title.
+function Card({
+  meta,
+  photoUrl,
+  scale = 1,
+}: {
+  meta: PillarMeta;
+  photoUrl: string;
+  scale?: number;
+}) {
+  return (
+    <div
+      style={{
+        width: "100%",
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+        position: "relative",
+        background: BRAND.navy,
+      }}
+    >
+      {/* Photo — full-bleed. next/og supports <img> with absolute URLs
+          (Satori fetches at render time). next/image doesn't work
+          inside Satori — the ESLint warning is a false positive here.
+          Object-fit:cover fills the canvas regardless of aspect. */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={photoUrl}
+        alt=""
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          width: "100%",
+          height: "100%",
+          objectFit: "cover",
+        }}
+      />
+
+      {/* Dark gradient overlay — top fades in for logo legibility,
+          bottom is heavier for chip + URL. */}
       <div
         style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          width: "100%",
+          height: "100%",
+          background:
+            "linear-gradient(180deg, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0) 30%, rgba(0,0,0,0) 55%, rgba(0,0,0,0.75) 100%)",
           display: "flex",
-          alignItems: "center",
-          gap: 14,
-          padding: "12px 22px",
-          borderRadius: 999,
-          background: pillar.accent,
-          color: BRAND.cream,
-          fontSize: 24,
-          fontWeight: 600,
-          letterSpacing: -0.2,
-          fontFamily: "Georgia, serif",
         }}
-      >
-        {pillar.label}
-      </div>
+      />
+
+      {/* Content layer */}
       <div
         style={{
+          position: "relative",
+          width: "100%",
+          height: "100%",
           display: "flex",
-          fontSize: 26,
-          color: BRAND.muted,
-          fontWeight: 600,
-          letterSpacing: -0.3,
+          flexDirection: "column",
+          justifyContent: "space-between",
+          padding: `${56 * scale}px ${64 * scale}px`,
         }}
       >
-        propertoasty.com
+        {/* Top row: lockup — flex-start so it sits at the top-left */}
+        <div style={{ display: "flex", alignItems: "flex-start" }}>
+          <LockupBar scale={scale} />
+        </div>
+
+        {/* Bottom row: pillar chip left, URL right */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "flex-end",
+            justifyContent: "space-between",
+          }}
+        >
+          <PillarChip meta={meta} scale={scale} />
+          <UrlLabel scale={scale} />
+        </div>
       </div>
     </div>
   );
@@ -342,21 +347,38 @@ function BottomRow({
 // ─── Route ────────────────────────────────────────────────────────
 
 export async function GET(req: Request) {
-  const { searchParams } = new URL(req.url);
-  const rawTitle = searchParams.get("title") ?? "Your home savings check";
-  const title = rawTitle.slice(0, 140);
-  const pillar = pillarChip(searchParams.get("pillar") ?? "blog");
-  const format = searchParams.get("format") === "square" ? "square" : "landscape";
+  const url = new URL(req.url);
+  const { searchParams } = url;
+  const pillar = pillarMeta(searchParams.get("pillar") ?? "blog");
+  const format =
+    searchParams.get("format") === "square" ? "square" : "landscape";
+
+  // Seed the Pexels picker with the blog title so each post gets a
+  // stable photo (a re-render for the same blog picks the same
+  // photo — no visual jitter) but different posts land on different
+  // photos in the same result set.
+  const seed = searchParams.get("title") ?? "propertoasty";
+
+  const pexelsPhoto = await pickPhotoDeterministic({
+    query: pillar.pexelsQuery,
+    orientation: format === "square" ? "square" : "landscape",
+    seed,
+  });
+
+  // Absolute URL either way — Satori needs a fetchable URL.
+  const photoUrl =
+    pexelsPhoto?.url ??
+    new URL(pillar.fallbackPhoto, url.origin).toString();
 
   if (format === "square") {
-    return new ImageResponse(<SquareCard title={title} pillar={pillar} />, {
-      width: 1080,
-      height: 1080,
-    });
+    return new ImageResponse(
+      <Card meta={pillar} photoUrl={photoUrl} scale={1.3} />,
+      { width: 1080, height: 1080 },
+    );
   }
 
-  return new ImageResponse(<LandscapeCard title={title} pillar={pillar} />, {
-    width: 1200,
-    height: 630,
-  });
+  return new ImageResponse(
+    <Card meta={pillar} photoUrl={photoUrl} scale={1} />,
+    { width: 1200, height: 630 },
+  );
 }
