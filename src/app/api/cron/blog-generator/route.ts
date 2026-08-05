@@ -8,6 +8,19 @@ import {
   type BlogPillar,
 } from "@/lib/blog/pillars";
 import { generateBlogPost } from "@/lib/blog/generator";
+import { pickPhotoDeterministic } from "@/lib/services/pexels";
+
+// Per-pillar Pexels query. Every query MUST contain a UK-specific
+// visual anchor (terraced / semi-detached / victorian / brick / london)
+// because generic terms like "modern house" pull American suburbs
+// almost exclusively from Pexels' index. UK architecture cues get
+// us photos that actually look like the audience's own street.
+const COVER_QUERY: Record<BlogPillar, string> = {
+  heat_pump: "brick terraced house uk",
+  solar: "solar panels uk terraced",
+  plug_in_solar: "london apartment balcony",
+  boiler_vs_hp: "victorian semi detached house",
+};
 
 // GET /api/cron/blog-generator
 //
@@ -128,6 +141,19 @@ async function run(req: Request): Promise<RunResult | { error: string }> {
     };
   }
 
+  // Fetch a Pexels cover — landscape orientation for the blog card
+  // + hero. Seeded on the slug so each post gets a stable photo
+  // (re-visits show the same image) but different posts land on
+  // different photos in the pillar's result pool. Falls back to
+  // null on any failure — the /blog page has a hero-uk-home.jpg
+  // fallback baked in, so no publish is blocked by a missing cover.
+  const cover = await pickPhotoDeterministic({
+    query: COVER_QUERY[pillar],
+    orientation: "landscape",
+    seed: gen.draft.slug,
+  });
+  const coverImage = cover?.url ?? null;
+
   // Approved — insert into blog_posts. author = 'Jim Fell' matches
   // migration 077's byline convention; the /blog/[slug] page maps
   // it to the DEFAULT_AUTHOR_SLUG for Person schema.
@@ -143,6 +169,7 @@ async function run(req: Request): Promise<RunResult | { error: string }> {
       category: gen.draft.category,
       author: "Jim Fell",
       sources: gen.draft.sources,
+      cover_image: coverImage,
       published: true,
       published_at: nowIso,
     });
@@ -188,6 +215,15 @@ export async function GET(req: Request) {
   if (auth !== `Bearer ${expected}`) {
     return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
   }
+  const url = new URL(req.url);
+  // ?backfill_cover=<slug> — one-off: fetch a Pexels cover for an
+  // existing blog_posts row that was published before the cron
+  // started setting cover_image. UK-visual queries per pillar.
+  // Doesn't touch the writer / guardrail; pure UPDATE.
+  const backfillSlug = url.searchParams.get("backfill_cover");
+  if (backfillSlug) {
+    return backfillCover(backfillSlug);
+  }
   try {
     const result = await run(req);
     return NextResponse.json(result);
@@ -196,4 +232,55 @@ export async function GET(req: Request) {
     console.error("[cron/blog-generator] fatal", message);
     return NextResponse.json({ error: message }, { status: 500 });
   }
+}
+
+async function backfillCover(slug: string) {
+  const admin = createAdminClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: row } = await (admin as any)
+    .from("blog_posts")
+    .select("slug, title, category")
+    .eq("slug", slug)
+    .maybeSingle();
+  if (!row) {
+    return NextResponse.json({ error: `slug not found: ${slug}` }, { status: 404 });
+  }
+  // Heuristic pillar mapping — matches src/lib/blog/pillars.ts
+  // classification. Enough for a one-off.
+  const s = slug.toLowerCase();
+  const pillar: BlogPillar = s.includes("plug-in-solar")
+    ? "plug_in_solar"
+    : s.includes("boiler") && !s.includes("heat-pump")
+      ? "heat_pump" // "boiler upgrade scheme" etc. — still HP-adjacent
+      : s.includes("heat-pump") || s.includes("bus") || s.includes("air-source")
+        ? "heat_pump"
+        : s.includes("solar") || s.includes("battery")
+          ? "solar"
+          : "heat_pump";
+  const cover = await pickPhotoDeterministic({
+    query: COVER_QUERY[pillar],
+    orientation: "landscape",
+    seed: slug,
+  });
+  if (!cover) {
+    return NextResponse.json(
+      { error: "no cover fetched — PEXELS_API_KEY unset or API failed" },
+      { status: 502 },
+    );
+  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (admin as any)
+    .from("blog_posts")
+    .update({ cover_image: cover.url })
+    .eq("slug", slug);
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+  return NextResponse.json({
+    slug,
+    pillar,
+    cover_image: cover.url,
+    photographer: cover.photographer,
+    pexels_page: cover.pexelsUrl,
+  });
 }

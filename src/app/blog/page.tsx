@@ -3,6 +3,12 @@ import Link from "next/link";
 import { MarketingHeader } from "@/components/marketing-header";
 import { Leaf, ArrowRight, Calendar, Mail } from "lucide-react";
 
+// ISR — refresh every 5 minutes so newly-published posts
+// (including the weekly blog auto-generator's output) surface
+// without waiting for a redeploy. Matches the /llms.txt revalidate
+// window; both read from public.blog_posts.
+export const revalidate = 300;
+
 export const metadata: Metadata = {
   title: "Journal — heat pump & solar guides for UK homeowners",
   description:
