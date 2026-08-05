@@ -30,6 +30,12 @@ const nextConfig: NextConfig = {
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "images.unsplash.com" },
+      // Pexels CDN — used for blog cover images set by the weekly
+      // blog auto-generator (/api/cron/blog-generator). Each new
+      // post pulls a fresh Pexels photo per pillar keyword so the
+      // /blog index doesn't show the same fallback hero on every
+      // row. Free-license photos, no attribution required.
+      { protocol: "https", hostname: "images.pexels.com" },
       // Installer logos live in the public installer-logos Supabase
       // Storage bucket (migration 064). Hostname pattern covers any
       // Supabase project ref so this works across local / preview /

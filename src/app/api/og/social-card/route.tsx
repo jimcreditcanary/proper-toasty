@@ -73,28 +73,30 @@ function pillarMeta(p: string): PillarMeta {
       return {
         label: "Heat pump savings",
         accent: BRAND.coral,
-        pexelsQuery: "air source heat pump",
+        // Force UK-visual results — Pexels' "heat pump" index skews
+        // heavily American without a specific architectural anchor.
+        pexelsQuery: "air source heat pump uk terraced",
         fallbackPhoto: "/hero-heatpump.jpg",
       };
     case "solar":
       return {
         label: "Solar + battery",
         accent: BRAND.terracotta,
-        pexelsQuery: "solar panels house roof",
+        pexelsQuery: "solar panels uk brick house",
         fallbackPhoto: "/hero-solar.jpg",
       };
     case "plug_in_solar":
       return {
         label: "Plug-in solar",
         accent: BRAND.sage,
-        pexelsQuery: "balcony apartment",
+        pexelsQuery: "london apartment balcony flat",
         fallbackPhoto: "/hero-uk-home.jpg",
       };
     default:
       return {
         label: "Propertoasty",
         accent: BRAND.coral,
-        pexelsQuery: "british house",
+        pexelsQuery: "british semi detached victorian",
         fallbackPhoto: "/hero-uk-home.jpg",
       };
   }
