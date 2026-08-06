@@ -35,41 +35,71 @@ export default function Home() {
     <div className="bg-cream">
       <MarketingHeader />
 
-      {/* Hero — deliberately unchanged apart from the primary CTA
-          copy: "Check my home" → "Calculate my savings". Same layout,
-          same photo, same stat cards. */}
+      {/* ── HERO — single-purpose: get the user into the check ──
+          whoamipaying.co.uk-style layout: bold H1 + short value prop
+          + 3 tick bullets removing common objections, all in the
+          left column. Right column is the mini-wizard form (interest
+          + postcode + submit). Photo + stat cards moved to the
+          context section below — they were competing with the CTA
+          for the user's eye. */}
       <section className="relative overflow-hidden">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6 pt-12 pb-20 sm:pt-20 sm:pb-28 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 pt-12 pb-16 sm:pt-20 sm:pb-24 grid grid-cols-1 lg:grid-cols-[1.05fr_1fr] gap-10 lg:gap-14 items-center">
           <div>
-            <div className="inline-flex items-center gap-2 rounded-full bg-white border border-[var(--border)] px-3 py-1 text-xs text-[var(--muted-brand)] shadow-sm">
+            <div className="inline-flex items-center gap-2 rounded-full bg-white border border-[var(--border)] px-3 py-1 text-xs font-medium text-[var(--muted-brand)] shadow-sm">
               <Leaf className="w-3.5 h-3.5 text-coral" />
-              A warmer home, made simple
+              Free · England &amp; Wales · No sign-up
             </div>
 
-            <h1 className="mt-6 text-5xl sm:text-6xl text-navy leading-[1.05]">
-              Greener living
+            <h1 className="mt-6 text-5xl sm:text-6xl text-navy leading-[1.02]">
+              See what your home
               <br />
-              starts at home.
+              could actually{" "}
+              <span className="text-coral">save.</span>
             </h1>
 
-            <p className="mt-6 text-lg text-[var(--muted-brand)] leading-relaxed max-w-lg">
-              Pick what you&rsquo;re into, drop in your postcode, and see
-              real UK 2026 savings on a heat pump, solar, a home battery
-              — or all three.
+            <p className="mt-5 text-lg text-[var(--muted-brand)] leading-relaxed max-w-lg">
+              Real UK 2026 numbers on a heat pump, solar, home battery
+              — or all three. Grant-inclusive. No jargon.
             </p>
 
-            {/* Hero mini-wizard — the start of the journey. Interest
-                picker + postcode input inline, replaces the previous
-                CTA button. Trust cues render inside the form's own
-                block. Fires journey_started with source="hero_wizard"
-                on submit. */}
-            <div className="mt-8">
-              <HeroMiniWizard />
-            </div>
+            {/* Objection-removing bullets — deliberately answer the
+                three questions a UK homeowner asks before they click:
+                "how long?" / "what's it going to tell me?" / "do I
+                have to hand over my email?" */}
+            <ul className="mt-8 space-y-3">
+              {[
+                { strong: "Under 5 seconds", trailing: "to start — just your postcode" },
+                { strong: "Full benefits", trailing: "— bill savings, grants, payback in years" },
+                { strong: "No account, no jargon", trailing: "— close the tab, no follow-up emails" },
+              ].map((item) => (
+                <li key={item.strong} className="flex items-start gap-3">
+                  <CheckCircle2 className="w-5 h-5 text-coral shrink-0 mt-0.5" />
+                  <span className="text-base text-navy leading-snug">
+                    <strong className="font-semibold">{item.strong}</strong>
+                    <span className="text-[var(--muted-brand)]"> {item.trailing}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
           </div>
 
+          {/* Right column = the FORM. Nothing else in the fold
+              competing for attention. */}
+          <div>
+            <HeroMiniWizard />
+          </div>
+        </div>
+      </section>
+
+      {/* ── Context strip: photo + 4 headline stats ──
+          Was tucked into the hero right column where it competed
+          with the mini-wizard for attention. Sitting below the hero
+          it now acts as social/context proof: "here's what an actual
+          UK home looks like and the numbers we'll show you". */}
+      <section className="bg-white border-y border-[var(--border)]">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 py-14 sm:py-16 grid grid-cols-1 lg:grid-cols-[1fr_1.1fr] gap-10 items-center">
           <div className="relative">
-            <div className="relative aspect-[8/7] rounded-3xl overflow-hidden shadow-xl ring-1 ring-[var(--border)]">
+            <div className="relative aspect-[4/3] rounded-3xl overflow-hidden shadow-xl ring-1 ring-[var(--border)]">
               <Image
                 src={HERO_IMAGE}
                 alt="A typical British semi-detached home with red brick, bay window and a green garage door"
@@ -80,7 +110,18 @@ export default function Home() {
                 className="object-cover"
               />
             </div>
-            <div className="mt-4 grid grid-cols-2 gap-3">
+          </div>
+          <div>
+            <p className="eyebrow">What we&rsquo;ll tell you</p>
+            <h2 className="mt-2 text-3xl sm:text-4xl text-navy leading-tight">
+              The four numbers that decide it.
+            </h2>
+            <p className="mt-3 text-[var(--muted-brand)] leading-relaxed max-w-md">
+              We pull your EPC + a satellite read of your roof, apply
+              current UK grant rules, and hand you these four numbers
+              — the ones that actually matter.
+            </p>
+            <div className="mt-6 grid grid-cols-2 gap-3">
               <HeroStatCard
                 icon={<Flame className="w-5 h-5" />}
                 label="Heat pump grant"
@@ -91,7 +132,7 @@ export default function Home() {
                 icon={<Sun className="w-5 h-5" />}
                 label="Typical UK roof"
                 value="~10 panels"
-                sub="on a south-facing roof"
+                sub="south-facing"
               />
               <HeroStatCard
                 icon={<Gauge className="w-5 h-5" />}

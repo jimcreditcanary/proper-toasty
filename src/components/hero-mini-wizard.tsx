@@ -12,7 +12,7 @@
 // data / grant-aware. Copy is deliberately reassurance-first.
 
 import { useState, type FormEvent } from "react";
-import { ArrowRight, CheckCircle2 } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { track } from "@vercel/analytics/react";
 
@@ -170,24 +170,15 @@ export function HeroMiniWizard() {
             {error}
           </p>
         )}
-      </form>
 
-      {/* Trust cues below — deliberate reassurance strip. Four short
-          claims, each with a coral tick. No hard numbers here (those
-          live in the stat cards); this is emotional not analytical. */}
-      <ul className="mt-5 grid grid-cols-2 gap-x-6 gap-y-2 text-sm text-[var(--muted-brand)]">
-        {[
-          "Takes 5 minutes",
-          "Free to check",
-          "Real UK numbers",
-          "£7,500 grant aware",
-        ].map((cue) => (
-          <li key={cue} className="flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-coral shrink-0" />
-            {cue}
-          </li>
-        ))}
-      </ul>
+        {/* Single reassurance line inside the form card — the main
+            objection-removal bullets live in the hero left column
+            to avoid duplication. Kept here as a below-CTA cue for
+            users whose eye jumps straight to the button. */}
+        <p className="mt-3 text-center text-xs text-[var(--muted-brand)]">
+          Free · No sign-up · Under 5 seconds to start
+        </p>
+      </form>
     </div>
   );
 }
