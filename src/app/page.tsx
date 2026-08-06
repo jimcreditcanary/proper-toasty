@@ -43,13 +43,14 @@ export default function Home() {
           context section below — they were competing with the CTA
           for the user's eye. */}
       <section className="relative overflow-hidden">
-        {/* Column balance: copy (left) ends up ~380-420px tall with
-            just pill + H1 + value prop. Right column: form + 3 tick
-            bullets underneath ~sits around the same height. That
-            lets items-center leave zero dead air above or below
-            either column. Bottom padding kept tight so the hero
-            hands off cleanly to the "Context strip" section below. */}
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-10 pb-8 sm:pt-14 sm:pb-10 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(420px,480px)] gap-10 lg:gap-16 items-center">
+        {/* Column ratio widened for the form (~560px min, was 480px)
+            because the calculator is now a 3-phase inline form
+            (interest → postcode → address dropdown → CTA) and
+            needs the room to breathe without the address list
+            forcing a cramped scroll. Bullets moved back to the
+            LEFT column per Jim's brief — reassurance sits with the
+            headline story, form column stays purely functional. */}
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-10 pb-10 sm:pt-14 sm:pb-14 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(480px,560px)] gap-10 lg:gap-14 items-center">
           <div>
             <div className="inline-flex items-center gap-2 rounded-full bg-white border border-[var(--border)] px-3 py-1 text-xs font-medium text-[var(--muted-brand)] shadow-sm">
               <Leaf className="w-3.5 h-3.5 text-coral" />
@@ -65,33 +66,41 @@ export default function Home() {
               Real UK 2026 numbers on a heat pump, solar, home battery —
               or all three. Grant-inclusive. No jargon.
             </p>
-          </div>
 
-          {/* Right column = the FORM + objection-removing bullets
-              directly under it. Bullets moved here from the left
-              column so they:
-                (a) balance column heights (kills the dead space
-                    Jim flagged below the form),
-                (b) put the reassurance next to the click target
-                    where the eye is already resting. */}
-          <div className="w-full">
-            <HeroMiniWizard />
-
-            <ul className="mt-5 space-y-2">
+            {/* Objection-removing bullets — moved back to the LEFT
+                column per Jim's brief. The reassurance sits with
+                the story; the form column stays purely functional. */}
+            <ul className="mt-8 space-y-3">
               {[
-                { strong: "Under 5 seconds", trailing: "to start — just your postcode" },
-                { strong: "Full benefits", trailing: "— bill savings, grants, payback in years" },
-                { strong: "No account, no jargon", trailing: "— close the tab, no follow-up emails" },
+                {
+                  strong: "Under 5 seconds",
+                  trailing: "to start — just your postcode",
+                },
+                {
+                  strong: "Full benefits",
+                  trailing: "— bill savings, grants, payback in years",
+                },
+                {
+                  strong: "No account, no jargon",
+                  trailing: "— close the tab, no follow-up emails",
+                },
               ].map((item) => (
                 <li key={item.strong} className="flex items-start gap-3">
                   <CheckCircle2 className="w-5 h-5 text-coral shrink-0 mt-0.5" />
-                  <span className="text-sm text-navy leading-snug">
+                  <span className="text-base text-navy leading-snug">
                     <strong className="font-semibold">{item.strong}</strong>
                     <span className="text-[var(--muted-brand)]"> {item.trailing}</span>
                   </span>
                 </li>
               ))}
             </ul>
+          </div>
+
+          {/* Right column = the FORM. Wider than before (min 480px)
+              so the interest chips + address dropdown + big CTA all
+              have room to breathe. */}
+          <div className="w-full">
+            <HeroMiniWizard />
           </div>
         </div>
       </section>

@@ -1,22 +1,33 @@
 "use client";
 
-// Hero mini-wizard: two-question start (interest + postcode) that
-// routes the user straight into the correct focused /check variant
-// with the postcode pre-filled. Replaces the old hero CTA button.
+// Hero mini-wizard: three-step inline form that gets a UK homeowner
+// from "I'm interested in X" to landing INSIDE the wizard at the
+// questionnaire step — skipping the wizard's own address entry.
 //
-// Fires journey_started on submit — source="hero_wizard" — so the
-// funnel can distinguish "started from the hero form" from the
-// other JourneyCTA surfaces (picker cards, footer, landing pages).
+// Flow:
+//   1. Interest chips (Heat pump / Solar / Battery / All three)
+//   2. Postcode input → "Find my address" (calls /api/address/lookup)
+//   3. Address dropdown appears → user picks + "Show my savings"
+//   4. sessionStorage the resolved address + country, then
+//      router.push to /check/{interest}?fromhero=1. The wizard's
+//      context.tsx has a one-shot effect that reads the prefill
+//      + skips to the "questions" step.
 //
-// Trust cues sit under the form: takes 5 minutes / free / real UK
-// data / grant-aware. Copy is deliberately reassurance-first.
+// Fires journey_started (source="hero_wizard") once on the final
+// submit — that's the point of real commitment.
 
-import { useState, type FormEvent } from "react";
-import { ArrowRight } from "lucide-react";
+import { useCallback, useState, type FormEvent } from "react";
+import { ArrowRight, Loader2, MapPin, Search } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { track } from "@vercel/analytics/react";
+import type { AddressLookupResponse } from "@/lib/schemas/address-lookup";
+import type { SelectedAddress } from "@/components/check-wizard/types";
 
 type Interest = "heatpump" | "solar" | "battery" | "all";
+
+// sessionStorage key. Namespaced so a future v2 change doesn't
+// collide with users mid-session.
+const PREFILL_KEY = "hero_prefill_v1";
 
 interface InterestOption {
   value: Interest;
@@ -24,9 +35,6 @@ interface InterestOption {
   emoji: string;
 }
 
-// Order deliberately: the two most-in-demand journeys first, battery
-// third, then the catch-all. "All" reads as the safe default for
-// undecided users, but the ordering signals we expect users to pick.
 const INTERESTS: InterestOption[] = [
   { value: "heatpump", label: "Heat pump", emoji: "🔥" },
   { value: "solar", label: "Solar", emoji: "☀️" },
@@ -34,7 +42,6 @@ const INTERESTS: InterestOption[] = [
   { value: "all", label: "All three", emoji: "✨" },
 ];
 
-// Route the interest into the right wizard variant.
 function routeFor(interest: Interest): string {
   switch (interest) {
     case "heatpump":
@@ -48,137 +55,304 @@ function routeFor(interest: Interest): string {
   }
 }
 
-// Loose UK-postcode validator — enough to catch typos, not enough
-// to reject a legit obscure format. The address-lookup route does
-// the strict check server-side.
 function looksLikePostcode(s: string): boolean {
   const trimmed = s.trim();
   if (trimmed.length < 5 || trimmed.length > 8) return false;
   return /^[A-Za-z]{1,2}\d[A-Za-z\d]?\s?\d[A-Za-z]{2}$/.test(trimmed);
 }
 
+// ─── Form phase machine ──────────────────────────────────────────
+type Phase =
+  | { kind: "idle" }
+  | { kind: "searching" }
+  | {
+      kind: "picking";
+      addresses: AddressLookupResponse["addresses"];
+      // country can be null when the postcode resolves outside our
+      // country-detection heuristic — kept nullable so the type
+      // matches the API response verbatim.
+      country: AddressLookupResponse["country"];
+    }
+  | { kind: "resolving" }
+  | { kind: "submitting" };
+
 export function HeroMiniWizard() {
   const router = useRouter();
   const [interest, setInterest] = useState<Interest>("all");
   const [postcode, setPostcode] = useState("");
+  const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
+  const [phase, setPhase] = useState<Phase>({ kind: "idle" });
   const [error, setError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
 
-  function handleSubmit(e: FormEvent) {
-    e.preventDefault();
-    if (submitting) return;
+  const disabled =
+    phase.kind === "searching" ||
+    phase.kind === "resolving" ||
+    phase.kind === "submitting";
 
+  const searchPostcode = useCallback(async () => {
     const trimmed = postcode.trim().toUpperCase();
     if (!looksLikePostcode(trimmed)) {
       setError("Please enter a full UK postcode (e.g. BS3 4AA).");
       return;
     }
     setError(null);
-    setSubmitting(true);
+    setSelectedIdx(null);
+    setPhase({ kind: "searching" });
+    try {
+      const res = await fetch("/api/address/lookup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ postcode: trimmed }),
+      });
+      if (!res.ok) {
+        const j = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(j.error ?? `Lookup failed (${res.status})`);
+      }
+      const data = (await res.json()) as AddressLookupResponse;
+      if (data.addresses.length === 0) {
+        setError("No addresses found at that postcode. Double-check it?");
+        setPhase({ kind: "idle" });
+        return;
+      }
+      setPhase({
+        kind: "picking",
+        addresses: data.addresses,
+        country: data.country,
+      });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't look up that postcode.");
+      setPhase({ kind: "idle" });
+    }
+  }, [postcode]);
 
-    // journey_started — the hero surface. journey_type = the
-    // interest the user picked so the funnel dashboard can see
-    // which journey the hero converts best on.
-    track("journey_started", {
-      source: "hero_wizard",
-      journey: interest === "heatpump" ? "heatpump" : interest,
-    });
+  const submitPickedAddress = useCallback(
+    async (
+      idx: number,
+      addresses: AddressLookupResponse["addresses"],
+      country: AddressLookupResponse["country"],
+    ) => {
+      const chosen = addresses[idx];
+      if (!chosen) return;
+      setPhase({ kind: "resolving" });
 
-    // Route into the focused wizard variant with the postcode as a
-    // prefill query param. Step 1 (Step1Address) already reads
-    // state.prefillPostcode when populated — we pass it via the
-    // ?postcode= query so the client can hydrate before the wizard
-    // context initialises.
-    router.push(
-      `${routeFor(interest)}?postcode=${encodeURIComponent(trimmed)}`,
-    );
+      // Geocode + build a SelectedAddress. Same as step-1-address's
+      // pick() path — WGS84 from OS Places directly, fallback via
+      // the geocode route for the metadata block.
+      let latitude: number = chosen.latitude ?? 0;
+      let longitude: number = chosen.longitude ?? 0;
+      try {
+        const g = await fetch("/api/address/geocode", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            line1: chosen.addressLine1,
+            postcode: chosen.postcode,
+          }),
+        });
+        if (g.ok) {
+          const gj = (await g.json()) as {
+            latitude?: number;
+            longitude?: number;
+          };
+          if (typeof gj.latitude === "number") latitude = gj.latitude;
+          if (typeof gj.longitude === "number") longitude = gj.longitude;
+        }
+      } catch {
+        // Non-fatal — postcode-centroid lat/lng is good enough for
+        // the pre-survey; the wizard's step 5 analysis re-resolves.
+      }
+
+      const address: SelectedAddress = {
+        uprn: chosen.uprn ?? null,
+        formattedAddress:
+          chosen.summary || `${chosen.addressLine1}, ${chosen.postcode}`,
+        line1: chosen.addressLine1,
+        line2: chosen.addressLine2 ?? null,
+        postcode: chosen.postcode,
+        postTown: chosen.postTown ?? "",
+        latitude,
+        longitude,
+        metadata: null,
+      };
+
+      // Stash for CheckWizardProvider to pick up + hop the user
+      // past the wizard's own address step.
+      try {
+        sessionStorage.setItem(
+          PREFILL_KEY,
+          JSON.stringify({ address, country }),
+        );
+      } catch {
+        // Storage disabled (private mode etc) — fall through; the
+        // wizard will just start at step 1 with prefillPostcode
+        // populated via the URL fallback.
+      }
+
+      setPhase({ kind: "submitting" });
+      track("journey_started", {
+        source: "hero_wizard",
+        journey: interest === "heatpump" ? "heatpump" : interest,
+      });
+
+      router.push(
+        `${routeFor(interest)}?fromhero=1&postcode=${encodeURIComponent(chosen.postcode)}`,
+      );
+    },
+    [interest, router],
+  );
+
+  function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    if (disabled) return;
+    if (phase.kind === "picking") {
+      if (selectedIdx == null) {
+        setError("Pick your address to continue.");
+        return;
+      }
+      void submitPickedAddress(selectedIdx, phase.addresses, phase.country);
+    } else {
+      void searchPostcode();
+    }
   }
 
-  return (
-    <div className="w-full">
-      <form
-        onSubmit={handleSubmit}
-        className="rounded-3xl bg-white/95 backdrop-blur border border-[var(--border)] shadow-lg p-5 sm:p-6"
-      >
-        {/* Line 1: interest chips */}
-        <fieldset className="space-y-3">
-          <legend className="text-xs font-semibold uppercase tracking-wider text-[var(--muted-brand)]">
-            I&rsquo;m interested in
-          </legend>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            {INTERESTS.map((opt) => {
-              const selected = interest === opt.value;
-              return (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => setInterest(opt.value)}
-                  aria-pressed={selected}
-                  className={`
-                    inline-flex items-center justify-center gap-1.5
-                    h-11 rounded-full text-sm font-semibold
-                    transition-colors border
-                    ${
-                      selected
-                        ? "bg-coral text-cream border-coral shadow-sm"
-                        : "bg-cream/60 text-navy border-[var(--border)] hover:bg-cream-deep hover:border-coral/40"
-                    }
-                  `}
-                >
-                  <span aria-hidden>{opt.emoji}</span>
-                  {opt.label}
-                </button>
-              );
-            })}
-          </div>
-        </fieldset>
+  const submitLabel =
+    phase.kind === "searching"
+      ? "Searching…"
+      : phase.kind === "picking"
+        ? "Show my savings"
+        : phase.kind === "resolving" || phase.kind === "submitting"
+          ? "Loading your check…"
+          : "Find my address";
 
-        {/* Line 2: postcode + submit */}
-        <div className="mt-4 flex flex-col sm:flex-row gap-2">
-          <label className="sr-only" htmlFor="hero-postcode">
-            Your postcode
-          </label>
+  return (
+    <form
+      onSubmit={handleSubmit}
+      className="rounded-3xl bg-white shadow-lg border border-[var(--border)] p-6 sm:p-8"
+    >
+      {/* Interest chips */}
+      <fieldset className="space-y-3">
+        <legend className="text-xs font-semibold uppercase tracking-wider text-[var(--muted-brand)]">
+          I&rsquo;m interested in
+        </legend>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          {INTERESTS.map((opt) => {
+            const selected = interest === opt.value;
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setInterest(opt.value)}
+                aria-pressed={selected}
+                className={`
+                  inline-flex items-center justify-center gap-1.5
+                  h-11 rounded-full text-sm font-semibold transition-colors border
+                  ${
+                    selected
+                      ? "bg-coral text-cream border-coral shadow-sm"
+                      : "bg-cream/60 text-navy border-[var(--border)] hover:bg-cream-deep hover:border-coral/40"
+                  }
+                `}
+              >
+                <span aria-hidden>{opt.emoji}</span>
+                {opt.label}
+              </button>
+            );
+          })}
+        </div>
+      </fieldset>
+
+      {/* Postcode */}
+      <div className="mt-5">
+        <label
+          htmlFor="hero-postcode"
+          className="block text-xs font-semibold uppercase tracking-wider text-[var(--muted-brand)] mb-2"
+        >
+          Your postcode
+        </label>
+        <div className="relative">
+          <MapPin
+            className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--muted-brand)] pointer-events-none"
+            aria-hidden
+          />
           <input
             id="hero-postcode"
             name="postcode"
             type="text"
             inputMode="text"
             autoComplete="postal-code"
-            placeholder="Your postcode"
+            placeholder="e.g. BS3 4AA"
             value={postcode}
-            onChange={(e) => setPostcode(e.target.value)}
-            className="flex-1 h-12 px-4 rounded-full border border-[var(--border)] bg-white text-navy placeholder:text-[var(--muted-brand)] focus:outline-none focus:ring-2 focus:ring-coral/40 focus:border-coral"
+            onChange={(e) => {
+              setPostcode(e.target.value);
+              // Any edit invalidates a previous address pick.
+              if (phase.kind === "picking") {
+                setPhase({ kind: "idle" });
+                setSelectedIdx(null);
+              }
+            }}
+            className="w-full h-14 pl-12 pr-4 rounded-full border border-[var(--border)] bg-white text-base text-navy placeholder:text-[var(--muted-brand)] focus:outline-none focus:ring-2 focus:ring-coral/40 focus:border-coral"
             aria-invalid={error != null}
-            aria-describedby={error ? "hero-postcode-error" : undefined}
           />
-          <button
-            type="submit"
-            disabled={submitting}
-            className="inline-flex items-center justify-center gap-2 h-12 px-6 rounded-full bg-coral hover:bg-coral-dark disabled:opacity-60 text-cream font-semibold text-sm shadow-sm transition-colors"
-          >
-            {submitting ? "Loading…" : "Show me my savings"}
-            {!submitting && <ArrowRight className="w-4 h-4" />}
-          </button>
         </div>
+      </div>
 
-        {error && (
-          <p
-            id="hero-postcode-error"
-            role="alert"
-            className="mt-2 text-xs text-rose-600"
-          >
-            {error}
+      {/* Address list — appears after successful postcode lookup */}
+      {phase.kind === "picking" && (
+        <div className="mt-4">
+          <p className="text-xs font-semibold uppercase tracking-wider text-[var(--muted-brand)] mb-2">
+            Pick your address
           </p>
-        )}
+          <ul className="max-h-52 overflow-y-auto rounded-2xl border border-[var(--border)] divide-y divide-[var(--border)] bg-cream/30">
+            {phase.addresses.map((a, idx) => {
+              const chosen = selectedIdx === idx;
+              return (
+                <li key={a.uprn ?? `${a.addressLine1}-${idx}`}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedIdx(idx);
+                      setError(null);
+                    }}
+                    className={`
+                      w-full text-left px-4 py-2.5 text-sm transition-colors
+                      ${
+                        chosen
+                          ? "bg-coral text-cream"
+                          : "text-navy hover:bg-cream-deep"
+                      }
+                    `}
+                  >
+                    {a.summary || `${a.addressLine1}, ${a.postcode}`}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
 
-        {/* Single reassurance line inside the form card — the main
-            objection-removal bullets live in the hero left column
-            to avoid duplication. Kept here as a below-CTA cue for
-            users whose eye jumps straight to the button. */}
-        <p className="mt-3 text-center text-xs text-[var(--muted-brand)]">
-          Free · No sign-up · Under 5 seconds to start
+      {/* Error line */}
+      {error && (
+        <p role="alert" className="mt-3 text-sm text-rose-600">
+          {error}
         </p>
-      </form>
-    </div>
+      )}
+
+      {/* Big CTA */}
+      <button
+        type="submit"
+        disabled={disabled}
+        className="mt-5 w-full inline-flex items-center justify-center gap-2 h-14 px-6 rounded-full bg-coral hover:bg-coral-dark disabled:opacity-60 disabled:cursor-not-allowed text-cream font-semibold text-base shadow-sm transition-colors"
+      >
+        {phase.kind === "searching" || phase.kind === "resolving" || phase.kind === "submitting" ? (
+          <Loader2 className="w-5 h-5 animate-spin" aria-hidden />
+        ) : phase.kind === "picking" ? (
+          <ArrowRight className="w-5 h-5" aria-hidden />
+        ) : (
+          <Search className="w-5 h-5" aria-hidden />
+        )}
+        {submitLabel}
+      </button>
+    </form>
   );
 }
