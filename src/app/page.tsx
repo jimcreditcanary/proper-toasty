@@ -43,30 +43,37 @@ export default function Home() {
           context section below — they were competing with the CTA
           for the user's eye. */}
       <section className="relative overflow-hidden">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6 pt-12 pb-16 sm:pt-20 sm:pb-24 grid grid-cols-1 lg:grid-cols-[1.05fr_1fr] gap-10 lg:gap-14 items-center">
+        {/* Wider container (max-w-7xl matches the header) + tighter
+            vertical padding + items-start (was items-center — that
+            was floating the shorter form column in the middle and
+            adding ~80px of dead space top and bottom). Left column
+            width capped so the H1 lands on 2 lines at desktop; on
+            wider viewports the extra room stays with the form. */}
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-10 pb-10 sm:pt-14 sm:pb-14 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(420px,480px)] gap-10 lg:gap-16 items-start">
           <div>
             <div className="inline-flex items-center gap-2 rounded-full bg-white border border-[var(--border)] px-3 py-1 text-xs font-medium text-[var(--muted-brand)] shadow-sm">
               <Leaf className="w-3.5 h-3.5 text-coral" />
               Free · England &amp; Wales · No sign-up
             </div>
 
-            <h1 className="mt-6 text-5xl sm:text-6xl text-navy leading-[1.02]">
-              See what your home
-              <br />
-              could actually{" "}
+            {/* H1 tuned to land on 2 lines at desktop (≤ 3 as per
+                brief) — softened line-height to buy 1-2 chars per
+                line so no orphan word wraps to a third line. */}
+            <h1 className="mt-5 text-5xl sm:text-6xl lg:text-[4.25rem] text-navy leading-[1.02] tracking-tight">
+              See what your home could actually{" "}
               <span className="text-coral">save.</span>
             </h1>
 
-            <p className="mt-5 text-lg text-[var(--muted-brand)] leading-relaxed max-w-lg">
-              Real UK 2026 numbers on a heat pump, solar, home battery
-              — or all three. Grant-inclusive. No jargon.
+            <p className="mt-5 text-lg text-[var(--muted-brand)] leading-relaxed max-w-xl">
+              Real UK 2026 numbers on a heat pump, solar, home battery —
+              or all three. Grant-inclusive. No jargon.
             </p>
 
             {/* Objection-removing bullets — deliberately answer the
                 three questions a UK homeowner asks before they click:
                 "how long?" / "what's it going to tell me?" / "do I
                 have to hand over my email?" */}
-            <ul className="mt-8 space-y-3">
+            <ul className="mt-6 space-y-2.5">
               {[
                 { strong: "Under 5 seconds", trailing: "to start — just your postcode" },
                 { strong: "Full benefits", trailing: "— bill savings, grants, payback in years" },
@@ -84,8 +91,9 @@ export default function Home() {
           </div>
 
           {/* Right column = the FORM. Nothing else in the fold
-              competing for attention. */}
-          <div>
+              competing for attention. Sticky on very tall viewports
+              so the form stays in view if the copy overflows. */}
+          <div className="w-full">
             <HeroMiniWizard />
           </div>
         </div>
