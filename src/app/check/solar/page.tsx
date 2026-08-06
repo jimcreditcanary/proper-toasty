@@ -32,13 +32,21 @@ export const metadata = {
 
 export const dynamic = "force-dynamic";
 
-export default function CheckSolarPage() {
+export default async function CheckSolarPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   if (!isFeatureEnabled("propertoasty_check")) notFound();
+  const params = await searchParams;
+  const raw = params.postcode;
+  const prefill = typeof raw === "string" && raw.trim().length >= 5 ? raw.trim() : null;
   return (
     <CheckWizard
       initialState={{
         focus: "solar",
         interests: ["solar_battery"],
+        prefillPostcode: prefill,
       }}
     />
   );

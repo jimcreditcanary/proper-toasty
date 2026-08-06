@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import Image from "next/image";
 import { MarketingHeader } from "@/components/marketing-header";
 import { LandingFooter } from "@/components/landing-footer";
 import { JourneyCTA } from "@/components/analytics/journey-cta";
+import { HeroMiniWizard } from "@/components/hero-mini-wizard";
 
 // Homepage self-canonical. Layout-level canonical was removed in
 // Phase 1 (was leaking the homepage URL onto every other page as
@@ -53,42 +53,19 @@ export default function Home() {
             </h1>
 
             <p className="mt-6 text-lg text-[var(--muted-brand)] leading-relaxed max-w-lg">
-              See what a heat pump, rooftop solar, or a plug-in solar kit
-              would actually save you — bill-by-bill, grant-inclusive, and
-              tailored to how you live.
+              Pick what you&rsquo;re into, drop in your postcode, and see
+              real UK 2026 savings on a heat pump, solar, a home battery
+              — or all three.
             </p>
 
-            <div className="mt-10 flex flex-wrap items-center gap-3">
-              <JourneyCTA
-                href="/check"
-                journey="all"
-                source="homepage_hero"
-                className="inline-flex items-center gap-2 h-12 px-6 rounded-full bg-coral hover:bg-coral-dark text-cream font-medium transition-colors shadow-sm"
-              >
-                Calculate my savings
-                <ArrowRight className="w-4 h-4" />
-              </JourneyCTA>
-              <Link
-                href="#pick-your-calculator"
-                className="inline-flex items-center gap-2 h-12 px-5 rounded-full text-navy hover:bg-coral-pale transition-colors font-medium"
-              >
-                Or pick a calculator
-              </Link>
+            {/* Hero mini-wizard — the start of the journey. Interest
+                picker + postcode input inline, replaces the previous
+                CTA button. Trust cues render inside the form's own
+                block. Fires journey_started with source="hero_wizard"
+                on submit. */}
+            <div className="mt-8">
+              <HeroMiniWizard />
             </div>
-
-            <ul className="mt-10 grid grid-cols-2 gap-x-6 gap-y-3 text-sm text-[var(--muted-brand)]">
-              {[
-                "Takes 5 minutes",
-                "Real UK numbers",
-                "Grant-inclusive",
-                "First check free",
-              ].map((t) => (
-                <li key={t} className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-coral shrink-0" />
-                  {t}
-                </li>
-              ))}
-            </ul>
           </div>
 
           <div className="relative">

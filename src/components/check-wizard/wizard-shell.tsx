@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { RotateCcw, Play } from "lucide-react";
 import { Logo } from "@/components/logo";
@@ -48,7 +48,9 @@ function FocusLabel() {
         ? "Heat pump check"
         : state.focus === "boiler"
           ? "Boiler vs heat pump"
-          : "Heat pump & solar check";
+          : state.focus === "battery"
+            ? "Home battery check"
+            : "Heat pump & solar check";
   return (
     <span className="hidden md:inline text-[11px] font-medium uppercase tracking-wider text-[var(--muted-brand)] shrink-0">
       {label}
@@ -133,26 +135,45 @@ function PageTitleSync() {
   return null;
 }
 
-// Fires a `check_step_viewed` custom event on every step change.
-// Feeds the Vercel Analytics dashboard so we can measure wizard
-// drop-off between address entry and report render. Deliberately
-// sits at the wizard-shell level rather than inside each step —
-// one useEffect covers all 7 steps and auto-covers future step
-// additions.
+// Fires `check_step_viewed` on the 3 meaningful CONFIRM
+// transitions inside the wizard (per Jim's Aug 2026 taxonomy):
+//   - preview     → questions  = AddressConfirm  ("Yes that is my home")
+//   - questions   → analysis   = DetailsConfirm  (answered + Continue)
+//   - lead_capture→ report     = EmailConfirm    (email + Show me my report)
+//
+// We deliberately do NOT fire on every step view — the previous
+// per-step firing made drop-off charts noisy. Book-* transitions
+// are handled elsewhere (report-shell + book-visit tab). The
+// journey_started + journey_completed events bracket the funnel.
 function StepAnalyticsSync() {
   const { step, state } = useCheckWizard();
+  const previousStep = useRef<string | null>(null);
+
   useEffect(() => {
+    const prev = previousStep.current;
+    previousStep.current = step;
+
+    // Deliberate 3-transition allowlist — see comment above.
+    let confirmStep: string | null = null;
+    if (prev === "preview" && step === "questions") {
+      confirmStep = "address_confirmed";
+    } else if (prev === "questions" && step === "analysis") {
+      confirmStep = "details_confirmed";
+    } else if (prev === "lead_capture" && step === "report") {
+      confirmStep = "email_confirmed";
+    }
+    if (!confirmStep) return;
+
     track("check_step_viewed", {
-      step,
+      step: confirmStep,
+      journey_type: state.focus ?? "all",
       from_presurvey_link: state.preSurveyToken != null,
       from_installer_prebind:
         state.preSurveyToken == null && state.preSurveyInstallerId != null,
     });
-    // Depend only on `step` — a step change should always fire, but
-    // switching between installer-prebind states mid-wizard is not
-    // itself a step-view event.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step]);
+
   return null;
 }
 
@@ -239,7 +260,9 @@ function ResumeJourneyModal() {
         ? "your solar check"
         : state.focus === "heatpump"
           ? "your heat pump check"
-          : "a check you started";
+          : state.focus === "battery"
+            ? "your battery check"
+            : "a check you started";
 
   return (
     <div

@@ -21,6 +21,7 @@
 //   - "Book a meeting" CTA — or status pill if already contacted
 
 import { useEffect, useMemo, useState } from "react";
+import { track } from "@vercel/analytics/react";
 import {
   Award,
   BadgeCheck,
@@ -585,7 +586,16 @@ function InstallerTile({
         ) : (
           <button
             type="button"
-            onClick={onBook}
+            onClick={() => {
+              // BookaMeeting per Jim's Aug 2026 taxonomy. Reuses
+              // check_step_viewed with step="book_meeting" to keep
+              // the taxonomy tight.
+              track("check_step_viewed", {
+                step: "book_meeting",
+                installer_id: installer.id,
+              });
+              onBook();
+            }}
             className="w-full inline-flex items-center justify-center gap-2 h-11 px-5 rounded-full bg-coral hover:bg-coral-dark text-white font-semibold text-sm shadow-sm transition-colors"
           >
             <CalendarDays className="w-4 h-4" />
