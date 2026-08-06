@@ -43,22 +43,19 @@ export default function Home() {
           context section below — they were competing with the CTA
           for the user's eye. */}
       <section className="relative overflow-hidden">
-        {/* Wider container (max-w-7xl matches the header) + tighter
-            vertical padding + items-start (was items-center — that
-            was floating the shorter form column in the middle and
-            adding ~80px of dead space top and bottom). Left column
-            width capped so the H1 lands on 2 lines at desktop; on
-            wider viewports the extra room stays with the form. */}
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-10 pb-10 sm:pt-14 sm:pb-14 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(420px,480px)] gap-10 lg:gap-16 items-start">
+        {/* Column balance: copy (left) ends up ~380-420px tall with
+            just pill + H1 + value prop. Right column: form + 3 tick
+            bullets underneath ~sits around the same height. That
+            lets items-center leave zero dead air above or below
+            either column. Bottom padding kept tight so the hero
+            hands off cleanly to the "Context strip" section below. */}
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-10 pb-8 sm:pt-14 sm:pb-10 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(420px,480px)] gap-10 lg:gap-16 items-center">
           <div>
             <div className="inline-flex items-center gap-2 rounded-full bg-white border border-[var(--border)] px-3 py-1 text-xs font-medium text-[var(--muted-brand)] shadow-sm">
               <Leaf className="w-3.5 h-3.5 text-coral" />
               Free · England &amp; Wales · No sign-up
             </div>
 
-            {/* H1 tuned to land on 2 lines at desktop (≤ 3 as per
-                brief) — softened line-height to buy 1-2 chars per
-                line so no orphan word wraps to a third line. */}
             <h1 className="mt-5 text-5xl sm:text-6xl lg:text-[4.25rem] text-navy leading-[1.02] tracking-tight">
               See what your home could actually{" "}
               <span className="text-coral">save.</span>
@@ -68,12 +65,19 @@ export default function Home() {
               Real UK 2026 numbers on a heat pump, solar, home battery —
               or all three. Grant-inclusive. No jargon.
             </p>
+          </div>
 
-            {/* Objection-removing bullets — deliberately answer the
-                three questions a UK homeowner asks before they click:
-                "how long?" / "what's it going to tell me?" / "do I
-                have to hand over my email?" */}
-            <ul className="mt-6 space-y-2.5">
+          {/* Right column = the FORM + objection-removing bullets
+              directly under it. Bullets moved here from the left
+              column so they:
+                (a) balance column heights (kills the dead space
+                    Jim flagged below the form),
+                (b) put the reassurance next to the click target
+                    where the eye is already resting. */}
+          <div className="w-full">
+            <HeroMiniWizard />
+
+            <ul className="mt-5 space-y-2">
               {[
                 { strong: "Under 5 seconds", trailing: "to start — just your postcode" },
                 { strong: "Full benefits", trailing: "— bill savings, grants, payback in years" },
@@ -81,20 +85,13 @@ export default function Home() {
               ].map((item) => (
                 <li key={item.strong} className="flex items-start gap-3">
                   <CheckCircle2 className="w-5 h-5 text-coral shrink-0 mt-0.5" />
-                  <span className="text-base text-navy leading-snug">
+                  <span className="text-sm text-navy leading-snug">
                     <strong className="font-semibold">{item.strong}</strong>
                     <span className="text-[var(--muted-brand)]"> {item.trailing}</span>
                   </span>
                 </li>
               ))}
             </ul>
-          </div>
-
-          {/* Right column = the FORM. Nothing else in the fold
-              competing for attention. Sticky on very tall viewports
-              so the form stays in view if the copy overflows. */}
-          <div className="w-full">
-            <HeroMiniWizard />
           </div>
         </div>
       </section>
