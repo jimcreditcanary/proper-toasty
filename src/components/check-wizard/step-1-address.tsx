@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowRight, Loader2, MapPin, Search } from "lucide-react";
+import { track } from "@vercel/analytics/react";
 import type { UkCountry } from "@/lib/postcode/region";
 import { isV1SupportedCountry } from "@/lib/postcode/region";
 import type { AddressLookupResponse } from "@/lib/schemas/address-lookup";
@@ -23,6 +24,14 @@ export function Step1Address() {
       setError("Please enter a full UK postcode.");
       return;
     }
+    // JourneyStart per Jim's Aug 2026 taxonomy — user has committed
+    // enough to type + submit a real postcode. Fires as
+    // journey_started with source="postcode" to distinguish it from
+    // the CTA-click journey_started that JourneyCTA emits.
+    track("journey_started", {
+      source: "postcode",
+      journey: state.focus ?? "all",
+    });
     setPhase("searching");
     setError(null);
     setAddresses([]);
@@ -59,7 +68,7 @@ export function Step1Address() {
       setError(e instanceof Error ? e.message : "Couldn't look up that postcode.");
       setPhase("idle");
     }
-  }, [postcode]);
+  }, [postcode, state.focus]);
 
   const pick = useCallback(
     async (a: AddressLookupResponse["addresses"][number]) => {

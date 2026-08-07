@@ -88,6 +88,46 @@ export function CheckWizardProvider({
   // (useSyncExternalStore is for store changes, not one-shot
   // hydration). Disables are scoped to the specific setState
   // calls + commented with the reason.
+  // Hero mini-wizard hand-off. When the URL flags a hero arrival
+  // (?fromhero=1) and sessionStorage has the prefill blob, hydrate
+  // the address + country + jump straight to the questions step —
+  // the wizard's own address search would just re-collect what the
+  // hero already resolved. The prefill is consumed on read.
+  //
+  // Extracted from the hydration effect so both the focus-variant
+  // branch and the /check top-level branch can call it consistently.
+  const tryHeroPrefill = useCallback(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("fromhero") !== "1") return;
+    try {
+      const raw = sessionStorage.getItem("hero_prefill_v1");
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as {
+        address?: unknown;
+        country?: unknown;
+      };
+      if (!parsed.address) return;
+      dispatch({
+        type: "UPDATE",
+        patch: {
+          address: parsed.address as CheckWizardState["address"],
+          country: parsed.country as CheckWizardState["country"],
+        },
+      });
+      // Skip step 1 (address search) — the hero already ran the
+      // OS Places lookup. Land the user on step 2 (preview) so
+      // they still see the aerial "is this your home?" confirm
+      // before answering questions. That's the single address
+      // confirmation Jim's brief keeps.
+      setStep("preview");
+      // Consume — a page refresh shouldn't re-fire the hop.
+      sessionStorage.removeItem("hero_prefill_v1");
+    } catch {
+      // ignore — corrupted prefill / storage disabled
+    }
+  }, []);
+
   useEffect(() => {
     if (disablePersistence) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration flag
@@ -126,9 +166,18 @@ export function CheckWizardProvider({
       } catch {
         // ignore
       }
+      // Hero mini-wizard hand-off — check for a stashed prefill
+      // and skip the wizard's own address step if present. Only
+      // fires when the URL flags a hero arrival (?fromhero=1) so
+      // an unrelated visit can't accidentally pull a stale prefill.
+      tryHeroPrefill();
       setHydrated(true);
       return;
     }
+
+    // Same hero hand-off on the /check top-level route
+    // (focus="all" — the "All three" option in the hero picker).
+    tryHeroPrefill();
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
@@ -171,6 +220,9 @@ export function CheckWizardProvider({
     disablePersistence,
     initialState?.preSurveyRequestId,
     initialState?.focus,
+    // tryHeroPrefill is stable (useCallback with empty deps) but
+    // the exhaustive-deps rule can't prove that — safe to include.
+    tryHeroPrefill,
   ]);
 
   // Mint a clientSessionId after hydration if the saved state didn't

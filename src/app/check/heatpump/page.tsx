@@ -27,13 +27,23 @@ export const metadata = {
 
 export const dynamic = "force-dynamic";
 
-export default function CheckHeatpumpPage() {
+export default async function CheckHeatpumpPage({
+  searchParams,
+}: {
+  // Next 16: searchParams is a Promise. `?postcode=` comes from the
+  // hero mini-wizard when the user picks Heat pump + submits.
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   if (!isFeatureEnabled("propertoasty_check")) notFound();
+  const params = await searchParams;
+  const raw = params.postcode;
+  const prefill = typeof raw === "string" && raw.trim().length >= 5 ? raw.trim() : null;
   return (
     <CheckWizard
       initialState={{
         focus: "heatpump",
         interests: ["heat_pump"],
+        prefillPostcode: prefill,
       }}
     />
   );

@@ -37,6 +37,9 @@ interface PageProps {
     presurvey?: string;
     installer?: string;
     capability?: string;
+    // Hero mini-wizard hand-off — prefills step 1 with this postcode
+    // so the user doesn't retype it after picking their interest.
+    postcode?: string;
   }>;
 }
 
@@ -58,6 +61,21 @@ export default async function CheckPage({ searchParams }: PageProps) {
       params.installer,
       params.capability,
     );
+  }
+
+  // Hero mini-wizard hand-off — the homepage inline form pushes
+  // ?postcode= into whichever /check/* variant matches the user's
+  // chosen interest. Take it if nothing higher-priority set it.
+  const rawPostcode = params.postcode;
+  if (
+    (!initialState || !initialState.prefillPostcode) &&
+    typeof rawPostcode === "string" &&
+    rawPostcode.trim().length >= 5
+  ) {
+    initialState = {
+      ...(initialState ?? {}),
+      prefillPostcode: rawPostcode.trim(),
+    };
   }
 
   // Header + sticky progress bar live inside <CheckWizard /> so the

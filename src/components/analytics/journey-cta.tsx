@@ -19,6 +19,7 @@ export type JourneyType =
   | "heatpump"
   | "solar"
   | "boiler"
+  | "battery"
   | "plug_in_solar"
   | "all";
 

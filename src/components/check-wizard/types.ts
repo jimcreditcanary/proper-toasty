@@ -46,7 +46,7 @@ export const STEP_ORDER: CheckStep[] = [
  * Persisted in wizard state so back/forward + page reload keep
  * the variant.
  */
-export type WizardFocus = "all" | "solar" | "heatpump" | "boiler";
+export type WizardFocus = "all" | "solar" | "heatpump" | "boiler" | "battery";
 
 /** Per-focus step order. Floorplan is no longer part of any focus
  *  variant (removed July 2026 — was hurting completion). The heat

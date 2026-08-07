@@ -113,24 +113,41 @@ export function ReportShell({ audience = "homeowner" }: ReportShellProps = {}) {
   const { state, reset, back, goTo } = useCheckWizard();
   // Boiler flow opens straight on the comparison — it's the whole
   // reason that variant exists. Everything else opens on Overview.
-  const [tab, setTab] = useState<ReportTabKey>(
-    (state.focus ?? "all") === "boiler" ? "boiler" : "overview",
-  );
+  const [tab, setTab] = useState<ReportTabKey>(() => {
+    const f = state.focus ?? "all";
+    if (f === "boiler") return "boiler";
+    // Battery focus: drop straight into the Solar & battery tab —
+    // that's where battery sizing + payback lives. Skipping the
+    // Overview lands the user on the answer they came for.
+    if (f === "battery") return "solar";
+    return "overview";
+  });
   const [shareOpen, setShareOpen] = useState(false);
 
-  // journey_completed — fire once per report open. The wizard's
-  // per-step viewed event already covers drop-off; this pairs with
-  // the JourneyCTA journey_started event so the funnel dashboard
-  // can measure end-to-end conversion by journey.
+  // journey_completed — fire once per report open. This pairs with
+  // the JourneyCTA journey_started so the funnel dashboard can
+  // measure end-to-end conversion by journey.
   useEffect(() => {
     track("journey_completed", {
       journey: state.focus ?? "all",
       via_pre_survey: !!state.preSurveyToken || !!state.preSurveyInstallerId,
     });
-    // Fire once on mount — later focus/preSurvey changes are edits to
-    // the same completed report, not a new completion.
+    // Fire once on mount only.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // BookSiteVisit per Jim's Aug 2026 taxonomy — fire on Book tab
+  // open (which is a distinct intent from just landing on the
+  // report). Reuses check_step_viewed with step="book_site_visit"
+  // to keep the event taxonomy tight.
+  useEffect(() => {
+    if (tab !== "book") return;
+    track("check_step_viewed", {
+      step: "book_site_visit",
+      journey_type: state.focus ?? "all",
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab]);
 
   // "presurvey" mode covers two entry paths:
   //   - Installer-initiated: state.preSurveyRequestId is set (the
@@ -190,6 +207,8 @@ export function ReportShell({ audience = "homeowner" }: ReportShellProps = {}) {
     if (t.key === "boiler") return focus === "boiler";
     if (focus === "solar" && t.key === "heatpump") return false;
     if (focus === "heatpump" && t.key === "solar") return false;
+    // Battery focus mirrors solar — hide the Heat pump tab.
+    if (focus === "battery" && t.key === "heatpump") return false;
     // Boiler flow: focused gas-boiler-vs-heat-pump cost tool. Keep the
     // Overview (EPC + property data — now focus-aware so it carries no
     // solar/battery references) + the comparison + Book. Drop Solar,

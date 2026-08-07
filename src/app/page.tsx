@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import Image from "next/image";
 import { MarketingHeader } from "@/components/marketing-header";
 import { LandingFooter } from "@/components/landing-footer";
 import { JourneyCTA } from "@/components/analytics/journey-cta";
+import { HeroMiniWizard } from "@/components/hero-mini-wizard";
 
 // Homepage self-canonical. Layout-level canonical was removed in
 // Phase 1 (was leaking the homepage URL onto every other page as
@@ -35,64 +35,85 @@ export default function Home() {
     <div className="bg-cream">
       <MarketingHeader />
 
-      {/* Hero — deliberately unchanged apart from the primary CTA
-          copy: "Check my home" → "Calculate my savings". Same layout,
-          same photo, same stat cards. */}
+      {/* ── HERO — single-purpose: get the user into the check ──
+          whoamipaying.co.uk-style layout: bold H1 + short value prop
+          + 3 tick bullets removing common objections, all in the
+          left column. Right column is the mini-wizard form (interest
+          + postcode + submit). Photo + stat cards moved to the
+          context section below — they were competing with the CTA
+          for the user's eye. */}
       <section className="relative overflow-hidden">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6 pt-12 pb-20 sm:pt-20 sm:pb-28 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+        {/* Column ratio widened for the form (~560px min, was 480px)
+            because the calculator is now a 3-phase inline form
+            (interest → postcode → address dropdown → CTA) and
+            needs the room to breathe without the address list
+            forcing a cramped scroll. Bullets moved back to the
+            LEFT column per Jim's brief — reassurance sits with the
+            headline story, form column stays purely functional. */}
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-10 pb-10 sm:pt-14 sm:pb-14 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(480px,560px)] gap-10 lg:gap-14 items-center">
           <div>
-            <div className="inline-flex items-center gap-2 rounded-full bg-white border border-[var(--border)] px-3 py-1 text-xs text-[var(--muted-brand)] shadow-sm">
+            <div className="inline-flex items-center gap-2 rounded-full bg-white border border-[var(--border)] px-3 py-1 text-xs font-medium text-[var(--muted-brand)] shadow-sm">
               <Leaf className="w-3.5 h-3.5 text-coral" />
-              A warmer home, made simple
+              Free · England &amp; Wales · No sign-up
             </div>
 
-            <h1 className="mt-6 text-5xl sm:text-6xl text-navy leading-[1.05]">
-              Greener living
-              <br />
-              starts at home.
+            <h1 className="mt-5 text-5xl sm:text-6xl lg:text-[4.25rem] text-navy leading-[1.02] tracking-tight">
+              See what your home could actually{" "}
+              <span className="text-coral">save.</span>
             </h1>
 
-            <p className="mt-6 text-lg text-[var(--muted-brand)] leading-relaxed max-w-lg">
-              See what a heat pump, rooftop solar, or a plug-in solar kit
-              would actually save you — bill-by-bill, grant-inclusive, and
-              tailored to how you live.
+            <p className="mt-5 text-lg text-[var(--muted-brand)] leading-relaxed max-w-xl">
+              Real UK 2026 numbers on a heat pump, solar, home battery —
+              or all three. Grant-inclusive. No jargon.
             </p>
 
-            <div className="mt-10 flex flex-wrap items-center gap-3">
-              <JourneyCTA
-                href="/check"
-                journey="all"
-                source="homepage_hero"
-                className="inline-flex items-center gap-2 h-12 px-6 rounded-full bg-coral hover:bg-coral-dark text-cream font-medium transition-colors shadow-sm"
-              >
-                Calculate my savings
-                <ArrowRight className="w-4 h-4" />
-              </JourneyCTA>
-              <Link
-                href="#pick-your-calculator"
-                className="inline-flex items-center gap-2 h-12 px-5 rounded-full text-navy hover:bg-coral-pale transition-colors font-medium"
-              >
-                Or pick a calculator
-              </Link>
-            </div>
-
-            <ul className="mt-10 grid grid-cols-2 gap-x-6 gap-y-3 text-sm text-[var(--muted-brand)]">
+            {/* Objection-removing bullets — moved back to the LEFT
+                column per Jim's brief. The reassurance sits with
+                the story; the form column stays purely functional. */}
+            <ul className="mt-8 space-y-3">
               {[
-                "Takes 5 minutes",
-                "Real UK numbers",
-                "Grant-inclusive",
-                "First check free",
-              ].map((t) => (
-                <li key={t} className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-coral shrink-0" />
-                  {t}
+                {
+                  strong: "Under 5 seconds",
+                  trailing: "to start — just your postcode",
+                },
+                {
+                  strong: "Full benefits",
+                  trailing: "— bill savings, grants, payback in years",
+                },
+                {
+                  strong: "No account, no jargon",
+                  trailing: "— close the tab, no follow-up emails",
+                },
+              ].map((item) => (
+                <li key={item.strong} className="flex items-start gap-3">
+                  <CheckCircle2 className="w-5 h-5 text-coral shrink-0 mt-0.5" />
+                  <span className="text-base text-navy leading-snug">
+                    <strong className="font-semibold">{item.strong}</strong>
+                    <span className="text-[var(--muted-brand)]"> {item.trailing}</span>
+                  </span>
                 </li>
               ))}
             </ul>
           </div>
 
+          {/* Right column = the FORM. Wider than before (min 480px)
+              so the interest chips + address dropdown + big CTA all
+              have room to breathe. */}
+          <div className="w-full">
+            <HeroMiniWizard />
+          </div>
+        </div>
+      </section>
+
+      {/* ── Context strip: photo + 4 headline stats ──
+          Was tucked into the hero right column where it competed
+          with the mini-wizard for attention. Sitting below the hero
+          it now acts as social/context proof: "here's what an actual
+          UK home looks like and the numbers we'll show you". */}
+      <section className="bg-white border-y border-[var(--border)]">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 py-14 sm:py-16 grid grid-cols-1 lg:grid-cols-[1fr_1.1fr] gap-10 items-center">
           <div className="relative">
-            <div className="relative aspect-[8/7] rounded-3xl overflow-hidden shadow-xl ring-1 ring-[var(--border)]">
+            <div className="relative aspect-[4/3] rounded-3xl overflow-hidden shadow-xl ring-1 ring-[var(--border)]">
               <Image
                 src={HERO_IMAGE}
                 alt="A typical British semi-detached home with red brick, bay window and a green garage door"
@@ -103,7 +124,18 @@ export default function Home() {
                 className="object-cover"
               />
             </div>
-            <div className="mt-4 grid grid-cols-2 gap-3">
+          </div>
+          <div>
+            <p className="eyebrow">What we&rsquo;ll tell you</p>
+            <h2 className="mt-2 text-3xl sm:text-4xl text-navy leading-tight">
+              The four numbers that decide it.
+            </h2>
+            <p className="mt-3 text-[var(--muted-brand)] leading-relaxed max-w-md">
+              We pull your EPC + a satellite read of your roof, apply
+              current UK grant rules, and hand you these four numbers
+              — the ones that actually matter.
+            </p>
+            <div className="mt-6 grid grid-cols-2 gap-3">
               <HeroStatCard
                 icon={<Flame className="w-5 h-5" />}
                 label="Heat pump grant"
@@ -114,7 +146,7 @@ export default function Home() {
                 icon={<Sun className="w-5 h-5" />}
                 label="Typical UK roof"
                 value="~10 panels"
-                sub="on a south-facing roof"
+                sub="south-facing"
               />
               <HeroStatCard
                 icon={<Gauge className="w-5 h-5" />}
