@@ -115,9 +115,12 @@ export function CheckWizardProvider({
           country: parsed.country as CheckWizardState["country"],
         },
       });
-      // Skip both step 1 (address search) and step 2 (address
-      // confirm/preview) — the hero already handled both.
-      setStep("questions");
+      // Skip step 1 (address search) — the hero already ran the
+      // OS Places lookup. Land the user on step 2 (preview) so
+      // they still see the aerial "is this your home?" confirm
+      // before answering questions. That's the single address
+      // confirmation Jim's brief keeps.
+      setStep("preview");
       // Consume — a page refresh shouldn't re-fire the hop.
       sessionStorage.removeItem("hero_prefill_v1");
     } catch {

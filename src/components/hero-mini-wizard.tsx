@@ -201,28 +201,29 @@ export function HeroMiniWizard() {
     [interest, router],
   );
 
+  // Two separate submit paths, both fed through the same <form>
+  // via the button that fires them:
+  //   - Secondary "Find my address"   → searchPostcode()
+  //   - Primary   "Calculate my savings" → submitPickedAddress()
+  //
+  // Enter-key default is now "Find my address" while we don't have
+  // a picked address, "Calculate my savings" once we do. That's
+  // handled by wiring form onSubmit to whichever action makes sense
+  // for the current phase.
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (disabled) return;
-    if (phase.kind === "picking") {
-      if (selectedIdx == null) {
-        setError("Pick your address to continue.");
-        return;
-      }
+    if (phase.kind === "picking" && selectedIdx != null) {
       void submitPickedAddress(selectedIdx, phase.addresses, phase.country);
-    } else {
+    } else if (phase.kind !== "picking") {
       void searchPostcode();
     }
   }
 
-  const submitLabel =
-    phase.kind === "searching"
-      ? "Searching…"
-      : phase.kind === "picking"
-        ? "Show my savings"
-        : phase.kind === "resolving" || phase.kind === "submitting"
-          ? "Loading your check…"
-          : "Find my address";
+  const primaryReady =
+    phase.kind === "picking" && selectedIdx != null && !disabled;
+  const primaryLoading =
+    phase.kind === "resolving" || phase.kind === "submitting";
 
   return (
     <form
@@ -261,38 +262,58 @@ export function HeroMiniWizard() {
         </div>
       </fieldset>
 
-      {/* Postcode */}
+      {/* Address search — label reads "Search for your address"
+          per Jim's brief (users know they want an ADDRESS, the
+          fact that the API keys off a postcode is a plumbing
+          detail). The secondary "Find my address" button sits
+          alongside the input; the big primary CTA at the bottom
+          stays as "Calculate my savings" throughout. */}
       <div className="mt-5">
         <label
           htmlFor="hero-postcode"
           className="block text-xs font-semibold uppercase tracking-wider text-[var(--muted-brand)] mb-2"
         >
-          Your postcode
+          Search for your address
         </label>
-        <div className="relative">
-          <MapPin
-            className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--muted-brand)] pointer-events-none"
-            aria-hidden
-          />
-          <input
-            id="hero-postcode"
-            name="postcode"
-            type="text"
-            inputMode="text"
-            autoComplete="postal-code"
-            placeholder="e.g. BS3 4AA"
-            value={postcode}
-            onChange={(e) => {
-              setPostcode(e.target.value);
-              // Any edit invalidates a previous address pick.
-              if (phase.kind === "picking") {
-                setPhase({ kind: "idle" });
-                setSelectedIdx(null);
-              }
-            }}
-            className="w-full h-14 pl-12 pr-4 rounded-full border border-[var(--border)] bg-white text-base text-navy placeholder:text-[var(--muted-brand)] focus:outline-none focus:ring-2 focus:ring-coral/40 focus:border-coral"
-            aria-invalid={error != null}
-          />
+        <div className="flex flex-col sm:flex-row gap-2">
+          <div className="relative flex-1">
+            <MapPin
+              className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--muted-brand)] pointer-events-none"
+              aria-hidden
+            />
+            <input
+              id="hero-postcode"
+              name="postcode"
+              type="text"
+              inputMode="text"
+              autoComplete="postal-code"
+              placeholder="Enter your postcode"
+              value={postcode}
+              onChange={(e) => {
+                setPostcode(e.target.value);
+                // Any edit invalidates a previous address pick.
+                if (phase.kind === "picking") {
+                  setPhase({ kind: "idle" });
+                  setSelectedIdx(null);
+                }
+              }}
+              className="w-full h-14 pl-12 pr-4 rounded-full border border-[var(--border)] bg-white text-base text-navy placeholder:text-[var(--muted-brand)] focus:outline-none focus:ring-2 focus:ring-coral/40 focus:border-coral"
+              aria-invalid={error != null}
+            />
+          </div>
+          <button
+            type="button"
+            onClick={() => void searchPostcode()}
+            disabled={disabled}
+            className="inline-flex items-center justify-center gap-1.5 h-14 px-5 rounded-full border border-coral text-coral bg-white hover:bg-coral-pale disabled:opacity-60 disabled:cursor-not-allowed font-semibold text-sm transition-colors shrink-0"
+          >
+            {phase.kind === "searching" ? (
+              <Loader2 className="w-4 h-4 animate-spin" aria-hidden />
+            ) : (
+              <Search className="w-4 h-4" aria-hidden />
+            )}
+            Find my address
+          </button>
         </div>
       </div>
 
@@ -338,21 +359,35 @@ export function HeroMiniWizard() {
         </p>
       )}
 
-      {/* Big CTA */}
+      {/* Primary CTA — consistent throughout the form. Disabled
+          until the user has picked an address from the dropdown.
+          Copy stays "Calculate my savings" (the promise the whole
+          page is built around) rather than swapping labels per
+          phase — Jim's brief called out the phase-shifting label
+          as an intuition problem. */}
       <button
         type="submit"
-        disabled={disabled}
+        disabled={!primaryReady && !primaryLoading}
         className="mt-5 w-full inline-flex items-center justify-center gap-2 h-14 px-6 rounded-full bg-coral hover:bg-coral-dark disabled:opacity-60 disabled:cursor-not-allowed text-cream font-semibold text-base shadow-sm transition-colors"
       >
-        {phase.kind === "searching" || phase.kind === "resolving" || phase.kind === "submitting" ? (
-          <Loader2 className="w-5 h-5 animate-spin" aria-hidden />
-        ) : phase.kind === "picking" ? (
-          <ArrowRight className="w-5 h-5" aria-hidden />
+        {primaryLoading ? (
+          <>
+            <Loader2 className="w-5 h-5 animate-spin" aria-hidden />
+            Loading your check…
+          </>
         ) : (
-          <Search className="w-5 h-5" aria-hidden />
+          <>
+            <ArrowRight className="w-5 h-5" aria-hidden />
+            Calculate my savings
+          </>
         )}
-        {submitLabel}
       </button>
+
+      {phase.kind !== "picking" && (
+        <p className="mt-3 text-center text-xs text-[var(--muted-brand)]">
+          Find your address first, then hit Calculate my savings.
+        </p>
+      )}
     </form>
   );
 }
