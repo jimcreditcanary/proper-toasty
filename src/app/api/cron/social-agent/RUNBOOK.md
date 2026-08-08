@@ -1,12 +1,24 @@
 # Social agent runbook
 
 Daily cron that generates + publishes 4 platform-tailored social posts
-(LinkedIn, X, Facebook, Instagram) from the /blog corpus, grounded in
+(X, Facebook, Instagram — LinkedIn disabled Aug 2026, see below) from the /blog corpus, grounded in
 UK-authority sources, gated by a factual-claim LLM guardrail.
 
 ## What it does, in order
 
-1. Fires at **07:00 UTC daily** (Vercel cron, `vercel.json`).
+1. Fires **07:00 UTC on Mon / Wed / Fri** (Vercel cron,
+   `vercel.json`). Cadence dropped from daily to 3×/week Aug 2026
+   to stay comfortably under any Buffer Free-tier post caps.
+   Watchdog runs Tue / Thu / Sat 08:00 UTC (day after each agent
+   day) with a 26h look-back window.
+
+   LinkedIn is disabled — Jim disconnected the channel from Buffer
+   Aug 2026 to stay inside the Buffer Free 3-channel allowance.
+   The writer prompt no longer generates a LinkedIn draft; if it
+   ever does, the cron logs the draft to social_posts with error
+   "platform disabled" but doesn't post it. Re-enable by re-adding
+   the linkedin entry to PLATFORM_TO_SERVICE + the writer prompt's
+   JSON schema.
 2. Auths on `Authorization: Bearer $CRON_SECRET`.
 3. Picks the day's **pillar** from `src/lib/social/pillars.ts`:
    `Mon/Thu → heat_pump`, `Tue/Fri → solar`, `Wed/Sat → plug_in_solar`,
