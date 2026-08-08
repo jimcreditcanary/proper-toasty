@@ -1,6 +1,6 @@
 "use client";
 
-// Client-side CTA that fires a Vercel Analytics `journey_started`
+// Client-side CTA that fires a Vercel Analytics `journey_cta`
 // event when clicked, then follows the link. Used from every
 // homepage calculator card + hero CTA so the funnel dashboard
 // can measure entry → completion for each journey type.
@@ -9,7 +9,7 @@
 // import this directly — the "use client" boundary lives here.
 //
 // The completion side of the funnel is emitted from the wizard
-// report shell (`journey_completed`) and from the plug-in solar
+// report shell (`journey_complete`) and from the plug-in solar
 // calculator (`plug_in_solar_result_shown`).
 
 import Link from "next/link";
@@ -60,7 +60,11 @@ export function JourneyCTA({
       aria-label={ariaLabel}
       className={className}
       onClick={() => {
-        track("journey_started", { journey, source });
+        // JourneyCTA per Jim's Aug 2026 taxonomy — every button
+        // titled "Calculate my savings" fires this. Kept distinct
+        // from journey_start (postcode entered on a /check/* page)
+        // so the top-level Vercel Analytics view shows both slots.
+        track("journey_cta", { journey, source });
       }}
     >
       {children}

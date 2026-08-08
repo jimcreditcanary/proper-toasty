@@ -97,65 +97,69 @@ export interface EventMap {
   // Jim's Vercel project. Server-side events below stay in PostHog.
   //
   // ─── Vercel Analytics events (client-side) ───────────────────
-  // Three event names cover Jim's Aug 2026 conversion taxonomy —
-  // his 8 conceptual moments map onto 3 event names + props (no
-  // event proliferation). Vercel's `track()` API is untyped by
-  // design; this block is the canonical taxonomy so a reader knows
-  // what to expect in the dashboard.
+  // Eight distinct top-level events cover Jim's Aug 2026 conversion
+  // taxonomy — one row per conversion moment in the Vercel dash so
+  // he doesn't have to drill into event properties to see the
+  // funnel. Vercel's `track()` API is untyped by design; this block
+  // is the canonical taxonomy.
   //
-  //   journey_started — Props: { journey, source }
-  //     Fires when the user commits to a journey.
-  //     source values:
-  //       - "hero_wizard"     — HERO submit (interest + postcode)
-  //         [Jim: JourneyStart]
-  //       - "postcode"        — user typed + submitted a postcode
-  //         on step 1 of the wizard   [Jim: JourneyStart]
-  //       - "homepage_hero"                 [Jim: JourneyCTA]
-  //       - "homepage_picker_primary"       [Jim: JourneyCTA]
-  //       - "homepage_picker_secondary"     [Jim: JourneyCTA]
-  //       - "homepage_footer_cta"           [Jim: JourneyCTA]
-  //       - "heatpump_landing_hero" / "_footer"  [Jim: JourneyCTA]
-  //       - "solar_landing_hero" / "_footer"     [Jim: JourneyCTA]
-  //       - "boiler_landing_hero" / "_footer"    [Jim: JourneyCTA]
-  //       - "plug_in_solar_landing_hero"         [Jim: JourneyCTA]
-  //     journey values: "heatpump" | "solar" | "battery" | "boiler"
-  //                   | "plug_in_solar" | "all"
+  //   journey_cta — [Jim: JourneyCTA]
+  //     Any "Calculate my savings" button click across marketing
+  //     pages + the hero mini-wizard's primary submit.
+  //     Props: { journey, source }
+  //     source values include: "homepage_hero", "hero_wizard",
+  //       "homepage_picker_primary", "homepage_footer_cta",
+  //       "heatpump_landing_hero", "solar_landing_hero",
+  //       "boiler_landing_hero", "plug_in_solar_landing_hero", etc.
   //     Where: src/components/analytics/journey-cta.tsx
   //            src/components/hero-mini-wizard.tsx
-  //            src/components/check-wizard/step-1-address.tsx
   //
-  //   check_step_viewed — Props: { step, journey_type, ... }
-  //     Fires on the 3 CONFIRM transitions inside the wizard + the
-  //     2 book-CTA clicks. Deliberately curated set — no per-step
-  //     spam (that used to fire on every step change and made the
-  //     drop-off chart noisy).
-  //     step values:
-  //       - "address_confirmed" — "Yes that is my home"
-  //         [Jim: AddressConfirm]
-  //       - "details_confirmed" — questions + Continue
-  //         [Jim: DetailsConfirm]
-  //       - "email_confirmed"   — email + Show me my report
-  //         [Jim: EmailConfirm]
-  //       - "book_site_visit"   — Book tab opened on the report
-  //         [Jim: BookSiteVisit]
-  //       - "book_meeting"      — any "Book a meeting" button
-  //         [Jim: BookaMeeting]  (also carries installer_id prop)
+  //   journey_start — [Jim: JourneyStart]
+  //     User has landed on /check/* AND a postcode is committed —
+  //     either typed on step 1 or arrived via the hero prefill.
+  //     Props: { journey, source }
+  //     source values: "postcode" | "hero_wizard"
+  //     Where: src/components/check-wizard/step-1-address.tsx
+  //            src/components/check-wizard/context.tsx
+  //
+  //   address_confirm — [Jim: AddressConfirm]
+  //     "Yes that is my home" clicked on the aerial preview step.
+  //     Props: { journey_type, from_presurvey_link,
+  //              from_installer_prebind }
   //     Where: src/components/check-wizard/wizard-shell.tsx
-  //            src/components/check-wizard/report/report-shell.tsx
-  //            src/components/check-wizard/report/tabs/
-  //                book-visit-tab.tsx
   //
-  //   journey_completed — Props: { journey, via_pre_survey }
-  //     Fires once when the user reaches the final report OR (for
-  //     plug-in solar) when the calculator mounts.
-  //     [Jim: JourneyComplete]
+  //   details_confirm — [Jim: DetailsConfirm]
+  //     Questions answered + Continue clicked.
+  //     Props: same as address_confirm
+  //     Where: src/components/check-wizard/wizard-shell.tsx
+  //
+  //   email_confirm — [Jim: EmailConfirm]
+  //     Email entered + "Show me my report" clicked.
+  //     Props: same as address_confirm
+  //     Where: src/components/check-wizard/wizard-shell.tsx
+  //
+  //   journey_complete — [Jim: JourneyComplete]
+  //     User reached the final report OR (plug-in solar) the
+  //     calculator mounted.
+  //     Props: { journey, via_pre_survey }
   //     Where: src/components/check-wizard/report/report-shell.tsx
   //            src/components/plug-in-solar/calculator.tsx
   //
-  // Pair journey_started/journey_completed for funnel conversion
-  // per journey type. check_step_viewed's 5 step values are the
-  // intermediate drop-off points. Vercel dashboard → Analytics →
-  // Custom events.
+  //   book_site_visit — [Jim: BookSiteVisit]
+  //     Book tab opened on the report.
+  //     Props: { journey_type }
+  //     Where: src/components/check-wizard/report/report-shell.tsx
+  //
+  //   book_meeting — [Jim: BookaMeeting]
+  //     Any "Book a meeting" button clicked in the book-visit tab.
+  //     Props: { installer_id }
+  //     Where: src/components/check-wizard/report/tabs/
+  //              book-visit-tab.tsx
+  //
+  // Funnel: journey_cta → journey_start → address_confirm →
+  //   details_confirm → email_confirm → journey_complete →
+  //   book_site_visit → book_meeting. Vercel dashboard →
+  //   Analytics → Custom events.
   homeowner_quote_accepted: {
     installer_id: number;
     total_pence: number;

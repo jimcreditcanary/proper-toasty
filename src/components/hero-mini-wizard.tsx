@@ -13,8 +13,10 @@
 //      context.tsx has a one-shot effect that reads the prefill
 //      + skips to the "questions" step.
 //
-// Fires journey_started (source="hero_wizard") once on the final
-// submit — that's the point of real commitment.
+// Fires journey_cta (source="hero_wizard") once on the final
+// submit — that's the point of real commitment. journey_start
+// then fires from context.tsx once the wizard mounts with the
+// postcode already hydrated.
 
 import { useCallback, useState, type FormEvent } from "react";
 import { ArrowRight, Loader2, MapPin, Search } from "lucide-react";
@@ -189,7 +191,12 @@ export function HeroMiniWizard() {
       }
 
       setPhase({ kind: "submitting" });
-      track("journey_started", {
+      // JourneyCTA per Jim's Aug 2026 taxonomy — the hero's primary
+      // "Calculate my savings" button is a JourneyCTA click that
+      // happens to carry a resolved address with it. The subsequent
+      // journey_start fires from context.tsx tryHeroPrefill when
+      // the wizard mounts with the postcode already present.
+      track("journey_cta", {
         source: "hero_wizard",
         journey: interest === "heatpump" ? "heatpump" : interest,
       });

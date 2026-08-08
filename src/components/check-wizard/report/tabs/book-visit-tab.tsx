@@ -587,11 +587,10 @@ function InstallerTile({
           <button
             type="button"
             onClick={() => {
-              // BookaMeeting per Jim's Aug 2026 taxonomy. Reuses
-              // check_step_viewed with step="book_meeting" to keep
-              // the taxonomy tight.
-              track("check_step_viewed", {
-                step: "book_meeting",
+              // BookaMeeting per Jim's Aug 2026 taxonomy — own
+              // top-level event so the deepest funnel step is
+              // visible in the dashboard without a property drill.
+              track("book_meeting", {
                 installer_id: installer.id,
               });
               onBook();
