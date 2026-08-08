@@ -25,10 +25,11 @@ export function Step1Address() {
       return;
     }
     // JourneyStart per Jim's Aug 2026 taxonomy — user has committed
-    // enough to type + submit a real postcode. Fires as
-    // journey_started with source="postcode" to distinguish it from
-    // the CTA-click journey_started that JourneyCTA emits.
-    track("journey_started", {
+    // enough to type + submit a real postcode inside a /check/*
+    // page. Distinct from journey_cta (any "Calculate my savings"
+    // click, hero or marketing pages) so both slots show at the
+    // top level in Vercel Analytics.
+    track("journey_start", {
       source: "postcode",
       journey: state.focus ?? "all",
     });

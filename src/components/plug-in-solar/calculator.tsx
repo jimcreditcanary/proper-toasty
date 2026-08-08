@@ -19,8 +19,8 @@
 
 import Image from "next/image";
 import { useEffect, useMemo, useState, type ReactElement } from "react";
-// journey_completed fires once when the calculator mounts. Pairs
-// with the journey_started event on the homepage picker CTA so the
+// journey_complete fires once when the calculator mounts. Pairs
+// with the journey_cta event on the homepage picker CTA so the
 // funnel dashboard can measure home → calculator conversion.
 import { track } from "@vercel/analytics/react";
 
@@ -186,7 +186,11 @@ export function PlugInSolarCalculator(): ReactElement {
   const [tariffPence, setTariffPence] = useState<number>(27);
 
   useEffect(() => {
-    track("journey_completed", {
+    // JourneyComplete per Jim's Aug 2026 taxonomy — plug-in-solar
+    // is a self-contained calculator with no separate report step,
+    // so mounting the calculator IS the terminal conversion moment
+    // for this journey.
+    track("journey_complete", {
       journey: "plug_in_solar",
       via_pre_survey: false,
     });

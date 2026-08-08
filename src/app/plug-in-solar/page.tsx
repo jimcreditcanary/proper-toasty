@@ -178,8 +178,8 @@ export default function PlugInSolarHub() {
       {/* Jump CTA — for readers who came in via the homepage picker
           (or an inbound link with #calculator) and want to skip
           straight to the interactive block. Also gives us a
-          journey_started event to pair with the calculator's
-          journey_completed on mount. */}
+          journey_cta event to pair with the calculator's
+          journey_complete on mount. */}
       <p className="not-prose mt-6 mb-2 flex justify-center">
         <JourneyCTA
           href="#calculator"

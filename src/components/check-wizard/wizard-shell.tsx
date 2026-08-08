@@ -135,16 +135,17 @@ function PageTitleSync() {
   return null;
 }
 
-// Fires `check_step_viewed` on the 3 meaningful CONFIRM
+// Fires distinct top-level events on the 3 meaningful CONFIRM
 // transitions inside the wizard (per Jim's Aug 2026 taxonomy):
-//   - preview     → questions  = AddressConfirm  ("Yes that is my home")
-//   - questions   → analysis   = DetailsConfirm  (answered + Continue)
-//   - lead_capture→ report     = EmailConfirm    (email + Show me my report)
+//   - preview     → questions  = `address_confirm`  ("Yes that is my home")
+//   - questions   → analysis   = `details_confirm`  (answered + Continue)
+//   - lead_capture→ report     = `email_confirm`    (email + Show me my report)
 //
 // We deliberately do NOT fire on every step view — the previous
 // per-step firing made drop-off charts noisy. Book-* transitions
 // are handled elsewhere (report-shell + book-visit tab). The
-// journey_started + journey_completed events bracket the funnel.
+// journey_cta / journey_start / journey_complete events bracket
+// the funnel.
 function StepAnalyticsSync() {
   const { step, state } = useCheckWizard();
   const previousStep = useRef<string | null>(null);
@@ -154,18 +155,20 @@ function StepAnalyticsSync() {
     previousStep.current = step;
 
     // Deliberate 3-transition allowlist — see comment above.
-    let confirmStep: string | null = null;
+    // Each fires as its own top-level Vercel Analytics event per
+    // Jim's Aug 2026 taxonomy so the dashboard shows one row per
+    // conversion moment instead of one bucketed row for all three.
+    let eventName: "address_confirm" | "details_confirm" | "email_confirm" | null = null;
     if (prev === "preview" && step === "questions") {
-      confirmStep = "address_confirmed";
+      eventName = "address_confirm";
     } else if (prev === "questions" && step === "analysis") {
-      confirmStep = "details_confirmed";
+      eventName = "details_confirm";
     } else if (prev === "lead_capture" && step === "report") {
-      confirmStep = "email_confirmed";
+      eventName = "email_confirm";
     }
-    if (!confirmStep) return;
+    if (!eventName) return;
 
-    track("check_step_viewed", {
-      step: confirmStep,
+    track(eventName, {
       journey_type: state.focus ?? "all",
       from_presurvey_link: state.preSurveyToken != null,
       from_installer_prebind:

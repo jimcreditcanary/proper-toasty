@@ -171,7 +171,7 @@ export default function Home() {
           themselves out. Primary CTA = the calculator itself;
           secondary CTA = the deeper read for people who aren't
           ready to enter a postcode yet. Every CTA fires a
-          journey_started event tagged with journey + source. */}
+          journey_cta event tagged with journey + source. */}
       <section
         id="pick-your-calculator"
         className="border-y border-[var(--border)] bg-white scroll-mt-16"
@@ -351,7 +351,7 @@ function HeroStatCard({
 // Bright, tactile picker card. Coloured gradient header for
 // scannability + a big stat pill so the "why bother" is visible
 // without reading the body copy. Primary CTA = journey; secondary =
-// deeper reading. Both fire journey_started with the same journey_type
+// deeper reading. Both fire journey_cta with the same journey_type
 // so we can tell which entry surface converts best.
 function CalculatorCard({
   audience,

@@ -10,6 +10,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { track } from "@vercel/analytics/react";
 import {
   INITIAL_STATE,
   stepOrderForFocus,
@@ -121,12 +122,23 @@ export function CheckWizardProvider({
       // before answering questions. That's the single address
       // confirmation Jim's brief keeps.
       setStep("preview");
+      // JourneyStart per Jim's Aug 2026 taxonomy — the user has
+      // landed on /check/* WITH a postcode. Since step-1-address is
+      // skipped on hero arrivals, its journey_start emitter is
+      // skipped too — fire it here so the funnel step still counts.
+      // state.focus is stable across the wizard's life (set once at
+      // reducer construction from the page-level focus prop and
+      // never mutated), so the closure snapshot is correct.
+      track("journey_start", {
+        source: "hero_wizard",
+        journey: state.focus ?? "all",
+      });
       // Consume — a page refresh shouldn't re-fire the hop.
       sessionStorage.removeItem("hero_prefill_v1");
     } catch {
       // ignore — corrupted prefill / storage disabled
     }
-  }, []);
+  }, [state.focus]);
 
   useEffect(() => {
     if (disablePersistence) {

@@ -19,9 +19,10 @@
 // off too and the Solar tab shows it as inactive.
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-// Vercel Analytics — journey_completed fires once per report render
-// so the funnel dashboard can pair it with the journey_started event
-// emitted by the marketing-page CTAs.
+// Vercel Analytics — journey_complete fires once per report render
+// so the funnel dashboard can pair it with the journey_cta /
+// journey_start events at the funnel entry. book_site_visit fires
+// on Book-tab open (own event, no property drill needed).
 import { track } from "@vercel/analytics/react";
 import {
   ArrowLeft,
@@ -124,11 +125,12 @@ export function ReportShell({ audience = "homeowner" }: ReportShellProps = {}) {
   });
   const [shareOpen, setShareOpen] = useState(false);
 
-  // journey_completed — fire once per report open. This pairs with
-  // the JourneyCTA journey_started so the funnel dashboard can
-  // measure end-to-end conversion by journey.
+  // JourneyComplete per Jim's Aug 2026 taxonomy — fires once per
+  // report open. Pairs with journey_cta / journey_start at the
+  // funnel entry so the dashboard can measure end-to-end conversion
+  // by journey without drilling into event properties.
   useEffect(() => {
-    track("journey_completed", {
+    track("journey_complete", {
       journey: state.focus ?? "all",
       via_pre_survey: !!state.preSurveyToken || !!state.preSurveyInstallerId,
     });
@@ -136,14 +138,12 @@ export function ReportShell({ audience = "homeowner" }: ReportShellProps = {}) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // BookSiteVisit per Jim's Aug 2026 taxonomy — fire on Book tab
-  // open (which is a distinct intent from just landing on the
-  // report). Reuses check_step_viewed with step="book_site_visit"
-  // to keep the event taxonomy tight.
+  // BookSiteVisit per Jim's Aug 2026 taxonomy — fires when the user
+  // opens the Book tab. Own top-level event so the funnel from
+  // report → book intent is visible without a property drill-down.
   useEffect(() => {
     if (tab !== "book") return;
-    track("check_step_viewed", {
-      step: "book_site_visit",
+    track("book_site_visit", {
       journey_type: state.focus ?? "all",
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
