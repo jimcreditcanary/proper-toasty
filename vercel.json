@@ -22,6 +22,10 @@
       "schedule": "0 7 * * *"
     },
     {
+      "path": "/api/cron/social-watchdog",
+      "schedule": "0 8 * * *"
+    },
+    {
       "path": "/api/cron/blog-generator",
       "schedule": "0 9 * * 0"
     }

@@ -262,6 +262,11 @@ whether the post cites them:
 - Plug-in solar is legal in the UK from April 2026 under BS 7671
   Amendment 4, with an 800W inverter limit. This is CORRECT and
   does not need a citation.
+- The BUS grant can ONLY be applied for by an MCS-certified
+  installer on the homeowner's behalf (Ofgem rule, in force
+  since scheme launch May 2022). Posts saying "MCS-certified
+  installer required" or "MCS installer applies for you" are
+  CORRECT — do not reject them as unsupported.
 - Propertoasty is a savings calculator / pre-survey tool. Phrases
   like "savings calculator", "run the numbers", "estimate your
   savings", "check your savings", "pre-survey indication" are ALL
