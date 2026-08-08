@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   createPost as bufferCreatePost,
@@ -311,6 +312,27 @@ async function run(req: Request): Promise<RunResult | { error: string }> {
     detail,
   };
   console.log("[cron/social-agent] complete", result);
+
+  // High-rejection alert — anything ≥ 50% rejected is a guardrail
+  // drift signal worth waking someone up for (e.g. stale
+  // known-true facts, new policy that trips the skeptic). Level
+  // "warning" so it doesn't page but does surface in the Sentry
+  // issues list next to the run's exact rejection reasons.
+  if (result.attempted > 0 && result.rejected / result.attempted >= 0.5) {
+    Sentry.captureMessage(
+      `Social agent: ${result.rejected}/${result.attempted} posts rejected (${pillar})`,
+      {
+        level: "warning",
+        extra: {
+          pillar,
+          persona,
+          blog_post_slug: post.slug,
+          detail: result.detail,
+        },
+      },
+    );
+  }
+
   return result;
 }
 
