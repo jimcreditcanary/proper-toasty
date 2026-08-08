@@ -48,8 +48,15 @@ export const maxDuration = 300; // web_search + 4 gens + guardrails
 export const dynamic = "force-dynamic";
 
 // Platform → Buffer service. Keep the two aligned by construction.
-const PLATFORM_TO_SERVICE: Record<Platform, BufferService> = {
-  linkedin: "linkedin",
+//
+// LinkedIn is deliberately omitted (Aug 2026 onwards) — Jim
+// disconnected the LinkedIn channel from Buffer to stay inside the
+// Buffer Free 3-channel allowance. The type still includes
+// "linkedin" for backwards-compat with historical social_posts
+// rows; drafts targeting linkedin (should never happen — writer
+// prompt only asks for 3 platforms) would fall through to an
+// undefined lookup + skip. Restoring LinkedIn = re-add the entry.
+const PLATFORM_TO_SERVICE: Partial<Record<Platform, BufferService>> = {
   twitter: "twitter",
   facebook: "facebook",
   instagram: "instagram",
@@ -211,7 +218,25 @@ async function run(req: Request): Promise<RunResult | { error: string }> {
       continue;
     }
 
+    // Skip platforms we deliberately don't post to (currently
+     // LinkedIn — see PLATFORM_TO_SERVICE comment). Log the
+     // draft so the copy isn't lost if we re-enable later, but
+     // don't count it against the error budget.
     const service = PLATFORM_TO_SERVICE[draft.platform];
+    if (!service) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (admin as any).from("social_posts").insert({
+        platform: draft.platform,
+        pillar,
+        blog_post_slug: post.slug,
+        content: draft.text,
+        link_url: linkUrl,
+        factual_check_passed: true,
+        error: `platform disabled in PLATFORM_TO_SERVICE`,
+      });
+      detail.push({ platform: draft.platform, outcome: "no_channel" });
+      continue;
+    }
     let channelId: string | null;
     try {
       channelId = await findChannelId(service);

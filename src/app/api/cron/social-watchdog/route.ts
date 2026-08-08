@@ -4,22 +4,24 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 // GET /api/cron/social-watchdog
 //
-// Fires 1 hour after the daily social-agent cron (vercel.json).
-// Sanity-checks that the run actually produced rows in
+// Fires the DAY AFTER each social-agent day (Tue / Thu / Sat at
+// 08:00 UTC per vercel.json — social-agent is Mon / Wed / Fri
+// 07:00). Sanity-checks that yesterday's run produced rows in
 // social_posts. Catches two silent failure modes the in-run
 // alert can't:
 //
-//   1. Vercel cron didn't fire the daily social-agent at all
-//      (missed executions — this was the Aug 4 + Aug 5 pattern
-//      that surfaced only when Jim noticed "no new posts").
+//   1. Vercel cron didn't fire the previous day's social-agent
+//      at all (missed executions — this was the Aug 4 + Aug 5
+//      pattern that surfaced only when Jim noticed "no new posts").
 //   2. social-agent fired but crashed BEFORE it could write any
-//      row (e.g. Sonnet 5 outage, Anthropic quota exhausted,
-//      Supabase connectivity issue).
+//      row (Sonnet 5 outage, Anthropic quota exhausted, Supabase
+//      connectivity issue).
 //
-// Query window is 25 hours (1h buffer past the 24h cadence) so
-// a slow run + this watchdog running the same minute don't race.
-// If ANY row landed in the window we're healthy — even
-// rejected/errored rows prove the code ran end-to-end.
+// Window is 26h — Tue 08:00 UTC minus 26h = Mon 06:00 UTC, which
+// comfortably covers a Mon 07:00 UTC cron even if it started
+// late or ran long. If ANY row landed in the window we're
+// healthy — even rejected/errored rows prove the code ran
+// end-to-end.
 //
 // Sentry level is "error" here (vs "warning" on the in-run
 // alert) because a total no-op is a bigger deal than partial
@@ -29,7 +31,7 @@ export const runtime = "nodejs";
 export const maxDuration = 30;
 export const dynamic = "force-dynamic";
 
-const WINDOW_HOURS = 25;
+const WINDOW_HOURS = 26;
 
 async function run(): Promise<{
   status: "ok" | "no_rows" | "all_failed";

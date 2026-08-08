@@ -90,14 +90,9 @@ const PLATFORM_SPECS = `
 Platform rules — 2026 best practice. Each rule is there for an
 engagement reason. Do not deviate.
 
-LinkedIn (1200-1600 chars — the sweet spot):
-- Line 1 = HOOK. A specific number, a contrarian claim, or a question. Never "Did you know…", never "I want to talk about…". First 8 words earn the click on "see more".
-- After line 1, INSERT AN EMPTY LINE. This triggers LinkedIn's "…see more" cutoff at the ideal position.
-- Then 3-5 SHORT paragraphs (1-3 sentences each), separated by blank lines. LinkedIn crushes wall-of-text posts.
-- One specific insight per post, not a summary. Reader should learn ONE thing they didn't know.
-- Link inline, near the end (the "link in first comment" trick died in 2024 — link inline is fine again).
-- End with a soft question ("What's been your experience?") OR a direct CTA. Never both.
-- 3 hashtags maximum, at the very bottom, each on its own line. #UKPropertyPolicy #HeatPumps #EnergyBills style.
+(LinkedIn is temporarily disabled — Jim disconnected it from
+Buffer on Aug 2026 to stay inside the Buffer Free 3-channel
+allowance. Do NOT include a LinkedIn post in the output.)
 
 X (single tweet — thread support isn't in this build):
 - 240-275 chars including the link. No throat-clearing.
@@ -193,12 +188,11 @@ Step 2: Draft the four posts (LinkedIn, X, Facebook, Instagram) applying the pla
 CITATION RULE — mandatory:
 For EVERY specific statistic, £ figure, or percentage that appears in ANY post, the underlying source URL must appear in the "citations" array. If you can't find a citable source for a stat, omit the stat — use vague framing ("thousands of UK homes", "most owners") instead. Attributing to "Ofgem's data" or "DESNZ figures" without a URL in citations WILL fail the guardrail.
 
-Step 3: Return this JSON exactly:
+Step 3: Return this JSON exactly (3 posts — NO LinkedIn):
 
 {
   "citations": [{"url": "...", "publisher": "..."}],
   "posts": [
-    {"platform": "linkedin", "text": "..."},
     {"platform": "twitter", "text": "..."},
     {"platform": "facebook", "text": "..."},
     {"platform": "instagram", "text": "..."}
