@@ -59,9 +59,14 @@ export const ORG_PROFILE = {
   },
 
   // ── Contact ───────────────────────────────────────────────────────
+  // Telephone is stored in E.164 for schema/tel: links and displayed
+  // in UK national format ("07590 571361") wherever a human reads it —
+  // both match on the page, satisfying Google's structured-data rule
+  // that schema contact info must be visible on the same page.
   contactPoint: {
     contactType: "customer service",
     email: "hello@propertoasty.com",
+    telephone: "+447590571361",
     availableLanguage: "en-GB",
   } as null | {
     contactType: string;
@@ -69,6 +74,9 @@ export const ORG_PROFILE = {
     telephone?: string;
     availableLanguage?: string;
   },
+  /** UK national format for display. Keep in sync with contactPoint.telephone
+   *  above — schema value must match visible page content. */
+  telephoneDisplay: "07590 571361",
 
   // ── Cross-references (sameAs) ─────────────────────────────────────
   // Each `sameAs` entry is a public profile of the same organisation

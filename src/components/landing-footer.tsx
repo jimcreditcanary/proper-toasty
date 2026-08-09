@@ -24,7 +24,9 @@
 // ("pre-survey indication") so we don't confuse visitors.
 
 import Link from "next/link";
+import { Mail, Phone } from "lucide-react";
 import { Logo } from "@/components/logo";
+import { ORG_PROFILE } from "@/lib/seo/org-profile";
 
 // Social profile row. URLs match the sameAs list in ORG_PROFILE
 // (src/lib/seo/org-profile.ts) — Google gives extra weight to
@@ -193,6 +195,31 @@ export function LandingFooter() {
               </li>
             ))}
           </ul>
+          {/* Direct contact — email is visible; phone number is
+              deliberately NOT shown in the button label to keep it
+              off the sitewide footer where automated scrapers
+              harvest phone numbers. The tel: link still uses the
+              full E.164 number for click-to-call, and the
+              Organization.contactPoint.telephone in the JSON-LD
+              (root layout) still carries the signal to Google.
+              A visible copy of the number lives on /contact for
+              structured-data consistency. */}
+          <div className="mt-5 flex flex-col gap-2 text-xs">
+            <a
+              href={`mailto:${ORG_PROFILE.contactPoint?.email ?? ""}`}
+              className="inline-flex items-center gap-1.5 text-[var(--muted-brand)] hover:text-navy transition-colors"
+            >
+              <Mail className="w-3.5 h-3.5" aria-hidden />
+              <span>{ORG_PROFILE.contactPoint?.email}</span>
+            </a>
+            <a
+              href={`tel:${ORG_PROFILE.contactPoint?.telephone ?? ""}`}
+              className="inline-flex items-center gap-1.5 self-start rounded-full border border-coral/40 bg-white px-3 py-1.5 text-coral hover:bg-coral hover:text-white transition-colors font-medium"
+            >
+              <Phone className="w-3.5 h-3.5" aria-hidden />
+              <span>Call us</span>
+            </a>
+          </div>
         </div>
         {COLUMNS.map((col) => (
           <div key={col.title} className="text-sm">
