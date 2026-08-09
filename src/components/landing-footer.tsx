@@ -24,7 +24,9 @@
 // ("pre-survey indication") so we don't confuse visitors.
 
 import Link from "next/link";
+import { Mail, Phone } from "lucide-react";
 import { Logo } from "@/components/logo";
+import { ORG_PROFILE } from "@/lib/seo/org-profile";
 
 // Social profile row. URLs match the sameAs list in ORG_PROFILE
 // (src/lib/seo/org-profile.ts) — Google gives extra weight to
@@ -193,6 +195,28 @@ export function LandingFooter() {
               </li>
             ))}
           </ul>
+          {/* Direct contact — email + phone. Both are visible so the
+              schema Organization.contactPoint values (email +
+              telephone in ORG_PROFILE) satisfy Google's requirement
+              that structured contact info matches page content.
+              tel: link uses E.164 for interoperability; the visible
+              label uses UK national format for readability. */}
+          <div className="mt-5 flex flex-col gap-2 text-xs">
+            <a
+              href={`mailto:${ORG_PROFILE.contactPoint?.email ?? ""}`}
+              className="inline-flex items-center gap-1.5 text-[var(--muted-brand)] hover:text-navy transition-colors"
+            >
+              <Mail className="w-3.5 h-3.5" aria-hidden />
+              <span>{ORG_PROFILE.contactPoint?.email}</span>
+            </a>
+            <a
+              href={`tel:${ORG_PROFILE.contactPoint?.telephone ?? ""}`}
+              className="inline-flex items-center gap-1.5 self-start rounded-full border border-coral/40 bg-white px-3 py-1.5 text-coral hover:bg-coral hover:text-white transition-colors font-medium"
+            >
+              <Phone className="w-3.5 h-3.5" aria-hidden />
+              <span>Call {ORG_PROFILE.telephoneDisplay}</span>
+            </a>
+          </div>
         </div>
         {COLUMNS.map((col) => (
           <div key={col.title} className="text-sm">
