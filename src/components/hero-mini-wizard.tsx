@@ -19,7 +19,7 @@
 // postcode already hydrated.
 
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
-import { ArrowDown, ArrowRight, Loader2, MapPin, Search } from "lucide-react";
+import { ArrowDown, ArrowRight, ArrowUp, Loader2, MapPin, Search } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { track } from "@vercel/analytics/react";
 import type { AddressLookupResponse } from "@/lib/schemas/address-lookup";
@@ -411,21 +411,25 @@ export function HeroMiniWizard() {
           </p>
         )}
 
-        {/* Primary CTA — button label morphs with `nextAction` so
-            the user always sees exactly what to do next instead of
-            staring at a disabled sage "Calculate my savings" while
-            the required postcode field is empty. Once the primary
-            action is actionable, a slow pulse ring is added to
-            pull the eye to the next click. */}
+        {/* Primary CTA. Two visual states, deliberately different:
+             - WAITING (empty postcode / no picked address): outlined
+               coral button with an up-arrow — reads unmistakably as
+               "the action is up in that field, come back here after".
+               No shadow, no fill: it clearly isn't the click target
+               yet.
+             - READY (address picked): solid coral, right-arrow,
+               pulse-ring animation. The transition from outlined
+               ghost → solid pulsing is loud enough to grab the eye
+               the moment they've done their part. */}
         <button
           type="submit"
           disabled={!primaryReady && !primaryLoading}
-          className={`mt-5 w-full inline-flex items-center justify-center gap-2 h-14 px-6 rounded-full text-cream font-semibold text-base shadow-md transition-all ${
+          className={`mt-5 w-full inline-flex items-center justify-center gap-2 h-14 px-6 rounded-full font-semibold text-base transition-all ${
             primaryReady
-              ? "bg-coral hover:bg-coral-dark animate-pulse-ring"
+              ? "bg-coral hover:bg-coral-dark text-cream shadow-md animate-pulse-ring"
               : primaryLoading
-                ? "bg-coral"
-                : "bg-coral/85 hover:bg-coral cursor-not-allowed"
+                ? "bg-coral text-cream shadow-md"
+                : "bg-transparent border-2 border-dashed border-coral/60 text-coral cursor-not-allowed"
           }`}
         >
           {primaryLoading ? (
@@ -435,18 +439,18 @@ export function HeroMiniWizard() {
             </>
           ) : nextAction === "enter-postcode" ? (
             <>
-              <ArrowDown className="w-5 h-5" aria-hidden />
+              <ArrowUp className="w-5 h-5" aria-hidden />
               Enter your postcode above
             </>
           ) : nextAction === "pick-address" ? (
             <>
-              <ArrowDown className="w-5 h-5" aria-hidden />
+              <ArrowUp className="w-5 h-5" aria-hidden />
               Pick your address above
             </>
           ) : (
             <>
-              <ArrowRight className="w-5 h-5" aria-hidden />
               Calculate my savings
+              <ArrowRight className="w-5 h-5" aria-hidden />
             </>
           )}
         </button>
