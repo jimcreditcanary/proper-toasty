@@ -18,6 +18,15 @@
 //
 // All state is in URL search params so links are shareable + the page
 // is fully server-rendered.
+//
+// ORPHAN LEAD SECTION (Aug 2026, Jim's bug report):
+//   Some real users complete the check flow and receive their report
+//   via Postmark but never leave a `checks` row — the wizard's
+//   fire-and-forget upsertCheck path silently fails, so /api/leads/
+//   capture can't link a check to the lead. Those homeowners were
+//   invisible in this page (which lists checks). We now surface them
+//   in a top section — every homeowner_leads row with source=check_flow
+//   that doesn't have a linked checks row within the current range.
 
 import Link from "next/link";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -33,6 +42,8 @@ import {
   XCircle,
   AlertTriangle,
   ImageIcon,
+  Mail,
+  AlertOctagon,
 } from "lucide-react";
 import type { Database } from "@/types/database";
 
@@ -75,6 +86,66 @@ function isRangeFilter(s: string | undefined): s is RangeFilter {
 
 interface ReportListItem extends CheckRow {
   user_email: string | null;
+}
+
+/** A homeowner_leads row (source=check_flow) that has no linked
+ *  checks row — surfaced as an "orphan" report request so admin can
+ *  see users the wizard failed to persist a check for. */
+interface OrphanLead {
+  id: string;
+  email: string;
+  name: string | null;
+  postcode: string | null;
+  address: string | null;
+  created_at: string;
+}
+
+async function loadOrphanLeads(args: {
+  range: RangeFilter;
+}): Promise<OrphanLead[]> {
+  const admin = createAdminClient();
+
+  const range = RANGE_FILTERS.find((r) => r.key === args.range) ?? RANGE_FILTERS[0];
+  const sinceIso =
+    range.days === null
+      ? null
+      : new Date(Date.now() - range.days * 24 * 60 * 60 * 1000).toISOString();
+
+  // Two-pass to avoid a broken JOIN: fetch check_flow leads, then
+  // fetch the set of linked homeowner_lead_ids from checks in the
+  // same window (checks with a null lead id can't be orphans).
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let leadsQuery = (admin as any)
+    .from("homeowner_leads")
+    .select("id, email, name, postcode, address, created_at")
+    .eq("source", "check_flow")
+    .order("created_at", { ascending: false })
+    .limit(100);
+  if (sinceIso) leadsQuery = leadsQuery.gte("created_at", sinceIso);
+  const { data: leads, error: leadsErr } = await leadsQuery;
+  if (leadsErr) {
+    console.error("[admin/reports] orphan-leads query failed", leadsErr);
+    return [];
+  }
+  const leadRows = (leads ?? []) as OrphanLead[];
+  if (leadRows.length === 0) return [];
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: linkedChecks } = await (admin as any)
+    .from("checks")
+    .select("homeowner_lead_id")
+    .not("homeowner_lead_id", "is", null)
+    .in(
+      "homeowner_lead_id",
+      leadRows.map((l) => l.id),
+    );
+  const linkedIds = new Set(
+    ((linkedChecks ?? []) as Array<{ homeowner_lead_id: string | null }>)
+      .map((c) => c.homeowner_lead_id)
+      .filter((id): id is string => !!id),
+  );
+
+  return leadRows.filter((l) => !linkedIds.has(l.id));
 }
 
 async function loadReports(args: {
@@ -172,7 +243,13 @@ export default async function ReportsPage({ searchParams }: PageProps) {
   const status: StatusFilter = isStatusFilter(params.status) ? params.status : "all";
   const range: RangeFilter = isRangeFilter(params.range) ? params.range : "all";
 
-  const rows = await loadReports({ q, status, range });
+  const [rows, orphanLeads] = await Promise.all([
+    loadReports({ q, status, range }),
+    // Orphans only make sense as a "did this user complete but not
+    // persist" view — no search filtering here, always show the full
+    // in-range set so nothing hides silently.
+    loadOrphanLeads({ range }),
+  ]);
 
   return (
     <PortalShell
@@ -251,6 +328,17 @@ export default async function ReportsPage({ searchParams }: PageProps) {
           })}
         </div>
       </form>
+
+      {/* Orphan leads section — homeowner_leads with source=check_flow
+          that have no linked checks row. These users completed the
+          flow, got their report email, but the wizard failed to
+          persist a check — invisible in the main list because the
+          main list queries checks. Do NOT hide when empty during the
+          bug-hunt window; the "0 orphans" reading is a useful signal
+          that the underlying upsertCheck fix has taken. */}
+      <OrphanLeadsSection leads={orphanLeads} rangeLabel={
+        RANGE_FILTERS.find((r) => r.key === range)?.label ?? ""
+      } />
 
       {/* Result count + export button */}
       <div className="flex items-center justify-between mb-3">
@@ -388,6 +476,69 @@ function EmptyState({ hasQuery }: { hasQuery: boolean }) {
           Try a postcode, UPRN, short ID or part of an email address.
         </p>
       )}
+    </div>
+  );
+}
+
+function OrphanLeadsSection({
+  leads,
+  rangeLabel,
+}: {
+  leads: OrphanLead[];
+  rangeLabel: string;
+}) {
+  if (leads.length === 0) return null;
+  return (
+    <div className="mb-6 rounded-xl border border-amber-300 bg-amber-50/70 p-4">
+      <div className="flex items-start gap-3 mb-3">
+        <span className="shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-lg bg-amber-100 text-amber-800">
+          <AlertOctagon className="w-4 h-4" />
+        </span>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold text-amber-950">
+            {leads.length} report request{leads.length === 1 ? "" : "s"} without a check row · {rangeLabel}
+          </p>
+          <p className="text-xs text-amber-900 mt-0.5 leading-relaxed">
+            The homeowner completed the flow and their report email fired
+            via Postmark, but the wizard&apos;s fire-and-forget
+            upsertCheck didn&apos;t persist a checks row. Their contact
+            details are captured in <code className="text-[11px] px-1 py-0.5 bg-white/60 rounded">homeowner_leads</code>{" "}
+            — surfaced here so they&apos;re not invisible while the root
+            cause is being fixed.
+          </p>
+        </div>
+      </div>
+      <ul className="space-y-1.5">
+        {leads.map((l) => (
+          <li
+            key={l.id}
+            className="flex items-start gap-3 p-3 rounded-lg bg-white border border-amber-200"
+          >
+            <span className="shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-lg bg-amber-50 text-amber-700 border border-amber-200">
+              <Mail className="w-3.5 h-3.5" />
+            </span>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <a
+                  href={`mailto:${l.email}`}
+                  className="font-semibold text-navy hover:text-coral text-sm truncate"
+                >
+                  {l.email}
+                </a>
+                {l.name && (
+                  <span className="text-xs text-slate-500">· {l.name}</span>
+                )}
+              </div>
+              <p className="text-xs text-slate-600 truncate mt-0.5">
+                {l.address ?? l.postcode ?? "(no address)"}
+              </p>
+              <p className="text-[11px] text-slate-400 mt-0.5">
+                {formatDate(l.created_at)}
+              </p>
+            </div>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

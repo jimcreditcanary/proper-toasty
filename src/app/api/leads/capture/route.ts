@@ -140,8 +140,19 @@ export async function POST(req: Request) {
   // wizard sends checkId once it has one (or clientSessionId as
   // fallback for very early captures). We update the matching row
   // with homeowner_lead_id so admin queries can join straight from
-  // checks → homeowner_leads. Best-effort: if no check row matches
-  // (anonymous flow that never fired upsert) we silently skip.
+  // checks → homeowner_leads.
+  //
+  // Aug 2026 fix (Jim's bug report): the wizard's fire-and-forget
+  // upsertCheck at step-5-analysis fails silently for some real
+  // homeowners — the browser navigates to lead capture before the
+  // upsert fetch dispatches, or the request aborts, so no check row
+  // exists to link. Those users were invisible in /admin/reports
+  // (email fired via Postmark, contact captured in homeowner_leads,
+  // but no checks row). We now INSERT a stub check row on this
+  // fallback path so the pairing is guaranteed. status='complete'
+  // because they're on the lead-capture screen — the analysis
+  // step has already run client-side; a stub is enough for admin
+  // visibility even without the analyse blobs.
   try {
     let checkUpdate: { id: string } | null = null;
     if (input.checkId) {
@@ -169,6 +180,30 @@ export async function POST(req: Request) {
         .eq("id", checkUpdate.id);
       if (linkErr) {
         console.warn("[leads] check link update failed", linkErr);
+      }
+    } else {
+      // No existing check — create a stub so the lead is visible in
+      // /admin/reports. Log the fallback so we can measure how often
+      // the fire-and-forget upsert is missing in the wild.
+      console.warn("[leads] no check row found — inserting stub", {
+        checkId: input.checkId ?? null,
+        clientSessionId: input.clientSessionId ?? null,
+        homeownerLeadId,
+        email,
+      });
+      const { error: stubErr } = await admin.from("checks").insert({
+        status: "complete",
+        user_id: null,
+        client_session_id: input.clientSessionId ?? null,
+        homeowner_lead_id: homeownerLeadId,
+        uprn: input.uprn ?? null,
+        address_formatted: input.address ?? null,
+        postcode: input.postcode ?? null,
+        latitude: input.latitude ?? null,
+        longitude: input.longitude ?? null,
+      });
+      if (stubErr) {
+        console.warn("[leads] stub check insert failed", stubErr);
       }
     }
   } catch (err) {
