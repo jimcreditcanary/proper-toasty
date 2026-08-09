@@ -187,9 +187,31 @@ export function CheckWizardProvider({
       return;
     }
 
-    // Same hero hand-off on the /check top-level route
-    // (focus="all" — the "All three" option in the hero picker).
-    tryHeroPrefill();
+    // Hero hand-off on the /check top-level route (focus="all" —
+    // the "All three" option in the hero picker). When the URL
+    // declares a hero arrival (?fromhero=1) we treat it as an
+    // explicit "start fresh here" signal, exactly like the focus-
+    // variant branch above:
+    //   1. Wipe localStorage so a stale saved state can't clobber
+    //      the hero prefill's step (Aug 2026 bug — Jim's session
+    //      with cached step="address" was overwriting tryHeroPrefill's
+    //      setStep("preview") because the rehydrate ran AFTER the
+    //      prefill's setStep in the same effect tick, so the
+    //      rehydrate won and the user landed back on the address
+    //      search they'd just completed in the hero).
+    //   2. Fire tryHeroPrefill authoritatively.
+    //   3. SKIP the rehydrate block — no localStorage read at all.
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("fromhero") === "1") {
+      try {
+        localStorage.removeItem(STORAGE_KEY);
+      } catch {
+        // ignore
+      }
+      tryHeroPrefill();
+      setHydrated(true);
+      return;
+    }
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
