@@ -70,18 +70,22 @@ export default function ContactPage() {
     >
       {/* Prominent Call-us CTA at the top of the page. Placed above
           the audience-specific cards so anyone landing here from a
-          "propertoasty phone number" Google search sees the number +
-          click-to-call immediately, without scrolling. The visible
-          number matches ORG_PROFILE.contactPoint.telephone so the
-          Organization schema stays consistent with page content. */}
+          "propertoasty phone number" Google search sees the click-
+          to-call immediately, without scrolling. Button label is
+          just "Call us" to keep the visible number off scraper-heavy
+          surfaces; the number itself appears once in the small line
+          under the button + in the TL;DR bullet above, which is
+          enough to satisfy Google's rule that
+          Organization.contactPoint.telephone match visible content
+          on the page where the schema is emitted. */}
       <div className="not-prose mb-8 flex flex-col sm:flex-row items-start sm:items-center gap-4 rounded-2xl border border-[var(--border)] bg-cream-deep p-5">
         <div className="flex-1">
           <p className="text-sm font-semibold text-navy m-0">
             Prefer to speak to someone?
           </p>
           <p className="text-sm text-slate-600 m-0 mt-1">
-            Call us during UK office hours (Mon–Fri). Voicemail out of
-            hours — we call back within one working day.
+            {ORG_PROFILE.telephoneDisplay} · UK office hours (Mon–Fri).
+            Voicemail out of hours — we call back within one working day.
           </p>
         </div>
         <a
@@ -89,7 +93,7 @@ export default function ContactPage() {
           className="inline-flex items-center gap-2 rounded-full bg-coral hover:bg-coral-dark text-white px-5 h-11 font-semibold text-sm shadow-sm transition-colors"
         >
           <Phone className="w-4 h-4" aria-hidden />
-          Call {ORG_PROFILE.telephoneDisplay}
+          Call us
         </a>
       </div>
 

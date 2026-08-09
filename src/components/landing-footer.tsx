@@ -195,12 +195,15 @@ export function LandingFooter() {
               </li>
             ))}
           </ul>
-          {/* Direct contact — email + phone. Both are visible so the
-              schema Organization.contactPoint values (email +
-              telephone in ORG_PROFILE) satisfy Google's requirement
-              that structured contact info matches page content.
-              tel: link uses E.164 for interoperability; the visible
-              label uses UK national format for readability. */}
+          {/* Direct contact — email is visible; phone number is
+              deliberately NOT shown in the button label to keep it
+              off the sitewide footer where automated scrapers
+              harvest phone numbers. The tel: link still uses the
+              full E.164 number for click-to-call, and the
+              Organization.contactPoint.telephone in the JSON-LD
+              (root layout) still carries the signal to Google.
+              A visible copy of the number lives on /contact for
+              structured-data consistency. */}
           <div className="mt-5 flex flex-col gap-2 text-xs">
             <a
               href={`mailto:${ORG_PROFILE.contactPoint?.email ?? ""}`}
@@ -214,7 +217,7 @@ export function LandingFooter() {
               className="inline-flex items-center gap-1.5 self-start rounded-full border border-coral/40 bg-white px-3 py-1.5 text-coral hover:bg-coral hover:text-white transition-colors font-medium"
             >
               <Phone className="w-3.5 h-3.5" aria-hidden />
-              <span>Call {ORG_PROFILE.telephoneDisplay}</span>
+              <span>Call us</span>
             </a>
           </div>
         </div>
