@@ -43,11 +43,10 @@ const BRAND = {
   terracotta: "#D9813C",
   sage: "#A8BCA1",
   muted: "#6B7266",
-  // Warm gradient stops used for "Toasty" + the flame-leaf mark.
-  toastyDark: "#A43B2E",
-  toastyMid: "#D9813C",
-  toastyLight: "#E8B647",
-  toastyPale: "#F8D97A",
+  // NOTE: warm gradient stops (toastyDark/Mid/Light/Pale) were removed
+  // when the hand-drawn LogoMark got replaced with the canonical
+  // wordmark asset (public/brand/wordmark.svg). The gradient now lives
+  // inside the SVG itself.
 } as const;
 
 type Pillar = "heat_pump" | "solar" | "plug_in_solar" | "blog";
@@ -104,106 +103,51 @@ function pillarMeta(p: string): PillarMeta {
 
 // ─── Building blocks ──────────────────────────────────────────────
 
-// The exact 3-flame leaf mark from src/components/logo.tsx.
-// SVG paths + gradient copied verbatim so the card matches the
-// site chrome byte-for-byte.
-function LogoMark({ size }: { size: number }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 48 48"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      style={{ display: "flex" }}
-    >
-      <defs>
-        <linearGradient
-          id="toasty-flame"
-          x1="50%"
-          y1="100%"
-          x2="50%"
-          y2="0%"
-        >
-          <stop offset="0%" stopColor={BRAND.toastyDark} />
-          <stop offset="35%" stopColor={BRAND.toastyMid} />
-          <stop offset="70%" stopColor={BRAND.toastyLight} />
-          <stop offset="100%" stopColor={BRAND.toastyPale} />
-        </linearGradient>
-      </defs>
-      <path
-        d="M12 42 C 8 34, 9 25, 14 18 C 17 22, 18 28, 17 35 C 16 39, 14 41, 12 42 Z"
-        fill="url(#toasty-flame)"
-      />
-      <path
-        d="M36 42 C 40 33, 38 24, 33 16 C 31 21, 30 28, 31 34 C 32 38, 34 41, 36 42 Z"
-        fill="url(#toasty-flame)"
-      />
-      <path
-        d="M24 44 C 18 35, 18 22, 23 8 C 25 11, 28 20, 29 28 C 30 35, 28 40, 24 44 Z"
-        fill="url(#toasty-flame)"
-      />
-    </svg>
-  );
-}
+// LockupBar renders the ACTUAL brand asset from public/brand/wordmark.svg
+// as an <img>. Do NOT recreate the wordmark with inline SVG paths + text
+// spans — Jim's brief (Aug 2026): the social poster must use ONLY the
+// attached logo. The previous LogoMark + Georgia-serif "Proper Toasty"
+// spans have been removed.
+//
+// Wordmark intrinsic size: 215×47. Height scales with the card format
+// (base 88px on landscape 1200×630, 1.3× on square 1080×1080) and the
+// width is derived from the intrinsic aspect ratio so the mark never
+// distorts. Satori fetches the SVG at render time from an absolute URL.
+
+const WORDMARK_INTRINSIC = { width: 215, height: 47 } as const;
 
 function LockupBar({
   scale = 1,
+  wordmarkUrl,
 }: {
   /** 1 = base LinkedIn size; scale up for square/IG. */
   scale?: number;
+  /** Absolute URL to the wordmark SVG (Satori needs a fetchable URL). */
+  wordmarkUrl: string;
 }) {
-  const iconSize = 56 * scale;
-  const wordSize = 40 * scale;
+  const markHeight = 88 * scale;
+  const markWidth =
+    markHeight * (WORDMARK_INTRINSIC.width / WORDMARK_INTRINSIC.height);
   return (
     <div
       style={{
         display: "flex",
         alignItems: "center",
-        gap: 14 * scale,
-        padding: `${14 * scale}px ${22 * scale}px`,
+        padding: `${16 * scale}px ${26 * scale}px`,
         background: "rgba(250, 247, 242, 0.94)",
         borderRadius: 999,
         // Subtle shadow so the lockup sits proud of the photo.
         boxShadow: "0 2px 12px rgba(0,0,0,0.12)",
       }}
     >
-      <LogoMark size={iconSize} />
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "row",
-          alignItems: "baseline",
-          gap: 6 * scale,
-        }}
-      >
-        <span
-          style={{
-            fontSize: wordSize,
-            fontWeight: 700,
-            color: BRAND.navy,
-            letterSpacing: -1,
-            fontFamily: "Georgia, serif",
-          }}
-        >
-          Proper
-        </span>
-        {/* Satori doesn't reliably render background-clip:text, so
-            "Toasty" gets the terracotta mid-tone from the flame
-            gradient as a solid — visually consistent with the
-            warm palette without depending on unsupported CSS. */}
-        <span
-          style={{
-            fontSize: wordSize,
-            fontWeight: 800,
-            color: BRAND.toastyMid,
-            letterSpacing: -1,
-            fontFamily: "Georgia, serif",
-          }}
-        >
-          Toasty
-        </span>
-      </div>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={wordmarkUrl}
+        alt="Proper Toasty"
+        width={markWidth}
+        height={markHeight}
+        style={{ display: "flex" }}
+      />
     </div>
   );
 }
@@ -263,10 +207,12 @@ function UrlLabel({ scale = 1 }: { scale?: number }) {
 function Card({
   meta,
   photoUrl,
+  wordmarkUrl,
   scale = 1,
 }: {
   meta: PillarMeta;
   photoUrl: string;
+  wordmarkUrl: string;
   scale?: number;
 }) {
   return (
@@ -327,7 +273,7 @@ function Card({
       >
         {/* Top row: lockup — flex-start so it sits at the top-left */}
         <div style={{ display: "flex", alignItems: "flex-start" }}>
-          <LockupBar scale={scale} />
+          <LockupBar scale={scale} wordmarkUrl={wordmarkUrl} />
         </div>
 
         {/* Bottom row: pillar chip left, URL right */}
@@ -371,16 +317,29 @@ export async function GET(req: Request) {
   const photoUrl =
     pexelsPhoto?.url ??
     new URL(pillar.fallbackPhoto, url.origin).toString();
+  // Wordmark ships in the public bucket at /brand/wordmark.svg — the
+  // canonical brand asset Jim provided. Satori fetches it at render.
+  const wordmarkUrl = new URL("/brand/wordmark.svg", url.origin).toString();
 
   if (format === "square") {
     return new ImageResponse(
-      <Card meta={pillar} photoUrl={photoUrl} scale={1.3} />,
+      <Card
+        meta={pillar}
+        photoUrl={photoUrl}
+        wordmarkUrl={wordmarkUrl}
+        scale={1.3}
+      />,
       { width: 1080, height: 1080 },
     );
   }
 
   return new ImageResponse(
-    <Card meta={pillar} photoUrl={photoUrl} scale={1} />,
+    <Card
+      meta={pillar}
+      photoUrl={photoUrl}
+      wordmarkUrl={wordmarkUrl}
+      scale={1}
+    />,
     { width: 1200, height: 630 },
   );
 }
