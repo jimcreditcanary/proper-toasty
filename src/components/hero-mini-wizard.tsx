@@ -18,8 +18,8 @@
 // then fires from context.tsx once the wizard mounts with the
 // postcode already hydrated.
 
-import { useCallback, useState, type FormEvent } from "react";
-import { ArrowRight, Loader2, MapPin, Search } from "lucide-react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { ArrowDown, ArrowRight, Loader2, MapPin, Search } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { track } from "@vercel/analytics/react";
 import type { AddressLookupResponse } from "@/lib/schemas/address-lookup";
@@ -85,6 +85,19 @@ export function HeroMiniWizard() {
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
   const [phase, setPhase] = useState<Phase>({ kind: "idle" });
   const [error, setError] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  // Autofocus the postcode input on mount so the cursor blinks
+  // inside the field the moment the page loads — the strongest
+  // possible "start here" signal a form can give without motion.
+  // Skipped on small viewports because a mobile keyboard popping
+  // up under the fold hides the interest picker + the H1 above.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (window.matchMedia("(min-width: 1024px)").matches) {
+      inputRef.current?.focus({ preventScroll: true });
+    }
+  }, []);
 
   const disabled =
     phase.kind === "searching" ||
@@ -232,169 +245,227 @@ export function HeroMiniWizard() {
   const primaryLoading =
     phase.kind === "resolving" || phase.kind === "submitting";
 
+  // Which step the user is on right now. The primary CTA's empty
+  // state copy shifts with this so the button always says exactly
+  // what the user needs to do next — no more staring at a
+  // disabled sage button labelled "Calculate my savings" while
+  // the required postcode field is still empty.
+  const nextAction: "enter-postcode" | "pick-address" | "ready" =
+    phase.kind === "picking"
+      ? selectedIdx != null
+        ? "ready"
+        : "pick-address"
+      : "enter-postcode";
+
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="rounded-3xl bg-white shadow-lg border border-[var(--border)] p-6 sm:p-8"
-    >
-      {/* Interest chips */}
-      <fieldset className="space-y-3">
-        <legend className="text-xs font-semibold uppercase tracking-wider text-[var(--muted-brand)]">
-          I&rsquo;m interested in
-        </legend>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          {INTERESTS.map((opt) => {
-            const selected = interest === opt.value;
-            return (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => setInterest(opt.value)}
-                aria-pressed={selected}
-                className={`
-                  inline-flex items-center justify-center gap-1.5
-                  h-11 rounded-full text-sm font-semibold transition-colors border
-                  ${
-                    selected
-                      ? "bg-coral text-cream border-coral shadow-sm"
-                      : "bg-cream/60 text-navy border-[var(--border)] hover:bg-cream-deep hover:border-coral/40"
-                  }
-                `}
-              >
-                <span aria-hidden>{opt.emoji}</span>
-                {opt.label}
-              </button>
-            );
-          })}
-        </div>
-      </fieldset>
-
-      {/* Address search — label reads "Search for your address"
-          per Jim's brief (users know they want an ADDRESS, the
-          fact that the API keys off a postcode is a plumbing
-          detail). The secondary "Find my address" button sits
-          alongside the input; the big primary CTA at the bottom
-          stays as "Calculate my savings" throughout. */}
-      <div className="mt-5">
-        <label
-          htmlFor="hero-postcode"
-          className="block text-xs font-semibold uppercase tracking-wider text-[var(--muted-brand)] mb-2"
-        >
-          Search for your address
-        </label>
-        <div className="flex flex-col sm:flex-row gap-2">
-          <div className="relative flex-1">
-            <MapPin
-              className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--muted-brand)] pointer-events-none"
-              aria-hidden
-            />
-            <input
-              id="hero-postcode"
-              name="postcode"
-              type="text"
-              inputMode="text"
-              autoComplete="postal-code"
-              placeholder="Enter your postcode"
-              value={postcode}
-              onChange={(e) => {
-                setPostcode(e.target.value);
-                // Any edit invalidates a previous address pick.
-                if (phase.kind === "picking") {
-                  setPhase({ kind: "idle" });
-                  setSelectedIdx(null);
-                }
-              }}
-              className="w-full h-14 pl-12 pr-4 rounded-full border border-[var(--border)] bg-white text-base text-navy placeholder:text-[var(--muted-brand)] focus:outline-none focus:ring-2 focus:ring-coral/40 focus:border-coral"
-              aria-invalid={error != null}
-            />
-          </div>
-          <button
-            type="button"
-            onClick={() => void searchPostcode()}
-            disabled={disabled}
-            className="inline-flex items-center justify-center gap-1.5 h-14 px-5 rounded-full border border-coral text-coral bg-white hover:bg-coral-pale disabled:opacity-60 disabled:cursor-not-allowed font-semibold text-sm transition-colors shrink-0"
-          >
-            {phase.kind === "searching" ? (
-              <Loader2 className="w-4 h-4 animate-spin" aria-hidden />
-            ) : (
-              <Search className="w-4 h-4" aria-hidden />
-            )}
-            Find my address
-          </button>
-        </div>
+    // Outer wrapper carries the halo shadow — a soft coral glow so
+    // the wizard visually pops off the cream background. Isolate
+    // gives the "Start here" pill a positioning context that won't
+    // be affected by parent stacking contexts on the page.
+    <div className="relative isolate">
+      {/* "Start here ↓" pill floats on the top edge of the card.
+          Deliberately overlaps the border so it reads as a label
+          FOR the card, not a chip inside it. Motion (a slow bounce)
+          is the strongest single attention-grabber a static hero
+          form can add — reserved for this one element so it doesn't
+          feel busy. */}
+      <div className="pointer-events-none absolute -top-3 left-1/2 -translate-x-1/2 z-10">
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-coral text-cream text-xs font-bold uppercase tracking-wider px-3.5 py-1.5 shadow-md animate-bounce-slow">
+          Start here
+          <ArrowDown className="w-3.5 h-3.5" aria-hidden />
+        </span>
       </div>
-
-      {/* Address list — appears after successful postcode lookup */}
-      {phase.kind === "picking" && (
-        <div className="mt-4">
-          <p className="text-xs font-semibold uppercase tracking-wider text-[var(--muted-brand)] mb-2">
-            Pick your address
-          </p>
-          <ul className="max-h-52 overflow-y-auto rounded-2xl border border-[var(--border)] divide-y divide-[var(--border)] bg-cream/30">
-            {phase.addresses.map((a, idx) => {
-              const chosen = selectedIdx === idx;
+      <form
+        onSubmit={handleSubmit}
+        className="relative rounded-3xl bg-white p-6 sm:p-8 shadow-[0_20px_60px_-15px_rgba(194,72,38,0.35),0_8px_20px_-8px_rgba(0,0,0,0.12)] ring-1 ring-coral/25"
+      >
+        {/* Interest chips */}
+        <fieldset className="space-y-2.5">
+          <legend className="flex items-center gap-2 text-sm font-semibold text-navy">
+            <StepNumber n={1} />
+            What are you interested in?
+          </legend>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {INTERESTS.map((opt) => {
+              const selected = interest === opt.value;
               return (
-                <li key={a.uprn ?? `${a.addressLine1}-${idx}`}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedIdx(idx);
-                      setError(null);
-                    }}
-                    className={`
-                      w-full text-left px-4 py-2.5 text-sm transition-colors
-                      ${
-                        chosen
-                          ? "bg-coral text-cream"
-                          : "text-navy hover:bg-cream-deep"
-                      }
-                    `}
-                  >
-                    {a.summary || `${a.addressLine1}, ${a.postcode}`}
-                  </button>
-                </li>
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setInterest(opt.value)}
+                  aria-pressed={selected}
+                  className={`
+                    inline-flex items-center justify-center gap-1.5
+                    h-11 rounded-full text-sm font-semibold transition-colors border
+                    ${
+                      selected
+                        ? "bg-coral text-cream border-coral shadow-sm"
+                        : "bg-cream/60 text-navy border-[var(--border)] hover:bg-cream-deep hover:border-coral/40"
+                    }
+                  `}
+                >
+                  <span aria-hidden>{opt.emoji}</span>
+                  {opt.label}
+                </button>
               );
             })}
-          </ul>
+          </div>
+        </fieldset>
+
+        {/* Address search — sentence-case, human label (not the
+            tiny uppercase form label that read as tertiary). The
+            secondary "Find my address" button sits alongside the
+            input; the big primary CTA at the bottom stays as
+            "Calculate my savings" throughout. */}
+        <div className="mt-5 space-y-2.5">
+          <label
+            htmlFor="hero-postcode"
+            className="flex items-center gap-2 text-sm font-semibold text-navy"
+          >
+            <StepNumber n={2} />
+            What&rsquo;s your postcode?
+          </label>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <div className="relative flex-1">
+              <MapPin
+                className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-coral/60 pointer-events-none"
+                aria-hidden
+              />
+              <input
+                ref={inputRef}
+                id="hero-postcode"
+                name="postcode"
+                type="text"
+                inputMode="text"
+                autoComplete="postal-code"
+                placeholder="e.g. BS3 4AA"
+                value={postcode}
+                onChange={(e) => {
+                  setPostcode(e.target.value);
+                  // Any edit invalidates a previous address pick.
+                  if (phase.kind === "picking") {
+                    setPhase({ kind: "idle" });
+                    setSelectedIdx(null);
+                  }
+                }}
+                className="w-full h-14 pl-12 pr-4 rounded-full border-2 border-[var(--border)] bg-white text-lg text-navy placeholder:text-[var(--muted-brand)]/70 focus:outline-none focus:ring-4 focus:ring-coral/25 focus:border-coral transition-shadow"
+                aria-invalid={error != null}
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => void searchPostcode()}
+              disabled={disabled}
+              className="inline-flex items-center justify-center gap-1.5 h-14 px-5 rounded-full border-2 border-coral text-coral bg-white hover:bg-coral-pale disabled:opacity-60 disabled:cursor-not-allowed font-semibold text-sm transition-colors shrink-0"
+            >
+              {phase.kind === "searching" ? (
+                <Loader2 className="w-4 h-4 animate-spin" aria-hidden />
+              ) : (
+                <Search className="w-4 h-4" aria-hidden />
+              )}
+              Find my address
+            </button>
+          </div>
         </div>
-      )}
 
-      {/* Error line */}
-      {error && (
-        <p role="alert" className="mt-3 text-sm text-rose-600">
-          {error}
-        </p>
-      )}
-
-      {/* Primary CTA — consistent throughout the form. Disabled
-          until the user has picked an address from the dropdown.
-          Copy stays "Calculate my savings" (the promise the whole
-          page is built around) rather than swapping labels per
-          phase — Jim's brief called out the phase-shifting label
-          as an intuition problem. */}
-      <button
-        type="submit"
-        disabled={!primaryReady && !primaryLoading}
-        className="mt-5 w-full inline-flex items-center justify-center gap-2 h-14 px-6 rounded-full bg-coral hover:bg-coral-dark disabled:opacity-60 disabled:cursor-not-allowed text-cream font-semibold text-base shadow-sm transition-colors"
-      >
-        {primaryLoading ? (
-          <>
-            <Loader2 className="w-5 h-5 animate-spin" aria-hidden />
-            Loading your check…
-          </>
-        ) : (
-          <>
-            <ArrowRight className="w-5 h-5" aria-hidden />
-            Calculate my savings
-          </>
+        {/* Address list — appears after successful postcode lookup */}
+        {phase.kind === "picking" && (
+          <div className="mt-4">
+            <p className="flex items-center gap-2 text-sm font-semibold text-navy mb-2">
+              <StepNumber n={3} />
+              Pick your address
+            </p>
+            <ul className="max-h-52 overflow-y-auto rounded-2xl border border-[var(--border)] divide-y divide-[var(--border)] bg-cream/30">
+              {phase.addresses.map((a, idx) => {
+                const chosen = selectedIdx === idx;
+                return (
+                  <li key={a.uprn ?? `${a.addressLine1}-${idx}`}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedIdx(idx);
+                        setError(null);
+                      }}
+                      className={`
+                        w-full text-left px-4 py-2.5 text-sm transition-colors
+                        ${
+                          chosen
+                            ? "bg-coral text-cream"
+                            : "text-navy hover:bg-cream-deep"
+                        }
+                      `}
+                    >
+                      {a.summary || `${a.addressLine1}, ${a.postcode}`}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
         )}
-      </button>
 
-      {phase.kind !== "picking" && (
-        <p className="mt-3 text-center text-xs text-[var(--muted-brand)]">
-          Find your address first, then hit Calculate my savings.
-        </p>
-      )}
-    </form>
+        {/* Error line */}
+        {error && (
+          <p role="alert" className="mt-3 text-sm text-rose-600">
+            {error}
+          </p>
+        )}
+
+        {/* Primary CTA — button label morphs with `nextAction` so
+            the user always sees exactly what to do next instead of
+            staring at a disabled sage "Calculate my savings" while
+            the required postcode field is empty. Once the primary
+            action is actionable, a slow pulse ring is added to
+            pull the eye to the next click. */}
+        <button
+          type="submit"
+          disabled={!primaryReady && !primaryLoading}
+          className={`mt-5 w-full inline-flex items-center justify-center gap-2 h-14 px-6 rounded-full text-cream font-semibold text-base shadow-md transition-all ${
+            primaryReady
+              ? "bg-coral hover:bg-coral-dark animate-pulse-ring"
+              : primaryLoading
+                ? "bg-coral"
+                : "bg-coral/85 hover:bg-coral cursor-not-allowed"
+          }`}
+        >
+          {primaryLoading ? (
+            <>
+              <Loader2 className="w-5 h-5 animate-spin" aria-hidden />
+              Loading your check…
+            </>
+          ) : nextAction === "enter-postcode" ? (
+            <>
+              <ArrowDown className="w-5 h-5" aria-hidden />
+              Enter your postcode above
+            </>
+          ) : nextAction === "pick-address" ? (
+            <>
+              <ArrowDown className="w-5 h-5" aria-hidden />
+              Pick your address above
+            </>
+          ) : (
+            <>
+              <ArrowRight className="w-5 h-5" aria-hidden />
+              Calculate my savings
+            </>
+          )}
+        </button>
+      </form>
+    </div>
+  );
+}
+
+// Small circular step badge. Standalone so its size + typography
+// stay identical across Step 1 / Step 2 / Step 3 without a
+// className re-do. Deliberately coral so the numbering visually
+// connects the flow: 1 → 2 → 3.
+function StepNumber({ n }: { n: number }) {
+  return (
+    <span
+      className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-coral text-cream text-[11px] font-bold shrink-0"
+      aria-hidden
+    >
+      {n}
+    </span>
   );
 }
