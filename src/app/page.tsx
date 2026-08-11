@@ -4,6 +4,7 @@ import { MarketingHeader } from "@/components/marketing-header";
 import { LandingFooter } from "@/components/landing-footer";
 import { JourneyCTA } from "@/components/analytics/journey-cta";
 import { HeroMiniWizard } from "@/components/hero-mini-wizard";
+import { ExitIntentModal } from "@/components/exit-intent-modal";
 
 // Homepage self-canonical. Layout-level canonical was removed in
 // Phase 1 (was leaking the homepage URL onto every other page as
@@ -312,6 +313,14 @@ export default function Home() {
       </section>
 
       <LandingFooter />
+
+      {/* Exit-intent nudge — catches homeowners about to bounce
+          without completing the hero wizard. Client component
+          with all trigger logic inside. Placed at page end so it
+          sits above everything when it opens (fixed positioning +
+          z-index inside the component). Mounted only on the
+          homepage per Jim's v1 brief. */}
+      <ExitIntentModal />
     </div>
   );
 }
@@ -492,7 +501,7 @@ function VizSavingsTile() {
           />
         ))}
       </div>
-      <p className="mt-1 text-[10px] text-emerald-700/80">vs a new gas boiler</p>
+      <p className="mt-1 text-[10px] text-emerald-800">vs a new gas boiler</p>
     </div>
   );
 }
@@ -540,7 +549,7 @@ function VizRoofTile() {
       <p className="mt-1 text-sm font-bold text-navy tabular-nums leading-none">
         10 panels · 4.0 kWp
       </p>
-      <p className="mt-1 text-[10px] text-amber-700/80">South-facing pitch 35°</p>
+      <p className="mt-1 text-[10px] text-amber-800">South-facing pitch 35°</p>
     </div>
   );
 }
