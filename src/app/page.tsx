@@ -501,7 +501,7 @@ function VizSavingsTile() {
           />
         ))}
       </div>
-      <p className="mt-1 text-[10px] text-emerald-700/80">vs a new gas boiler</p>
+      <p className="mt-1 text-[10px] text-emerald-800">vs a new gas boiler</p>
     </div>
   );
 }
@@ -549,7 +549,7 @@ function VizRoofTile() {
       <p className="mt-1 text-sm font-bold text-navy tabular-nums leading-none">
         10 panels · 4.0 kWp
       </p>
-      <p className="mt-1 text-[10px] text-amber-700/80">South-facing pitch 35°</p>
+      <p className="mt-1 text-[10px] text-amber-800">South-facing pitch 35°</p>
     </div>
   );
 }
