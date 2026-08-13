@@ -1,13 +1,12 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import {
-  lookupAddressesByPostcode as lookupViaOsPlaces,
-  osPlacesConfigured,
-} from "@/lib/services/os-places";
+  lookupAddressesByPostcode as lookupViaPostcoder,
+  postcoderConfigured,
+  postcoderCountryToUkCountry,
+  type PostcoderNgdAddress,
+} from "@/lib/services/postcoder";
 import { validatePostcode } from "@/lib/services/postcodes";
-import {
-  osCountryCodeToUkCountry,
-} from "@/lib/schemas/os-places";
 import type {
   AddressLookupResponse,
   AddressMetadata,
@@ -30,112 +29,56 @@ function formatPostcode(raw: string): string {
 }
 
 /**
- * Resolve a postcode to a list of addresses via OS Places.
+ * Resolve a postcode to a list of addresses via Postcoder NGD.
  *
- * OS Places is the only address provider — Postcoder was removed in
- * favour of OS Places' authoritative AddressBase data (real UPRN +
- * per-property WGS84 lat/lng + classification + parent UPRN, all
- * persisted as address_metadata for the installer brief).
+ * Postcoder replaced OS Places in Aug 2026 — OS revoked our Places
+ * access, Postcoder gives us the same PAF + AddressBase-equivalent
+ * data (real UPRN + per-property WGS84 + classification + local
+ * custodian) plus a friendlier per-postcode caching story
+ * (see src/lib/services/postcoder.ts — 30-day cache, 3.5 credits
+ * per miss, 0 credits per hit).
  */
 async function resolveAddresses(
   postcode: string,
   centroidLat: number,
-  centroidLng: number
+  centroidLng: number,
 ): Promise<{
   addresses: AddressLookupResponse["addresses"];
   rawCount: number;
-  countryCodeOverride: "England" | "Wales" | "Scotland" | "Northern Ireland" | null;
+  countryCodeOverride:
+    | "England"
+    | "Wales"
+    | "Scotland"
+    | "Northern Ireland"
+    | null;
 }> {
-  if (!osPlacesConfigured()) {
+  if (!postcoderConfigured()) {
     throw new Error(
-      "OS_PLACES_API_KEY is not set. The address lookup requires an OS DataHub Places API key."
+      "POSTCODER_API_KEY is not set. The address lookup requires a Postcoder NGD API key.",
     );
   }
 
-  const rows = await lookupViaOsPlaces(postcode);
+  const rows = await lookupViaPostcoder(postcode);
 
-  // Filter out historical / closed entries (LOGICAL_STATUS_CODE 8)
-  // before display. OS keeps demolished or split addresses in DPA
-  // for delivery-history continuity but they shouldn't appear in
-  // a homeowner picker.
-  const liveRows = rows.filter((r) => {
-    const status = typeof r.LOGICAL_STATUS_CODE === "number"
-      ? r.LOGICAL_STATUS_CODE
-      : Number(r.LOGICAL_STATUS_CODE ?? 1);
-    return Number.isFinite(status) ? status === 1 : true;
-  });
+  const addresses: AddressLookupResponse["addresses"] = rows.map((r) =>
+    mapPostcoderRow(r, postcode, centroidLat, centroidLng),
+  );
 
-  const addresses: AddressLookupResponse["addresses"] = liveRows.map((r) => {
-    const buildingNumber =
-      r.BUILDING_NUMBER != null ? String(r.BUILDING_NUMBER) : "";
-    const subBuilding = r.SUB_BUILDING_NAME ?? "";
-    const buildingName = r.BUILDING_NAME ?? "";
-    const thoroughfare = r.THOROUGHFARE_NAME ?? "";
-    const dependentThoroughfare = r.DEPENDENT_THOROUGHFARE_NAME ?? "";
-    const organisation = r.ORGANISATION_NAME ?? "";
-
-    // Compose addressLine1 from the granular fields rather than the
-    // ALL-CAPS comma-joined ADDRESS — easier for the EPC fuzzy
-    // matcher to parse. The full ADDRESS still survives as `summary`.
-    const line1Parts = [
-      organisation,
-      subBuilding,
-      buildingName,
-      [buildingNumber, thoroughfare].filter(Boolean).join(" "),
-    ].filter(Boolean);
-    const addressLine1 = line1Parts.join(", ");
-    const addressLine2 = dependentThoroughfare || null;
-
-    const logicalStatus = typeof r.LOGICAL_STATUS_CODE === "number"
-      ? r.LOGICAL_STATUS_CODE
-      : Number(r.LOGICAL_STATUS_CODE ?? NaN);
-    const blpuState = typeof r.BLPU_STATE_CODE === "number"
-      ? r.BLPU_STATE_CODE
-      : Number(r.BLPU_STATE_CODE ?? NaN);
-
-    const metadata: AddressMetadata = {
-      source: "os-places",
-      classificationCode: r.CLASSIFICATION_CODE ?? null,
-      classificationDescription: r.CLASSIFICATION_CODE_DESCRIPTION ?? null,
-      countryCode: r.COUNTRY_CODE ?? null,
-      localCustodianCode: r.LOCAL_CUSTODIAN_CODE ?? null,
-      wardCode: r.WARD_CODE ?? null,
-      parishCode: r.PARISH_CODE ?? null,
-      parentUprn: r.PARENT_UPRN != null ? String(r.PARENT_UPRN) : null,
-      topographyLayerToid: r.TOPOGRAPHY_LAYER_TOID ?? null,
-      logicalStatusCode: Number.isFinite(logicalStatus) ? logicalStatus : null,
-      deliveryPointSuffix: r.DELIVERY_POINT_SUFFIX ?? null,
-      blpuStateCode: Number.isFinite(blpuState) ? blpuState : null,
-      lastUpdateDate: r.LAST_UPDATE_DATE ?? null,
-      raw: r as unknown as Record<string, unknown>,
-    };
-
-    return {
-      uprn: String(r.UPRN),
-      udprn: r.UDPRN != null ? String(r.UDPRN) : null,
-      summary: r.ADDRESS,
-      addressLine1: addressLine1 || r.ADDRESS,
-      addressLine2,
-      postcode: r.POSTCODE ?? postcode,
-      postTown: r.POST_TOWN ?? "",
-      // OS Places almost always supplies per-property WGS84, but on
-      // brand-new builds it can be missing; postcode centroid keeps
-      // Solar / satellite imagery roughly aligned in that edge case.
-      latitude: r.LAT ?? centroidLat,
-      longitude: r.LNG ?? centroidLng,
-      metadata,
-    };
-  });
-
-  // Per-property COUNTRY_CODE beats the postcode-centroid country
-  // — correctly handles the few hundred postcodes that straddle the
-  // England/Wales border.
+  // Per-property country beats the postcode-centroid country —
+  // straddled-border postcodes end up in the wrong country
+  // otherwise. Postcoder's NGD default response returns `country`
+  // as human-readable text ("England" / "Wales" / …) at the
+  // top level of each row, so we pull it from raw directly.
   const countryCodeOverride =
-    addresses
-      .map((a) => osCountryCodeToUkCountry(a.metadata?.countryCode ?? undefined))
+    rows
+      .map((r) =>
+        postcoderCountryToUkCountry(
+          typeof r.country === "string" ? r.country : null,
+        ),
+      )
       .find(
         (c): c is "England" | "Wales" | "Scotland" | "Northern Ireland" =>
-          c !== null
+          c !== null,
       ) ?? null;
 
   return {
@@ -143,6 +86,126 @@ async function resolveAddresses(
     rawCount: rows.length,
     countryCodeOverride,
   };
+}
+
+/**
+ * Map one Postcoder NGD row → the shape the wizard expects.
+ *
+ * Postcoder NGD's DEFAULT response uses these field names for the
+ * address parts (not the Royal Mail names in the addtag block):
+ *   - number     → building number ("10")
+ *   - name       → building name ("York Buildings", "The Old Rectory")
+ *   - subname    → sub-building name ("Flat 3")
+ *   - streetname → thoroughfare
+ *   - locality   → dependent locality (usually the district)
+ *   - townname   → post town
+ *   - postcode, country, latitude, longitude, uprn, udprn — as named
+ *
+ * lat/lng come back as STRINGS not numbers in the NGD response —
+ * we coerce with Number() and fall back to the postcode centroid
+ * if the coerce fails.
+ *
+ * addressLine1 is composed from the granular parts (not fulladdress)
+ * because the EPC fuzzy matcher parses "10 Downing Street" more
+ * reliably than "10, Downing Street, London, SW1A 2AA".
+ */
+function mapPostcoderRow(
+  r: PostcoderNgdAddress,
+  fallbackPostcode: string,
+  centroidLat: number,
+  centroidLng: number,
+): AddressLookupResponse["addresses"][number] {
+  const buildingNumber = r.number != null ? String(r.number) : "";
+  const subName = strOrEmpty(r.subname);
+  const buildingName = strOrEmpty(r.name);
+  const streetName = strOrEmpty(r.streetname);
+  const locality = strOrEmpty(r.locality);
+  const townName = strOrEmpty(r.townname);
+  const organisation = strOrEmpty(r.organisationname);
+
+  // Compose addressLine1 from the parts we have. Order:
+  //   organisation, subname, name (buildingname), "<number> <street>"
+  // Each part is only added when non-empty so we never end up with
+  // ", , , 10 Downing Street".
+  const line1Parts = [
+    organisation,
+    subName,
+    buildingName,
+    [buildingNumber, streetName].filter(Boolean).join(" "),
+  ].filter(Boolean);
+  const addressLine1 =
+    line1Parts.join(", ") ||
+    (typeof r.fulladdress === "string" ? r.fulladdress : "");
+  // addressLine2: locality when it's a distinct dependent locality
+  // (not the same as the post town — Postcoder sometimes echoes the
+  // town into locality when there's no genuine dependent locality).
+  const addressLine2 =
+    locality && locality.toLowerCase() !== townName.toLowerCase()
+      ? locality
+      : null;
+
+  const uprn = r.uprn != null ? String(r.uprn) : null;
+  const udprn = r.udprn != null ? String(r.udprn) : null;
+
+  const latitude = numberOrNull(r.latitude) ?? centroidLat;
+  const longitude = numberOrNull(r.longitude) ?? centroidLng;
+
+  const metadata: AddressMetadata = {
+    source: "postcoder",
+    classificationCode: strOrNull(r.classificationcode),
+    classificationDescription: strOrNull(r.classificationdescription),
+    // Postcoder returns `country` as free text ("England"), not a
+    // GSS code. The UkCountry mapping happens above at the
+    // resolveAddresses level; we don't try to fake a GSS code here.
+    countryCode: null,
+    localCustodianCode: numberOrNull(r.localcustodiancode),
+    wardCode: null,
+    parishCode: null,
+    parentUprn: r.parentuprn != null ? String(r.parentuprn) : null,
+    topographyLayerToid: null,
+    logicalStatusCode: null,
+    deliveryPointSuffix: strOrNull(r.deliverypointsuffix),
+    blpuStateCode: null,
+    lastUpdateDate: null,
+    raw: r as unknown as Record<string, unknown>,
+  };
+
+  const postcodeOut = strOrEmpty(r.postcode) || fallbackPostcode;
+  const summary =
+    strOrEmpty(r.summaryline) ||
+    strOrEmpty(r.fulladdress) ||
+    [addressLine1, townName, postcodeOut].filter(Boolean).join(", ");
+
+  return {
+    uprn,
+    udprn,
+    summary,
+    addressLine1,
+    addressLine2,
+    postcode: postcodeOut,
+    postTown: townName,
+    latitude,
+    longitude,
+    metadata,
+  };
+}
+
+// ─── field coercion helpers ─────────────────────────────────────
+//
+// Postcoder NGD is inconsistent about numeric vs string encoding
+// (latitude comes back quoted, uprn sometimes quoted, sometimes
+// not). These normalise once so the mapper stays readable.
+
+function strOrEmpty(v: unknown): string {
+  return typeof v === "string" ? v : "";
+}
+function strOrNull(v: unknown): string | null {
+  return typeof v === "string" && v.length > 0 ? v : null;
+}
+function numberOrNull(v: unknown): number | null {
+  if (v === null || v === undefined) return null;
+  const n = typeof v === "number" ? v : Number(v);
+  return Number.isFinite(n) ? n : null;
 }
 
 export async function POST(req: Request) {
@@ -157,7 +220,7 @@ export async function POST(req: Request) {
   if (!parsed.success) {
     return NextResponse.json(
       { error: "Invalid request", details: parsed.error.flatten() },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -165,15 +228,13 @@ export async function POST(req: Request) {
   if (!UK_POSTCODE_REGEX.test(formatted)) {
     return NextResponse.json(
       { error: "That doesn't look like a UK postcode." },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
   try {
-    // Postcodes.io is the cheap fallback for the country lookup when
-    // OS Places' COUNTRY_CODE is absent — rare but seen on brand-new
-    // builds. Also supplies a postcode centroid for any OS Places row
-    // missing per-property LAT/LNG.
+    // Postcodes.io — cheap country lookup + centroid fallback when
+    // Postcoder omits per-property lat/lng (rare, on new builds).
     const postcodeMeta = await validatePostcode(formatted).catch((err) => {
       console.warn("Postcodes.io failed (non-fatal):", err);
       return null;
@@ -184,12 +245,13 @@ export async function POST(req: Request) {
     const resolution = await resolveAddresses(
       formatted,
       centroidLat,
-      centroidLng
+      centroidLng,
     );
 
     const response: AddressLookupResponse = {
       addresses: resolution.addresses,
-      country: resolution.countryCodeOverride ?? postcodeMeta?.country ?? null,
+      country:
+        resolution.countryCodeOverride ?? postcodeMeta?.country ?? null,
     };
     return NextResponse.json(response);
   } catch (err) {
@@ -199,10 +261,9 @@ export async function POST(req: Request) {
       ? "Too many address lookups right now — please wait a moment and try again."
       : "Address lookup failed.";
     const status = detail.includes("429") ? 429 : 502;
-    // Echo the upstream detail (key already stripped at the service
-    // layer) so DevTools shows the cause without needing Vercel logs.
-    // Safe by construction — none of the service errors include the
-    // OS_PLACES_API_KEY value.
+    // The Postcoder service already scrubs the API key from any
+    // error string it throws — safe to echo the detail so DevTools
+    // shows the cause without needing Vercel logs.
     return NextResponse.json({ error: msg, detail }, { status });
   }
 }
