@@ -3,8 +3,17 @@ import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import { Fraunces } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
+import { GoogleAnalytics } from "@next/third-parties/google";
 import { OrganizationSchema, WebSiteSchema } from "@/components/seo/schema";
 import "./globals.css";
+
+// GA4 measurement id. Public by design (embedded in the tracker
+// script that ships to the browser), so a NEXT_PUBLIC_* var is
+// the right shape. Falls back to the production id so dev + local
+// preview populate the same property — set NEXT_PUBLIC_GA_MEASUREMENT_ID=
+// (empty) in .env.local if you want local runs OFF the GA property.
+const GA_MEASUREMENT_ID =
+  process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID ?? "G-PQXPHWMB3L";
 
 const fraunces = Fraunces({
   subsets: ["latin"],
@@ -145,6 +154,15 @@ export default function RootLayout({
         <WebSiteSchema />
         {children}
         <Analytics />
+        {/* Google Analytics 4 — @next/third-parties handles the
+            gtag.js load (afterInteractive), fires page_view on
+            initial paint, AND re-fires it on every App Router
+            client-side navigation. Rendering the raw snippet
+            directly would miss all in-app navigations because
+            those don't trigger a full page load. Only mounts when
+            the measurement id is set, so dev / local without the
+            env var doesn't pollute the property. */}
+        {GA_MEASUREMENT_ID && <GoogleAnalytics gaId={GA_MEASUREMENT_ID} />}
       </body>
     </html>
   );
