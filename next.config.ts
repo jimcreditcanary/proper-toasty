@@ -69,6 +69,28 @@ const nextConfig: NextConfig = {
   // patterns must come first.
   async redirects() {
     return [
+      // ── Apex → www, permanent (308) ─────────────────────────────
+      //
+      // Must be the FIRST rule — host-matched redirects are
+      // evaluated in order, and any path-level rule above that
+      // matches first on the apex host would short-circuit this.
+      //
+      // Vercel's default apex→www at the dashboard level is 307
+      // Temporary, which search engines treat as "come back later"
+      // rather than "consolidate signals to the new URL". That was
+      // the root cause of Bing Webmaster Tools flagging
+      // "Large number of pages pointing to the same canonical URL"
+      // in Oct 2026 — Bing was crawling both propertoasty.com and
+      // www.propertoasty.com for every page without consolidating
+      // the signals. Forcing 308 here overrides Vercel's default
+      // and gives us a proper permanent redirect.
+      {
+        source: "/:path*",
+        has: [{ type: "host", value: "propertoasty.com" }],
+        destination: "https://www.propertoasty.com/:path*",
+        permanent: true,
+      },
+
       // Singular → plural canonical for the public tool routes.
       // NOTE: do NOT redirect /installer — that's the auth-gated
       // installer portal (real route).
