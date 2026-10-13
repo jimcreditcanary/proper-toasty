@@ -25,13 +25,6 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { parsePreSurveyToken } from "@/lib/email/tokens";
 import type { CheckWizardState } from "@/components/check-wizard/types";
 
-export const metadata = {
-  title: "Check your home",
-  description:
-    "Find out if your UK home is eligible for the Boiler Upgrade Scheme and suitable for rooftop solar — a pre-survey indication in minutes.",
-  alternates: { canonical: "https://www.propertoasty.com/check" },
-};
-
 interface PageProps {
   searchParams: Promise<{
     presurvey?: string;
@@ -44,6 +37,35 @@ interface PageProps {
 }
 
 export const dynamic = "force-dynamic";
+
+// Dynamic metadata so query-param variants (installer deep-links,
+// presurvey magic links, hero-wizard postcode handoffs) emit
+// `noindex, nofollow`. They all canonicalise to /check so Bing was
+// seeing thousands of "unique" URLs collapsing to one canonical and
+// flagging that as "Large number of pages pointing to the same
+// canonical URL" (Bing Webmaster Tools alert, Oct 2026). The clean
+// /check entry (no params) keeps its indexable canonical.
+export async function generateMetadata({ searchParams }: PageProps) {
+  const params = await searchParams;
+  const isDeepLink = Boolean(
+    params.presurvey ||
+      params.installer ||
+      params.capability ||
+      params.postcode,
+  );
+  return {
+    title: "Check your home",
+    description:
+      "Find out if your UK home is eligible for the Boiler Upgrade Scheme and suitable for rooftop solar — a pre-survey indication in minutes.",
+    alternates: { canonical: "https://www.propertoasty.com/check" },
+    // Deep-link variants are session URLs, not organic landing
+    // pages — tell crawlers to skip them. The canonical collapse to
+    // /check still applies for de-duping anything that leaks.
+    robots: isDeepLink
+      ? { index: false, follow: false }
+      : { index: true, follow: true },
+  };
+}
 
 export default async function CheckPage({ searchParams }: PageProps) {
   if (!isFeatureEnabled("propertoasty_check")) notFound();
