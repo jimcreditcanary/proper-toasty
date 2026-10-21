@@ -47,20 +47,31 @@ async function main() {
   // (status + verification + at least one capability we care about).
   // Everything else was never generating a deep-link in the first
   // place, so recrawling it would be noise.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (admin as any)
-    .from("installers")
-    .select("id, cap_air_source_heat_pump, cap_solar_pv")
-    .or("cap_air_source_heat_pump.eq.true,cap_solar_pv.eq.true");
-  if (error) {
-    console.error("installers query failed:", error.message);
-    process.exit(1);
-  }
-  const rows = (data ?? []) as Array<{
+  //
+  // Paginated — Supabase's default row cap is 1000 and propertoasty
+  // has ~5600 qualifying installers. .range(from, from+CHUNK-1) +
+  // loop-until-short-page handles the full set.
+  const PAGE_SIZE = 1000;
+  const rows: Array<{
     id: number;
     cap_air_source_heat_pump: boolean;
     cap_solar_pv: boolean;
-  }>;
+  }> = [];
+  for (let from = 0; ; from += PAGE_SIZE) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (admin as any)
+      .from("installers")
+      .select("id, cap_air_source_heat_pump, cap_solar_pv")
+      .or("cap_air_source_heat_pump.eq.true,cap_solar_pv.eq.true")
+      .range(from, from + PAGE_SIZE - 1);
+    if (error) {
+      console.error("installers query failed:", error.message);
+      process.exit(1);
+    }
+    const page = (data ?? []) as typeof rows;
+    rows.push(...page);
+    if (page.length < PAGE_SIZE) break;
+  }
   console.log(`  ${rows.length} installer rows with ≥1 capability`);
 
   const urls: string[] = [];
