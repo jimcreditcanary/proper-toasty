@@ -15,7 +15,8 @@
 // Credits stay on the detail page because they need a reason field
 // + audit context that doesn't fit in a row dropdown.
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, useTransition } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import {
   Ban,
@@ -58,20 +59,57 @@ export function UserRowActions({
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
   const [busy, setBusy] = useState<string | null>(null);
-  const wrapperRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  // Menu panel coords. Portaled to document.body (position: fixed) so
+  // it escapes every parent stacking context — otherwise sibling row
+  // cards (bg-white, later in document order) paint over it and hide
+  // half the menu.
+  const [coords, setCoords] = useState<{ top: number; right: number } | null>(
+    null,
+  );
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  useLayoutEffect(() => {
+    if (!open || !buttonRef.current) {
+      setCoords(null);
+      return;
+    }
+    function place() {
+      const btn = buttonRef.current;
+      if (!btn) return;
+      const r = btn.getBoundingClientRect();
+      setCoords({
+        top: r.bottom + 4,
+        right: window.innerWidth - r.right,
+      });
+    }
+    place();
+    window.addEventListener("resize", place);
+    window.addEventListener("scroll", place, true);
+    return () => {
+      window.removeEventListener("resize", place);
+      window.removeEventListener("scroll", place, true);
+    };
+  }, [open]);
 
   // Click-outside to close the menu. Pointerdown rather than click so
   // the menu closes before the next click target gets focus, which
   // matters when the next click is itself inside another row's menu.
+  // Checks both the button and the portaled panel, since the panel
+  // is no longer a DOM descendant of the button wrapper.
   useEffect(() => {
     if (!open) return;
     function onDown(e: PointerEvent) {
+      const target = e.target as Node;
       if (
-        wrapperRef.current &&
-        !wrapperRef.current.contains(e.target as Node)
+        buttonRef.current?.contains(target) ||
+        panelRef.current?.contains(target)
       ) {
-        setOpen(false);
+        return;
       }
+      setOpen(false);
     }
     document.addEventListener("pointerdown", onDown);
     return () => document.removeEventListener("pointerdown", onDown);
@@ -130,8 +168,9 @@ export function UserRowActions({
   }
 
   return (
-    <div ref={wrapperRef} className="relative shrink-0">
+    <div className="relative shrink-0">
       <button
+        ref={buttonRef}
         type="button"
         onClick={(e) => {
           e.preventDefault();
@@ -148,93 +187,96 @@ export function UserRowActions({
         )}
       </button>
 
-      {open && (
-        <div
-          className="absolute right-0 top-9 z-20 w-56 rounded-xl border border-slate-200 bg-white shadow-lg p-1.5"
-          role="menu"
-          // Stop the parent <Link> from receiving the click → no
-          // accidental navigation when picking an action.
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-          }}
-        >
-          {/* Role section */}
-          <p className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-            Role
-          </p>
-          {ROLE_OPTIONS.map((opt) => {
-            const isCurrent = opt.key === currentRole;
-            const wouldDemoteSelf = isSelf && currentRole === "admin" && opt.key !== "admin";
-            const disabled = isCurrent || wouldDemoteSelf || busy != null;
-            return (
-              <button
-                key={opt.key}
-                type="button"
-                onClick={() => void changeRole(opt.key)}
-                disabled={disabled}
-                className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium text-left transition-colors ${
-                  isCurrent
-                    ? "text-slate-400 cursor-default"
-                    : disabled
-                      ? "text-slate-300 cursor-not-allowed"
-                      : "text-navy hover:bg-coral-pale/40 hover:text-coral-dark"
-                }`}
-                title={
-                  wouldDemoteSelf ? "You can't demote yourself" : undefined
-                }
-              >
-                {opt.icon}
-                <span className="flex-1">{opt.label}</span>
-                {isCurrent && (
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-                )}
-              </button>
-            );
-          })}
+      {open && coords && mounted &&
+        createPortal(
+          <div
+            ref={panelRef}
+            style={{
+              position: "fixed",
+              top: coords.top,
+              right: coords.right,
+            }}
+            className="z-50 w-56 rounded-xl border border-slate-200 bg-white shadow-lg p-1.5"
+            role="menu"
+          >
+            {/* Role section */}
+            <p className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+              Role
+            </p>
+            {ROLE_OPTIONS.map((opt) => {
+              const isCurrent = opt.key === currentRole;
+              const wouldDemoteSelf =
+                isSelf && currentRole === "admin" && opt.key !== "admin";
+              const disabled = isCurrent || wouldDemoteSelf || busy != null;
+              return (
+                <button
+                  key={opt.key}
+                  type="button"
+                  onClick={() => void changeRole(opt.key)}
+                  disabled={disabled}
+                  className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium text-left transition-colors ${
+                    isCurrent
+                      ? "text-slate-400 cursor-default"
+                      : disabled
+                        ? "text-slate-300 cursor-not-allowed"
+                        : "text-navy hover:bg-coral-pale/40 hover:text-coral-dark"
+                  }`}
+                  title={
+                    wouldDemoteSelf ? "You can't demote yourself" : undefined
+                  }
+                >
+                  {opt.icon}
+                  <span className="flex-1">{opt.label}</span>
+                  {isCurrent && (
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                  )}
+                </button>
+              );
+            })}
 
-          {/* Status section */}
-          <div className="my-1.5 border-t border-slate-100" />
-          <p className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-            Account
-          </p>
-          <button
-            type="button"
-            onClick={() => void toggleBlocked()}
-            disabled={isSelf || busy != null}
-            className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium text-left transition-colors ${
-              isSelf
-                ? "text-slate-300 cursor-not-allowed"
-                : blocked
-                  ? "text-emerald-700 hover:bg-emerald-50"
-                  : "text-rose-700 hover:bg-rose-50"
-            }`}
-            title={isSelf ? "You can't block yourself" : undefined}
-          >
-            <Ban className="w-3.5 h-3.5" />
-            {blocked ? "Unblock" : "Block account"}
-          </button>
+            {/* Status section */}
+            <div className="my-1.5 border-t border-slate-100" />
+            <p className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+              Account
+            </p>
+            <button
+              type="button"
+              onClick={() => void toggleBlocked()}
+              disabled={isSelf || busy != null}
+              className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium text-left transition-colors ${
+                isSelf
+                  ? "text-slate-300 cursor-not-allowed"
+                  : blocked
+                    ? "text-emerald-700 hover:bg-emerald-50"
+                    : "text-rose-700 hover:bg-rose-50"
+              }`}
+              title={isSelf ? "You can't block yourself" : undefined}
+            >
+              <Ban className="w-3.5 h-3.5" />
+              {blocked ? "Unblock" : "Block account"}
+            </button>
 
-          {/* Detail page jumps */}
-          <div className="my-1.5 border-t border-slate-100" />
-          <a
-            href={`/admin/users/${userId}#credits`}
-            className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium text-left text-navy hover:bg-coral-pale/40 hover:text-coral-dark transition-colors"
-            onClick={() => setOpen(false)}
-          >
-            <Coins className="w-3.5 h-3.5" />
-            Adjust credits…
-          </a>
-          <a
-            href={`/admin/users/${userId}`}
-            className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium text-left text-slate-600 hover:bg-slate-50 transition-colors"
-            onClick={() => setOpen(false)}
-          >
-            <ExternalLink className="w-3.5 h-3.5" />
-            Open user detail
-          </a>
-        </div>
-      )}
+            {/* Detail page jumps */}
+            <div className="my-1.5 border-t border-slate-100" />
+            <a
+              href={`/admin/users/${userId}#credits`}
+              className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium text-left text-navy hover:bg-coral-pale/40 hover:text-coral-dark transition-colors"
+              onClick={() => setOpen(false)}
+            >
+              <Coins className="w-3.5 h-3.5" />
+              Adjust credits…
+            </a>
+            <a
+              href={`/admin/users/${userId}`}
+              className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium text-left text-slate-600 hover:bg-slate-50 transition-colors"
+              onClick={() => setOpen(false)}
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+              Open user detail
+            </a>
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }
