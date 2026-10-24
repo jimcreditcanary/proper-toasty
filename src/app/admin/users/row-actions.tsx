@@ -22,6 +22,7 @@ import {
   Ban,
   CheckCircle2,
   Coins,
+  KeyRound,
   Loader2,
   MoreVertical,
   ShieldCheck,
@@ -139,6 +140,28 @@ export function UserRowActions({
     }
   }
 
+  async function sendPasswordReset() {
+    const ok = window.confirm(
+      `Send a password reset email to ${email}? They'll get a Supabase recovery link.`,
+    );
+    if (!ok) return;
+    setBusy("reset-password");
+    try {
+      const res = await fetch(`/api/admin/users/${userId}/reset-password`, {
+        method: "POST",
+      });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(j.error ?? "Password reset send failed");
+        return;
+      }
+      alert(`Reset email sent to ${j.email ?? email}.`);
+      setOpen(false);
+    } finally {
+      setBusy(null);
+    }
+  }
+
   async function toggleBlocked() {
     const next = !blocked;
     if (next) {
@@ -239,6 +262,15 @@ export function UserRowActions({
             <p className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
               Account
             </p>
+            <button
+              type="button"
+              onClick={() => void sendPasswordReset()}
+              disabled={busy != null}
+              className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium text-left text-navy hover:bg-coral-pale/40 hover:text-coral-dark transition-colors disabled:text-slate-300 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-slate-300"
+            >
+              <KeyRound className="w-3.5 h-3.5" />
+              Send password reset
+            </button>
             <button
               type="button"
               onClick={() => void toggleBlocked()}
