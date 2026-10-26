@@ -9,7 +9,7 @@
 // API clears the flag, and we send them back to where they were going.
 
 import { useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { KeyRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,9 +18,6 @@ import { Logo } from "@/components/logo";
 
 export default function ChangePasswordPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const next = searchParams.get("next") || "/dashboard";
-
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -49,7 +46,7 @@ export default function ChangePasswordPage() {
         setError(j.error ?? "Password change failed");
         return;
       }
-      router.push(next);
+      router.push("/dashboard");
       router.refresh();
     } finally {
       setLoading(false);
