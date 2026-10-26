@@ -14,6 +14,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getBoundInstallerId } from "@/lib/installer-auth/get-bound-installer";
 import { PortalShell } from "@/components/portal-shell";
 import {
   CheckCircle2,
@@ -42,7 +43,7 @@ export default async function OnboardingPage() {
   const { data: installer } = await admin
     .from("installers")
     .select("id, company_name")
-    .eq("user_id", user.id)
+    .eq("id", (await getBoundInstallerId(admin, user.id)) ?? -1)
     .maybeSingle<{ id: number; company_name: string }>();
 
   // No bound installer = nothing to onboard. Send them to the

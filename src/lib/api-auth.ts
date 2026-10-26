@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import type { SupabaseClient, User } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getBoundInstallerId } from "@/lib/installer-auth/get-bound-installer";
 import type { Database } from "@/types/database";
 
 type AdminClient = SupabaseClient<Database>;
@@ -126,7 +127,7 @@ export async function authenticateInstallerApiKey(
   const { data: installer } = await admin
     .from("installers")
     .select("id, company_name, email, telephone, user_id")
-    .eq("user_id", userRow.id)
+    .eq("id", (await getBoundInstallerId(admin, userRow.id)) ?? -1)
     .maybeSingle<InstallerForApi>();
   if (!installer) {
     return {

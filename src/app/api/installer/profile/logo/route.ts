@@ -12,6 +12,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getBoundInstallerId } from "@/lib/installer-auth/get-bound-installer";
 import {
   getImageDimensions,
   isSquare,
@@ -55,7 +56,7 @@ async function loadInstallerForCaller(): Promise<
   const { data: installer } = await admin
     .from("installers")
     .select("id, user_id, logo_url")
-    .eq("user_id", user.id)
+    .eq("id", (await getBoundInstallerId(admin, user.id)) ?? -1)
     .maybeSingle<InstallerRow>();
   if (!installer) {
     return {

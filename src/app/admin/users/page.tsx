@@ -13,6 +13,7 @@ import { PortalShell } from "@/components/portal-shell";
 import { UserRowActions } from "./row-actions";
 import {
   Ban,
+  Building2,
   Coins,
   CreditCard,
   Download,
@@ -54,6 +55,8 @@ interface UserListItem {
   stripe_customer_id: string | null;
   created_at: string;
   check_count: number;
+  installer_id: number | null;
+  installer_name: string | null;
 }
 
 async function loadUsers(args: {
@@ -65,7 +68,9 @@ async function loadUsers(args: {
 
   let query = admin
     .from("users")
-    .select("id, email, role, credits, blocked, stripe_customer_id, created_at")
+    .select(
+      "id, email, role, credits, blocked, stripe_customer_id, created_at, installer_id",
+    )
     .order("created_at", { ascending: false })
     .limit(100);
 
@@ -116,6 +121,27 @@ async function loadUsers(args: {
     }
   }
 
+  // Hydrate installer names for the bound rows so the row shows which
+  // installer the user belongs to. Batched by distinct installer id —
+  // most rows share one of a handful.
+  const installerIds = Array.from(
+    new Set(
+      rows
+        .map((r) => r.installer_id)
+        .filter((v): v is number => typeof v === "number"),
+    ),
+  );
+  const installerNameById = new Map<number, string>();
+  if (installerIds.length > 0) {
+    const { data: insts } = await admin
+      .from("installers")
+      .select("id, company_name")
+      .in("id", installerIds);
+    for (const i of insts ?? []) {
+      installerNameById.set(i.id, i.company_name);
+    }
+  }
+
   return rows.map((r) => ({
     id: r.id,
     email: r.email ?? "",
@@ -125,6 +151,9 @@ async function loadUsers(args: {
     stripe_customer_id: r.stripe_customer_id ?? null,
     created_at: r.created_at ?? "",
     check_count: checkCountByUser.get(r.id) ?? 0,
+    installer_id: r.installer_id ?? null,
+    installer_name:
+      r.installer_id != null ? installerNameById.get(r.installer_id) ?? null : null,
   }));
 }
 
@@ -291,6 +320,15 @@ export default async function UsersPage({ searchParams }: PageProps) {
                           Stripe customer
                         </span>
                       )}
+                      {u.installer_name && (
+                        <span
+                          className="inline-flex items-center gap-1 text-amber-800"
+                          title={`Bound to installer id ${u.installer_id}`}
+                        >
+                          <Building2 className="w-3 h-3" />
+                          {u.installer_name}
+                        </span>
+                      )}
                     </div>
                     <p className="text-[11px] text-slate-400 mt-0.5">
                       Joined {formatDate(u.created_at)}
@@ -306,6 +344,8 @@ export default async function UsersPage({ searchParams }: PageProps) {
                     }
                     blocked={u.blocked}
                     isSelf={viewerId === u.id}
+                    installerId={u.installer_id}
+                    installerName={u.installer_name}
                   />
                 </div>
               </div>

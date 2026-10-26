@@ -20,9 +20,11 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import {
   Ban,
+  Building2,
   CheckCircle2,
   Coins,
   KeyRound,
+  Link2Off,
   Loader2,
   MoreVertical,
   ShieldCheck,
@@ -30,6 +32,7 @@ import {
   Wrench,
   ExternalLink,
 } from "lucide-react";
+import { InstallerPicker } from "./installer-picker";
 
 interface Props {
   userId: string;
@@ -39,6 +42,10 @@ interface Props {
   // Self-protection — server passes the viewer's id so we disable
   // self-block / self-demote without a second roundtrip.
   isSelf: boolean;
+  // Current installer binding (users.installer_id). Null if unbound.
+  // Enables the "Unbind" item + "Change installer" vs "Bind" labelling.
+  installerId: number | null;
+  installerName: string | null;
 }
 
 type RoleKey = "admin" | "installer" | "user";
@@ -55,6 +62,8 @@ export function UserRowActions({
   currentRole,
   blocked,
   isSelf,
+  installerId,
+  installerName,
 }: Props) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -177,6 +186,35 @@ export function UserRowActions({
     } catch {
       // Clipboard API can fail on insecure contexts / older browsers —
       // the password is still visible on screen for manual copy.
+    }
+  }
+
+  const [pickerOpen, setPickerOpen] = useState(false);
+
+  async function unbindInstaller() {
+    const ok = window.confirm(
+      `Unbind ${email} from ${installerName ?? "their installer"}? They'll lose installer-portal access on their next page load.`,
+    );
+    if (!ok) return;
+    setBusy("unbind-installer");
+    try {
+      const res = await fetch(
+        `/api/admin/users/${userId}/installer-binding`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ installer_id: null }),
+        },
+      );
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(j.error ?? "Unbind failed");
+        return;
+      }
+      setOpen(false);
+      startTransition(() => router.refresh());
+    } finally {
+      setBusy(null);
     }
   }
 
@@ -306,6 +344,38 @@ export function UserRowActions({
               {blocked ? "Unblock" : "Block account"}
             </button>
 
+            {/* Installer binding */}
+            <div className="my-1.5 border-t border-slate-100" />
+            <p className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+              Installer
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false);
+                setPickerOpen(true);
+              }}
+              disabled={busy != null}
+              className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium text-left text-navy hover:bg-coral-pale/40 hover:text-coral-dark transition-colors disabled:text-slate-300 disabled:cursor-not-allowed"
+              title={installerName ? `Currently: ${installerName}` : undefined}
+            >
+              <Building2 className="w-3.5 h-3.5" />
+              <span className="flex-1 truncate">
+                {installerId ? "Change installer…" : "Bind to installer…"}
+              </span>
+            </button>
+            {installerId !== null && (
+              <button
+                type="button"
+                onClick={() => void unbindInstaller()}
+                disabled={busy != null}
+                className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium text-left text-rose-700 hover:bg-rose-50 transition-colors disabled:text-slate-300 disabled:cursor-not-allowed"
+              >
+                <Link2Off className="w-3.5 h-3.5" />
+                Unbind installer
+              </button>
+            )}
+
             {/* Detail page jumps */}
             <div className="my-1.5 border-t border-slate-100" />
             <a
@@ -327,6 +397,15 @@ export function UserRowActions({
           </div>,
           document.body,
         )}
+
+      {pickerOpen && (
+        <InstallerPicker
+          userId={userId}
+          userEmail={email}
+          onClose={() => setPickerOpen(false)}
+          onBound={() => startTransition(() => router.refresh())}
+        />
+      )}
 
       {tempPassword && mounted &&
         createPortal(

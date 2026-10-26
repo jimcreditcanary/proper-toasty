@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getBoundInstallerId } from "@/lib/installer-auth/get-bound-installer";
 import {
   AvailabilitySettingsSchema,
   type AvailabilityResponse,
@@ -48,7 +49,7 @@ async function resolveInstallerId(): Promise<
   const { data: installer, error } = await admin
     .from("installers")
     .select("id")
-    .eq("user_id", user.id)
+    .eq("id", (await getBoundInstallerId(admin, user.id)) ?? -1)
     .maybeSingle<{ id: number }>();
   if (error) {
     return { ok: false, status: 500, error: "Installer lookup failed" };

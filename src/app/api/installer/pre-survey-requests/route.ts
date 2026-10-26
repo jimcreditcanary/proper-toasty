@@ -16,6 +16,7 @@ import { NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getBoundInstallerId } from "@/lib/installer-auth/get-bound-installer";
 import { buildPreSurveyToken } from "@/lib/email/tokens";
 import { createPreSurveyRequestSchema } from "@/lib/pre-survey-requests/schema";
 import { chargeAndSend } from "@/lib/pre-survey-requests/send";
@@ -51,7 +52,7 @@ export async function POST(req: Request) {
   const { data: installer } = await admin
     .from("installers")
     .select("id, company_name, email, telephone, user_id")
-    .eq("user_id", user.id)
+    .eq("id", (await getBoundInstallerId(admin, user.id)) ?? -1)
     .maybeSingle<{
       id: number;
       company_name: string;

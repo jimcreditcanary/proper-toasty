@@ -22,6 +22,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type Stripe from "stripe";
 import { stripe } from "@/lib/stripe";
+import { getBoundInstallerId } from "@/lib/installer-auth/get-bound-installer";
 import { findPack, type CreditPack } from "@/lib/billing/credit-packs";
 import { sendEmail } from "@/lib/email/client";
 import { buildAutoRechargeFailedEmail } from "@/lib/email/templates/installer-auto-recharge-failed";
@@ -187,7 +188,7 @@ async function runAutoRecharge({
   const { data: installer } = await admin
     .from("installers")
     .select("id")
-    .eq("user_id", userId)
+    .eq("id", (await getBoundInstallerId(admin, userId)) ?? -1)
     .maybeSingle<{ id: number }>();
 
   // Find a saved payment method on the Customer. Prefer the
