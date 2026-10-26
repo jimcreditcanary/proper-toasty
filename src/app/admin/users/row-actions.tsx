@@ -140,25 +140,43 @@ export function UserRowActions({
     }
   }
 
-  async function sendPasswordReset() {
+  // Generated temp password is kept in local state so we can render
+  // it in a modal with a Copy button. Cleared when the modal closes
+  // so it doesn't linger in memory or in the DOM.
+  const [tempPassword, setTempPassword] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  async function setNewPassword() {
     const ok = window.confirm(
-      `Send a password reset email to ${email}? They'll get a Supabase recovery link.`,
+      `Generate a new temporary password for ${email}? They'll be forced to pick a new one on their next login.`,
     );
     if (!ok) return;
-    setBusy("reset-password");
+    setBusy("set-password");
     try {
-      const res = await fetch(`/api/admin/users/${userId}/reset-password`, {
+      const res = await fetch(`/api/admin/users/${userId}/set-password`, {
         method: "POST",
       });
       const j = await res.json().catch(() => ({}));
       if (!res.ok) {
-        alert(j.error ?? "Password reset send failed");
+        alert(j.error ?? "Set password failed");
         return;
       }
-      alert(`Reset email sent to ${j.email ?? email}.`);
+      setTempPassword(j.password);
       setOpen(false);
     } finally {
       setBusy(null);
+    }
+  }
+
+  async function copyTempPassword() {
+    if (!tempPassword) return;
+    try {
+      await navigator.clipboard.writeText(tempPassword);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Clipboard API can fail on insecure contexts / older browsers —
+      // the password is still visible on screen for manual copy.
     }
   }
 
@@ -264,12 +282,12 @@ export function UserRowActions({
             </p>
             <button
               type="button"
-              onClick={() => void sendPasswordReset()}
+              onClick={() => void setNewPassword()}
               disabled={busy != null}
               className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium text-left text-navy hover:bg-coral-pale/40 hover:text-coral-dark transition-colors disabled:text-slate-300 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-slate-300"
             >
               <KeyRound className="w-3.5 h-3.5" />
-              Send password reset
+              Set new password
             </button>
             <button
               type="button"
@@ -306,6 +324,53 @@ export function UserRowActions({
               <ExternalLink className="w-3.5 h-3.5" />
               Open user detail
             </a>
+          </div>,
+          document.body,
+        )}
+
+      {tempPassword && mounted &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/50"
+            onClick={() => setTempPassword(null)}
+          >
+            <div
+              className="w-full max-w-sm rounded-2xl bg-white border border-slate-200 p-6 shadow-xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <KeyRound className="w-5 h-5 text-coral" />
+                <h2 className="text-base font-semibold text-navy">
+                  Temporary password set
+                </h2>
+              </div>
+              <p className="text-xs text-slate-600 mb-4">
+                Share this with <span className="font-medium">{email}</span>.
+                They&apos;ll be forced to pick a new password on next login.
+              </p>
+              <div className="flex items-center gap-2">
+                <code className="flex-1 px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 font-mono text-sm text-navy break-all">
+                  {tempPassword}
+                </code>
+                <button
+                  type="button"
+                  onClick={() => void copyTempPassword()}
+                  className="shrink-0 px-3 py-2 rounded-lg bg-coral hover:bg-coral-dark text-white text-xs font-semibold transition-colors"
+                >
+                  {copied ? "Copied" : "Copy"}
+                </button>
+              </div>
+              <p className="text-[11px] text-slate-400 mt-3">
+                This password will not be shown again — copy it now.
+              </p>
+              <button
+                type="button"
+                onClick={() => setTempPassword(null)}
+                className="mt-5 w-full h-9 rounded-lg bg-slate-100 hover:bg-slate-200 text-xs font-medium text-slate-700 transition-colors"
+              >
+                Done
+              </button>
+            </div>
           </div>,
           document.body,
         )}

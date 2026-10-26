@@ -35,6 +35,9 @@ export interface Database {
           installer_starter_credits_granted_at: string | null;
           // Migration 056 — installer dismissed the onboarding card
           installer_onboarding_dismissed_at: string | null;
+          // Migration 086 — admin set a temp password; user is forced
+          // to pick a new one on next login (/auth/change-password).
+          must_change_password: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -59,6 +62,7 @@ export interface Database {
           stripe_default_payment_method_id?: string | null;
           installer_starter_credits_granted_at?: string | null;
           installer_onboarding_dismissed_at?: string | null;
+          must_change_password?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -83,6 +87,7 @@ export interface Database {
           stripe_default_payment_method_id?: string | null;
           installer_starter_credits_granted_at?: string | null;
           installer_onboarding_dismissed_at?: string | null;
+          must_change_password?: boolean;
           created_at?: string;
           updated_at?: string;
         };
