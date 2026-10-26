@@ -11,6 +11,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { PortalShell } from "@/components/portal-shell";
 import { UserRowActions } from "./row-actions";
+import { NewUserButton } from "./new-user-button";
 import {
   Ban,
   Building2,
@@ -253,19 +254,22 @@ export default async function UsersPage({ searchParams }: PageProps) {
         </div>
       </form>
 
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center justify-between mb-3 gap-2">
         <p className="text-xs text-slate-500">
           {rows.length === 100
             ? "Showing first 100 — refine search to see more."
             : `${rows.length} user${rows.length === 1 ? "" : "s"}`}
         </p>
-        <a
-          href={`/api/admin/users/export?${buildExportQuery({ q, role, blocked })}`}
-          className="inline-flex items-center gap-1.5 h-7 px-3 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-700 hover:border-coral/40 hover:text-coral transition-colors"
-        >
-          <Download className="w-3 h-3" />
-          Export CSV
-        </a>
+        <div className="flex items-center gap-2">
+          <NewUserButton />
+          <a
+            href={`/api/admin/users/export?${buildExportQuery({ q, role, blocked })}`}
+            className="inline-flex items-center gap-1.5 h-7 px-3 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-700 hover:border-coral/40 hover:text-coral transition-colors"
+          >
+            <Download className="w-3 h-3" />
+            Export CSV
+          </a>
+        </div>
       </div>
 
       {rows.length === 0 ? (
