@@ -17,6 +17,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getBoundInstallerId } from "@/lib/installer-auth/get-bound-installer";
 import {
   draftInstallerBlog,
   INTERVIEW_QUESTIONS,
@@ -73,7 +74,7 @@ export async function POST(req: Request) {
   const { data: installer } = await admin
     .from("installers")
     .select("*")
-    .eq("user_id", user.id)
+    .eq("id", (await getBoundInstallerId(admin, user.id)) ?? -1)
     .maybeSingle<InstallerRow>();
   if (!installer) {
     return NextResponse.json(

@@ -16,6 +16,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getBoundInstallerId } from "@/lib/installer-auth/get-bound-installer";
 
 export const runtime = "nodejs";
 
@@ -36,7 +37,7 @@ export async function POST() {
   const { error, data } = await admin
     .from("installers")
     .update({ welcome_card_dismissed_at: new Date().toISOString() })
-    .eq("user_id", user.id)
+    .eq("id", (await getBoundInstallerId(admin, user.id)) ?? -1)
     .select("id");
   if (error) {
     console.error("[onboarding/dismiss] update failed", error);

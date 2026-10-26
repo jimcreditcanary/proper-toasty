@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getBoundInstallerId } from "@/lib/installer-auth/get-bound-installer";
 import { PortalShell } from "@/components/portal-shell";
 import {
   AlertCircle,
@@ -174,7 +175,7 @@ export default async function InstallerHomePage() {
       admin
         .from("installers")
         .select("id, company_name, logo_url, welcome_card_dismissed_at")
-        .eq("user_id", user.id)
+        .eq("id", (await getBoundInstallerId(admin, user.id)) ?? -1)
         .maybeSingle<{
           id: number;
           company_name: string;

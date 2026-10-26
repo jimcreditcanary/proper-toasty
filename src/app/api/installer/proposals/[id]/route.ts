@@ -10,6 +10,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getBoundInstallerId } from "@/lib/installer-auth/get-bound-installer";
 import {
   proposalDraftSchema,
   computeTotals,
@@ -48,7 +49,7 @@ export async function PATCH(
   const { data: installer } = await admin
     .from("installers")
     .select("id")
-    .eq("user_id", user.id)
+    .eq("id", (await getBoundInstallerId(admin, user.id)) ?? -1)
     .maybeSingle<{ id: number }>();
   if (!installer) {
     return NextResponse.json(

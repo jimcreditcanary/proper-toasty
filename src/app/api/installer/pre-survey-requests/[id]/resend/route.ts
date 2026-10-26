@@ -12,6 +12,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getBoundInstallerId } from "@/lib/installer-auth/get-bound-installer";
 import {
   PRE_SURVEY_RESEND_COOLOFF_HOURS,
   PRE_SURVEY_REQUEST_COST_CREDITS,
@@ -46,7 +47,7 @@ export async function POST(
   const { data: installer } = await admin
     .from("installers")
     .select("id, company_name, email, telephone, user_id")
-    .eq("user_id", user.id)
+    .eq("id", (await getBoundInstallerId(admin, user.id)) ?? -1)
     .maybeSingle<{
       id: number;
       company_name: string;

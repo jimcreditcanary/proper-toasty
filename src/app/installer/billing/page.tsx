@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getBoundInstallerId } from "@/lib/installer-auth/get-bound-installer";
 import { PortalShell } from "@/components/portal-shell";
 import { formatGbp } from "@/lib/proposals/schema";
 import { loadBilling, type BillingData } from "@/lib/installer-billing/queries";
@@ -51,7 +52,7 @@ export default async function BillingPage() {
   const { data: installer } = await admin
     .from("installers")
     .select("id, company_name")
-    .eq("user_id", user.id)
+    .eq("id", (await getBoundInstallerId(admin, user.id)) ?? -1)
     .maybeSingle<{ id: number; company_name: string }>();
   if (!installer) {
     return (

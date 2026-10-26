@@ -11,6 +11,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getBoundInstallerId } from "@/lib/installer-auth/get-bound-installer";
 import { grantOnboardingStep } from "@/lib/outreach/onboarding";
 import { COVER_IMAGE_THEMES } from "@/lib/outreach/blog-draft";
 import { coverImageForTheme } from "@/lib/outreach/cover-image-library";
@@ -66,7 +67,7 @@ export async function POST(req: Request) {
   const { data: installer } = await admin
     .from("installers")
     .select("id, company_name")
-    .eq("user_id", user.id)
+    .eq("id", (await getBoundInstallerId(admin, user.id)) ?? -1)
     .maybeSingle<{ id: number; company_name: string }>();
   if (!installer) {
     return NextResponse.json(

@@ -38,6 +38,9 @@ export interface Database {
           // Migration 086 — admin set a temp password; user is forced
           // to pick a new one on next login (/auth/change-password).
           must_change_password: boolean;
+          // Migration 087 — installer this user is bound to for portal
+          // access. Many users can share one installer_id.
+          installer_id: number | null;
           created_at: string;
           updated_at: string;
         };
@@ -63,6 +66,7 @@ export interface Database {
           installer_starter_credits_granted_at?: string | null;
           installer_onboarding_dismissed_at?: string | null;
           must_change_password?: boolean;
+          installer_id?: number | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -88,6 +92,7 @@ export interface Database {
           installer_starter_credits_granted_at?: string | null;
           installer_onboarding_dismissed_at?: string | null;
           must_change_password?: boolean;
+          installer_id?: number | null;
           created_at?: string;
           updated_at?: string;
         };

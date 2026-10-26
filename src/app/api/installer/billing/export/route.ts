@@ -18,6 +18,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getBoundInstallerId } from "@/lib/installer-auth/get-bound-installer";
 import { loadBilling } from "@/lib/installer-billing/queries";
 
 export const runtime = "nodejs";
@@ -36,7 +37,7 @@ export async function GET() {
   const { data: installer } = await admin
     .from("installers")
     .select("id, company_name")
-    .eq("user_id", user.id)
+    .eq("id", (await getBoundInstallerId(admin, user.id)) ?? -1)
     .maybeSingle<{ id: number; company_name: string }>();
   if (!installer) {
     return NextResponse.json(

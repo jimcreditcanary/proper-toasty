@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getBoundInstallerId } from "@/lib/installer-auth/get-bound-installer";
 import { stripe } from "@/lib/stripe";
 import { findPack } from "@/lib/billing/credit-packs";
 import { ensureStripeCustomer } from "@/lib/billing/stripe-customer";
@@ -90,7 +91,7 @@ export async function POST(req: Request): Promise<NextResponse> {
   const { data: installer } = await admin
     .from("installers")
     .select("id, company_name")
-    .eq("user_id", user.id)
+    .eq("id", (await getBoundInstallerId(admin, user.id)) ?? -1)
     .maybeSingle<{ id: number; company_name: string }>();
 
   // Create or reuse a Stripe Customer so the card from this checkout
