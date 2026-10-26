@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { enforcePasswordChange } from "@/lib/auth/enforce-password-change";
 import { SiteHeader } from "@/components/site-header";
 
 export default async function DashboardLayout({
@@ -14,6 +15,8 @@ export default async function DashboardLayout({
   } = await supabase.auth.getUser();
 
   if (!user) redirect("/auth/login");
+
+  await enforcePasswordChange(user.id);
 
   // Pull role so SiteHeader's account dropdown renders the right
   // menu (admins see Admin portal + Installer portal + Blog Manager;

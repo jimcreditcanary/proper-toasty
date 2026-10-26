@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { enforcePasswordChange } from "@/lib/auth/enforce-password-change";
 import { SiteHeader } from "@/components/site-header";
 
 // Server-side role gate. Middleware already does this, but a layout-
@@ -17,6 +18,8 @@ export default async function AdminLayout({
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect("/auth/login?redirect=/admin");
+
+  await enforcePasswordChange(user.id);
 
   const { data: profile } = await supabase
     .from("users")

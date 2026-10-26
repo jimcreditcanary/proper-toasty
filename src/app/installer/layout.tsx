@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { enforcePasswordChange } from "@/lib/auth/enforce-password-change";
 import { SiteHeader } from "@/components/site-header";
 
 // Server-side role gate. Mirrors the admin layout — redundant with
@@ -27,6 +28,8 @@ export default async function InstallerLayout({
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect("/auth/login?redirect=/installer");
+
+  await enforcePasswordChange(user.id);
 
   const { data: profile } = await supabase
     .from("users")
