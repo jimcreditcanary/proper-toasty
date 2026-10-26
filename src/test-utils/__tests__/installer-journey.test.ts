@@ -102,6 +102,7 @@ function freshDb(): InMemoryDb {
         api_key: null,
         role: "installer",
         blocked: false,
+        installer_id: INSTALLER_ID,
       },
     ],
     installers: [
