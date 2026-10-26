@@ -400,10 +400,36 @@ export function UserRowActions({
 
       {pickerOpen && (
         <InstallerPicker
-          userId={userId}
-          userEmail={email}
+          heading="Bind to installer"
+          pickLabel="Bind →"
+          subheading={
+            <>
+              Binding <span className="font-medium text-navy">{email}</span>.
+              Pick an installer to give them portal access.
+            </>
+          }
           onClose={() => setPickerOpen(false)}
-          onBound={() => startTransition(() => router.refresh())}
+          onPick={async (installer) => {
+            const ok = window.confirm(
+              `Bind ${email} to ${installer.company_name}? They'll get installer-portal access on their next page load.`,
+            );
+            if (!ok) return;
+            const res = await fetch(
+              `/api/admin/users/${userId}/installer-binding`,
+              {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ installer_id: installer.id }),
+              },
+            );
+            const j = await res.json().catch(() => ({}));
+            if (!res.ok) {
+              alert(j.error ?? "Binding failed");
+              return;
+            }
+            setPickerOpen(false);
+            startTransition(() => router.refresh());
+          }}
         />
       )}
 

@@ -11,7 +11,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Building2, Loader2, Search, X } from "lucide-react";
 
-interface InstallerResult {
+export interface InstallerResult {
   id: number;
   company_name: string;
   email: string | null;
@@ -19,17 +19,30 @@ interface InstallerResult {
 }
 
 interface Props {
-  userId: string;
-  userEmail: string;
+  /**
+   * Describes what the picker is being used for — shown in the sub-head
+   * so admins know what they're about to do. Defaults to "Pick an installer".
+   */
+  heading?: string;
+  subheading?: React.ReactNode;
+  /**
+   * Called when the admin clicks a result. The parent decides what to
+   * do with the pick — the row-action variant immediately persists via
+   * the installer-binding API; the create-user variant just stashes
+   * the selection for the next step.
+   */
+  onPick: (installer: InstallerResult) => void | Promise<void>;
   onClose: () => void;
-  onBound: () => void;
+  /** Shown next to each result ("Bind →" vs "Select →"). */
+  pickLabel?: string;
 }
 
 export function InstallerPicker({
-  userId,
-  userEmail,
+  heading = "Pick an installer",
+  subheading,
+  onPick,
   onClose,
-  onBound,
+  pickLabel = "Select →",
 }: Props) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -75,28 +88,10 @@ export function InstallerPicker({
     inputRef.current?.focus();
   }, []);
 
-  async function bind(installerId: number, companyName: string) {
-    const ok = window.confirm(
-      `Bind ${userEmail} to ${companyName}? They'll get installer-portal access on their next page load.`,
-    );
-    if (!ok) return;
-    setCommitting(installerId);
+  async function pick(installer: InstallerResult) {
+    setCommitting(installer.id);
     try {
-      const res = await fetch(
-        `/api/admin/users/${userId}/installer-binding`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ installer_id: installerId }),
-        },
-      );
-      const j = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        alert(j.error ?? "Binding failed");
-        return;
-      }
-      onBound();
-      onClose();
+      await onPick(installer);
     } finally {
       setCommitting(null);
     }
@@ -116,9 +111,7 @@ export function InstallerPicker({
         <div className="flex items-center justify-between p-4 border-b border-slate-200">
           <div className="flex items-center gap-2">
             <Building2 className="w-5 h-5 text-coral" />
-            <h2 className="text-base font-semibold text-navy">
-              Bind to installer
-            </h2>
+            <h2 className="text-base font-semibold text-navy">{heading}</h2>
           </div>
           <button
             type="button"
@@ -131,11 +124,9 @@ export function InstallerPicker({
         </div>
 
         <div className="p-4 border-b border-slate-100">
-          <p className="text-xs text-slate-600 mb-2">
-            Binding{" "}
-            <span className="font-medium text-navy">{userEmail}</span>. Pick
-            an installer to give them portal access.
-          </p>
+          {subheading && (
+            <p className="text-xs text-slate-600 mb-2">{subheading}</p>
+          )}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
             <input
@@ -167,7 +158,7 @@ export function InstallerPicker({
                 <li key={r.id}>
                   <button
                     type="button"
-                    onClick={() => void bind(r.id, r.company_name)}
+                    onClick={() => void pick(r)}
                     disabled={committing != null}
                     className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left hover:bg-slate-50 disabled:opacity-50 transition-colors"
                   >
@@ -183,7 +174,7 @@ export function InstallerPicker({
                       <Loader2 className="w-4 h-4 text-coral animate-spin shrink-0" />
                     ) : (
                       <span className="text-[11px] font-semibold text-coral shrink-0">
-                        Bind →
+                        {pickLabel}
                       </span>
                     )}
                   </button>
