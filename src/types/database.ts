@@ -1020,6 +1020,16 @@ export interface Database {
           // Migration 075 — welcome-card dismissal lives on the
           // installer row (replaces users.installer_onboarding_dismissed_at).
           welcome_card_dismissed_at: string | null;
+          // Migration 088 — installer business confirmation.
+          legal_structure:
+            | "limited_company"
+            | "sole_trader"
+            | "partnership"
+            | "llp"
+            | null;
+          business_details_confirmed_at: string | null;
+          business_details_confirmed_by: string | null;
+          mcs_scraped_snapshot: Json | null;
           created_at: string;
           updated_at: string;
         };
@@ -1111,6 +1121,16 @@ export interface Database {
             | null;
           // Migration 075 — welcome-card dismissal
           welcome_card_dismissed_at?: string | null;
+          // Migration 088 — installer business confirmation.
+          legal_structure?:
+            | "limited_company"
+            | "sole_trader"
+            | "partnership"
+            | "llp"
+            | null;
+          business_details_confirmed_at?: string | null;
+          business_details_confirmed_by?: string | null;
+          mcs_scraped_snapshot?: Json | null;
           created_at?: string;
           updated_at?: string;
         };
