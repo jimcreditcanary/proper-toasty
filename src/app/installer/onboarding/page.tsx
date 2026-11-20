@@ -24,6 +24,7 @@ import {
   Image as ImageIcon,
   MessageSquare,
   CreditCard,
+  Building2,
 } from "lucide-react";
 import { loadOnboardingState } from "@/lib/outreach/onboarding";
 import { tierLabel, tierCredits } from "@/lib/outreach/tier-preview";
@@ -92,6 +93,15 @@ export default async function OnboardingPage() {
       <ol className="space-y-3">
         <StepCard
           number={1}
+          icon={<Building2 className="w-5 h-5" />}
+          title="Confirm your business"
+          body="Check (or correct) the Companies House match attached to your listing, and set your public trading address."
+          credits={state.steps.business.credits}
+          completed={state.steps.business.completed}
+          href="/installer/onboarding/confirm-business"
+        />
+        <StepCard
+          number={2}
           icon={<ImageIcon className="w-5 h-5" />}
           title="Complete your profile"
           body="Logo, services confirmation, coverage areas, short bio. Powers how you appear on directory pages."
@@ -100,7 +110,7 @@ export default async function OnboardingPage() {
           href="/installer/onboarding/profile"
         />
         <StepCard
-          number={2}
+          number={3}
           icon={<MessageSquare className="w-5 h-5" />}
           title="Answer 6 questions"
           body="We use your answers to draft a personal-voice blog post under your byline. You review and approve before publishing."
@@ -109,7 +119,7 @@ export default async function OnboardingPage() {
           href="/installer/onboarding/questions"
         />
         <StepCard
-          number={3}
+          number={4}
           icon={<CreditCard className="w-5 h-5" />}
           title="Connect a card"
           body="For future credit top-ups when you run low. We don't charge anything today — this just saves you re-entering details later."

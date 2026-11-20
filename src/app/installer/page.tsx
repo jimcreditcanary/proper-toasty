@@ -145,6 +145,10 @@ export default async function InstallerHomePage() {
     ReturnType<typeof loadInstallerDashboardMetrics>
   > | null = null;
   let outreachOnboarding: OnboardingState | null = null;
+  // Show the confirm-business prompt only when the user has
+  // actually claimed this listing and hasn't yet confirmed the
+  // attached business details. See propertoasty#217.
+  let needsBusinessConfirm = false;
   // "Missed because no slots — reachable now" — installer_lead_outreach
   // rows where contacted_at is still NULL, joined to the homeowner lead
   // for display. Migration 071.
@@ -174,13 +178,17 @@ export default async function InstallerHomePage() {
         }>(),
       admin
         .from("installers")
-        .select("id, company_name, logo_url, welcome_card_dismissed_at")
+        .select(
+          "id, company_name, logo_url, welcome_card_dismissed_at, claimed_at, business_details_confirmed_at",
+        )
         .eq("id", (await getBoundInstallerId(admin, user.id)) ?? -1)
         .maybeSingle<{
           id: number;
           company_name: string;
           logo_url: string | null;
           welcome_card_dismissed_at: string | null;
+          claimed_at: string | null;
+          business_details_confirmed_at: string | null;
         }>(),
     ]);
 
@@ -195,6 +203,9 @@ export default async function InstallerHomePage() {
     if (installerRes.data) {
       companyName = installerRes.data.company_name;
       const installerId = installerRes.data.id;
+      needsBusinessConfirm =
+        installerRes.data.claimed_at != null &&
+        installerRes.data.business_details_confirmed_at == null;
       const [
         pendingRes,
         availabilityRes,
@@ -311,6 +322,30 @@ export default async function InstallerHomePage() {
 
       {outreachOnboarding && (
         <OutreachOnboardingBanner state={outreachOnboarding} />
+      )}
+
+      {needsBusinessConfirm && (
+        <Link
+          href="/installer/onboarding/confirm-business"
+          className="block rounded-xl border border-amber-200 bg-amber-50 p-4 mb-5 hover:border-amber-300 transition-colors"
+        >
+          <div className="flex items-start gap-3 text-sm">
+            <AlertCircle className="w-5 h-5 shrink-0 mt-0.5 text-amber-700" />
+            <div className="flex-1">
+              <p className="font-semibold text-amber-900">
+                Please confirm your business details
+              </p>
+              <p className="text-xs text-amber-900 mt-1 leading-relaxed">
+                We attached the Companies House match our scraper guessed.
+                Take 30 seconds to confirm (or correct) what shows on your
+                public listing.
+              </p>
+              <p className="text-xs text-amber-800 mt-1.5 font-medium">
+                Confirm business →
+              </p>
+            </div>
+          </div>
+        </Link>
       )}
 
       {checklist && shouldShowWelcomeCard(checklist, welcomeCardDismissedAt) && (
