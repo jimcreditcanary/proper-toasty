@@ -25,6 +25,9 @@ export interface OnboardingState {
   tier: Tier | null;
   // Each step's completion + per-step credit promise (for the UI).
   steps: {
+    // business is a correctness check (propertoasty#217), not an
+    // outreach-credit step — credits stays 0.
+    business: { completed: boolean; credits: 0 };
     profile: { completed: boolean; credits: number };
     questions: { completed: boolean; credits: number };
     blog: { completed: boolean; credits: number };
@@ -81,6 +84,16 @@ export async function loadOnboardingState(
   const blogDone = recipient?.blog_post_completed_at != null;
   const cardDone = recipient?.card_connected_at != null;
 
+  // Business confirmation is stamped on the installer row directly
+  // (there's no outreach-recipient column for it) so this is a
+  // separate lookup.
+  const { data: businessRow } = await admin
+    .from("installers")
+    .select("business_details_confirmed_at")
+    .eq("id", installerId)
+    .maybeSingle<{ business_details_confirmed_at: string | null }>();
+  const businessDone = businessRow?.business_details_confirmed_at != null;
+
   // For non-outreach users, the "completed" state is derived from
   // direct DB signals (logo present, bio present, blog post, etc).
   // For Phase 5 scope we keep it simple: non-outreach users
@@ -93,6 +106,7 @@ export async function loadOnboardingState(
     recipientId: recipient?.id ?? null,
     tier,
     steps: {
+      business: { completed: businessDone, credits: 0 },
       profile: { completed: profileDone, credits: cred("profile") },
       questions: { completed: questionsDone, credits: cred("questions") },
       // Blog is in the same step as questions for credit-grant
@@ -103,7 +117,7 @@ export async function loadOnboardingState(
       card: { completed: cardDone, credits: cred("card") },
     },
     isComplete:
-      profileDone && questionsDone && blogDone && cardDone,
+      businessDone && profileDone && questionsDone && blogDone && cardDone,
   };
 }
 

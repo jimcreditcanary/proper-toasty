@@ -25,6 +25,7 @@ function mkState(overrides: Partial<OnboardingState> = {}): OnboardingState {
     recipientId: "rec_1",
     tier: "founder",
     steps: {
+      business: { completed: true, credits: 0 },
       profile: { completed: false, credits: 60 },
       questions: { completed: false, credits: 120 },
       blog: { completed: false, credits: 0 },
@@ -51,6 +52,7 @@ describe("computeRemainingSteps — outreach + profile complete", () => {
     const r = computeRemainingSteps(
       mkState({
         steps: {
+          business: { completed: true, credits: 0 },
           profile: { completed: true, credits: 60 },
           questions: { completed: false, credits: 120 },
           blog: { completed: false, credits: 0 },
@@ -69,6 +71,7 @@ describe("computeRemainingSteps — outreach + profile + questions complete", ()
     const r = computeRemainingSteps(
       mkState({
         steps: {
+          business: { completed: true, credits: 0 },
           profile: { completed: true, credits: 60 },
           questions: { completed: true, credits: 120 },
           blog: { completed: true, credits: 0 },
@@ -88,6 +91,7 @@ describe("computeRemainingSteps — all four steps complete", () => {
       mkState({
         isComplete: true,
         steps: {
+          business: { completed: true, credits: 0 },
           profile: { completed: true, credits: 60 },
           questions: { completed: true, credits: 120 },
           blog: { completed: true, credits: 0 },
@@ -108,6 +112,7 @@ describe("computeRemainingSteps — non-outreach user", () => {
         tier: null,
         recipientId: null,
         steps: {
+          business: { completed: true, credits: 0 },
           profile: { completed: false, credits: 0 },
           questions: { completed: false, credits: 0 },
           blog: { completed: false, credits: 0 },
@@ -127,6 +132,7 @@ describe("computeRemainingSteps — standard tier (all per-step credits zero)", 
       mkState({
         tier: "standard",
         steps: {
+          business: { completed: true, credits: 0 },
           profile: { completed: false, credits: 0 },
           questions: { completed: false, credits: 0 },
           blog: { completed: false, credits: 0 },
@@ -155,6 +161,7 @@ describe("computeRemainingSteps — blog pending but questions submitted", () =>
     const r = computeRemainingSteps(
       mkState({
         steps: {
+          business: { completed: true, credits: 0 },
           profile: { completed: true, credits: 60 },
           questions: { completed: true, credits: 120 },
           blog: { completed: false, credits: 0 },
