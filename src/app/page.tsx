@@ -63,15 +63,17 @@ export default function Home() {
               <span className="text-coral">save.</span>
             </h1>
 
-            <p className="mt-5 text-lg text-[var(--muted-brand)] leading-relaxed max-w-xl">
+            {/* Subhead + bullets hidden below the lg breakpoint so
+                the mini-wizard sits directly under the headline on
+                mobile — pushes the form above the fold on phones.
+                Shown from lg+ where the two-column layout puts them
+                in the left column next to the form. */}
+            <p className="mt-5 text-lg text-[var(--muted-brand)] leading-relaxed max-w-xl hidden lg:block">
               Real UK 2026 numbers on a heat pump, solar, home battery —
               or all three. Grant-inclusive. No jargon.
             </p>
 
-            {/* Objection-removing bullets — moved back to the LEFT
-                column per Jim's brief. The reassurance sits with
-                the story; the form column stays purely functional. */}
-            <ul className="mt-8 space-y-3">
+            <ul className="mt-8 space-y-3 hidden lg:block">
               {[
                 {
                   strong: "Under 5 seconds",
